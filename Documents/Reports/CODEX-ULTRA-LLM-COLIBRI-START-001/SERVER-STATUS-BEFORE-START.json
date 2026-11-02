@@ -1,0 +1,69 @@
+{
+  "checked_at": "2026-11-01T12:00:56.535884+00:00",
+  "computer": "DESKTOP-KT4G5SM",
+  "status": "stopped",
+  "plan": {
+    "home": "C:\\Users\\silver\\AppData\\Local\\colibri",
+    "engine": "C:\\Users\\silver\\AppData\\Local\\colibri\\runtime\\colibri-v2.1.0\\qwen36.exe",
+    "launcher": "C:\\Users\\silver\\AppData\\Local\\colibri\\runtime\\colibri-v2.1.0\\coli",
+    "model": "C:\\Server\\Ultra_LLM\\Base_LLM\\Models\\Qwen3-Coder-30B-A3B",
+    "model_id": "qwen3-coder-30b-a3b-colibri",
+    "host": "127.0.0.1",
+    "port": 8000,
+    "base_url": "http://127.0.0.1:8000",
+    "backend": "cuda",
+    "config_path": "C:\\Users\\silver\\AppData\\Local\\colibri\\setup.json",
+    "saved_model_name": "Qwen3.6-35B-A3B",
+    "saved_model_dir": "C:\\Server\\Ultra_LLM\\Base_LLM\\Models\\Qwen3-Coder-30B-A3B",
+    "ram_gb": 12,
+    "ctx": 4096,
+    "cap": 32,
+    "config_sha256": "b1206c32cef7bfe88b8e0b6c307299c61dd8721960888de6a4a7dc8b3d4aadf7"
+  },
+  "health": {
+    "error": "<urlopen error [WinError 10061] Подключение не установлено, т.к. конечный компьютер отверг запрос на подключение>"
+  },
+  "models": {},
+  "memory": {
+    "total_gib": 47.94,
+    "available_gib": 41.93,
+    "load_percent": 12
+  },
+  "colibri_processes": [],
+  "managed_gateway_verified": false,
+  "engine_process_count": 0,
+  "configured_backend": "cuda",
+  "running_plan": null,
+  "backend_verification": "inspect health tiers/hwinfo, engine log and NVIDIA process list; configuration alone is not GPU proof",
+  "gpu": {
+    "nvidia_smi_exit": 0,
+    "gpus_csv": "0, NVIDIA GeForce RTX 3070, 560.94, 8192, 262, 2",
+    "compute_apps_csv": "1396, [Insufficient Permissions], [N/A]\n7900, C:\\Windows\\explorer.exe, [N/A]\n9316, C:\\Windows\\SystemApps\\Microsoft.Windows.Search_cw5n1h2txyewy\\SearchApp.exe, [N/A]\n10456, C:\\Windows\\SystemApps\\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\\TextInputHost.exe, [N/A]\n5004, C:\\Program Files\\WindowsApps\\Microsoft.YourPhone_1.25072.81.0_x64__8wekyb3d8bbwe\\PhoneExperienceHost.exe, [N/A]\n12140, C:\\Program Files\\NVIDIA Corporation\\NVIDIA GeForce Experience\\NVIDIA Share.exe, [N/A]\n4300, C:\\Windows\\SystemApps\\ShellExperienceHost_cw5n1h2txyewy\\ShellExperienceHost.exe, [N/A]\n4836, C:\\Program Files (x86)\\Steam\\bin\\cef\\cef.win64\\steamwebhelper.exe, [N/A]\n9660, [Insufficient Permissions], [N/A]",
+    "error": ""
+  },
+  "log_path": "C:\\Users\\silver\\AppData\\Local\\colibri\\logs\\serve.log",
+  "supervisor_state": {
+    "status": null,
+    "reason": null,
+    "updated_at": null
+  },
+  "model_validation": {
+    "name": "Qwen3-Coder-30B-A3B",
+    "path": "C:\\Server\\Ultra_LLM\\Base_LLM\\Models\\Qwen3-Coder-30B-A3B",
+    "geometry": {
+      "model_type": "qwen3_moe",
+      "num_hidden_layers": 48,
+      "num_experts": 128,
+      "hidden_size": 2048
+    },
+    "shards": 49,
+    "tensor_headers_checked": 12723,
+    "bytes": 19391034960,
+    "tensor_storage_types": [
+      "F16",
+      "F32",
+      "U8"
+    ],
+    "check": "headers_and_file_bounds_only_not_full_weight_hashes"
+  }
+}

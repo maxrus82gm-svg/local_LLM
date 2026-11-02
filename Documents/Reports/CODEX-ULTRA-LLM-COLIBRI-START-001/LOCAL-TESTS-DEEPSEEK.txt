@@ -1,0 +1,48 @@
+Supervisor PID: 123; waiting up to 3s for a healthy engine...
+test_all_49_weight_headers_and_bounds (__main__.ControlTests.test_all_49_weight_headers_and_bounds) ... ok
+test_api_rejects_other_service_on_same_port (__main__.ControlTests.test_api_rejects_other_service_on_same_port) ... ok
+test_benchmark_refuses_unverified_engine_before_any_generation (__main__.ControlTests.test_benchmark_refuses_unverified_engine_before_any_generation) ... ok
+test_config_cannot_call_setup (__main__.ControlTests.test_config_cannot_call_setup) ... ok
+test_credential_redaction (__main__.ControlTests.test_credential_redaction) ... ok
+test_credentials_not_in_command_or_public_plan (__main__.ControlTests.test_credentials_not_in_command_or_public_plan) ... ok
+test_cuda_and_cpu_are_explicit_no_silent_fallback (__main__.ControlTests.test_cuda_and_cpu_are_explicit_no_silent_fallback) ... ok
+test_deepseek_cuda_requires_existing_generic_dll (__main__.ControlTests.test_deepseek_cuda_requires_existing_generic_dll) ... ok
+test_deepseek_missing_shard_and_truncation_detected (__main__.ControlTests.test_deepseek_missing_shard_and_truncation_detected) ... ok
+test_deepseek_native_index_headers_and_geometry (__main__.ControlTests.test_deepseek_native_index_headers_and_geometry) ... ok
+test_deepseek_profile_is_passed_to_background_supervisor (__main__.ControlTests.test_deepseek_profile_is_passed_to_background_supervisor) ... ok
+test_deepseek_selected_profile_cannot_mislabel_qwen (__main__.ControlTests.test_deepseek_selected_profile_cannot_mislabel_qwen) ... ok
+test_deepseek_uses_own_engine_and_session_limits_without_config_write (__main__.ControlTests.test_deepseek_uses_own_engine_and_session_limits_without_config_write) ... ok
+test_deepseek_wrong_index_and_path_traversal_detected (__main__.ControlTests.test_deepseek_wrong_index_and_path_traversal_detected) ... ok
+test_existing_supervisor_wrong_api_model_is_not_success (__main__.ControlTests.test_existing_supervisor_wrong_api_model_is_not_success) ... ok
+test_generation_without_usage_refused (__main__.ControlTests.test_generation_without_usage_refused) ... ok
+test_gpu_app_report_contains_only_colibri_pids (__main__.ControlTests.test_gpu_app_report_contains_only_colibri_pids) ... ok
+test_lan_without_key_refused (__main__.ControlTests.test_lan_without_key_refused) ... ok
+test_last_profile_legacy_and_deepseek_state (__main__.ControlTests.test_last_profile_legacy_and_deepseek_state) ... ok
+test_launch_is_existing_serve_without_setup_or_rebuild (__main__.ControlTests.test_launch_is_existing_serve_without_setup_or_rebuild) ... ok
+test_limits_checked (__main__.ControlTests.test_limits_checked) ... ok
+test_missing_runtime_fails_without_install (__main__.ControlTests.test_missing_runtime_fails_without_install) ... ok
+test_missing_weight_shard_detected (__main__.ControlTests.test_missing_weight_shard_detected) ... ok
+test_native_pid_reuse_guard_and_unrelated_python_survives (__main__.ControlTests.test_native_pid_reuse_guard_and_unrelated_python_survives) ... ok
+test_other_model_engine_is_detected_even_with_hidden_path (__main__.ControlTests.test_other_model_engine_is_detected_even_with_hidden_path) ... ok
+test_process_filter_exact_launcher_model_and_port (__main__.ControlTests.test_process_filter_exact_launcher_model_and_port) ... ok
+test_selected_api_model_id_used_in_stream_request (__main__.ControlTests.test_selected_api_model_id_used_in_stream_request) ... ok
+test_shared_supervisor_evidence_redacts_log_credentials (__main__.ControlTests.test_shared_supervisor_evidence_redacts_log_credentials) ... ok
+test_snapshot_does_not_call_other_active_model_ready (__main__.ControlTests.test_snapshot_does_not_call_other_active_model_ready) ... ok
+test_start_wait_does_not_hold_stop_lock (__main__.ControlTests.test_start_wait_does_not_hold_stop_lock) ... ok
+test_stop_can_request_shutdown_during_bootstrap (__main__.ControlTests.test_stop_can_request_shutdown_during_bootstrap) ... ok
+test_stop_does_not_kill_unowned_engine_by_default (__main__.ControlTests.test_stop_does_not_kill_unowned_engine_by_default) ... ok
+test_stop_request_checks_pidfile (__main__.ControlTests.test_stop_request_checks_pidfile) ... ok
+test_stop_selected_deepseek_follows_actual_qwen_session (__main__.ControlTests.test_stop_selected_deepseek_follows_actual_qwen_session) ... ok
+test_supervisor_profile_mismatch_never_launches (__main__.ControlTests.test_supervisor_profile_mismatch_never_launches) ... ok
+test_switch_missing_runtime_does_not_stop_active_model (__main__.ControlTests.test_switch_missing_runtime_does_not_stop_active_model) ... ok
+test_truncated_weight_data_detected (__main__.ControlTests.test_truncated_weight_data_detected) ... ok
+test_two_sequential_mock_streams_with_exact_usage (__main__.ControlTests.test_two_sequential_mock_streams_with_exact_usage) ... ok
+test_unknown_launcher_protocol_refused (__main__.ControlTests.test_unknown_launcher_protocol_refused) ... ok
+test_unverified_engine_path_blocks_duplicate_start (__main__.ControlTests.test_unverified_engine_path_blocks_duplicate_start) ... ok
+test_wrong_host_guard (__main__.ControlTests.test_wrong_host_guard) ... ok
+test_wrong_model_cannot_be_renamed_to_coder (__main__.ControlTests.test_wrong_model_cannot_be_renamed_to_coder) ... ok
+
+----------------------------------------------------------------------
+Ran 42 tests in 3.384s
+
+OK

@@ -1,0 +1,47 @@
+{
+  "session": "203aeae6f46147d3bfddb22a156e4a30",
+  "supervisor": {
+    "pid": 18704,
+    "created_filetime": 134380639072751013
+  },
+  "status": "ready",
+  "updated_at": "2026-11-02T17:53:20.732969+00:00",
+  "log": "C:\\Users\\silver\\AppData\\Local\\colibri\\ultra\\logs\\20261102-083147-203aeae6.log",
+  "gateway": {
+    "pid": 22060,
+    "created_filetime": 134380639074081402
+  },
+  "plan": {
+    "home": "C:\\Users\\silver\\AppData\\Local\\colibri",
+    "engine": "C:\\Users\\silver\\AppData\\Local\\colibri\\runtime\\colibri-v2.1.0\\qwen36.exe",
+    "launcher": "C:\\Users\\silver\\AppData\\Local\\colibri\\runtime\\colibri-v2.1.0\\coli",
+    "profile": "qwen36",
+    "model_name": "Qwen3.6-35B-A3B-UD-Q4_K_M",
+    "model": "C:\\Server\\Ultra_LLM\\Base_LLM\\Models\\Qwen3.6-35B-A3B-UD-Q4_K_M\\Qwen3.6-35B-A3B-UD-Q4_K_M.colibri",
+    "model_id": "qwen3.6-35b-a3b-colibri",
+    "host": "127.0.0.1",
+    "port": 8000,
+    "base_url": "http://127.0.0.1:8000",
+    "backend": "cuda",
+    "config_path": "C:\\Users\\silver\\AppData\\Local\\colibri\\setup.json",
+    "saved_model_name": "Qwen3.6-35B-A3B",
+    "saved_model_dir": "C:\\Server\\Ultra_LLM\\Base_LLM\\Models\\Qwen3-Coder-30B-A3B",
+    "ram_gb": 32,
+    "ctx": 16384,
+    "cap": 8,
+    "config_sha256": "b1206c32cef7bfe88b8e0b6c307299c61dd8721960888de6a4a7dc8b3d4aadf7"
+  },
+  "engines": [
+    {
+      "pid": 28100,
+      "ppid": 22060,
+      "kind": "engine",
+      "path": "C:\\Users\\silver\\AppData\\Local\\colibri\\runtime\\colibri-v2.1.0\\qwen36.exe",
+      "working_set_bytes": 4123357184,
+      "private_bytes": 11585683456,
+      "created_filetime": 134380639076293722
+    }
+  ],
+  "available_ram_gib": 36.06,
+  "log_tail": "[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -\n[api] 127.0.0.1 - \"GET /health HTTP/1.1\" 200 -"
+}

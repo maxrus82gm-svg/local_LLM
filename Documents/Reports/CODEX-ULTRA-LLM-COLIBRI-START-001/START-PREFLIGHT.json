@@ -1,0 +1,50 @@
+{
+  "checked_at": "2026-11-02T03:31:47.273067+00:00",
+  "model": {
+    "name": "Qwen3.6-35B-A3B-UD-Q4_K_M",
+    "path": "C:\\Server\\Ultra_LLM\\Base_LLM\\Models\\Qwen3.6-35B-A3B-UD-Q4_K_M\\Qwen3.6-35B-A3B-UD-Q4_K_M.colibri",
+    "geometry": {
+      "model_type": "qwen3_5_moe_text",
+      "num_hidden_layers": 40,
+      "num_experts": 256,
+      "hidden_size": 2048,
+      "num_experts_per_tok": 8,
+      "moe_intermediate_size": 512,
+      "vocab_size": 248320
+    },
+    "shards": 1,
+    "tensor_headers_checked": 0,
+    "tensor_count_header": 733,
+    "bytes": 22134528992,
+    "expert_quantization": "GGUF_UD_Q4_K_M",
+    "tensor_storage_types": [
+      "mixed_GGUF"
+    ],
+    "check": "config_link_size_and_header_only_not_full_weight_hash"
+  },
+  "memory_before": {
+    "total_gib": 47.94,
+    "available_gib": 41.5,
+    "load_percent": 13
+  },
+  "plan": {
+    "home": "C:\\Users\\silver\\AppData\\Local\\colibri",
+    "engine": "C:\\Users\\silver\\AppData\\Local\\colibri\\runtime\\colibri-v2.1.0\\qwen36.exe",
+    "launcher": "C:\\Users\\silver\\AppData\\Local\\colibri\\runtime\\colibri-v2.1.0\\coli",
+    "profile": "qwen36",
+    "model_name": "Qwen3.6-35B-A3B-UD-Q4_K_M",
+    "model": "C:\\Server\\Ultra_LLM\\Base_LLM\\Models\\Qwen3.6-35B-A3B-UD-Q4_K_M\\Qwen3.6-35B-A3B-UD-Q4_K_M.colibri",
+    "model_id": "qwen3.6-35b-a3b-colibri",
+    "host": "127.0.0.1",
+    "port": 8000,
+    "base_url": "http://127.0.0.1:8000",
+    "backend": "cuda",
+    "config_path": "C:\\Users\\silver\\AppData\\Local\\colibri\\setup.json",
+    "saved_model_name": "Qwen3.6-35B-A3B",
+    "saved_model_dir": "C:\\Server\\Ultra_LLM\\Base_LLM\\Models\\Qwen3-Coder-30B-A3B",
+    "ram_gb": 32,
+    "ctx": 16384,
+    "cap": 8,
+    "config_sha256": "b1206c32cef7bfe88b8e0b6c307299c61dd8721960888de6a4a7dc8b3d4aadf7"
+  }
+}

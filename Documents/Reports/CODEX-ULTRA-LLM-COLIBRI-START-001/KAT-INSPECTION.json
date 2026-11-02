@@ -1,0 +1,25 @@
+{
+  "checked_at": "2026-11-01T15:13:26.956547+00:00",
+  "kind": "SMB_STATIC_INSPECTION_NO_INFERENCE",
+  "name": "KAT-Coder-V2.5-Dev-Colibri",
+  "path": "\\\\192.168.0.77\\Server\\Ultra_LLM\\Base_LLM\\Models\\KAT-Coder-V2.5-Dev-Colibri",
+  "geometry": {
+    "model_type": "qwen3_5_moe_text",
+    "num_hidden_layers": 40,
+    "num_experts": 256,
+    "hidden_size": 2048,
+    "num_experts_per_tok": 8,
+    "moe_intermediate_size": 512,
+    "vocab_size": 248320
+  },
+  "shards": 41,
+  "tensor_headers_checked": 21093,
+  "bytes": 23018430392,
+  "expert_quantization": "int4_gs64",
+  "tensor_storage_types": [
+    "F16",
+    "F32",
+    "U8"
+  ],
+  "check": "headers_and_file_bounds_only_not_full_weight_hashes"
+}

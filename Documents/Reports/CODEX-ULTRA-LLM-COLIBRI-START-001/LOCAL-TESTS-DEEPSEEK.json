@@ -1,0 +1,52 @@
+{
+  "checked_at": "2026-11-01T13:15:59.111757+00:00",
+  "kind": "LOCAL_UNIT_AND_MOCK_TESTS_NO_SERVER_INFERENCE",
+  "computer": "DESKTOP-SC96D3U",
+  "tests_run": 42,
+  "tests_exit_code": 0,
+  "output_file": "LOCAL-TESTS-DEEPSEEK.txt",
+  "bat_guards": [
+    {
+      "file": "ULTRA-START.bat",
+      "wrong_host_exit": 3
+    },
+    {
+      "file": "ULTRA-STOP.bat",
+      "wrong_host_exit": 3
+    },
+    {
+      "file": "ULTRA-STATUS.bat",
+      "wrong_host_exit": 3
+    },
+    {
+      "file": "ULTRA-SELECT.bat",
+      "wrong_host_exit": 3
+    }
+  ],
+  "upstream_checks": [
+    {
+      "file": "START-HERE.bat",
+      "unchanged": true
+    },
+    {
+      "file": "c\\coli",
+      "unchanged": true
+    },
+    {
+      "file": "c\\setup_flow.py",
+      "unchanged": true
+    },
+    {
+      "file": "c\\family_registry.py",
+      "unchanged": true
+    },
+    {
+      "file": "c\\openai_server.py",
+      "unchanged": true
+    },
+    {
+      "file": "c\\version.py",
+      "unchanged": true
+    }
+  ]
+}

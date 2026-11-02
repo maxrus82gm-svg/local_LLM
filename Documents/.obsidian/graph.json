@@ -1,0 +1,58 @@
+{
+  "collapse-filter": true,
+  "search": "-file:\"REPORT-DEEPSEEK-CONNECT-001\" -file:\"REPORT-KAT-CONNECT-001\" -file:\"ULTRA-README\" -file:\"REPORT-CODEX-ULTRA-LLM-COLIBRI-START-001\" -file:\"SERVER-STATUS\" -file:\"14.12_KAT-Coder-V2.5_МАЯК-47_ответ_раунд1\" -file:\"Шаблон_карточки_теста\" -file:\"KAT-Coder_MAYAK-47_R3_Старт\"",
+  "showTags": false,
+  "showAttachments": false,
+  "hideUnresolved": false,
+  "showOrphans": true,
+  "collapse-color-groups": true,
+  "colorGroups": [
+    {
+      "query": "file:\"000_Задачи для агента\" OR file:\"07_Задачи Codex\" OR file:\"07.00_История_задач_Codex\"",
+      "color": {
+        "a": 1,
+        "rgb": 3066993
+      }
+    },
+    {
+      "query": "file:\"08_Задачи Claude\" OR file:\"08_1_История_задач_Claude\"",
+      "color": {
+        "a": 1,
+        "rgb": 15844367
+      }
+    },
+    {
+      "query": "file:\"05_Реестр_задач\"",
+      "color": {
+        "a": 1,
+        "rgb": 15158332
+      }
+    },
+    {
+      "query": "file:\"13_Тактический_контекст\"",
+      "color": {
+        "a": 1,
+        "rgb": 3447003
+      }
+    },
+    {
+      "query": "file:\"17_KAT-Coder-V2.5\" OR file:\"17.1_KAT-Coder-V2.5_кратко\" OR file:\"19_Qwen3.6-35B-A3B\" OR file:\"19.1_Qwen3.6-35B-A3B_кратко\"",
+      "color": {
+        "a": 1,
+        "rgb": 3447003
+      }
+    }
+  ],
+  "collapse-display": true,
+  "showArrow": false,
+  "textFadeMultiplier": 0,
+  "nodeSizeMultiplier": 1,
+  "lineSizeMultiplier": 1,
+  "collapse-forces": false,
+  "centerStrength": 0.232,
+  "repelStrength": 7.13756097560976,
+  "linkStrength": 0.881365853658537,
+  "linkDistance": 148,
+  "scale": 0.9999999999999908,
+  "close": false
+}

@@ -1,0 +1,222 @@
+{
+  "main": {
+    "id": "20a96a6b15e3c8f5",
+    "type": "split",
+    "children": [
+      {
+        "id": "5a23c7aba354ad61",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "b830a0ae8b2d0ac5",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Граф"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "10986acf0fa7b4fc",
+    "type": "split",
+    "children": [
+      {
+        "id": "aae267e2ccc73c05",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "d97ce5ef51f01047",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Файловый менеджер"
+            }
+          },
+          {
+            "id": "8619d1e3aa11f10d",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Поиск"
+            }
+          },
+          {
+            "id": "e4d590f26903135e",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-bookmark",
+              "title": "Закладки"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "45f50491c3071d08",
+    "type": "split",
+    "children": [
+      {
+        "id": "8587e4a125db58fc",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "df6b112c16666821",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Обратные ссылки"
+            }
+          },
+          {
+            "id": "7f510834bf9c49d6",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Исходящие ссылки"
+            }
+          },
+          {
+            "id": "4da29770fab9cf65",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Теги"
+            }
+          },
+          {
+            "id": "03abd1fe892f693d",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "Все свойства"
+            }
+          },
+          {
+            "id": "a1221db9e990dc83",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Структура"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Меню быстрого перехода": false,
+      "graph:Граф": false,
+      "canvas:Создать новый холст": false,
+      "daily-notes:Сегодняшняя заметка": false,
+      "templates:Вставить шаблон": false,
+      "command-palette:Открыть палитру команд": false,
+      "bases:Создать новую базу": false
+    }
+  },
+  "active": "b830a0ae8b2d0ac5",
+  "lastOpenFiles": [
+    "19.1_Qwen3.6-35B-A3B_кратко.md",
+    "Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/test_ultra_control.py.bak-think-default-20261102",
+    "Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/test_ultra_control.py.bak-ctx16k-20261102",
+    "19_Qwen3.6-35B-A3B.md",
+    "Reports/LEGACY_Инструкция_GGUF_Ollama_Colibri_Qwen38_20261101.txt",
+    "Reports/LEGACY_Инструкция_добавления_LLM_в_меню_Colibri_20261102.txt",
+    "18_Техническая_документация.md",
+    "10.1_Справочник_LLM.md",
+    "Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/SERVER-STATUS-20261101T193510769515-21812.json",
+    "Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/SERVER-STATUS-20261101T193449920495-21812.json",
+    "Reports/QWEN38_COLIBRI_MENU_INTEGRATION_20261102.md",
+    "Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/test_ultra_control.py.bak-qwen38-20261102",
+    "Инструкция_GGUF_Ollama_Colibri_Qwen38_2026-11-01.md",
+    "Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/SERVER-STATUS-20261101T183617364225-17368.json",
+    "Reports/KAT-Coder_MAYAK-47_R3_Старт.md",
+    "Reports/KAT-Coder-V2.5_MAYAK-47_round4_original_20261101.txt",
+    "Reports/KAT-Coder-V2.5_MAYAK-47_round3_original_20261101.txt",
+    "17.1_KAT-Coder-V2.5_кратко.md",
+    "15_Оценка_LLM.md",
+    "Шаблон_карточки_теста.md",
+    "17_KAT-Coder-V2.5.md",
+    "16_МАЯК-47_эталон.md",
+    "03_Архитектура.md",
+    "14.10_KAT-Coder-V2.5_МАЯК-47.md",
+    "14.02_МАЯК-47_эталон.md",
+    "14.01_Шаблон_карточки_теста.md",
+    "14_Тестирование_LLM.md",
+    "14.12_KAT-Coder-V2.5_МАЯК-47_ответ_раунд1.md",
+    "Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/REPORT-KAT-CONNECT-001.md",
+    "Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/BEFORE-KAT-20261101-201053/ULTRA-README.md",
+    "Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/REPORT-DEEPSEEK-CONNECT-001.md",
+    "Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/BEFORE-DEEPSEEK-20261101-180528/ULTRA-README.md",
+    "Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/SERVER-STATUS.md",
+    "Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/REPORT-CODEX-ULTRA-LLM-COLIBRI-START-001.md",
+    "000_Задачи для агента.md"
+  ]
+}

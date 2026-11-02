@@ -1,0 +1,51 @@
+{
+  "collapse-filter": true,
+  "search": "",
+  "showTags": false,
+  "showAttachments": false,
+  "hideUnresolved": false,
+  "showOrphans": true,
+  "collapse-color-groups": true,
+  "colorGroups": [
+    {
+      "query": "file:\"000_Задачи для агента\" OR file:\"07_Задачи Codex\" OR file:\"07.00_История_задач_Codex\"",
+      "color": {
+        "a": 1,
+        "rgb": 3066993
+      }
+    },
+    {
+      "query": "file:\"08_Задачи Claude\" OR file:\"08_1_История_задач_Claude\"",
+      "color": {
+        "a": 1,
+        "rgb": 15844367
+      }
+    },
+    {
+      "query": "file:\"05_Реестр_задач\"",
+      "color": {
+        "a": 1,
+        "rgb": 15158332
+      }
+    },
+    {
+      "query": "file:\"13_Тактический_контекст\"",
+      "color": {
+        "a": 1,
+        "rgb": 3447003
+      }
+    }
+  ],
+  "collapse-display": true,
+  "showArrow": false,
+  "textFadeMultiplier": 0,
+  "nodeSizeMultiplier": 1,
+  "lineSizeMultiplier": 1,
+  "collapse-forces": false,
+  "centerStrength": 0.0946341463414634,
+  "repelStrength": 5.26439024390244,
+  "linkStrength": 0.207024390243902,
+  "linkDistance": 212,
+  "scale": 0.71327546262244,
+  "close": false
+}

@@ -1,0 +1,71 @@
+{
+  "checked_at": "2026-11-01T13:43:33.900463+00:00",
+  "computer": "DESKTOP-KT4G5SM",
+  "status": "stopped",
+  "plan": {
+    "home": "C:\\Users\\silver\\AppData\\Local\\colibri",
+    "engine": "C:\\Users\\silver\\AppData\\Local\\colibri\\runtime\\colibri-v2.1.0\\deepseek_v4.exe",
+    "launcher": "C:\\Users\\silver\\AppData\\Local\\colibri\\runtime\\colibri-v2.1.0\\coli",
+    "profile": "deepseek",
+    "model_name": "DeepSeek-V4-Flash-REAP-150B",
+    "model": "C:\\Server\\Ultra_LLM\\Base_LLM\\Models\\DeepSeek-V4-Flash-REAP-150B",
+    "model_id": "deepseek-v4-flash-reap-150b-colibri",
+    "host": "127.0.0.1",
+    "port": 8000,
+    "base_url": "http://127.0.0.1:8000",
+    "backend": "cuda",
+    "config_path": "C:\\Users\\silver\\AppData\\Local\\colibri\\setup.json",
+    "saved_model_name": "Qwen3.6-35B-A3B",
+    "saved_model_dir": "C:\\Server\\Ultra_LLM\\Base_LLM\\Models\\Qwen3-Coder-30B-A3B",
+    "ram_gb": 24,
+    "ctx": 16384,
+    "cap": 16,
+    "config_sha256": "b1206c32cef7bfe88b8e0b6c307299c61dd8721960888de6a4a7dc8b3d4aadf7"
+  },
+  "health": {
+    "error": "<urlopen error [WinError 10061] Подключение не установлено, т.к. конечный компьютер отверг запрос на подключение>"
+  },
+  "models": {},
+  "memory": {
+    "total_gib": 47.94,
+    "available_gib": 41.42,
+    "load_percent": 13
+  },
+  "colibri_processes": [],
+  "managed_gateway_verified": false,
+  "engine_process_count": 0,
+  "configured_backend": "cuda",
+  "available_profiles": {
+    "qwen": {
+      "name": "Qwen3-Coder-30B-A3B",
+      "model_directory_present": true,
+      "engine_present": true,
+      "generic_cuda_dll_present": null,
+      "note": "File presence only; does not prove load or generation"
+    },
+    "deepseek": {
+      "name": "DeepSeek-V4-Flash-REAP-150B",
+      "model_directory_present": true,
+      "engine_present": true,
+      "generic_cuda_dll_present": true,
+      "note": "File presence only; does not prove load or generation"
+    }
+  },
+  "running_plan": null,
+  "backend_verification": "inspect health tiers/hwinfo, engine log and NVIDIA process list; configuration alone is not GPU proof",
+  "gpu": {
+    "nvidia_smi_exit": 0,
+    "gpus_csv": "0, NVIDIA GeForce RTX 3070, 560.94, 8192, 311, 2",
+    "colibri_compute_apps_csv": "",
+    "other_process_entries_omitted": 10,
+    "error": ""
+  },
+  "colibri_working_sets_gib": 0.0,
+  "colibri_private_bytes_gib": 0.0,
+  "log_path": "C:\\Users\\silver\\AppData\\Local\\colibri\\ultra\\logs\\20261101-183516-145a2d7d.log",
+  "supervisor_state": {
+    "status": "stopped",
+    "reason": "owner requested stop",
+    "updated_at": "2026-11-01T13:43:30.995474+00:00"
+  }
+}

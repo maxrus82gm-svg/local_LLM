@@ -1,0 +1,16 @@
+{
+  "defaultViewMode": "source",
+  "showLineNumber": true,
+  "rightToLeft": false,
+  "useTab": true,
+  "tabSize": 7,
+  "autoConvertHtml": true,
+  "smartIndentList": false,
+  "spellcheck": true,
+  "foldIndent": true,
+  "foldHeading": true,
+  "strictLineBreaks": false,
+  "propertiesInDocument": "source",
+  "showInlineTitle": true,
+  "readableLineLength": true
+}

@@ -1,0 +1,35 @@
+{
+  "checked_at": "2026-11-01T15:18:13.020997+00:00",
+  "files": [
+    {
+      "file": "ULTRA-START.bat",
+      "bytes": 511,
+      "sha256": "87af9418a61a6b476590100fe3ec5ef6dad910314a87cd4ccffcbaf83d6d2216"
+    },
+    {
+      "file": "ULTRA-STOP.bat",
+      "bytes": 444,
+      "sha256": "63a63a3b3ab612c3e4d38d4f33b0db965689314d034c231af2189211eb56efdb"
+    },
+    {
+      "file": "ULTRA-STATUS.bat",
+      "bytes": 471,
+      "sha256": "13b215098aca9c34d93f74139f4eda2fc88967051eba5f0f6247f8f0f1901d5a"
+    },
+    {
+      "file": "ULTRA-SELECT.bat",
+      "bytes": 975,
+      "sha256": "97d8d827291716b7e0c5faf7f5f6a2cf84b052e2a43d22c7f2313e0f714ba820"
+    },
+    {
+      "file": "ULTRA-CONTROL.py",
+      "bytes": 53969,
+      "sha256": "c6b83f6235f6aae0bc11aae16c13c881df7e8e544801158944ef177993633fc0"
+    },
+    {
+      "file": "ULTRA-README.md",
+      "bytes": 16000,
+      "sha256": "6af66f20922ea020876bd2e8a59a336fb6f8653ab4310d68c9a30aabde82b219"
+    }
+  ]
+}

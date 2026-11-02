@@ -1,0 +1,20 @@
+{
+  "checked_at": "2026-11-01T15:13:27.489589+00:00",
+  "note": "Read existing archives in memory only; server private installed runtime not read or modified",
+  "members": [
+    {
+      "archive": "colibri-v2.1.0-windows-x86_64.zip",
+      "member": "qwen36.exe",
+      "bytes": 3590462,
+      "sha256": "31af27c7716b3202e32c898764023ac879f98d5ecbf8ea36841f47dd3702d125",
+      "gs64_banner_present": true
+    },
+    {
+      "archive": "colibri-v2.1.0-windows-x86_64-cuda.zip",
+      "member": "coli_cuda.dll",
+      "bytes": 72550912,
+      "sha256": "4e290e7123aa76c03df78a54c98b2fdac56af5346197a29f2cc2a258a161cc26",
+      "gs64_banner_present": null
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "Model": "Qwen3-Coder-30B-A3B",
+  "ModelType": "qwen3_moe",
+  "Layers": 48,
+  "Experts": 128,
+  "HiddenSize": 2048,
+  "Shards": 49,
+  "TensorHeadersChecked": 12723,
+  "WeightBytes": 19391034960,
+  "StorageTypes": [
+    "F16",
+    "F32",
+    "U8"
+  ],
+  "FullWeightHashesChecked": false,
+  "ActualWeightLoadingOnServerChecked": false,
+  "SourceRegistryDisplay": "Qwen3-Coder-30B-A3B",
+  "SourceFamily": "qwen36",
+  "FamilyDefaultLabel": "Qwen3.6-35B-A3B",
+  "BaseArchiveSHA256Matches": true,
+  "CudaArchiveSHA256Matches": true,
+  "ServerRuntimeConfigRead": false,
+  "RemoteShellAvailable": false,
+  "TcpPortsNotReachableAtProbe": [
+    22,
+    5985,
+    5986,
+    8000,
+    8001,
+    8080
+  ],
+  "Rpc135ReachableButCimTimedOut": true,
+  "DirectUNCSourceAccess": true,
+  "DesktopCommanderUsed": false
+}

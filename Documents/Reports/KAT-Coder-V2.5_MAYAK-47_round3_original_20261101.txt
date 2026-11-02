@@ -1,0 +1,417 @@
+# R3: Исправленная версия InteractionLab
+
+## 1. Таблица замечаний R3-01…R3-08
+
+| ID | Проблема | Принцип | Исправление |
+|---|---|---|---|
+| R3-01 | `UNINTERFACE` — не существует в UE5. UHT требует `UINTERFACE` + отдельный `U...` класс для метаданных + `I...` класс с `GENERATED_BODY()` | Правильная структура интерфейса UHT | Создан `UIInteractiveObject` (UInterface) и `IInteractiveObject` (интерфейс) |
+| R3-02 | `= 0` на `BlueprintNativeEvent` — конфликт: UHT не генерирует `_Implementation` при `= 0` | `BlueprintNativeEvent` генерирует stub `_Implementation`, который нужно реализовать | Убран `= 0`, добавлена реализация `ToggleInteraction_Implementation()` |
+| R3-03 | `AddInputMappingContext` на контроллере — не стандартный способ Enhanced Input | `UEnhancedInputLocalPlayerSubsystem` — правильный API | Использован subsystem через `ULocalPlayer` |
+| R3-04 | `GetWorld() && DefaultMappingContext` — логическое И, результат bool присваивается UWorld* | Ошибка типов, неиспользуемая переменная | Разделены проверки, убрана переменная World |
+| R3-05 | `CameraComponent` создан в .cpp, но нет объявления в .h; `GetCapsuleComponent()` требует `UCapsuleComponent` | Владение компонентом, полные типы | Добавлен `UPROPERTY` CameraComponent, `#include CapsuleComponent.h` |
+| R3-06 | Прямой вызов `Interactive->ToggleInteraction()` — не гарантирует путь через UHT для BlueprintNativeEvent | `IInteractiveObject::Execute_ToggleInteraction()` — стандартный путь | Использован `Execute_ToggleInteraction()` |
+| R3-07 | `ETriggerEvent::Completed` — срабатывает при отпускании; для нажатия нужно `Started` или `Trigger` | Триггеры Enhanced Input | Изменено на `ETriggerEvent::Started` |
+| R3-08 | Отсутствуют `#include "EnhancedInputComponent.h"`, `#include "GameFramework/CapsuleComponent.h"`, порядок include | Порядок и полнота include | Добавлены все необходимые include |
+
+---
+
+## 2. Полные файлы
+
+### IInteractiveObject.h
+
+```cpp
+#pragma once
+
+#include "CoreMinimal.h"
+#include "UObject/Interface.h"
+#include "IInteractiveObject.generated.h"
+
+// UInterface-класс для метаданных UHT.
+// Обязателен: UHT генерирует таблицу интерфейсов на его основе.
+UINTERFACE(BlueprintType, MinimalAPI)
+class UIInteractiveObject : public UInterface
+{
+    GENERATED_BODY()
+};
+
+// Интерфейсный класс. Содержит объявления методов.
+// GENERATED_BODY() генерирует vtable и интерфейсные методы.
+class INTERACTIONLAB_API IInteractiveObject
+{
+    GENERATED_BODY()
+
+public:
+    // BlueprintNativeEvent генерирует:
+    // 1) Публичный метод ToggleInteraction(), который вызывает Implementation
+    // 2) Защищённый метод ToggleInteraction_Implementation() для переопределения
+    // НЕ используйте = 0 — это конфликтует с генерацией UHT.
+    UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interactive")
+    virtual bool ToggleInteraction() const;
+};
+```
+
+### IInteractiveObject.cpp
+
+```cpp
+#include "IInteractiveObject.h"
+
+// Пустая реализация по умолчанию.
+// BlueprintNativeEvent требует, чтобы метод был определён (не чисто виртуальный).
+bool IInteractiveObject::ToggleInteraction() const
+{
+    return false;
+}
+```
+
+**Зачем нужен .cpp:** UHT требует, чтобы `GENERATED_BODY()` имел определение для всех методов, объявленных в классе. Без `.cpp` линковщик не найдёт `IInteractiveObject::ToggleInteraction()`.
+
+---
+
+### InteractiveLamp.h
+
+```cpp
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "IInteractiveObject.h"
+#include "InteractiveLamp.generated.h"
+
+UCLASS()
+class INTERACTIONLAB_API AInteractiveLamp : public AActor, public IInteractiveObject
+{
+    GENERATED_BODY()
+
+public:
+    AInteractiveLamp();
+
+protected:
+    virtual void BeginPlay() override;
+
+public:
+    // Переопределение Implementation-метода, сгенерированного UHT для BlueprintNativeEvent.
+    virtual bool ToggleInteraction_Implementation() const override;
+
+private:
+    UPROPERTY(VisibleDefaultsOnly, Category = "Lamp")
+    UStaticMeshComponent* LightMesh;
+
+    UPROPERTY(VisibleDefaultsOnly, Category = "Lamp")
+    UPointLightComponent* LightSource;
+
+    UPROPERTY(Transient)
+    bool bIsLightOn;
+
+    UPROPERTY(Transient)
+    float LastToggleTime;
+
+    static constexpr float MinToggleInterval = 0.35f;
+};
+```
+
+---
+
+### InteractiveLamp.cpp
+
+```cpp
+#include "InteractiveLamp.h"
+#include "Components/StaticMeshComponent.h"
+#include "Components/PointLightComponent.h"
+
+AInteractiveLamp::AInteractiveLamp()
+{
+    PrimaryActorTick.bCanEverTick = false;
+
+    LightMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LightMesh"));
+    RootComponent = LightMesh;
+
+    LightSource = CreateDefaultSubobject<UPointLightComponent>(TEXT("LightSource"));
+    LightSource->SetupAttachment(RootComponent);
+    // Свет на +35 см по локальной оси Z относительно меша.
+    LightSource->SetRelativeLocation(FVector(0.f, 0.f, 35.f));
+
+    // Первоначально свет включён.
+    bIsLightOn = true;
+    LightSource->SetVisibility(true);
+
+    // Инициализация отрицательным значением: первое взаимодействие сразу доступно.
+    LastToggleTime = -MinToggleInterval;
+}
+
+void AInteractiveLamp::BeginPlay()
+{
+    Super::BeginPlay();
+}
+
+bool AInteractiveLamp::ToggleInteraction_Implementation() const
+{
+    const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+    if (CurrentTime - LastToggleTime < MinToggleInterval)
+    {
+        return false;
+    }
+
+    bIsLightOn = !bIsLightOn;
+    LightSource->SetVisibility(bIsLightOn);
+    LastToggleTime = CurrentTime;
+    return true;
+}
+```
+
+---
+
+### InteractionLabCharacter.h
+
+```cpp
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Character.h"
+#include "InputActionValue.h"
+#include "InteractionLabCharacter.generated.h"
+
+class UInputMappingContext;
+class UInputAction;
+class UCameraComponent;
+
+UCLASS()
+class INTERACTIONLAB_API AInteractionLabCharacter : public ACharacter
+{
+    GENERATED_BODY()
+
+public:
+    AInteractionLabCharacter();
+
+protected:
+    virtual void BeginPlay() override;
+    virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+
+    UFUNCTION()
+    void OnInteract(const FInputActionValue& ActionValue);
+
+private:
+    UPROPERTY(EditDefaultsOnly, Category = "Input")
+    UInputMappingContext* DefaultMappingContext;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Input")
+    UInputAction* InteractAction;
+
+    UPROPERTY(VisibleDefaultsOnly, Category = "Camera")
+    UCameraComponent* CameraComponent;
+
+    void TryInteract();
+
+    static constexpr float InteractionMaxDistance = 425.f;
+};
+```
+
+---
+
+### InteractionLabCharacter.cpp
+
+```cpp
+#include "InteractionLabCharacter.h"
+#include "IInteractiveObject.h"
+#include "Camera/CameraComponent.h"
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/CapsuleComponent.h"
+#include "EnhancedInputComponent.h"
+#include "InputAction.h"
+#include "InputMappingContext.h"
+#include "Engine/World.h"
+#include "Subsystems/LocalPlayerSubsystem.h"
+#include "EnhancedInputSubsystems.h"
+
+AInteractionLabCharacter::AInteractionLabCharacter()
+{
+    PrimaryActorTick.bCanEverTick = false;
+
+    CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
+    CameraComponent->SetupAttachment(GetCapsuleComponent());
+    CameraComponent->bUsePawnControlRotation = true;
+
+    InteractAction = CreateDefaultSubobject<UInputAction>(TEXT("InteractAction"));
+}
+
+void AInteractionLabCharacter::BeginPlay()
+{
+    Super::BeginPlay();
+
+    APlayerController* PC = Cast<APlayerController>(GetController());
+    if (!PC) return;
+
+    ULocalPlayer* LocalPlayer = PC->GetLocalPlayer();
+    if (!LocalPlayer) return;
+
+    UEnhancedInputLocalPlayerSubsystem* Subsystem =
+        LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
+    if (!Subsystem) return;
+
+    if (DefaultMappingContext)
+    {
+        Subsystem->AddMappingContext(DefaultMappingContext, 0);
+    }
+}
+
+void AInteractionLabCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+    Super::SetupPlayerInputComponent(PlayerInputComponent);
+
+    if (UEnhancedInputComponent* EnhancedComp = Cast<UEnhancedInputComponent>(PlayerInputComponent))
+    {
+        if (InteractAction)
+        {
+            // ETriggerEvent::Started — срабатывает при нажатии клавиши.
+            EnhancedComp->BindAction(InteractAction, ETriggerEvent::Started, this,
+                &AInteractionLabCharacter::OnInteract);
+        }
+    }
+}
+
+void AInteractionLabCharacter::OnInteract(const FInputActionValue& ActionValue)
+{
+    TryInteract();
+}
+
+void AInteractionLabCharacter::TryInteract()
+{
+    UWorld* World = GetWorld();
+    if (!World) return;
+
+    APlayerController* PC = Cast<APlayerController>(GetController());
+    if (!PC) return;
+
+    FVector Start = CameraComponent->GetComponentLocation();
+    FRotator CamRot = CameraComponent->GetComponentRotation();
+    FVector Direction = CamRot.Vector();
+    FVector End = Start + Direction * InteractionMaxDistance;
+
+    FHitResult Hit;
+    FCollisionQueryParams Params(TEXT("InteractionTrace"), true, this);
+
+    bool bHit = World->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params);
+
+    if (!bHit || !Hit.GetActor()) return;
+
+    // Правильная диспетчеризация через интерфейс UHT.
+    IInteractiveObject* Interactive = Cast<IInteractiveObject>(Hit.GetActor());
+    if (!Interactive) return;
+
+    // Execute_ToggleInteraction — сгенерированный UHT метод, который корректно
+    // вызывает BlueprintNativeEvent (C++ Implementation или Blueprint).
+    Interactive->Execute_ToggleInteraction(Hit.GetActor());
+}
+```
+
+---
+
+### InteractionLab.Build.cs
+
+```csharp
+using UnrealBuildTool;
+
+public class InteractionLab : ModuleRules
+{
+    public InteractionLab(ReadOnlyTargetRules Target) : base(Target)
+    {
+        PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+
+        PublicDependencyModuleNames.AddRange(new[]
+        {
+            "Core",
+            "CoreUObject",
+            "Engine",
+            "InputCore",
+            "EnhancedInput"
+        });
+    }
+}
+```
+
+---
+
+## 3. Настройка UE5
+
+### Asset: Input Action
+1. **Content Browser → Right Click → Input → Input Action**
+2. Имя: `IA_Interact`
+3. Triggers: `Pressed` (не Completed!)
+
+### Asset: Input Mapping Context
+1. **Content Browser → Right Click → Input → Input Mapping Context**
+2. Имя: `IMC_InteractionLab`
+3. В деталях: Actions → `+` → `IA_Interact`
+4. Key binding: `E`
+
+### Character Blueprint
+1. Создайте Blueprint на основе `AInteractionLabCharacter`
+2. В деталях: **Input → Default Mapping Context** → выберите `IMC_InteractionLab`
+3. **Input → Actions → +** → выберите `IA_Interact` (должен совпадать с IMC)
+
+### GameMode
+1. Создайте Blueprint GameMode на основе `AInteractionLabCharacter`
+2. **Default Class** → `AInteractionLabCharacter`
+3. Установите в Project Settings → Maps & Modes
+
+### Капсульный коллайдер
+- `GetCapsuleComponent()` работает по умолчанию (ACharacter создаёт его автоматически)
+- Убедитесь, что `CollisionProfileName = Character` или `Pawn`
+
+### Свет
+- `UPointLightComponent` создан в конструкторе, привязан к RootComponent
+- Смещение `FVector(0, 0, 35)` — локальная ось Z меша
+
+---
+
+## 4. Текстовое ревью
+
+| Проверка | Статус | Комментарий |
+|---|---|---|
+| `UINTERFACE` объявлен корректно | ✅ | `UIInteractiveObject : public UInterface` + `IInteractiveObject` с `GENERATED_BODY()` |
+| UHT генерирует `_Implementation` | ✅ | `BlueprintNativeEvent` без `= 0`, реализация в `.cpp` |
+| `Execute_ToggleInteraction` используется | ✅ | В `TryInteract()` вызов через `Execute_ToggleInteraction(Hit.GetActor())` |
+| Enhanced Input subsystem | ✅ | `UEnhancedInputLocalPlayerSubsystem::AddMappingContext` |
+| Null-check subsystem и LocalPlayer | ✅ | Проверки перед использованием |
+| `ETriggerEvent::Started` | ✅ | Срабатывает при нажатии |
+| `InteractAction` один и тот же в конструкторе и IMC | ✅ | `CreateDefaultSubobject(TEXT("InteractAction"))` + настройка в BP |
+| Поле `CameraComponent` в .h | ✅ | `UPROPERTY(VisibleDefaultsOnly)` объявлен |
+| `#include "EnhancedInputComponent.h"` | ✅ | Добавлен |
+| `#include "GameFramework/CapsuleComponent.h"` | ✅ | Добавлен |
+| `#include "EnhancedInputSubsystems.h"` | ✅ | Добавлен |
+| `#include "Subsystems/LocalPlayerSubsystem.h"` | ✅ | Добавлен |
+| Свет включён изначально | ✅ | `bIsLightOn = true`, `SetVisibility(true)` |
+| Cooldown инициализирован | ✅ | `LastToggleTime = -MinToggleInterval` |
+| Свет +35 Z | ✅ | `SetRelativeLocation(FVector(0, 0, 35))` |
+| Line Trace 425 см | ✅ | `InteractionMaxDistance = 425.f` |
+| Нет Tick | ✅ | `bCanEverTick = false` |
+| Interface через UHT | ✅ | `Execute_ToggleInteraction` |
+
+---
+
+## 5. Таблица требований МАЯК-47 v1.0
+
+| # | Требование | Статус | Расположение |
+|---|---|---|---|
+| 1 | Проект `InteractionLab`, `INTERACTIONLAB_API` | PASS (по тексту) | `Build.cs`, все `.h`/`.cpp` |
+| 2 | Взаимодействие по нажатию E | PASS (по тексту) | `IA_Interact` → `E`, `ETriggerEvent::Started` |
+| 3 | Enhanced Input | PASS (по тексту) | `EnhancedInputComponent`, `UEnhancedInputLocalPlayerSubsystem` |
+| 4 | Line Trace вдоль взгляда камеры | PASS (по тексту) | `TryInteract()`: `CameraComponent->GetComponentLocation()` |
+| 5 | Дистанция 425 см | PASS (по тексту) | `InteractionMaxDistance = 425.f` |
+| 6 | C++ Interface | PASS (по тексту) | `IInteractiveObject`, `UIInteractiveObject` |
+| 7 | `UStaticMeshComponent` + `UPointLightComponent` | PASS (по тексту) | `InteractiveLamp.h`, `InteractiveLamp.cpp` |
+| 8 | Свет включён изначально, переключение | PASS (по тексту) | `bIsLightOn = true`, `ToggleInteraction_Implementation()` |
+| 9 | Свет +35 см по локальной Z | PASS (по тексту) | `SetRelativeLocation(FVector(0, 0, 35))` |
+| 10 | Cooldown 0.35 с | PASS (по тексту) | `MinToggleInterval = 0.35f`, `LastToggleTime` |
+| 11 | Без Tick | PASS (по тексту) | `PrimaryActorTick.bCanEverTick = false` |
+| 12 | Корректность UObject, UPROPERTY, UFUNCTION | PASS (по тексту) | Все макросы на местах, `GENERATED_BODY()` |
+
+---
+
+## 6. Непроверенное
+
+- **COMPILE = NOT RUN** — компиляция не выполнялась
+- **UHT = NOT RUN** — генерация заголовков не проверялась
+- **RUNTIME = NOT RUN** — запуск в UE5 не выполнялся
+- **Build.cs модули** — `EnhancedInput` подключён, но линковка не проверена
+- **Blueprint-вызов интерфейса** — путь `Execute_ToggleInteraction` корректен по документации, но не протестирован
+- **Позднее назначение Controller** — `BeginPlay()` может не сработать, если Controller назначен позже; требуется проверка `OnPossess()` или `PossessedBy()`

@@ -1,0 +1,634 @@
+--- before/ULTRA-SELECT.bat
++++ after/ULTRA-SELECT.bat
+@@ -6,16 +6,16 @@
+ echo.
+ echo Choose ONE model. The active Colibri session will be stopped first.
+ echo 1 - Qwen3-Coder-30B-A3B
+-echo 2 - DeepSeek-V4-Flash-REAP-150B - experimental, disk streaming
++echo 2 - KAT-Coder-V2.5-Dev-Colibri - int4 gs64
+ echo 3 - Cancel
+ echo.
+ choice /C 123 /N /M "Select [1/2/3]: "
+ if errorlevel 3 goto :cancel
+-if errorlevel 2 goto :deepseek
++if errorlevel 2 goto :kat
+ if errorlevel 1 goto :qwen
+ goto :cancel
+-:deepseek
+-set "ULTRA_MODEL=deepseek"
++:kat
++set "ULTRA_MODEL=kat"
+ goto :run
+ :qwen
+ set "ULTRA_MODEL=qwen"
+--- before/ULTRA-CONTROL.py
++++ after/ULTRA-CONTROL.py
+@@ -39,10 +39,13 @@
+     "qwen": {"name": "Qwen3-Coder-30B-A3B", "folder": "Qwen3-Coder-30B-A3B",
+              "engine": "qwen36.exe", "model_id": "qwen3-coder-30b-a3b-colibri",
+              "ram": 12, "ctx": 16384, "cap": 32, "wait": 300},
+-    "deepseek": {"name": "DeepSeek-V4-Flash-REAP-150B", "folder": "DeepSeek-V4-Flash-REAP-150B",
+-                 "engine": "deepseek_v4.exe", "model_id": "deepseek-v4-flash-reap-150b-colibri",
+-                 "ram": 24, "ctx": 16384, "cap": 16, "wait": 600},
++    "kat": {"name": "KAT-Coder-V2.5-Dev-Colibri", "folder": "KAT-Coder-V2.5-Dev-Colibri",
++            "engine": "qwen36.exe", "model_id": "kat-coder-v2.5-dev-colibri",
++            "ram": 16, "ctx": 16384, "cap": 32, "wait": 600},
+ }
++# Keep recognizing the retired engine, so a leftover process still blocks a
++# duplicate start and an already recorded session can be stopped safely.
++KNOWN_ENGINE_NAMES = {"qwen36.exe", "deepseek_v4.exe"}
+ GIB = 1024 ** 3
+ SECRET = re.compile(r"(?i)(bearer\s+)[^\s\"']+|((?:api[_-]?key|password|token|secret)[\"']?\s*[:=]\s*[\"']?)[^\s,\"']+")
+ 
+@@ -185,75 +188,49 @@
+             "available_gib": round(state.available / GIB, 2), "load_percent": state.load}
+ 
+ 
+-def inspect_deepseek(model, config):
+-    wanted = {"model_type": "deepseek_v4", "num_hidden_layers": 43,
+-              "n_routed_experts": 132, "hidden_size": 4096, "num_experts_per_tok": 6}
+-    if any(config.get(k) != v for k, v in wanted.items()):
+-        raise ControlError("DeepSeek does not match the inspected 43-layer / 132-expert REAP-150B checkpoint")
+-    if not (model / "tokenizer.json").is_file():
+-        raise ControlError("DeepSeek tokenizer.json is missing; nothing will be downloaded")
+-    index = read_json(model / "model.safetensors.index.json", {})
+-    mapping = index.get("weight_map")
+-    if not isinstance(mapping, dict) or not mapping:
+-        raise ControlError("DeepSeek safetensors index is missing/invalid")
+-    if any(not isinstance(n, str) or Path(n).name != n or "/" in n or "\\" in n
+-           for n in mapping.values()):
+-        raise ControlError("DeepSeek shard index contains an unsafe path")
+-    names = sorted(set(mapping.values()))
+-    seen, types, total = set(), set(), 0
+-    for name in names:
+-        path = model / name
+-        size = path.stat().st_size
+-        with path.open("rb") as handle:
+-            raw = handle.read(8)
+-            if len(raw) != 8:
+-                raise ControlError("Truncated DeepSeek shard header: " + name)
+-            length = struct.unpack("<Q", raw)[0]
+-            if not 2 <= length <= min(16 * 1024 * 1024, size - 8):
+-                raise ControlError("Invalid DeepSeek shard header length: " + name)
+-            header = json.loads(handle.read(length))
+-        intervals = []
+-        for key, tensor in header.items():
+-            if key == "__metadata__":
+-                continue
+-            start, end = tensor["data_offsets"]
+-            if key in seen or mapping.get(key) != name or not 0 <= start <= end <= size - length - 8:
+-                raise ControlError("Invalid DeepSeek tensor mapping/bounds: " + key)
+-            seen.add(key)
+-            types.add(tensor["dtype"])
+-            intervals.append((start, end))
+-        ordered = sorted(intervals)
+-        if any(a[1] > b[0] for a, b in zip(ordered, ordered[1:])):
+-            raise ControlError("Overlapping DeepSeek tensors: " + name)
+-        total += size
+-    if seen != set(mapping):
+-        raise ControlError("DeepSeek index references missing tensors")
+-    return {"name": PROFILES["deepseek"]["name"], "path": str(model), "geometry": wanted,
+-            "shards": len(names), "tensor_headers_checked": len(seen), "bytes": total,
+-            "tensor_storage_types": sorted(types), "source_index_complete": True,
+-            "conversion_required": False, "check": "headers_index_and_bounds_only_not_full_weight_hashes"}
++
++
++def validate_kat_header(header, layer):
++    if layer is None:
++        required = {"model.embed_tokens.weight": ("F16", [248320, 2048]),
++                    "lm_head.weight": ("F16", [248320, 2048]), "model.norm.weight": ("F16", [2048])}
++    else:
++        required = {f"model.layers.{layer}.mlp.experts.{expert}.{suffix}": (dtype, shape)
++                    for expert in range(256)
++                    for suffix, dtype, shape in (("merged_weight", "U8", [1572864]),
++                                                 ("qs", "F32", [49152]))}
++    for key, (dtype, shape) in required.items():
++        tensor = header.get(key, {})
++        if tensor.get("dtype") != dtype or tensor.get("shape") != shape:
++            raise ControlError("KAT gs64 tensor is missing or has the wrong layout: " + key)
+ 
+ 
+ def inspect_model(model=None):
+     selected = model is None
+     model = Path(model or MODEL)
+     config = read_json(model / "config.json", {})
+-    if config.get("model_type") == "deepseek_v4":
+-        if selected and SELECTED_PROFILE != "deepseek":
+-            raise ControlError("The selected Qwen directory contains a DeepSeek model")
+-        return inspect_deepseek(model, config)
+-    if selected and SELECTED_PROFILE != "qwen":
+-        raise ControlError("The selected DeepSeek directory does not contain a deepseek_v4 model")
+-    wanted = {"model_type": "qwen3_moe", "num_hidden_layers": 48, "num_experts": 128, "hidden_size": 2048}
++    kat = SELECTED_PROFILE == "kat" if selected else config.get("model_type") == "qwen3_5_moe_text"
++    name = PROFILES["kat" if kat else "qwen"]["name"]
++    wanted = ({"model_type": "qwen3_5_moe_text", "num_hidden_layers": 40, "num_experts": 256,
++               "hidden_size": 2048, "num_experts_per_tok": 8, "moe_intermediate_size": 512,
++               "vocab_size": 248320} if kat else
++              {"model_type": "qwen3_moe", "num_hidden_layers": 48, "num_experts": 128, "hidden_size": 2048})
+     if any(config.get(k) != v for k, v in wanted.items()):
+-        raise ControlError("Model geometry is not Qwen3-Coder-30B-A3B; refusing a misleading model label")
++        raise ControlError(f"Model geometry is not {name}; refusing a misleading model label")
+     for name in ("tokenizer.json", "qwen36_meta.json"):
+         if not (model / name).is_file():
+             raise ControlError(f"Missing model file: {name}; nothing will be downloaded")
+     meta = read_json(model / "qwen36_meta.json", {})
+-    if meta.get("model_type") != "qwen3_moe" or meta.get("n_layers") != 48 or meta.get("num_experts") != 128:
++    expected_meta = ({"model_type": "qwen3_5_moe", "n_layers": 40, "num_experts": 256,
++                      "hidden": 2048, "topk": 8, "moe_inter": 512, "ebits": 4, "expert_gs": 64}
++                     if kat else {"model_type": "qwen3_moe", "n_layers": 48, "num_experts": 128})
++    if any(meta.get(k) != v for k, v in expected_meta.items()):
+         raise ControlError("Converted model metadata disagrees with config.json")
+-    names = [f"model-{layer:05d}.safetensors" for layer in range(48)] + ["model-globals.safetensors"]
++    if kat:
++        layout = ["full_attention" if layer % 4 == 3 else "linear_attention" for layer in range(40)]
++        if config.get("layer_types") != layout or meta.get("layer_types") != layout:
++            raise ControlError("KAT hybrid attention layout disagrees with the inspected checkpoint")
++    names = [f"model-{layer:05d}.safetensors" for layer in range(wanted["num_hidden_layers"])] + ["model-globals.safetensors"]
+     count, total, types = 0, 0, set()
+     for name in names:
+         path = model / name
+@@ -266,6 +243,8 @@
+             if not 2 <= length <= min(16 * 1024 * 1024, size - 8):
+                 raise ControlError(f"Invalid safetensors header length: {name}")
+             header = json.loads(handle.read(length))
++        if kat:
++            validate_kat_header(header, None if name == "model-globals.safetensors" else int(name[6:11]))
+         tensors = [(key, value) for key, value in header.items() if key != "__metadata__"]
+         if not tensors:
+             raise ControlError(f"No tensors in {name}")
+@@ -274,6 +253,15 @@
+             start, end = tensor["data_offsets"]
+             if not 0 <= start <= end <= size - 8 - length:
+                 raise ControlError(f"Tensor offset outside shard: {name}: {key}")
++            if kat:
++                item_bytes = {"U8": 1, "F16": 2, "F32": 4}.get(tensor["dtype"])
++                elements = 1
++                for dimension in tensor["shape"]:
++                    if not isinstance(dimension, int) or dimension < 0:
++                        raise ControlError("Invalid KAT tensor shape: " + key)
++                    elements *= dimension
++                if item_bytes is None or end - start != elements * item_bytes:
++                    raise ControlError("KAT tensor shape/dtype disagrees with its data length: " + key)
+             intervals.append((start, end))
+             types.add(tensor["dtype"])
+         ordered = sorted(intervals)
+@@ -281,8 +269,9 @@
+             raise ControlError(f"Overlapping tensors in {name}")
+         total += size
+         count += len(tensors)
+-    return {"name": "Qwen3-Coder-30B-A3B", "path": str(model), "geometry": wanted,
++    return {"name": PROFILES["kat" if kat else "qwen"]["name"], "path": str(model), "geometry": wanted,
+             "shards": len(names), "tensor_headers_checked": count, "bytes": total,
++            "expert_quantization": "int4_gs64" if kat else "converted_colibri",
+             "tensor_storage_types": sorted(types), "check": "headers_and_file_bounds_only_not_full_weight_hashes"}
+ 
+ 
+@@ -339,8 +328,6 @@
+     backend = backend or cfg["backend"]
+     if backend not in ("cpu", "cuda", "vulkan"):
+         raise ControlError("Backend must be cpu, cuda or vulkan")
+-    if SELECTED_PROFILE == "deepseek" and backend == "vulkan":
+-        raise ControlError("This DeepSeek profile supports the inspected CUDA or CPU path; Vulkan was not verified")
+     port = int(cfg["port"])
+     if not 1 <= port <= 65535:
+         raise ControlError("Invalid configured API port")
+@@ -371,19 +358,15 @@
+                COLI_VULKAN="1" if backend == "vulkan" else "0",
+                PYTHONUNBUFFERED="1", PYTHONDONTWRITEBYTECODE="1", COLI_COLOR="0")
+     env.update(HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1", HF_DATASETS_OFFLINE="1")
+-    if SELECTED_PROFILE == "deepseek":
++    if SELECTED_PROFILE == "kat":
+         command += ["--no-think"]
+-        # The server has an 8 GiB RTX 3070. Keep the large prefill expert bank
+-        # off beside dense mirrors. Use only the already installed generic DLL.
+-        env.update(DSV4_CUDA="1" if backend == "cuda" else "0",
+-                   CUDA_DENSE="1" if backend == "cuda" else "0",
+-                   COLI_CUDA_ATTN_BATCH="1" if backend == "cuda" else "0",
+-                   COLI_CUDA_MOE_BATCH="0", DSV4_CUDA_TC="0",
+-                   COLI_DSV4_DLL=str(engine.parent / "coli_cuda_dsv4.dll"),
+-                   DSV4_CUDA_EXPERT_MIRRORS="32", DSV4_CUDA_VRAM_RESERVE_MB="768",
+-                   V4_DRAFT="0", V4_MTP="0")
+-        if backend == "cuda" and not (engine.parent / "coli_cuda_dsv4.dll").is_file():
+-            raise ControlError("Existing runtime has no generic coli_cuda_dsv4.dll; no download/extraction was attempted")
++        # This checkpoint has no MTP block. Keep the first controlled test on
++        # ordinary decoding; use the existing qwen36 gs64 expert tier.
++        env["Q36_MTP"] = "0"
++        env["HEAT_FILE"] = str(home / "ultra" / "kat-heat.bin")
++        env["COLI_USAGE"] = str(home / "ultra" / "kat-usage.bin")
++        if backend == "cuda" and not (engine.parent / "coli_cuda.dll").is_file():
++            raise ControlError("Existing runtime has no coli_cuda.dll for the KAT expert tier; no download/extraction was attempted")
+     # Vulkan resources and DLL discovery stay beside the installed engine.
+     env["PATH"] = str(engine.parent) + os.pathsep + env.get("PATH", "")
+     if backend == "vulkan" and (engine.parent / "shaders").is_dir():
+@@ -414,7 +397,7 @@
+     return {key: {"name": profile["name"],
+                   "model_directory_present": (PROJECT / "Base_LLM" / "Models" / profile["folder"]).is_dir(),
+                   "engine_present": (runtime / profile["engine"]).is_file(),
+-                  "generic_cuda_dll_present": (runtime / "coli_cuda_dsv4.dll").is_file() if key == "deepseek" else None,
++                  "cuda_dll_present": (runtime / "coli_cuda.dll").is_file(),
+                   "note": "File presence only; does not prove load or generation"}
+             for key, profile in PROFILES.items()}
+ 
+@@ -428,7 +411,7 @@
+         for key in ("engine", "launcher"):
+             if not (inside(recorded[key], PROJECT) or inside(recorded[key], home)):
+                 raise ControlError("Recorded active runtime path is outside the approved installation")
+-        if Path(recorded["engine"]).name.lower() not in {p["engine"] for p in PROFILES.values()}:
++        if Path(recorded["engine"]).name.lower() not in KNOWN_ENGINE_NAMES:
+             raise ControlError("Unexpected recorded active engine")
+         return dict(requested, **recorded)
+     return requested
+@@ -475,8 +458,8 @@
+     env = os.environ.copy()
+     env.update(ULTRA_ENGINE=plan["engine"], ULTRA_MODEL=plan["model"],
+                ULTRA_PORT=str(plan["port"]),
+-               ULTRA_OTHER_ENGINES=json.dumps({"paths": [str(Path(plan["engine"]).with_name(p["engine"]))
+-                    for p in PROFILES.values() if p["engine"] != Path(plan["engine"]).name.lower()]}),
++               ULTRA_OTHER_ENGINES=json.dumps({"paths": [str(Path(plan["engine"]).with_name(name))
++                    for name in sorted(KNOWN_ENGINE_NAMES) if name != Path(plan["engine"]).name.lower()]}),
+                ULTRA_LAUNCHERS=json.dumps({"paths": [plan["launcher"], str(ROOT / "c" / "coli")]}))
+     result = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", PROCESS_SCRIPT],
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", env=env,
+@@ -954,8 +937,7 @@
+     results = []
+     try:
+         for number in (1, 2):
+-            result = stream_turn(plan, messages, timeout=600 if plan.get("profile") == "deepseek" else 180,
+-                                 max_tokens=48 if plan.get("profile") == "deepseek" else 64)
++            result = stream_turn(plan, messages, timeout=300 if plan.get("profile") == "kat" else 180, max_tokens=64)
+             result.update(turn=number, profile=api(plan, "/profile"), gpu_after=gpu_status([r[0] for r in engines]))
+             results.append(result)
+             messages += [{"role": "assistant", "content": result["text"]},
+@@ -986,7 +968,7 @@
+     parser = argparse.ArgumentParser(description=__doc__)
+     parser.add_argument("action", choices=("start", "stop", "status", "_supervise"))
+     parser.add_argument("--setup-home")
+-    parser.add_argument("--model", choices=tuple(PROFILES), default=None, help="Profile: qwen or deepseek; default last selected")
++    parser.add_argument("--model", choices=tuple(PROFILES), default=None, help="Profile: qwen or kat; default last selected")
+     parser.add_argument("--switch", action="store_true", help="START: validate, stop active owned session, start selected model")
+     parser.add_argument("--ram", type=int, default=None, help="Session planner RAM budget in GB; not an OS memory cap")
+     parser.add_argument("--ctx", type=int, default=None)
+--- before/ULTRA-README.md
++++ after/ULTRA-README.md
+@@ -10,7 +10,7 @@
+ Дважды щёлкните `ULTRA-STATUS.bat` на сервере. Он ничего не устанавливает и не запускает модель.
+ Будут показаны состояние API, модель, сохранённое имя модели, процессы Colibri,
+ RAM, выбранный backend, доступные сведения NVIDIA, путь и последние строки журнала.
+-Также проверяются заголовки весов выбранной модели: 49 файлов Qwen или 17 файлов DeepSeek.
++Также проверяются заголовки весов выбранной модели: 49 файлов Qwen или 41 файл KAT.
+ Без явного `--model` используется профиль последней управляемой сессии (изначально Qwen).
+ 
+ Результат записывается в:
+@@ -37,10 +37,10 @@
+ 
+ - Требуется уже установленный `py -3.12`, существующий runtime и `setup.json`.
+ - Используются сохранённые launcher, runtime, backend, адрес, порт и окружение.
+-  В том же runtime выбирается движок семейства: `qwen36.exe` или `deepseek_v4.exe`.
++  Обе модели используют существующий `qwen36.exe`; меняются папка весов и API model ID.
+ - Команда движка — `serve`. Команды `setup`, `start`, `build`, установщики и скачивания не вызываются.
+ - Каждый профиль закреплён за своей существующей папкой в `Base_LLM\Models` и проверяется по геометрии и структуре весов.
+-- Для Qwen сохранены **сессионные** `--ram 12 --ctx 16384 --ngen 16384 --cap 32`. Для DeepSeek установлены `--ram 24 --ctx 16384 --ngen 16384 --cap 16`. Автоматический подбор кэша/tiers и сохранённые tune-профили отключены. Запрос и ответ делят контекстное окно; `--ngen` не гарантирует ответ такой длины. Изменение параметров действует только после STOP и нового START на сервере. Временный вариант Qwen с меньшим окном: `ULTRA-START.bat --model qwen --ctx 4096`.
++- Для Qwen сохранены **сессионные** `--ram 12 --ctx 16384 --ngen 16384 --cap 32`. Для KAT установлены `--ram 16 --ctx 16384 --ngen 16384 --cap 32`. Автоматический подбор кэша/tiers и сохранённые tune-профили отключены. Запрос и ответ делят контекстное окно; `--ngen` не гарантирует ответ такой длины. Изменение параметров действует только после STOP и нового START на сервере. Временный вариант Qwen с меньшим окном: `ULTRA-START.bat --model qwen --ctx 4096`.
+ - Причина ограничений: исходный автоматический режим может занять почти всю доступную RAM. `--ram` — бюджет планировщика, а не жёсткий лимит Windows. Отдельный supervisor следит за запасом свободной памяти и при его исчерпании останавливает только собственный Colibri.
+ - `setup.json` не переписывается. Backend автоматически не меняется; при ошибке GPU выводится ошибка/журнал.
+ - Дубликат при уже найденном gateway/движке не запускается. Занятый порт автоматически не меняется.
+@@ -50,28 +50,31 @@
+ `http://127.0.0.1:8000/v1`. Адрес 127.0.0.1 относится к серверу, не к домашнему ПК.
+ LAN-доступ и брандмауэр эти скрипты не перенастраивают.
+ 
+-## Выбор Qwen / DeepSeek
++## Выбор Qwen / KAT
+ 
+ На сервере откройте `C:\Server\Ultra_LLM\Colibri\ULTRA-SELECT.bat`:
+ 
+ 1. `1` — Qwen3-Coder-30B-A3B.
+-2. `2` — DeepSeek-V4-Flash-REAP-150B, экспериментальный запуск с дисковой подгрузкой.
++2. `2` — KAT-Coder-V2.5-Dev-Colibri (int4 gs64).
+ 3. `3` — отмена.
+ 
+-Одновременно управляется одна модель. Сначала проверяются файлы и runtime выбранной
++Одновременно работает одна модель. Сначала проверяются файлы и runtime выбранной
+ модели; при их отсутствии действующая сессия не останавливается. Затем выполняется
+-STOP текущей сессии с проверкой завершения и START выбранной. Старая модель не
+-восстанавливается автоматически, если новая не смогла загрузиться; выберите `1` для возврата.
+-Ничего не скачивается, не конвертируется, не распаковывается и не переустанавливается.
++STOP текущей сессии с проверкой завершения и START выбранной. При ошибке новой
++модели автоматического возврата нет; выберите `1`, чтобы снова запустить Qwen.
+ 
+-Список моделей в подключённом чате показывает то, что уже обслуживает API.
+-Выбор другого имени в чате сам по себе не загружает другую папку. Переключайте модель
+-через BAT, затем обновите список моделей в чате. Адрес и порт API остаются прежними.
++DeepSeek удалён пользователем и убран из меню и доступных профилей запуска.
++Исторические отчёты сохранены. STOP по-прежнему распознаёт записанную старую сессию
++DeepSeek и её движок, чтобы не пропустить возможный оставшийся процесс.
+ 
+-Прямой запуск DeepSeek с двумя настоящими последовательными ответами:
++В подключённом чате отображается модель, которую уже обслуживает API. Переключайте
++её через BAT, затем обновите список моделей в чате. Адрес и порт API прежние.
++Выбор имени в клиентском чате сам по себе не загружает другую папку.
++
++Прямой запуск KAT с двумя настоящими последовательными ответами:
+ 
+ ```bat
+-ULTRA-START.bat --model deepseek --switch --test
++ULTRA-START.bat --model kat --switch --test
+ ```
+ 
+ Либо `ULTRA-SELECT.bat --test` и пункт `2`. Для возврата к Qwen:
+@@ -80,29 +83,35 @@
+ ULTRA-START.bat --model qwen --switch
+ ```
+ 
+-DeepSeek имеет 43 слоя и 132 эксперта на слой; её 17 шардов занимают 84,69 GB
+-(78,87 GiB). По исходникам этой версии Colibri формат FP4-экспертов / FP8 dense
+-поддерживается движком напрямую. Структурная проверка индекса и заголовков
+-не является проверкой каждого байта весов или подтверждением генерации.
++KAT находится в `Base_LLM\Models\KAT-Coder-V2.5-Dev-Colibri`.
++Это уже конвертированный Colibri-контейнер: 40 слоёв, 256 экспертов top-8,
++int4 с групповыми масштабами gs64. Все 41 файл занимают 23,02 GB (21,44 GiB).
++Проверяются геометрия, гибридная схема attention, metadata, наличие и формы
++упакованных весов и масштабов всех экспертов, размеры данных и границы тензоров.
++Такая проверка не заменяет полное хеширование весов и реальную генерацию.
+ 
+-На сервере 47,94 GiB RAM и RTX 3070 8 GiB, поэтому все веса не поместятся в память.
+-Colibri должен читать экспертов с диска и кэшировать часть в RAM. Это может быть
+-медленно; скорость до реального теста неизвестна. Параметры DeepSeek устанавливают окно контекста 16384 токена и отключают reasoning
+-и speculative MTP/draft. Увеличенное окно может повысить расход памяти и замедлить генерацию.
+-`--ram 24` оставляет запас системе и относится только к процессам этой сессии.
++Модель поддерживается семейством `qwen36` установленного исходного кода Colibri.
++В журнале может быть название движка qwen36 / Qwen3.6 — это обозначение архитектуры.
++Выбранная KAT закреплена за своим каталогом и API ID `kat-coder-v2.5-dev-colibri`;
++профиль Qwen использует `qwen3-coder-30b-a3b-colibri`.
+ 
+-Для CUDA нужен уже установленный `deepseek_v4.exe` и `coli_cuda_dsv4.dll` рядом
+-с launcher. Используется generic CUDA DLL для RTX 30, не DeepGEMM для RTX 50.
+-Сессионный режим для 8 GiB VRAM: dense и attention на GPU, prefill MoE на CPU,
+-не более 32 зеркал экспертов, резерв VRAM 768 MiB. CPU можно выбрать явно через
+-`--backend cpu`; профиль Vulkan для DeepSeek не заявляется рабочим.
+-Отсутствующая DLL не устанавливается автоматически. Наличие файлов доступных
+-профилей сохраняется STATUS в `available_profiles`; оно не доказывает работу GPU.
+-Выбранный `cuda` — настройка, а фактическую работу нужно подтвердить журналом,
+-NVIDIA process list и результатами генерации.
++Бюджет RAM у KAT 16 GB вместо 12 GB у Qwen: веса больше, выбирается 8 экспертов
++на слой. Контекст и потолок генерации сохранены 16384. RAM — бюджет планировщика,
++а не лимит Windows; supervisor следит за запасом свободной памяти. На первый
++контролируемый запуск reasoning и MTP отключены. Для меньшего контекста можно
++добавить `--ctx 4096`; старую сессию нужно переключить через `--switch`.
+ 
+-Первая загрузка может занять больше 10 минут из-за чтения/прогрева кэша. Тайм-аут
+-не считается успехом; supervisor продолжает наблюдение, доступны STATUS и STOP.
++KAT использует существующие `qwen36.exe` и, при CUDA, `coli_cuda.dll` из того же
++runtime. Никакого DeepSeek backend ей не требуется. Отсутствующие файлы не
++скачиваются и не устанавливаются автоматически. История экспертов KAT отделена
++в `%LOCALAPPDATA%\colibri\ultra\kat-heat.bin` и `kat-usage.bin`; история Qwen
++не перезаписывается. Сохранённый `setup.json` остаётся прежним.
++
++Для CUDA поддержка gs64 есть в проверенных локальных исходниках и в документации
++этой версии; совпадение установленного runtime с ними и правильность GPU-ответов
++окончательно подтверждаются запуском на сервере. Выбранный `cuda` в конфигурации
++сам по себе не доказывает работу GPU. STATUS публикует процессы, NVIDIA и журнал.
++Фактическая скорость KAT пока неизвестна; реальные результаты появятся после теста.
+ 
+ ## Два реальных последовательных ответа
+ 
+@@ -123,7 +132,7 @@
+ Для каждого ответа фиксируются число токенов, полное время, время до первого текста,
+ скорость **с учётом обработки промпта**, данные `/profile` и NVIDIA после ответа.
+ Результат: `REAL-GENERATION-TESTS.json` и отдельный `REAL-GENERATION-TESTS-qwen.json`
+-либо `REAL-GENERATION-TESTS-deepseek.json` в каталоге отчёта. Пустой/незавершённый ответ,
++либо `REAL-GENERATION-TESTS-kat.json` в каталоге отчёта. Пустой/незавершённый ответ,
+ отсутствие измеренного счётчика токенов или перезапуск движка означают ошибку.
+ Локальные unit-тесты с имитацией API не заменяют этот тест.
+ 
+--- before/test_ultra_control.py
++++ after/test_ultra_control.py
+@@ -54,121 +54,129 @@
+     def save(self):
+         ultra.write_json(self.home / "setup.json", self.cfg)
+ 
+-    def deepseek_fixture(self):
+-        ultra.select_profile("deepseek")
++    def kat_fixture(self):
++        ultra.select_profile("kat")
+         model = ultra.MODEL
+         model.mkdir(parents=True)
+-        ultra.write_json(model / "config.json", {"model_type": "deepseek_v4", "num_hidden_layers": 43,
+-            "n_routed_experts": 132, "hidden_size": 4096, "num_experts_per_tok": 6})
++        layout = ["full_attention" if i % 4 == 3 else "linear_attention" for i in range(40)]
++        ultra.write_json(model / "config.json", {"model_type": "qwen3_5_moe_text", "num_hidden_layers": 40,
++            "num_experts": 256, "hidden_size": 2048, "num_experts_per_tok": 8,
++            "moe_intermediate_size": 512, "vocab_size": 248320, "layer_types": layout})
++        ultra.write_json(model / "qwen36_meta.json", {"model_type": "qwen3_5_moe", "n_layers": 40,
++            "num_experts": 256, "hidden": 2048, "topk": 8, "moe_inter": 512,
++            "ebits": 4, "expert_gs": 64, "layer_types": layout})
+         (model / "tokenizer.json").write_text("{}", encoding="utf-8")
+-        mapping = {}
+-        for i in range(2):
+-            key, shard = f"fixture-{i}", f"model-{i:05d}.safetensors"
+-            header = json.dumps({key: {"dtype": "I8", "shape": [1], "data_offsets": [0, 1]}}).encode()
+-            (model / shard).write_bytes(struct.pack("<Q", len(header)) + header + b"\x00")
+-            mapping[key] = shard
+-        ultra.write_json(model / "model.safetensors.index.json", {"weight_map": mapping})
+-        (self.runtime / "deepseek_v4.exe").write_bytes(b"test stub - never execute")
+         return model
+ 
+-    def test_deepseek_native_index_headers_and_geometry(self):
+-        self.deepseek_fixture()
+-        result = ultra.inspect_model()
+-        self.assertEqual(result["tensor_headers_checked"], 2)
+-        self.assertTrue(result["source_index_complete"])
+-        self.assertFalse(result["conversion_required"])
+-
+-    def test_deepseek_missing_shard_and_truncation_detected(self):
+-        model = self.deepseek_fixture()
+-        shard = model / "model-00001.safetensors"
+-        original = shard.read_bytes()
+-        shard.write_bytes(original[:-1])
+-        with self.assertRaises(ultra.ControlError):
+-            ultra.inspect_model()
+-        shard.unlink()
++    def test_kat_wrong_quantization_or_geometry_refused(self):
++        model = self.kat_fixture()
++        path = model / "qwen36_meta.json"
++        original = ultra.read_json(path)
++        for key, wrong in (("expert_gs", 0), ("ebits", 8), ("num_experts", 128), ("n_layers", 48)):
++            ultra.write_json(path, dict(original, **{key: wrong}))
++            with self.assertRaises(ultra.ControlError):
++                ultra.inspect_model()
++
++    def test_kat_missing_shard_detected(self):
++        self.kat_fixture()
+         with self.assertRaises(OSError):
+             ultra.inspect_model()
+ 
+-    def test_deepseek_wrong_index_and_path_traversal_detected(self):
+-        model = self.deepseek_fixture()
+-        index = model / "model.safetensors.index.json"
+-        ultra.write_json(index, {"weight_map": {"absent": "model-00000.safetensors"}})
++    def test_kat_hybrid_attention_mismatch_detected(self):
++        model = self.kat_fixture()
++        cfg = ultra.read_json(model / "config.json")
++        cfg["layer_types"][0] = "full_attention"
++        ultra.write_json(model / "config.json", cfg)
+         with self.assertRaises(ultra.ControlError):
+             ultra.inspect_model()
+-        for unsafe in ("../outside.safetensors", "C:\\outside.safetensors", 123):
+-            ultra.write_json(index, {"weight_map": {"absent": unsafe}})
++
++    def test_kat_required_expert_tensors_and_group_scales_checked(self):
++        header = {}
++        for expert in range(256):
++            prefix = f"model.layers.0.mlp.experts.{expert}."
++            header[prefix + "merged_weight"] = {"dtype": "U8", "shape": [1572864]}
++            header[prefix + "qs"] = {"dtype": "F32", "shape": [49152]}
++        ultra.validate_kat_header(header, 0)
++        key = "model.layers.0.mlp.experts.255.qs"
++        header[key]["shape"] = [1536]
++        with self.assertRaises(ultra.ControlError):
++            ultra.validate_kat_header(header, 0)
++        del header[key]
++        with self.assertRaises(ultra.ControlError):
++            ultra.validate_kat_header(header, 0)
++
++    def test_kat_selected_profile_cannot_mislabel_qwen(self):
++        self.make_shards()
++        with patch.object(ultra, "SELECTED_PROFILE", "kat"):
+             with self.assertRaises(ultra.ControlError):
+                 ultra.inspect_model()
+ 
+-    def test_deepseek_selected_profile_cannot_mislabel_qwen(self):
+-        self.make_shards()
+-        with patch.object(ultra, "SELECTED_PROFILE", "deepseek"):
+-            with self.assertRaises(ultra.ControlError):
+-                ultra.inspect_model()
+-
+-    def test_deepseek_uses_own_engine_and_session_limits_without_config_write(self):
+-        model = self.deepseek_fixture()
++    def test_kat_uses_shared_engine_own_model_and_session_without_config_write(self):
++        model = self.kat_fixture()
+         before = (self.home / "setup.json").read_bytes()
+         plan = ultra.plan_run(self.home)
+-        self.assertEqual(Path(plan["engine"]).name, "deepseek_v4.exe")
++        self.assertEqual(plan["engine"], str(self.engine))
+         self.assertEqual(plan["model"], str(model))
+-        self.assertEqual((plan["ram_gb"], plan["ctx"], plan["cap"]), (24, 2048, 16))
++        self.assertEqual(plan["model_id"], "kat-coder-v2.5-dev-colibri")
++        self.assertEqual((plan["ram_gb"], plan["ctx"], plan["cap"]), (16, 16384, 32))
++        self.assertEqual(plan["environment"]["Q36_MTP"], "0")
++        self.assertTrue(plan["environment"]["HEAT_FILE"].endswith("kat-heat.bin"))
+         self.assertIn("--no-think", plan["command"])
+-        self.assertNotIn("--auto-tier", plan["command"])
+         self.assertEqual((self.home / "setup.json").read_bytes(), before)
+ 
+-    def test_deepseek_cuda_requires_existing_generic_dll(self):
+-        self.deepseek_fixture()
++    def test_kat_cuda_requires_existing_common_backend(self):
++        self.kat_fixture()
+         with self.assertRaises(ultra.ControlError):
+             ultra.plan_run(self.home, backend="cuda")
+-        (self.runtime / "coli_cuda_dsv4.dll").write_bytes(b"test stub - never load")
++        (self.runtime / "coli_cuda.dll").write_bytes(b"test stub - never load")
+         plan = ultra.plan_run(self.home, backend="cuda")
+-        self.assertEqual(plan["environment"]["COLI_CUDA_MOE_BATCH"], "0")
+-        self.assertEqual(plan["environment"]["CUDA_DENSE"], "1")
+-        self.assertEqual(plan["environment"]["DSV4_CUDA_TC"], "0")
+-        self.assertEqual(plan["environment"]["V4_MTP"], "0")
+-        self.assertEqual(Path(plan["environment"]["COLI_DSV4_DLL"]).name, "coli_cuda_dsv4.dll")
+-        with self.assertRaises(ultra.ControlError):
+-            ultra.plan_run(self.home, backend="vulkan")
++        self.assertEqual(plan["environment"]["COLI_CUDA"], "1")
++        self.assertNotIn("DSV4_CUDA", plan["environment"])
++        self.assertNotIn("COLI_DSV4_DLL", plan["environment"])
+ 
+     def test_switch_missing_runtime_does_not_stop_active_model(self):
+-        self.deepseek_fixture()
+-        (self.runtime / "deepseek_v4.exe").unlink()
++        self.kat_fixture()
++        self.engine.unlink()
+         with patch.object(ultra, "require_server"), patch.object(ultra, "Windows"), \
+-             patch.object(ultra, "stop") as stop, contextlib.redirect_stderr(io.StringIO()):
+-            self.assertEqual(ultra.main(["start", "--setup-home", str(self.home), "--model", "deepseek", "--switch"]), 1)
++             patch.object(ultra, "inspect_model", return_value={}), patch.object(ultra, "stop") as stop, \
++             contextlib.redirect_stderr(io.StringIO()):
++            self.assertEqual(ultra.main(["start", "--setup-home", str(self.home), "--model", "kat", "--switch"]), 1)
+         stop.assert_not_called()
+ 
+-    def test_stop_selected_deepseek_follows_actual_qwen_session(self):
++    def test_stop_selected_kat_follows_actual_qwen_session(self):
+         qwen = ultra.plan_run(self.home)
+         identity = {"pid": 123, "created_filetime": 456}
+         ultra.write_json(ultra.state_file(self.home), {"gateway": identity, "plan": ultra.public_plan(qwen)})
+-        self.deepseek_fixture()
++        self.kat_fixture()
+         win = Mock(); win.matches.return_value = True
+         stopped = ultra.active_stop_plan(self.home, ultra.plan_run(self.home), win)
+         self.assertEqual(stopped["profile"], "qwen")
+-        self.assertEqual(stopped["engine"], str(self.engine))
+-
+-    def test_last_profile_legacy_and_deepseek_state(self):
++        self.assertEqual(stopped["model"], str(self.model))
++
++    def test_last_profile_legacy_kat_and_retired_deepseek(self):
+         ultra.write_json(ultra.state_file(self.home), {"plan": {"model": str(self.model)}})
+         self.assertEqual(ultra.previous_profile(self.home), "qwen")
++        ultra.write_json(ultra.state_file(self.home), {"plan": {"profile": "kat"}})
++        self.assertEqual(ultra.previous_profile(self.home), "kat")
+         ultra.write_json(ultra.state_file(self.home), {"plan": {"profile": "deepseek"}})
+-        self.assertEqual(ultra.previous_profile(self.home), "deepseek")
+-
+-    def test_deepseek_profile_is_passed_to_background_supervisor(self):
+-        self.deepseek_fixture()
+-        args = type("Args", (), dict(ram=24, ctx=2048, cap=16, backend=None))()
++        self.assertEqual(ultra.previous_profile(self.home), "qwen")
++        self.assertNotIn("deepseek", ultra.PROFILES)
++
++    def test_kat_profile_is_passed_to_background_supervisor(self):
++        self.kat_fixture()
++        args = type("Args", (), dict(ram=16, ctx=16384, cap=32, backend=None))()
+         current = {"colibri_processes": [], "health": {}, "memory": {"available_gib": 40, "total_gib": 48}}
+         win = Mock(); win.identity.return_value = {"pid": 777, "created_filetime": 888}
+         with patch.object(ultra, "snapshot", return_value=current), patch.object(ultra.socket, "socket"), \
++             patch.object(ultra, "inspect_model", return_value={"name": ultra.PROFILES["kat"]["name"], "shards": 41}), \
+              patch.object(ultra.subprocess, "Popen") as spawn, contextlib.redirect_stdout(io.StringIO()):
+             ultra.prepare_start(args, self.home, win)
+         command = spawn.call_args.args[0]
+-        self.assertEqual(command[command.index("--model") + 1], "deepseek")
+-        self.assertEqual(ultra.read_json(self.home / "ultra" / "request.json")["profile"], "deepseek")
++        self.assertEqual(command[command.index("--model") + 1], "kat")
++        self.assertEqual(ultra.read_json(self.home / "ultra" / "request.json")["profile"], "kat")
+ 
+     def test_supervisor_profile_mismatch_never_launches(self):
+-        ultra.write_json(self.home / "ultra" / "request.json", {"session": "fixture", "profile": "deepseek"})
++        ultra.write_json(self.home / "ultra" / "request.json", {"session": "fixture", "profile": "kat"})
+         with patch.object(ultra.subprocess, "Popen") as spawn:
+             with self.assertRaises(ultra.ControlError):
+                 ultra.supervise(type("Args", (), {"session": "fixture"})(), self.home, Mock())
+@@ -178,13 +186,13 @@
+         response = Mock(status=200)
+         response.readline.side_effect = [b'data: {"choices":[{"delta":{"content":"OK"}}],"usage":{"completion_tokens":1}}\n', b'data: [DONE]\n']
+         connection = Mock(); connection.getresponse.return_value = response
+-        model_id = ultra.PROFILES["deepseek"]["model_id"]
++        model_id = ultra.PROFILES["kat"]["model_id"]
+         with patch.object(ultra.http.client, "HTTPConnection", return_value=connection):
+             ultra.stream_turn({"base_url": "http://127.0.0.1:8000", "model_id": model_id}, [])
+         self.assertEqual(json.loads(connection.request.call_args.args[2])["model"], model_id)
+ 
+     def test_snapshot_does_not_call_other_active_model_ready(self):
+-        self.deepseek_fixture()
++        self.kat_fixture()
+         plan = ultra.plan_run(self.home)
+         with patch.object(ultra, "processes", return_value=[]), \
+              patch.object(ultra, "api", side_effect=[{"status": "ok"}, {"data": [{"id": ultra.PROFILES["qwen"]["model_id"]}]}]), \
+@@ -503,6 +511,12 @@
+             plan["port"] = 8001
+             rows = ultra.processes(plan, ultra.Windows())
+             self.assertNotIn(child.pid, [r["pid"] for r in rows])
++            # Qwen and KAT share qwen36.exe. A gateway for the old model must
++            # not be mistaken for the new model solely because of its engine.
++            plan["port"] = 8000
++            plan["model"] = str(self.project / "Base_LLM" / "Models" / "KAT-Coder-V2.5-Dev-Colibri")
++            rows = ultra.processes(plan, ultra.Windows())
++            self.assertNotIn(child.pid, [r["pid"] for r in rows])
+         finally:
+             child.terminate(); child.wait(timeout=5)
+ 

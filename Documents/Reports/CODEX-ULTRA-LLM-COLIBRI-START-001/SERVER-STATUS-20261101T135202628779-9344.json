@@ -1,0 +1,164 @@
+{
+  "checked_at": "2026-11-01T13:52:02.534803+00:00",
+  "computer": "DESKTOP-KT4G5SM",
+  "status": "ready",
+  "plan": {
+    "home": "C:\\Users\\silver\\AppData\\Local\\colibri",
+    "engine": "C:\\Users\\silver\\AppData\\Local\\colibri\\runtime\\colibri-v2.1.0\\qwen36.exe",
+    "launcher": "C:\\Users\\silver\\AppData\\Local\\colibri\\runtime\\colibri-v2.1.0\\coli",
+    "profile": "qwen",
+    "model_name": "Qwen3-Coder-30B-A3B",
+    "model": "C:\\Server\\Ultra_LLM\\Base_LLM\\Models\\Qwen3-Coder-30B-A3B",
+    "model_id": "qwen3-coder-30b-a3b-colibri",
+    "host": "127.0.0.1",
+    "port": 8000,
+    "base_url": "http://127.0.0.1:8000",
+    "backend": "cuda",
+    "config_path": "C:\\Users\\silver\\AppData\\Local\\colibri\\setup.json",
+    "saved_model_name": "Qwen3.6-35B-A3B",
+    "saved_model_dir": "C:\\Server\\Ultra_LLM\\Base_LLM\\Models\\Qwen3-Coder-30B-A3B",
+    "ram_gb": 12,
+    "ctx": 16384,
+    "cap": 32,
+    "config_sha256": "b1206c32cef7bfe88b8e0b6c307299c61dd8721960888de6a4a7dc8b3d4aadf7"
+  },
+  "health": {
+    "status": "ok",
+    "arch": "qwen36",
+    "scheduler": {
+      "active": 0,
+      "queued": 0,
+      "capacity": 1,
+      "max_queue": 8,
+      "queue_timeout_seconds": 300.0,
+      "admitted": 0,
+      "completed": 0,
+      "failed": 0,
+      "rejected": 0,
+      "timed_out": 0,
+      "cancelled": 0
+    },
+    "engine_restarts": 0,
+    "kv_slots": 1,
+    "input_modalities": [
+      "text"
+    ],
+    "continue_assistant": true,
+    "context_compaction": true,
+    "context_tokens": 16384,
+    "max_tokens": 16384,
+    "capabilities": [
+      "chat",
+      "systemone"
+    ],
+    "live": [],
+    "system": {}
+  },
+  "models": {
+    "object": "list",
+    "data": [
+      {
+        "id": "qwen3-coder-30b-a3b-colibri",
+        "object": "model",
+        "created": 1793541109,
+        "owned_by": "colibri",
+        "input_modalities": [
+          "text"
+        ],
+        "capabilities": [
+          "chat",
+          "systemone"
+        ],
+        "context_length": 16384,
+        "max_model_len": 16384
+      }
+    ],
+    "models": [
+      {
+        "name": "qwen3-coder-30b-a3b-colibri",
+        "description": "Qwen3-Coder-30B-A3B, served by colibri; POST /v1/systemone answers typed questions.",
+        "release_date": "2026-11-01"
+      }
+    ]
+  },
+  "memory": {
+    "total_gib": 47.94,
+    "available_gib": 39.63,
+    "load_percent": 17
+  },
+  "colibri_processes": [
+    {
+      "pid": 16392,
+      "ppid": 3740,
+      "kind": "gateway",
+      "path": "C:\\Users\\silver\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "working_set_bytes": 40271872,
+      "private_bytes": 32010240,
+      "created_filetime": 134380147090274099
+    },
+    {
+      "pid": 1452,
+      "ppid": 16392,
+      "kind": "engine",
+      "path": "C:\\Users\\silver\\AppData\\Local\\colibri\\runtime\\colibri-v2.1.0\\qwen36.exe",
+      "working_set_bytes": 1598451712,
+      "private_bytes": 7798796288,
+      "created_filetime": 134380147092489888
+    }
+  ],
+  "managed_gateway_verified": true,
+  "engine_process_count": 1,
+  "configured_backend": "cuda",
+  "available_profiles": {
+    "qwen": {
+      "name": "Qwen3-Coder-30B-A3B",
+      "model_directory_present": true,
+      "engine_present": true,
+      "generic_cuda_dll_present": null,
+      "note": "File presence only; does not prove load or generation"
+    },
+    "deepseek": {
+      "name": "DeepSeek-V4-Flash-REAP-150B",
+      "model_directory_present": false,
+      "engine_present": true,
+      "generic_cuda_dll_present": true,
+      "note": "File presence only; does not prove load or generation"
+    }
+  },
+  "running_plan": {
+    "home": "C:\\Users\\silver\\AppData\\Local\\colibri",
+    "engine": "C:\\Users\\silver\\AppData\\Local\\colibri\\runtime\\colibri-v2.1.0\\qwen36.exe",
+    "launcher": "C:\\Users\\silver\\AppData\\Local\\colibri\\runtime\\colibri-v2.1.0\\coli",
+    "profile": "qwen",
+    "model_name": "Qwen3-Coder-30B-A3B",
+    "model": "C:\\Server\\Ultra_LLM\\Base_LLM\\Models\\Qwen3-Coder-30B-A3B",
+    "model_id": "qwen3-coder-30b-a3b-colibri",
+    "host": "127.0.0.1",
+    "port": 8000,
+    "base_url": "http://127.0.0.1:8000",
+    "backend": "cuda",
+    "config_path": "C:\\Users\\silver\\AppData\\Local\\colibri\\setup.json",
+    "saved_model_name": "Qwen3.6-35B-A3B",
+    "saved_model_dir": "C:\\Server\\Ultra_LLM\\Base_LLM\\Models\\Qwen3-Coder-30B-A3B",
+    "ram_gb": 12,
+    "ctx": 16384,
+    "cap": 32,
+    "config_sha256": "b1206c32cef7bfe88b8e0b6c307299c61dd8721960888de6a4a7dc8b3d4aadf7"
+  },
+  "backend_verification": "inspect health tiers/hwinfo, engine log and NVIDIA process list; configuration alone is not GPU proof",
+  "gpu": {
+    "nvidia_smi_exit": 0,
+    "gpus_csv": "0, NVIDIA GeForce RTX 3070, 560.94, 8192, 6126, 0",
+    "colibri_compute_apps_csv": "1452, C:\\Users\\silver\\AppData\\Local\\colibri\\runtime\\colibri-v2.1.0\\qwen36.exe, [N/A]",
+    "other_process_entries_omitted": 10,
+    "error": ""
+  },
+  "colibri_working_sets_gib": 1.526,
+  "colibri_private_bytes_gib": 7.293,
+  "log_path": "C:\\Users\\silver\\AppData\\Local\\colibri\\ultra\\logs\\20261101-185149-91d3416b.log",
+  "supervisor_state": {
+    "status": "ready",
+    "reason": null,
+    "updated_at": "2026-11-01T13:52:02.280984+00:00"
+  }
+}

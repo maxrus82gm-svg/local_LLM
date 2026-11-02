@@ -1,0 +1,34 @@
+test_all_49_weight_headers_and_bounds (ultra_tests.ControlTests.test_all_49_weight_headers_and_bounds) ... ok
+test_api_rejects_other_service_on_same_port (ultra_tests.ControlTests.test_api_rejects_other_service_on_same_port) ... ok
+test_benchmark_refuses_unverified_engine_before_any_generation (ultra_tests.ControlTests.test_benchmark_refuses_unverified_engine_before_any_generation) ... ok
+test_config_cannot_call_setup (ultra_tests.ControlTests.test_config_cannot_call_setup) ... ok
+test_credential_redaction (ultra_tests.ControlTests.test_credential_redaction) ... ok
+test_credentials_not_in_command_or_public_plan (ultra_tests.ControlTests.test_credentials_not_in_command_or_public_plan) ... ok
+test_cuda_and_cpu_are_explicit_no_silent_fallback (ultra_tests.ControlTests.test_cuda_and_cpu_are_explicit_no_silent_fallback) ... ok
+test_existing_supervisor_wrong_api_model_is_not_success (ultra_tests.ControlTests.test_existing_supervisor_wrong_api_model_is_not_success) ... ok
+test_generation_without_usage_refused (ultra_tests.ControlTests.test_generation_without_usage_refused) ... ok
+test_gpu_app_report_contains_only_colibri_pids (ultra_tests.ControlTests.test_gpu_app_report_contains_only_colibri_pids) ... ok
+test_lan_without_key_refused (ultra_tests.ControlTests.test_lan_without_key_refused) ... ok
+test_launch_is_existing_serve_without_setup_or_rebuild (ultra_tests.ControlTests.test_launch_is_existing_serve_without_setup_or_rebuild) ... ok
+test_limits_checked (ultra_tests.ControlTests.test_limits_checked) ... ok
+test_missing_runtime_fails_without_install (ultra_tests.ControlTests.test_missing_runtime_fails_without_install) ... ok
+test_missing_weight_shard_detected (ultra_tests.ControlTests.test_missing_weight_shard_detected) ... ok
+test_native_pid_reuse_guard_and_unrelated_python_survives (ultra_tests.ControlTests.test_native_pid_reuse_guard_and_unrelated_python_survives) ... ok
+test_process_filter_exact_launcher_model_and_port (ultra_tests.ControlTests.test_process_filter_exact_launcher_model_and_port) ... ok
+test_shared_supervisor_evidence_redacts_log_credentials (ultra_tests.ControlTests.test_shared_supervisor_evidence_redacts_log_credentials) ... ok
+test_start_wait_does_not_hold_stop_lock (ultra_tests.ControlTests.test_start_wait_does_not_hold_stop_lock) ... Supervisor PID: 123; waiting up to 3s for a healthy engine...
+ok
+test_stop_can_request_shutdown_during_bootstrap (ultra_tests.ControlTests.test_stop_can_request_shutdown_during_bootstrap) ... ok
+test_stop_does_not_kill_unowned_engine_by_default (ultra_tests.ControlTests.test_stop_does_not_kill_unowned_engine_by_default) ... ok
+test_stop_request_checks_pidfile (ultra_tests.ControlTests.test_stop_request_checks_pidfile) ... ok
+test_truncated_weight_data_detected (ultra_tests.ControlTests.test_truncated_weight_data_detected) ... ok
+test_two_sequential_mock_streams_with_exact_usage (ultra_tests.ControlTests.test_two_sequential_mock_streams_with_exact_usage) ... ok
+test_unknown_launcher_protocol_refused (ultra_tests.ControlTests.test_unknown_launcher_protocol_refused) ... ok
+test_unverified_engine_path_blocks_duplicate_start (ultra_tests.ControlTests.test_unverified_engine_path_blocks_duplicate_start) ... ok
+test_wrong_host_guard (ultra_tests.ControlTests.test_wrong_host_guard) ... ok
+test_wrong_model_cannot_be_renamed_to_coder (ultra_tests.ControlTests.test_wrong_model_cannot_be_renamed_to_coder) ... ok
+
+----------------------------------------------------------------------
+Ran 28 tests in 3.238s
+
+OK

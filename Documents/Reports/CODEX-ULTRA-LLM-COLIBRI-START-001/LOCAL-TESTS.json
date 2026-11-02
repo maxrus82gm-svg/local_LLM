@@ -1,0 +1,13 @@
+{
+  "kind": "LOCAL_CONTROLLER_TESTS_NO_SERVER_INFERENCE",
+  "computer": "DESKTOP-SC96D3U",
+  "python": "3.12.10",
+  "checked_at": "2026-11-01T12:04:08.588966+00:00",
+  "tests": 28,
+  "failures": 0,
+  "errors": 0,
+  "passed": true,
+  "includes_mock_http": true,
+  "includes_owned_dummy_python_processes": true,
+  "real_colibri_engine_started": false
+}

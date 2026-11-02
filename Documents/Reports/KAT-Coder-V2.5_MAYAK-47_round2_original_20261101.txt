@@ -1,0 +1,373 @@
+
+
+# МАЯК-47 — РАУНД 2: ПОЛНЫЙ ТЕХНИЧЕСКИЙ АУДИТ
+
+## ОБНАРУЖЕННЫЕ КРИТИЧЕСКИЕ ОШИБКИ
+
+### ОШИБКА 1: Вызов ToggleInteraction в BeginPlay
+**Файл:** `InteractiveLamp.cpp`
+**Проблема:** В `BeginPlay()` вызывается `ToggleInteraction_Implementation()`, что **мгновенно переключает свет с включённого на выключенный** при спавне актора. Это нарушает требование №8 («Первоначально свет включён»).
+**Исправление:** Убран вызов из `BeginPlay`.
+
+---
+
+### ОШИБКА 2: Инициализация LastToggleTime = 0
+**Файл:** `InteractiveLamp.h` / `InteractiveLamp.cpp`
+**Проблема:** `LastToggleTime = 0.f` в конструкторе. Если `GetWorld()->GetTimeSeconds()` возвращает значение, близкое к 0 (например, при быстром спавне), первое взаимодействие будет **заблокировано** (0 - 0 < 0.35).
+**Исправление:** Инициализация `LastToggleTime = -MinToggleInterval`, что гарантирует разрешение первого взаимодействия.
+
+---
+
+### ОШИБКА 3: Некорректный API GetWorldTransform()
+**Файл:** `InteractionLabCharacter.cpp` (первоначальная версия)
+**Проблема:** `CameraComponent->GetWorldTransform().GetLocationAndRotation()` — **такого метода нет в UE5**. `FTransform` не имеет `GetLocationAndRotation()`.
+**Исправление:** Заменено на `GetComponentLocation()` и `GetComponentRotation()`.
+
+---
+
+### ОШИБКА 4: Интерфейс без virtual = 0
+**Файл:** `IInteractiveObject.h`
+**Проблема:** Функция интерфейса не объявлена как `virtual ... = 0`. В UE5 это приводит к тому, что компилятор не гарантирует чистую виртуальность, и реализация может быть не обязательной.
+**Исправление:** Добавлено `virtual bool ToggleInteraction() = 0;`.
+
+---
+
+### ОШИБКА 5: Дублирующий include в InteractiveLamp.h
+**Файл:** `InteractiveLamp.h`
+**Проблема:** `#include "InteractiveLamp.h"` — дублирование самого себя.
+**Исправление:** Удалён.
+
+---
+
+### ОШИБКА 6: Missing includes в InteractionLabCharacter.cpp
+**Файл:** `InteractionLabCharacter.cpp`
+**Проблема:** Отсутствуют `#include "InputAction.h"` и `#include "InputMappingContext.h"`. Forward declarations в заголовке достаточны, но в `.cpp` нужны полные определения для `UInputAction` и `UInputMappingContext`.
+**Исправление:** Добавлены includes.
+
+---
+
+### ОШИБКА 7: Избыточный AddInputContext в BeginPlay
+**Файл:** `InteractionLabCharacter.cpp`
+**Проблема:** `PC->AddInputContext(InteractAction)` — `UInputAction` не является `UInputContext`, этот метод не существует или не имеет смысла.
+**Исправление:** Убрано. Mapping Context добавляется один раз через `AddInputMappingContext`.
+
+---
+
+## ПОЛНЫЙ ИСПРАВЛЕННЫЙ КОД
+
+### IInteractiveObject.h
+
+```cpp
+#pragma once
+
+#include "CoreMinimal.h"
+#include "UObject/Interface.h"
+#include "IInteractiveObject.generated.h"
+
+// Интерфейс для объектов, с которыми можно взаимодействовать.
+UNINTERFACE(INTERACTIONLAB_API, IInteractiveObject)
+class INTERACTIONLAB_API IInteractiveObject
+{
+    GENERATED_BODY()
+
+public:
+    // Переключает состояние взаимодействия.
+    // Возвращает true, если взаимодействие успешно выполнено.
+    UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interactive")
+    virtual bool ToggleInteraction() = 0;
+};
+```
+
+---
+
+### InteractiveLamp.h
+
+```cpp
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "IInteractiveObject.h"
+#include "InteractiveLamp.generated.h"
+
+UCLASS()
+class INTERACTIONLAB_API AInteractiveLamp : public AActor, public IInteractiveObject
+{
+    GENERATED_BODY()
+
+public:
+    AInteractiveLamp();
+
+protected:
+    virtual void BeginPlay() override;
+
+public:
+    virtual bool ToggleInteraction_Implementation() override;
+
+private:
+    UPROPERTY(VisibleDefaultsOnly, Category = "Lamp")
+    UStaticMeshComponent* LightMesh;
+
+    UPROPERTY(VisibleDefaultsOnly, Category = "Lamp")
+    UPointLightComponent* LightSource;
+
+    UPROPERTY(Transient)
+    bool bIsLightOn;
+
+    UPROPERTY(Transient)
+    float LastToggleTime;
+
+    static constexpr float MinToggleInterval = 0.35f;
+};
+```
+
+---
+
+### InteractiveLamp.cpp
+
+```cpp
+#include "InteractiveLamp.h"
+#include "Components/StaticMeshComponent.h"
+#include "Components/PointLightComponent.h"
+
+AInteractiveLamp::AInteractiveLamp()
+{
+    PrimaryActorTick.bCanEverTick = false;
+
+    LightMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LightMesh"));
+    RootComponent = LightMesh;
+
+    LightSource = CreateDefaultSubobject<UPointLightComponent>(TEXT("LightSource"));
+    LightSource->SetupAttachment(RootComponent);
+    LightSource->SetRelativeLocation(FVector(0.f, 0.f, 35.f));
+
+    // Первоначально свет включён.
+    bIsLightOn = true;
+    LightSource->SetVisibility(true);
+
+    // Инициализируем отрицательным значением, чтобы первое взаимодействие
+    // не было заблокировано cooldown'ом при старте игры.
+    LastToggleTime = -MinToggleInterval;
+}
+
+void AInteractiveLamp::BeginPlay()
+{
+    Super::BeginPlay();
+    // BeginPlay не вызывает ToggleInteraction — свет остаётся в начальном состоянии.
+}
+
+bool AInteractiveLamp::ToggleInteraction_Implementation()
+{
+    const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+    if (CurrentTime - LastToggleTime < MinToggleInterval)
+    {
+        return false;
+    }
+
+    bIsLightOn = !bIsLightOn;
+    LightSource->SetVisibility(bIsLightOn);
+    LastToggleTime = CurrentTime;
+    return true;
+}
+```
+
+---
+
+### InteractionLabCharacter.h
+
+```cpp
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Character.h"
+#include "InputActionValue.h"
+#include "IInteractiveObject.h"
+#include "InteractionLabCharacter.generated.h"
+
+class UInputMappingContext;
+class UInputAction;
+
+UCLASS()
+class INTERACTIONLAB_API AInteractionLabCharacter : public ACharacter
+{
+    GENERATED_BODY()
+
+public:
+    AInteractionLabCharacter();
+
+protected:
+    virtual void BeginPlay() override;
+    virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+
+    UFUNCTION()
+    void OnInteract(const FInputActionValue& ActionValue);
+
+private:
+    UPROPERTY(EditDefaultsOnly, Category = "Input")
+    UInputMappingContext* DefaultMappingContext;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Input")
+    UInputAction* InteractAction;
+
+    void TryInteract();
+
+    static constexpr float InteractionMaxDistance = 425.f;
+};
+```
+
+---
+
+### InteractionLabCharacter.cpp
+
+```cpp
+#include "InteractionLabCharacter.h"
+#include "IInteractiveObject.h"
+#include "Camera/CameraComponent.h"
+#include "GameFramework/PlayerController.h"
+#include "InputAction.h"
+#include "InputMappingContext.h"
+#include "Engine/World.h"
+
+AInteractionLabCharacter::AInteractionLabCharacter()
+{
+    PrimaryActorTick.bCanEverTick = false;
+
+    CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
+    CameraComponent->SetupAttachment(GetCapsuleComponent());
+    CameraComponent->bUsePawnControlRotation = true;
+
+    InteractAction = CreateDefaultSubobject<UInputAction>(TEXT("InteractAction"));
+}
+
+void AInteractionLabCharacter::BeginPlay()
+{
+    Super::BeginPlay();
+
+    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+    {
+        if (UWorld* World = GetWorld() && DefaultMappingContext)
+        {
+            PC->AddInputMappingContext(DefaultMappingContext);
+        }
+    }
+}
+
+void AInteractionLabCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+    Super::SetupPlayerInputComponent(PlayerInputComponent);
+
+    if (UEnhancedInputComponent* EnhancedComp = Cast<UEnhancedInputComponent>(PlayerInputComponent))
+    {
+        if (InteractAction)
+        {
+            EnhancedComp->BindAction(InteractAction, ETriggerEvent::Completed, this,
+                &AInteractionLabCharacter::OnInteract);
+        }
+    }
+}
+
+void AInteractionLabCharacter::OnInteract(const FInputActionValue& ActionValue)
+{
+    TryInteract();
+}
+
+void AInteractionLabCharacter::TryInteract()
+{
+    UWorld* World = GetWorld();
+    if (!World) return;
+
+    APlayerController* PC = Cast<APlayerController>(GetController());
+    if (!PC) return;
+
+    // Корректные API UE5 для получения позиции и поворота камеры.
+    FVector Start = CameraComponent->GetComponentLocation();
+    FRotator CamRot = CameraComponent->GetComponentRotation();
+    FVector Direction = CamRot.Vector();
+    FVector End = Start + Direction * InteractionMaxDistance;
+
+    FHitResult Hit;
+    FCollisionQueryParams Params(TEXT("InteractionTrace"), true, this);
+
+    bool bHit = World->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params);
+
+    if (!bHit || !Hit.GetActor()) return;
+
+    IInteractiveObject* Interactive = Cast<IInteractiveObject>(Hit.GetActor());
+    if (!Interactive) return;
+
+    Interactive->ToggleInteraction();
+}
+```
+
+---
+
+### Build.cs
+
+```csharp
+using UnrealBuildTool;
+
+public class InteractionLab : ModuleRules
+{
+    public InteractionLab(ReadOnlyTargetRules Target) : base(Target)
+    {
+        PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+
+        PublicDependencyModuleNames.AddRange(new[]
+        {
+            "Core",
+            "CoreUObject",
+            "Engine",
+            "InputCore",
+            "EnhancedInput"
+        });
+    }
+}
+```
+
+---
+
+## НАСТРОЙКА ENHANCED INPUT В РЕДАКТОРЕ
+
+1. **Content Browser → Right Click → Input → Input Mapping Context** → `IMC_InteractionLab`
+2. Откройте `IMC_InteractionLab`, нажмите **+ Binding**
+3. Выберите **Input Action** → создайте `IA_Interact` (Trigger: `Completed`)
+4. В **Actions** привяжите клавишу `E` к `IA_Interact`
+5. **Project Settings → Engine → Input** → добавьте `IMC_InteractionLab` в **Default Map**
+6. В **Character Blueprint** (или напрямую в C++ проекте) заполните `DefaultMappingContext` и `InteractAction` в Details panel
+
+---
+
+## ОТЧЁТ О ПРОВЕРКЕ
+
+### Обнаруженные ошибки
+
+| № | Ошибка | Файл | Критичность |
+|---|---|---|---|
+| 1 | Вызов `ToggleInteraction` в `BeginPlay` переключал свет на выключенный | `InteractiveLamp.cpp` | **Критическая** |
+| 2 | `LastToggleTime = 0` блокировал первое взаимодействие при старте | `InteractiveLamp.h/.cpp` | **Критическая** |
+| 3 | `GetWorldTransform().GetLocationAndRotation()` — несуществующий API | `InteractionLabCharacter.cpp` | **Критическая** |
+| 4 | Интерфейс без `virtual = 0` — нарушение контракта C++ | `IInteractiveObject.h` | **Средняя** |
+| 5 | Дублирующий `#include "InteractiveLamp.h"` | `InteractiveLamp.h` | **Низкая** |
+| 6 | Отсутствовали `#include "InputAction.h"` и `#include "InputMappingContext.h"` | `InteractionLabCharacter.cpp` | **Средняя** |
+| 7 | Избыточный `AddInputContext(InteractAction)` — некорректный API | `InteractionLabCharacter.cpp` | **Низкая** |
+
+### Исправления
+
+Все 7 ошибок исправлены в предоставленном выше коде.
+
+### Непроверенные аспекты
+
+- **Компиляция**: код не компилировался фактически, так как отсутствует среда UE5.
+- **Runtime-тестирование**: взаимодействие, Line Trace и cooldown не проверялись в движке.
+- **Blueprint-вызовы**: `BlueprintNativeEvent` не тестировался через Blueprint.
+
+### Риск ошибок компиляции
+
+| Риск | Вероятность | Комментарий |
+|---|---|---|
+| Отсутствие `EnhancedInput` в `Build.cs` | Низкая | Модуль добавлен |
+| Несоответствие имен классов и файлов | Низкая | Имена соответствуют UE5 conventions |
+| Ошибки в `.generated.h` | Низкая | Генерируются автоматическим инструментом UHT |
+| Проблемы с `UHT` при генерации интерфейса | Низкая | `UNINTERFACE` — стандартный макрос UE5 |
+
+**Рекомендация:** Перед интеграцией проверить, что в `Project.uproject` указан правильный модуль, и что `EnhancedInput` плагин активирован в **Plugins**.
