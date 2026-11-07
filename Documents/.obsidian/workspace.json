@@ -11,10 +11,14 @@
             "id": "b830a0ae8b2d0ac5",
             "type": "leaf",
             "state": {
-              "type": "graph",
-              "state": {},
-              "icon": "lucide-git-fork",
-              "title": "Граф"
+              "type": "markdown",
+              "state": {
+                "file": "10.1_Справочник_LLM.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "10.1_Справочник_LLM"
             }
           }
         ]
@@ -183,6 +187,7 @@
   },
   "active": "b830a0ae8b2d0ac5",
   "lastOpenFiles": [
+    "15_Оценка_LLM.md",
     "19.1_Qwen3.6-35B-A3B_кратко.md",
     "Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/test_ultra_control.py.bak-think-default-20261102",
     "Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/test_ultra_control.py.bak-ctx16k-20261102",
@@ -201,7 +206,6 @@
     "Reports/KAT-Coder-V2.5_MAYAK-47_round4_original_20261101.txt",
     "Reports/KAT-Coder-V2.5_MAYAK-47_round3_original_20261101.txt",
     "17.1_KAT-Coder-V2.5_кратко.md",
-    "15_Оценка_LLM.md",
     "Шаблон_карточки_теста.md",
     "17_KAT-Coder-V2.5.md",
     "16_МАЯК-47_эталон.md",
