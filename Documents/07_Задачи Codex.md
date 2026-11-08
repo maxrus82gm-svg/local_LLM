@@ -307,6 +307,10 @@ DONE / CHANGED / DIFF / TESTS / SERVER START / LAN ACCESS / PROBLEMS / QUESTIONS
 
 ### БЛОК 2 — ПОСЛЕДНИЙ ФАКТИЧЕСКИЙ РЕЗУЛЬТАТ
 
+**0D / 08.11.2026 / CHECKPOINT RESULT READY:** Codex подготовил read-only `--inspect-server` в `Colibri/manager_dev/server_runner.py`, новый `server_preflight.py` и тесты. Координатор независимо повторил **183/183 PASS на домашнем DESKTOP-SC96D3U**. Владелец выполнил на `DESKTOP-KT4G5SM` PowerShell `py -3.12 -B "C:\Server\Ultra_LLM\Colibri\manager_dev\server_runner.py" --inspect-server`; отчёт JSON `READ_ONLY_PREFLIGHT`, `server_execution_verified=true`, `launch_performed=false`, `stop_performed=false`. Colibri1 на 8000 health=ok / Qwen3.6, Colibri2 на 8001 отсутствует; свободно 35.284 GiB из 47.936 GiB. Реальный dual-live и LAN Manager **NOT RUN**. Контрольный статус этой стадии — №07 БЛОК 4, подробности №09 `EVID-UL-MGR-0D-PREFLIGHT-20261108-001`, текущие OPEN №05/13. **БЛОК 1 0D остаётся действующим и неизменным.**
+
+### БЛОК 2 — ПОСЛЕДНИЙ ФАКТИЧЕСКИЙ РЕЗУЛЬТАТ
+
 **2026-11-08 — `CODEX-UL-MGR-0C-SERVER-RUNNER-001` / RESULT PARTIAL:** Codex создал в серверной SMB `Colibri/manager_dev/` только `server_runner.py` и `test_server_runner.py`. Подготовлен read-only Windows preflight, dry-run Colibri2 CPU/порт 8001, раздельные пути, проверка условной идентичности PID/SID/port и контролируемая оценка RAM. Отчёт Codex: 133/133 offline PASS (предыдущие 78 + 55 новых), серверный исполнительный канал BLOCKED. На домашнем `DESKTOP-SC96D3U` координатор самостоятельно повторил `133/133 PASS, 0 FAIL` и отдельно проверил обычный CLI: `BLOCKED: Wrong execution host`. **Real server START/STOP/CPU-runtime/RAM measurement NOT RUN.** Независимый вердикт — БЛОК 4 ниже. Точная TASK владельца в БЛОКЕ 1 сохраняется без изменений; не ротировать до согласованного закрытия.
 
 
@@ -320,6 +324,10 @@ DONE / CHANGED / DIFF / TESTS / SERVER START / LAN ACCESS / PROBLEMS / QUESTIONS
 
 
 **Текущие OPEN:** `CODEX-ULTRA-LLM-COLIBRI-START-001` — формальный двухходовый тест скорости и GPU/RAM, итоговый пакет Codex, независимая приёмка и подтверждение сохранности оригинальной TASK. Сопутствующие FOLLOWUP: `FOLLOWUP-ULTRA-COLIBRI-PERF-001`, `FOLLOWUP-ULTRA-COLIBRI-WEB-001`, `FOLLOWUP-ULTRA-COLIBRI-CONTEXT-001` (реестр №05). Следующий технический этап не назначать автоматически, БЛОК 1/1.1 не ротировать без closeout.
+
+### БЛОК 4 — НЕЗАВИСИМАЯ ПРОВЕРКА (ТОЛЬКО КООРДИНАТОР)
+
+**08.11.2026 / `CODEX-UL-MGR-0D-SERVICE-CORE-001` / STAGE A: PASS READ-ONLY CHECKPOINT; FULL TASK IN PROGRESS.** Координатор проверил существование и ключевое безопасное поведение `server_preflight.py`, изменённого `server_runner.py`, тестов и повторно запустил весь suite на домашнем ПК (`183 tests OK; 0 FAIL`). Владелец предоставил вывод исполнения на фактическом сервере DESKTOP-KT4G5SM; JSON показал верный host, 8000 health ok и отсутствие 8001, без START/STOP. Это доказательство диагностической стадии, **не** успешного запуска Colibri2, не performance/load test и не завершение 0D. В конфигурации Colibri1 найден `model_dir` Qwen3-Coder при реально работающей Qwen3.6 — не копировать setup.json. CPU runtime validation, live stop/rollback, durable lease и защищённый LAN Manager ещё OPEN. Следующий шаг — Codex готовит проверяемые отдельные START и rollback для исполнения владельцем на сервере; не создавать новую TASK, не стирать БЛОК 1. `EVID-UL-MGR-0D-PREFLIGHT-20261108-001` → №09.
 
 ### БЛОК 4 — НЕЗАВИСИМАЯ ПРОВЕРКА (ТОЛЬКО КООРДИНАТОР)
 
