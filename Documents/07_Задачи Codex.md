@@ -175,13 +175,25 @@ Codex работает **на компьютере владельца**, поэ�
 
 ### БЛОК 2 — ПОСЛЕДНИЙ ФАКТИЧЕСКИЙ РЕЗУЛЬТАТ
 
+**2026-11-08 — `CODEX-UL-MGR-0C-SERVER-RUNNER-001` / RESULT PARTIAL:** Codex создал в серверной SMB `Colibri/manager_dev/` только `server_runner.py` и `test_server_runner.py`. Подготовлен read-only Windows preflight, dry-run Colibri2 CPU/порт 8001, раздельные пути, проверка условной идентичности PID/SID/port и контролируемая оценка RAM. Отчёт Codex: 133/133 offline PASS (предыдущие 78 + 55 новых), серверный исполнительный канал BLOCKED. На домашнем `DESKTOP-SC96D3U` координатор самостоятельно повторил `133/133 PASS, 0 FAIL` и отдельно проверил обычный CLI: `BLOCKED: Wrong execution host`. **Real server START/STOP/CPU-runtime/RAM measurement NOT RUN.** Независимый вердикт — БЛОК 4 ниже. Точная TASK владельца в БЛОКЕ 1 сохраняется без изменений; не ротировать до согласованного закрытия.
+
+
+
 **2026-11-01 — `CODEX-ULTRA-LLM-COLIBRI-START-001` (факт поступившего отчёта, приёмка не завершена):** Codex подготовил `Colibri/ULTRA-START.bat`, `ULTRA-STOP.bat`, `ULTRA-STATUS.bat`, `ULTRA-CONTROL.py`, `ULTRA-README.md`; локальные тесты **28/28 PASS** (авторские). Серверный `SERVER-STATUS.json` подтверждает Colibri `ready`, CUDA RTX 3070, Qwen3-Coder-30B-A3B; пользователь открыл чат вручную и получил ответы. **FORMAL REAL-GENERATION-TESTS / TOK/S NOT RUN**, конечный независимый verdict **REVIEW PENDING**. Исходный отчёт Codex не синхронизирован полностью с поздними серверными наблюдениями; полный контекст в `09_История_задач.md` → TASK ID. Report: `Documents/Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/REPORT-CODEX-ULTRA-LLM-COLIBRI-START-001.md`. 
 
 ### БЛОК 3 — ОТКРЫТЫЕ ВОПРОСЫ / NEXT
 
+**UL-MGR-0C OPEN 08.11:** авторизованное исполнение в ОС `DESKTOP-KT4G5SM` не подтверждено; доступны только SMB-файлы. Потребуются отдельный read-only server preflight, проверка CPU-runtime и точного RAM-пика уже запущенной Colibri, затем надёжные Windows ownership/mutex/durable lease/watchdog/same-handle stop до нового live START. `server_runner.py` сегодня **умышленно не может допустить новое размещение при UNKNOWN external LLM peak**. Ресурсный расчёт 20 ГиБ защищённых игр + 10 ГиБ остатка может отказать консервативнее необходимого, поскольку часть игровых процессов уже уменьшает фактическую free RAM; пересмотреть метод учёта перед live, а не ослаблять защиту без замеров. `CODEX-UL-MGR-0C-SERVER-RUNNER-001` = PARTIAL / BLOCKED SERVER ACCESS; новая TASK не назначена автоматически.
+
+
+
 **Текущие OPEN:** `CODEX-ULTRA-LLM-COLIBRI-START-001` — формальный двухходовый тест скорости и GPU/RAM, итоговый пакет Codex, независимая приёмка и подтверждение сохранности оригинальной TASK. Сопутствующие FOLLOWUP: `FOLLOWUP-ULTRA-COLIBRI-PERF-001`, `FOLLOWUP-ULTRA-COLIBRI-WEB-001`, `FOLLOWUP-ULTRA-COLIBRI-CONTEXT-001` (реестр №05). Следующий технический этап не назначать автоматически, БЛОК 1/1.1 не ротировать без closeout.
 
 ### БЛОК 4 — НЕЗАВИСИМАЯ ПРОВЕРКА (ТОЛЬКО КООРДИНАТОР)
+
+**2026-11-08 — независимый verdict для `CODEX-UL-MGR-0C-SERVER-RUNNER-001`: PARTIAL (DRY-RUN ACCEPTED / LIVE BLOCKED).** Координатор через SMB прочитал `server_runner.py` (426 строк), `test_server_runner.py` (463 строки), прежние `manager_core.py`/`resource_catalog.py`; на `DESKTOP-SC96D3U` повторно исполнил `py -3.12 -B -m unittest discover -s "\\\\192.168.0.77\\Server\\Ultra_LLM\\Colibri\\manager_dev" -p "test_*.py" -q`, результат **Ran 133 tests; OK / 0 FAIL**. Самостоятельный обычный вызов `server_runner.py` вернул `BLOCKED: Wrong execution host: DESKTOP-SC96D3U; required DESKTOP-KT4G5SM`, live start/stop недоступны в коде. Отчёт Codex о всех SHA-256 исходных файлов и сетевых пробах принимается как **исполнительский evidence, не подтверждён координатором побайтово/на сервере**. Замер внешнего RAM peak неизвестен, LocalWindowsReader намеренно блокирует дальнейший admission при уже запущенной Colibri; реальный CPU-runtime/WSMan/SSH/RDP/CIM и hardware host evidence координатор не перепроверял. Не объявлять 0C COMPLETE или серверный запуск успешным; **отдельный USER GO** для серверной диагностики и последующего live теста обязателен. БЛОК 1 сохранить.
+
+
 
 **2026-11-01 — REVIEW PENDING / ПРЕДВАРИТЕЛЬНАЯ ДОКУМЕНТНАЯ ПРОВЕРКА, НЕ ФИНАЛЬНАЯ ПРИЁМКА.** ChatGPT прочитал исходный отчёт Codex, авторские `LOCAL-TESTS.json`, серверный `SERVER-STATUS.json` и фрагменты `ULTRA-CONTROL.py`/BAT/README. Это подтверждает наличие реализации и достоверность указанных **документированных** свидетельств, но **не** независимый прогон 28/28 и **не** полноценная проверка всех ветвей runtime. Реальные формальные 2 ответа, tok/s, полный серверный STOP/START-cycle и компиляция UE5 — **NOT RUN**. `PASS / DONE / VERIFIED` не присвоен. Подробности — №09. БЛОК 1 не очищать; место точного оригинала TASK/AMENDMENT — `NOT VERIFIED`.
 
