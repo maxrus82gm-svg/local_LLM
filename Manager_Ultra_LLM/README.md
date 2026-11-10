@@ -47,3 +47,30 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\verify_offline.ps1
 `live_tls_smoke.py` проверен **на настоящем сервере DESKTOP-KT4G5SM**: временный HTTPS-listener на **127.0.0.1:18447** с реальным серверным TLS-сертификатом, реальным `/health` Colibri1 и локальной тестовой учётной записью. Отсутствующий/неверный тестовый token => 401; разрешённый тестовый клиент => 200; клиент без прав => `denied`. TLS certificate validation PASS, Qwen3.6 обнаружена. После теста порт закрыт, постоянная конфигурация и клиентские секреты НЕ созданы. Скрипт содержит только явно тестовый маркер, действующим доступом в LAN он не является. Результат: **PASS LOOPBACK HTTPS; LAN PAIRING NOT RUN / BLOCKED.**
 
 Копия `live_manager.py` на сервере обновлена с сохранением старого файла `live_manager.py.before_TASK004`; SHA-256 домашнего нового кода и серверной копии совпадают. 16 первоначальных файлов Colibri Manager, Colibri1/8000, Valheim и системный firewall не меняли. Переход к рабочему LAN требует безопасного индивидуального credential provisioning вне Git и отдельного подтверждённого клиента.
+
+
+## Pairing Manager / Client — этап 11.11.2026
+
+`pairing_server.py`: создаёт `manager.json` либо добавляет/отзывает клиентскую запись на **своей** машине. Принимает лишь SHA-256 токена, выданного клиентской программой; исходный bearer-token на сервер не передаётся. `live_manager.py` перечитывает права при каждом запросе, так что `revoke` действует без рестарта. Конфиг сохраняется атомарно вне Git и только в папке с защищёнными ACL. Запуск, установка службы, firewall и управление моделями в pairing-скрипт НЕ входят.
+
+Пример администраторской команды **после** получения 64-символьного SHA-256 от первого клиента (не выполнять с placeholder):
+
+```powershell
+$py='C:\Users\silver\AppData\Local\Programs\Python\Python312\python.exe'
+$src='C:\Server\Ultra_LLM\Manager_Live\pairing_server.py'
+& $py -B $src --config 'C:\ProgramData\UltraLLM\Manager\private\manager.json' create `
+ --manager-id manager-server77 --name 'Ultra LLM Server 77' `
+ --bind 192.168.0.77 --port 8443 `
+ --colibri-root 'C:\Server\Ultra_LLM\Colibri' `
+ --models-root 'C:\Server\Ultra_LLM\Base_LLM\Models' `
+ --cert 'C:\ProgramData\UltraLLM\Manager\private\server-cert.pem' `
+ --key 'C:\ProgramData\UltraLLM\Manager\private\server-key.pem' `
+ --slot slot1:8000:protected --slot slot2:8001 --slot slot3:8002 `
+ --allow-ip 192.168.0.9 --client-id home-rex `
+ --token-sha256 '<64_HEX_DIGEST_FROM_CLIENT>' `
+ --grant-slot slot1 --grant-slot slot2 --grant-slot slot3
+```
+
+Выходные данные: `manager.json` на сервере, не в Git; список разрешённых адресов указывает только на конкретный клиент LAN. При регистрации второго Client использовать `grant --client-id <ID> --token-sha256 <64_HEX> --grant-slot slot1`. Для отзыва `revoke --client-id <ID>`, запрещено отзывать последнего клиента при работающем сервере. Серверный сертификат и приватный ключ остаются на сервере. Порт 8443, firewall, Windows Service и доступ по интернету **пока не активированы**.
+
+На реальном сервере проверены закрытые ACL, TLS и встроенный отзыв токена (401), отказ неизвестному IP (403), наличие действующей Colibri1/8000. Следующий gate — безопасное создание личного токена на домашней машине пользователем, запись его digest на сервере и фактическое соединение через LAN.

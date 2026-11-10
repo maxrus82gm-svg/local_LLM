@@ -44,6 +44,7 @@ def check(cert: Path, key: Path, models_root: Path, colibri_root: Path, server_n
             "display_name": "Local HTTPS smoke",
             "bind_host": "127.0.0.1",
             "listen_port": port,
+            "allowed_client_ips": ["127.0.0.1"],
             "colibri_root": str(colibri_root),
             "models_root": str(models_root),
             "cert_file": str(cert),
@@ -80,6 +81,16 @@ def check(cert: Path, key: Path, models_root: Path, colibri_root: Path, server_n
         assert denied["viewer_id"] == "denied-viewer"
         assert all(x["availability"] == "denied" for x in denied["slots"])
         assert all(x["models"] == [] and x["pid"] is None for x in denied["slots"])
+        # Real live revocation: replace the private config while HTTPS is running.
+        config["clients"] = [config["clients"][1]]
+        conf.write_text(json.dumps(config), encoding="utf-8")
+        code, _ = _fetch(port, tls_context, server_name, marker)
+        assert code == 401, f"Revoked client was not blocked: {code}"
+        # Next change the source-IP policy: same valid token must now get 403.
+        config["allowed_client_ips"] = ["192.168.0.9"]
+        conf.write_text(json.dumps(config), encoding="utf-8")
+        code, _ = _fetch(port, tls_context, server_name, marker + "-denied")
+        assert code == 403, f"Disallowed IP was not blocked: {code}"
         print(json.dumps({
             "result": "PASS_LOOPBACK_TLS_REAL_HOST",
             "host": response["host"],
@@ -89,6 +100,8 @@ def check(cert: Path, key: Path, models_root: Path, colibri_root: Path, server_n
             "invalid_token": 401,
             "valid_token": 200,
             "limited_client": "denied",
+            "revoked_token": 401,
+            "disallowed_source": 403,
             "certificate_verified": True,
             "interface": "127.0.0.1",
             "lan_opened": False}, ensure_ascii=False))

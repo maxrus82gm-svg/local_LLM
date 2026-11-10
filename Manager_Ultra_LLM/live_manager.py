@@ -66,8 +66,9 @@ def load_config(file: Path):
         ip = ipaddress.ip_address(bind)
     except ValueError as error:
         raise ValueError("bind_host must be a numeric interface IP") from error
-    if ip.is_unspecified or ip.is_multicast or ip.is_link_local:
-        raise ValueError("Wildcard, multicast and link-local binds forbidden")
+    if (ip.is_unspecified or ip.is_multicast or ip.is_link_local
+            or not (ip.is_private or ip.is_loopback)):
+        raise ValueError("Only explicit private/loopback binds allowed at LAN stage")
     port = raw.get("listen_port")
     if type(port) is not int or not (1024 <= port <= 65535):
         raise ValueError("Invalid listen_port")
@@ -86,6 +87,24 @@ def load_config(file: Path):
             raise ValueError("Duplicate slot/port")
         ids.add(slot["slot_id"])
         ports.add(n)
+    allowed_ips = raw.get("allowed_client_ips")
+    if not isinstance(allowed_ips, list) or not allowed_ips:
+        raise ValueError("Explicit allowlist of client IPs required")
+    normalized = []
+    for address in allowed_ips:
+        if not isinstance(address, str):
+            raise ValueError("Invalid client IP")
+        try:
+            addr = ipaddress.ip_address(address)
+        except ValueError as error:
+            raise ValueError("Client allowlist must contain literal IP addresses") from error
+        if (addr.is_unspecified or addr.is_multicast or addr.is_link_local
+                or not (addr.is_private or addr.is_loopback)):
+            raise ValueError("Only explicitly allowed private/loopback client IPs")
+        normalized.append(str(addr))
+    if len(set(normalized)) != len(normalized):
+        raise ValueError("Duplicate allowed client IP")
+    raw["allowed_client_ips"] = normalized
     clients = raw.get("clients")
     if not isinstance(clients, list) or not clients:
         raise ValueError("No client credentials")
@@ -267,13 +286,25 @@ def run(config_file):
         def do_GET(self):
             if self.path != "/v1/snapshot":
                 return self._reply(404, {"error": "not_found"})
-            client = _authorized_client(config, self.headers.get("Authorization", ""))
+            # Reload grants on EVERY request: revoke/rotate without a restart.
+            # Never trust client-provided identity or X-Forwarded-For.
+            try:
+                current = load_config(config_file)
+                if any(current[field] != config[field] for field in
+                       ("manager_id", "bind_host", "listen_port",
+                        "cert_file", "key_file")):
+                    return self._reply(503, {"error": "manager_config_changed"})
+            except (OSError, ValueError, TypeError):
+                return self._reply(503, {"error": "configuration_unavailable"})
+            if self.client_address[0] not in current["allowed_client_ips"]:
+                return self._reply(403, {"error": "source_not_permitted"})
+            client = _authorized_client(current, self.headers.get("Authorization", ""))
             if client is None:
                 return self._reply(401, {"error": "unauthorized"})
             if not _MAX_REQUESTS.acquire(blocking=False):
                 return self._reply(503, {"error": "busy"})
             try:
-                self._reply(200, live_snapshot(config, client))
+                self._reply(200, live_snapshot(current, client))
             except Exception as error:
                 _LOG.exception("Snapshot failed: %s", type(error).__name__)
                 self._reply(503, {"error": "temporarily_unavailable"})

@@ -22,3 +22,21 @@ py -3.12 -B -m unittest discover -s Client_Ultra_LLM -p 'test_*.py' -q
 Запуск после настройки `python -B live_client.py --config <private_managers.json>` или `python -B live_client_gui.py --config <private_managers.json>`. Чтение будет работать через LAN; выход в интернет предполагается **только позднее** при защищённой публикации, не при текущем запуске. У клиента нет SMB-доступа к серверным моделям и права самому завершать или запускать серверные процессы.
 
 **Текущий статус:** исходники CLI/GUI созданы и проверены; клиент сверяет в HTTPS-ответе одновременно `manager_id` и `viewer_id` с `client_id` соответствующего профиля. Защищённое сетевое соединение домашний Client→Manager по LAN пока **NOT RUN** из-за незавершённого безопасного credential/bootstrap. На сервере отдельно прошёл настоящий локальный HTTPS-smoke (не LAN). Упакованного Windows-инсталлятора ещё нет. Статический P0 `index.html` — исторический макет, рабочая линия теперь `live_client_gui.py`.
+
+
+## Подключение нового Client / индивидуальная регистрация
+
+На компьютере клиента сначала выполнить `Prepare-ClientPrivate.ps1` (настройка каталога `%LOCALAPPDATA%\UltraLLM\Client` с ограниченными ACL). Для домашнего DESKTOP-SC96D3U это **уже выполнено**, каталог и его ACL проверены. Туда также доставлен **только публичный** TLS-сертификат сервера `source-server77.pem`, его SHA-256 совпадает с серверным; приватный ключ не копировался.
+
+Следующее **одно локальное действие владельца на домашнем ПК** — создать собственный токен в защищённом каталоге. Программа `pairing_client.py` не печатает токен в консоль, а выводит только его SHA-256 для сервера:
+
+```powershell
+$private=Join-Path $env:LOCALAPPDATA 'UltraLLM\Client'
+py -3.12 -B 'M:\GitHub\local_LLM\Client_Ultra_LLM\pairing_client.py' `
+ --private-dir $private --manager-id manager-server77 `
+ --client-id home-rex --display-name 'Ultra LLM Server 77' `
+ --endpoint 'https://192.168.0.77:8443' `
+ --ca-public-cert (Join-Path $private 'source-server77.pem')
+```
+
+Не вставлять в чат/репозиторий содержимое `.token`, `managers.json`, приватные TLS-ключи. SHA-256 — не исходный токен, его можно передать администратору для команды Manager `create/grant`. Новый Manager добавляется отдельным профилем; несколько Manager поддерживаются одновременно. После запуска защищённого LAN listener и разрешения IP проверка: `py -3.12 -B Client_Ultra_LLM/live_client.py --config "$private\managers.json"` и графический `live_client_gui.py`. Сейчас реальные постоянные credentials ещё НЕ созданы, а LAN Client→Manager ещё NOT VERIFIED.
