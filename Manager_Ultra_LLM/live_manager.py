@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import hashlib
+import ipaddress
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import hmac
 import json
@@ -59,8 +60,14 @@ def load_config(file: Path):
         if not isinstance(value, str) or not Path(value).is_absolute():
             raise ValueError("Missing absolute " + field)
     bind = raw.get("bind_host")
-    if not isinstance(bind, str) or not bind or bind in ("0.0.0.0", "::"):
-        raise ValueError("Explicit LAN bind_host required, no wildcard")
+    if not isinstance(bind, str):
+        raise ValueError("Explicit IP bind_host required")
+    try:
+        ip = ipaddress.ip_address(bind)
+    except ValueError as error:
+        raise ValueError("bind_host must be a numeric interface IP") from error
+    if ip.is_unspecified or ip.is_multicast or ip.is_link_local:
+        raise ValueError("Wildcard, multicast and link-local binds forbidden")
     port = raw.get("listen_port")
     if type(port) is not int or not (1024 <= port <= 65535):
         raise ValueError("Invalid listen_port")
@@ -222,17 +229,24 @@ def live_snapshot(config, client):
                     if all(type(x) is int and x >= 0 for x in vals):
                         row["scheduler"] = dict(zip(("active", "queued", "capacity"), vals))
                 if allowed:
-                    if row["scheduler"] and (
-                            row["scheduler"]["active"] >= row["scheduler"]["capacity"]
-                            or row["scheduler"]["queued"] > 0):
+                    if row["scheduler"] is None or row["scheduler"]["capacity"] == 0:
+                        row["availability"] = "unknown"
+                    elif (row["scheduler"]["active"] >= row["scheduler"]["capacity"]
+                          or row["scheduler"]["queued"] > 0):
                         row["availability"] = "busy"
                     else:
                         row["availability"] = "ready_unreserved"
-            if isinstance(models, dict) and isinstance(models.get("data"), list):
+            if allowed and isinstance(models, dict) and isinstance(models.get("data"), list):
                 row["models"] = [
                     str(m["id"])[:128] for m in models["data"][:30]
                     if isinstance(m, dict) and isinstance(m.get("id"), str)]
+        if not allowed:
+            # An unauthorised viewer gets no PID, model details or live scheduler.
+            row.update(pid=None, models=[], scheduler=None)
         result["slots"].append(row)
+    # Never disclose model catalog paths to clients lacking any slot grant.
+    if not client["allowed_slots"]:
+        result["models"] = []
     return result
 
 

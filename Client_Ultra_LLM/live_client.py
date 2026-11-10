@@ -45,7 +45,11 @@ def load_profiles(config_path: Path) -> list[dict]:
                 url.username or url.password or url.query or url.fragment or
                 url.path not in ("", "/") or not port):
             raise ValueError("HTTPS host:port required")
+        client_id = raw.get("client_id")
+        if not isinstance(client_id, str) or not _ID.fullmatch(client_id):
+            raise ValueError("Each Manager profile requires a client_id")
         row = {"manager_id": mid,
+               "client_id": client_id,
                "display_name": str(raw.get("display_name", mid))[:80],
                "endpoint": f"https://{url.netloc}",
                "ca_cert": (config_path.parent / raw["ca_cert"]).resolve(),
@@ -78,6 +82,7 @@ def fetch_one(profile: dict, timeout: float = 6.0) -> dict:
                 payload.get("schema") != "ultra.manager.live.v1" or
                 payload.get("source") != "LIVE_HOST" or
                 payload.get("manager_id") != profile["manager_id"] or
+                payload.get("viewer_id") != profile["client_id"] or
                 payload.get("admission_enabled") is not False or
                 payload.get("reservation_granted") is not False or
                 not isinstance(payload.get("slots"), list) or
