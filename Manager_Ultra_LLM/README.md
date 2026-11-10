@@ -21,3 +21,18 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\verify_offline.ps1
 Разработка и проверка исходников — на домашнем ПК в Git-репозитории `local_LLM`. Проверенную серверную копию затем доставлять отдельно, с резервной копией, версией и откатом. Не заменять текущую Colibri1, Valheim, системные службы, `setup.json` и секреты. Публичный API, авторизация, реальный Colibri2 START/STOP, служба и LAN — отдельные решения владельца.
 
 Первый клиентский офлайн-макет находится в `../Client_Ultra_LLM`. Он не подключён к этому Manager.
+
+
+## Live Manager P1 — реальный серверный мониторинг (10.11.2026)
+
+`live_manager.py` — новая, **отдельная** от исходных 16 baseline-файлов серверная программа, стандартная библиотека Python 3.12, Windows. Снимок строится из фактической ОС (Get-CimInstance RAM, Get-NetTCPConnection), локальных `/health` и `/v1/models` каждой Colibri, а также каталогов установленной модели. Сервер `DESKTOP-KT4G5SM`: копия кода уже сверена SHA-256 с `C:\Server\Ultra_LLM\Manager_Live\live_manager.py`; реальная функция `live_snapshot()` там выполнена без запуска моделей.
+
+**Статус запуска:** HTTPS-служба и клиентское подключение **ещё не запущены/не подтверждены**: защищённое создание серверной конфигурации и клиентских credentials через автоматизированный канал было заблокировано. Сертификат и приватный ключ созданы на сервере в `C:\ProgramData\UltraLLM\Manager\private` с закрытым ACL (silver, SYSTEM, Administrators); нельзя публиковать ключ или копировать его в Git. `manager.json` пока не создан, порт 8443 не открывался. Это не production-ready service.
+
+Серверный конфиг `manager.json` задаёт `manager_id`, `display_name`, **явные** `bind_host`/`listen_port`, абсолютные `colibri_root`/`models_root`, `cert_file`/`key_file`, `slots` (slot_id, api_port, protected), `clients` (отдельные client_id, SHA-256 токена, allowed_slots). Эти параметры позволяют независимо развернуть Manager на любом подходящем Windows-компьютере, где установлен Colibri. Рабочие пути не задаются константами в новой программе. Перед запуском потребуется завершить безопасную подготовку этих настроек на конкретной машине и проверить права доступа.
+
+Вызов после защищённой подготовки: `python -B live_manager.py --config <private_absolute_path_to_manager.json>`. API: только `GET /v1/snapshot` по **HTTPS**, для каждого клиента `Authorization: Bearer`, сравнение SHA-256 постоянного времени; любые POST отказываются выполнять управление. Менеджер не выставляет незащищённый HTTP в LAN. Пока нет server host как Windows Service и autorun. WinRM остаётся исключительно административным каналом.
+
+Состояния реальны, но **не дают резервирования**: `ready_unreserved` означает, что Colibri ответила на health и её scheduler по моментному снимку не загружен; `busy`, `not_running`, `unknown`, `denied` — другие состояния. Каталог `files_present_unverified` не означает установленную или совместимую модель. `reservation_granted=false` до реализации атомарной выдачи ресурса в уже существующем серверном ядре. Пока нет реальных START/STOP, аренды слота и межклиентного назначения.
+
+**Обязательное следующее инженерное решение:** после безопасного ввода credentials проверить настоящий HTTPS-обмен со второго компьютера; затем добавить server-side admission/leases/authenticated start только через существующие `manager_core`, `service_core`, `windows_process` и guard запуска. Не строить второй процессный движок.
