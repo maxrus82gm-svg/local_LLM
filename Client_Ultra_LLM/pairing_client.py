@@ -58,7 +58,7 @@ def _require_private_acl(parent: Path):
 
 
 def enroll(private_dir: Path, manager_id: str, client_id: str, endpoint: str,
-           public_ca: Path, display_name: str):
+           public_ca: Path, display_name: str, *, announce: bool = True):
     private_dir = private_dir.resolve(strict=True)
     if not private_dir.is_dir():
         raise ValueError("Client private folder must exist and be access-restricted")
@@ -125,10 +125,12 @@ def enroll(private_dir: Path, manager_id: str, client_id: str, endpoint: str,
             if file.exists():
                 file.unlink()
         raise
-    print("CLIENT_PROFILE_CREATED", manager_id, client_id)
-    print("MANAGER_REGISTRATION_SHA256", digest)
-    print("CA_PUBLIC_SHA256", hashlib.sha256(ca_path.read_bytes()).hexdigest())
-    print("Raw token saved locally; do NOT paste token in any chat or GitHub")
+    if announce:
+        print("CLIENT_PROFILE_CREATED", manager_id, client_id)
+        print("MANAGER_REGISTRATION_SHA256", digest)
+        print("CA_PUBLIC_SHA256", hashlib.sha256(ca_path.read_bytes()).hexdigest())
+        print("Raw token saved locally; do NOT paste token in any chat or GitHub")
+    return digest
 
 
 if __name__ == "__main__":
