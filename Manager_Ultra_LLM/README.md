@@ -74,3 +74,43 @@ $src='C:\Server\Ultra_LLM\Manager_Live\pairing_server.py'
 Выходные данные: `manager.json` на сервере, не в Git; список разрешённых адресов указывает только на конкретный клиент LAN. При регистрации второго Client использовать `grant --client-id <ID> --token-sha256 <64_HEX> --grant-slot slot1`. Для отзыва `revoke --client-id <ID>`, запрещено отзывать последнего клиента при работающем сервере. Серверный сертификат и приватный ключ остаются на сервере. Порт 8443, firewall, Windows Service и доступ по интернету **пока не активированы**.
 
 На реальном сервере проверены закрытые ACL, TLS и встроенный отзыв токена (401), отказ неизвестному IP (403), наличие действующей Colibri1/8000. Следующий gate — безопасное создание личного токена на домашней машине пользователем, запись его digest на сервере и фактическое соединение через LAN.
+
+
+## Постоянный LAN Manager через Windows Task Scheduler — задача №7 (11.11.2026)
+
+**Фактически установлен на DESKTOP-KT4G5SM:** отдельная задача `UltraLLM_Manager_LIVE` от `DESKTOP-KT4G5SM\silver` с `S4U / RunLevel Limited` (НЕ SYSTEM), триггер `AtStartup`, `StartWhenAvailable`, до 10 перезапусков с интервалом 1 минута. Код `C:\Server\Ultra_LLM\Manager_Live\live_manager.py`, Python 3.12, `manager.json` в отдельном защищённом каталоге ProgramData. Manager **только читает** Windows/Colibri, не запускает и не останавливает модели. Конфиг/токены/приватный TLS-ключ **не находятся в Git**.
+
+**Контролируемая установка на другом Windows ПК:** скопировать проверенный код Manager на новый хост, создать там отдельную защищённую private-папку, настроить установленную Colibri, порты, менеджерский сертификат и индивидуальные client credentials через предыдущий pairing. На сервере администратор запускает (пример для нашего хоста, все пути и аккаунт подставляются под конкретный ПК):
+
+```powershell
+$hostDir = 'C:\Server\Ultra_LLM\Manager_Live'
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$hostDir\Manage-ManagerTask.ps1" `
+    -Action Install `
+    -ConfigPath 'C:\ProgramData\UltraLLM\Manager\private\manager.json' `
+    -PythonExe 'C:\Users\silver\AppData\Local\Programs\Python\Python312\python.exe' `
+    -TaskUser 'DESKTOP-KT4G5SM\silver'
+```
+
+Скрипт отказывается перезаписывать чужую задачу/firewall-rule, проверяет конфиг и IP, защищает `C:\ProgramData\UltraLLM\Manager\logs` через ACL, создаёт только firewall rule по IP/порту Manager с `RemoteAddress` из `allowed_client_ips` и привязкой к `python.exe`. На текущем сервере: local `192.168.0.77:8443`, единственный remote IP `192.168.0.9`, `Profile Any` обусловлен текущим Public-профилем Ethernet; это **не** открытие для всех LAN или Internet. Никаких правил на роутере нет.
+
+Логи: `C:\ProgramData\UltraLLM\Manager\logs\manager.log`, стандартная ротация 2 MiB × 1 активный и 3 архива. Лог содержит время/IP и событие, не пишет Authorization-header/сырой URL. `--check-config` позволяет валидировать Manager без открытия TCP-порта. Приватные папки и логи не хранить в Workspace/Git.
+
+**Контроль состояния:**
+
+```powershell
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$hostDir\Manage-ManagerTask.ps1" `
+    -Action Status -ConfigPath 'C:\ProgramData\UltraLLM\Manager\private\manager.json'
+```
+
+**Откат при аварии/необходимости отключить Manager** (не удаляет токены, TLS-ключ, логи, Colibri):
+
+```powershell
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$hostDir\Manage-ManagerTask.ps1" `
+    -Action Remove -ConfigPath 'C:\ProgramData\UltraLLM\Manager\private\manager.json'
+```
+
+Резервная копия предыдущего файла `live_manager.py.before_TASK007` сохранена рядом с серверным Manager; восстановление файла допустимо **после** остановки задачи и проверки SHA-256. Исходный `Colibri\manager_dev` (16 файлов) не изменён.
+
+**Приёмочное свидетельство:** `Manage-ManagerTask.ps1 Install` → задача Running, S4U, BootTrigger, 1 LAN-listener, firewall remote allowlist `192.168.0.9`. Домашний `live_client.py` вернул ONLINE / exit=0, Qwen3.6 в slot1/8000, slot2/3 not_running. Контролируемый Stop → listener 0, Start → новый PID и listener 1; повторный Client ONLINE. Colibri1 и Valheim остались работающими. Проверка штатного статуса скриптом вернула exit=0. **Перезагрузка Windows и авто-восстановление после искусственного crash НЕ тестировались** (без разрешения сервер не перезагружался).
+
+**Важный долг по безопасности:** `silver` запущен с `RunLevel Limited`, но это всё ещё основная пользовательская учётная запись, а **не выделенный сервисный аккаунт**. Для усиленной эксплуатации рекомендуется отдельная непривилегированная локальная учётная запись с минимальными правами только на Python/Colibri read-only и private TLS key; переход — после отдельной приёмки. Нет автоматического продления TLS (текущий сертификат до 10.03.2027), мониторинг срока действия понадобится до истечения. N:M и персональные ACL поддерживаются на уровне конфигурации, реальный второй Client/Manager ещё не проверен.

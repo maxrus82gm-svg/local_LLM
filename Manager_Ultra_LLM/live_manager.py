@@ -15,6 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import hmac
 import json
 import logging
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 import re
 import socket
@@ -313,8 +314,9 @@ def run(config_file):
         def do_POST(self):
             self._reply(405, {"error": "read_only_stage"})
         def log_message(self, fmt, *args):
-            # Never log auth headers or credentials.
-            _LOG.info("%s %s", self.client_address[0], fmt % args)
+            # Never log URL paths/query strings or auth headers: they may
+            # inadvertently contain secrets, even for rejected requests.
+            _LOG.info("HTTPS request from %s", self.client_address[0])
 
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.minimum_version = ssl.TLSVersion.TLSv1_2
@@ -330,7 +332,29 @@ def run(config_file):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, required=True)
+    parser.add_argument("--log-dir", type=Path,
+                        help="Existing ACL-protected directory outside Git")
+    parser.add_argument("--check-config", action="store_true",
+                        help="Validate the configuration without binding a port")
     args = parser.parse_args()
+    log_handlers = []
+    if args.log_dir:
+        log_dir = args.log_dir
+        if (not log_dir.is_absolute() or not log_dir.is_dir() or
+                log_dir.is_symlink()):
+            parser.error("--log-dir must be an existing absolute directory")
+        log_handlers.append(RotatingFileHandler(
+            log_dir / "manager.log", maxBytes=2 * 1024 * 1024,
+            backupCount=3, encoding="utf-8"))
+    if not log_handlers:
+        log_handlers.append(logging.StreamHandler())
     logging.basicConfig(level=logging.INFO,
-                        format="%(asctime)s %(levelname)s %(message)s")
-    run(args.config)
+                        format="%(asctime)s %(levelname)s %(message)s",
+                        handlers=log_handlers)
+    if args.check_config:
+        config = load_config(args.config)
+        if not Path(config["cert_file"]).is_file() or not Path(config["key_file"]).is_file():
+            parser.error("Missing TLS certificate or key")
+        print("MANAGER_CONFIGURATION_OK")
+    else:
+        run(args.config)
