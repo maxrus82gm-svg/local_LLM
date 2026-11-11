@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 from live_manager import load_config
-from pairing_server import create, grant, revoke, set_pairing_admin
+from pairing_server import create, grant, revoke, set_pairing_admin, set_control_models
 
 
 def digest(text):
@@ -75,6 +75,18 @@ class PairingServerTests(unittest.TestCase):
         self.assertFalse(load_config(self.config)["clients"][0]["pairing_admin"])
         with self.assertRaises(ValueError):
             set_pairing_admin(Args(config=self.config,client_id="unknown",enabled=True))
+
+    def test_model_control_grant_is_separate_and_revocable(self):
+        create(self.args)
+        self.assertFalse(load_config(self.config)["clients"][0].get("control_models",False))
+        set_pairing_admin(Args(config=self.config,client_id="client-a",enabled=True))
+        self.assertFalse(load_config(self.config)["clients"][0].get("control_models",False))
+        set_control_models(Args(config=self.config,client_id="client-a",enabled=True))
+        self.assertTrue(load_config(self.config)["clients"][0]["control_models"])
+        set_control_models(Args(config=self.config,client_id="client-a",enabled=False))
+        client=load_config(self.config)["clients"][0]
+        self.assertFalse(client["control_models"])
+        self.assertTrue(client["pairing_admin"])
 
     def test_two_admin_grants_do_not_overwrite_each_other(self):
         create(self.args)

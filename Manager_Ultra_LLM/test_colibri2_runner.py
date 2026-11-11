@@ -357,6 +357,16 @@ class NativeIntegrationTests(unittest.TestCase):
         self.assertGreater(native.memory()["total_gib"], 0)
         self.assertIsInstance(native.listeners(), list)
 
+    def test_ipv6_listener_is_not_mistaken_for_a_free_port(self):
+        import socket
+        native = NativeWindows()
+        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as listener:
+            listener.bind(("::1", 0))
+            listener.listen(1)
+            port = listener.getsockname()[1]
+            self.assertTrue(any(row["port"] == port and row["pid"] == os.getpid()
+                                for row in native.listeners()))
+
     def test_mutex_denies_another_owner_and_session_event_is_exact(self):
         native = NativeWindows()
         name = rf"Local\UltraLLM-test-{uuid.uuid4().hex}"

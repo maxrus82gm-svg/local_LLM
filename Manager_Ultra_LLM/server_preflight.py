@@ -17,6 +17,8 @@ from pathlib import Path
 import socket
 import subprocess
 import sys
+import struct
+import hashlib
 import urllib.error
 import urllib.request
 
@@ -178,9 +180,65 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def probe_api(port):
+def inspect_kat(folder):
+    """Read headers/metadata only. Structure is not a cryptographic weight audit."""
+    folder = Path(folder)
+    meta = read_json(folder / "qwen36_meta.json") or {}
+    config = read_json(folder / "config.json") or {}
+    shards = sorted(folder.glob("model-*.safetensors"))
+    expected = [f"model-{i:05d}.safetensors" for i in range(40)] + ["model-globals.safetensors"]
+    valid = ([p.name for p in shards] == expected and meta.get("expert_gs") == 64
+             and meta.get("ebits") == 4 and meta.get("n_layers") == 40
+             and config.get("model_type") == "qwen3_5_moe_text")
+    tensors = total = 0
+    headers = {}
+    for shard in shards:
+        if shard.is_symlink() or not shard.resolve().is_relative_to(folder.resolve()):
+            valid = False
+            continue
+        size = shard.stat().st_size
+        total += size
+        with shard.open("rb") as stream:
+            length_bytes = stream.read(8)
+            if len(length_bytes) != 8:
+                valid = False
+                continue
+            n = struct.unpack("<Q", length_bytes)[0]
+            if not 2 <= n <= min(16*1024*1024, size-8):
+                valid = False
+                continue
+            raw = stream.read(n)
+        headers[shard.name] = hashlib.sha256(length_bytes + raw).hexdigest()
+        header = json.loads(raw)
+        ends = []
+        for key, value in header.items():
+            if key == "__metadata__":
+                continue
+            offsets = value.get("data_offsets") if isinstance(value, dict) else None
+            if (not isinstance(offsets, list) or len(offsets) != 2
+                    or any(type(x) is not int for x in offsets)
+                    or not 0 <= offsets[0] <= offsets[1] <= size-8-n):
+                valid = False
+                continue
+            tensors += 1
+            ends.append(tuple(offsets))
+        position = 0
+        for left, right in sorted(ends):
+            if left != position:
+                valid = False
+            position = right
+        if position != size-8-n or not ends:
+            valid = False
+    return {"model_key": "kat", "structural_integrity": bool(valid),
+            "weight_files": len(shards), "weight_bytes": total, "tensors": tensors,
+            "header_sha256": headers, "expert_group_size": meta.get("expert_gs"),
+            "weight_payload_hash_verified": False, "runtime_compatible": None,
+            "cpu_inference_tested": False, "cuda_inference_tested": False}
+
+
+def probe_api(port, *, allowed_ports=(8000, 8001)):
     """Metadata GETs only, no generation, no inherited proxy, no redirects/keys."""
-    if type(port) is not int or port not in (8000, 8001):
+    if type(port) is not int or port not in allowed_ports or not 1024 <= port <= 65535:
         raise PreflightError("Only known server loopback ports may be inspected")
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
     report = {"port": port, "health": "UNKNOWN", "model_ids": []}

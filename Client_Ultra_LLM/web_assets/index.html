@@ -49,13 +49,14 @@
         <button class="btn secondary small" type="button" id="chat-popout" disabled>↗ Открепить окно</button></div>
       <div id="chat-messages" class="chat-messages" aria-live="polite"><div class="chat-empty">Выберите слот для переписки.</div></div>
       <div id="chat-state" class="chat-state" role="status"></div>
-      <form id="chat-form" class="chat-form">
+      <div class="chat-stream-options"><label><input type="checkbox" id="chat-stream" checked> Потоковый ответ</label> <button type="button" id="chat-cancel" class="btn secondary small" disabled>Отменить поток</button></div>
+          <form id="chat-form" class="chat-form">
         <textarea id="chat-input" maxlength="4000" rows="3" placeholder="Сообщение выбранной LLM…" aria-label="Сообщение" disabled></textarea>
         <button type="submit" class="btn primary" id="chat-send" disabled>Отправить</button>
       </form>
     </section>
   </div>
-  <footer>CHAT-01 · Инференс выполняется на сервере · START/STOP пока недоступны</footer>
+  <footer>Инференс и управление моделями выполняет авторизованный Manager</footer>
 </main></div>
 <dialog id="setup" aria-labelledby="setup-title">
   <div class="dialog-content">

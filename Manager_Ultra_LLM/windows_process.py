@@ -149,25 +149,27 @@ class NativeWindows:
         return {"total_gib": info.total / 2**30, "free_gib": info.available / 2**30}
 
     def listeners(self):
-        """IPv4 listening PID table; never bind or connect to a LAN endpoint."""
+        """IPv4 + IPv6 listening PID tables, including wildcard listeners."""
         dll = c.WinDLL("iphlpapi", use_last_error=True)
         query = dll.GetExtendedTcpTable
         query.argtypes = [c.c_void_p, c.POINTER(w.DWORD), w.BOOL, w.ULONG, c.c_int, w.ULONG]
         query.restype = w.DWORD
-        size = w.DWORD()
-        result = query(None, c.byref(size), False, 2, 3, 0)
-        if result != 122 or not size.value:
-            raise WindowsError("TCP listener inventory unknown")
-        buf = c.create_string_buffer(size.value)
-        if query(buf, c.byref(size), False, 2, 3, 0) != 0:
-            raise WindowsError("TCP listener inventory changed/unavailable")
-        count = c.cast(buf, c.POINTER(w.DWORD))[0]
-        if 4 + count * 24 > size.value:
-            raise WindowsError("Invalid listener inventory")
         rows = []
-        for i in range(count):
-            row = (w.DWORD * 6).from_buffer(buf, 4 + i * 24)
-            rows.append({"port": socket.ntohs(row[2] & 0xffff), "pid": int(row[5])})
+        for family, words, port_index, pid_index in ((2, 6, 2, 5), (23, 14, 5, 13)):
+            size = w.DWORD()
+            result = query(None, c.byref(size), False, family, 3, 0)
+            if result != 122 or not size.value:
+                raise WindowsError("TCP listener inventory unknown")
+            buf = c.create_string_buffer(size.value)
+            if query(buf, c.byref(size), False, family, 3, 0) != 0:
+                raise WindowsError("TCP listener inventory changed/unavailable")
+            count = c.cast(buf, c.POINTER(w.DWORD))[0]
+            stride = words * 4
+            if 4 + count * stride > size.value:
+                raise WindowsError("Invalid listener inventory")
+            for i in range(count):
+                row = (w.DWORD * words).from_buffer(buf, 4 + i * stride)
+                rows.append({"port": socket.ntohs(row[port_index] & 0xffff), "pid": int(row[pid_index])})
         return rows
 
     def job_pids(self, job):

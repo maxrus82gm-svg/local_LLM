@@ -11,10 +11,14 @@
             "id": "b830a0ae8b2d0ac5",
             "type": "leaf",
             "state": {
-              "type": "graph",
-              "state": {},
-              "icon": "lucide-git-fork",
-              "title": "Граф"
+              "type": "markdown",
+              "state": {
+                "file": "07_Задачи Codex.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "07_Задачи Codex"
             }
           }
         ]
@@ -184,7 +188,11 @@
   "active": "b830a0ae8b2d0ac5",
   "lastOpenFiles": [
     "07_Задачи Codex.md",
+    "18_Техническая_документация.md",
     "03_Архитектура.md",
+    "Ideas/IDEA-2026-11-11_Client_Gateway_WebAlarm_Ultra.md",
+    "Ideas",
+    "000_Задачи для агента.md",
     "10.1_Справочник_LLM.md",
     "15_Оценка_LLM.md",
     "19.1_Qwen3.6-35B-A3B_кратко.md",
@@ -193,7 +201,6 @@
     "19_Qwen3.6-35B-A3B.md",
     "Reports/LEGACY_Инструкция_GGUF_Ollama_Colibri_Qwen38_20261101.txt",
     "Reports/LEGACY_Инструкция_добавления_LLM_в_меню_Colibri_20261102.txt",
-    "18_Техническая_документация.md",
     "Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/SERVER-STATUS-20261101T193510769515-21812.json",
     "Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/SERVER-STATUS-20261101T193449920495-21812.json",
     "Reports/QWEN38_COLIBRI_MENU_INTEGRATION_20261102.md",
@@ -202,7 +209,6 @@
     "Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/SERVER-STATUS-20261101T183617364225-17368.json",
     "Reports/KAT-Coder_MAYAK-47_R3_Старт.md",
     "Reports/KAT-Coder-V2.5_MAYAK-47_round4_original_20261101.txt",
-    "Reports/KAT-Coder-V2.5_MAYAK-47_round3_original_20261101.txt",
     "17.1_KAT-Coder-V2.5_кратко.md",
     "Шаблон_карточки_теста.md",
     "17_KAT-Coder-V2.5.md",
@@ -216,8 +222,6 @@
     "Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/BEFORE-KAT-20261101-201053/ULTRA-README.md",
     "Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/REPORT-DEEPSEEK-CONNECT-001.md",
     "Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/BEFORE-DEEPSEEK-20261101-180528/ULTRA-README.md",
-    "Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/SERVER-STATUS.md",
-    "Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/REPORT-CODEX-ULTRA-LLM-COLIBRI-START-001.md",
-    "000_Задачи для агента.md"
+    "Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/SERVER-STATUS.md"
   ]
 }

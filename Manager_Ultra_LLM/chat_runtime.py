@@ -7,8 +7,17 @@ from __future__ import annotations
 
 import json
 import re
+import time
+import socket
+import threading
+from contextlib import contextmanager
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, ProxyHandler, build_opener
+from urllib.request import Request, ProxyHandler, build_opener, HTTPRedirectHandler
+
+
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):
+        return None
 
 MODEL_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$")
 
@@ -18,6 +27,33 @@ class ChatError(Exception):
         super().__init__(reason)
         self.reason = reason
         self.status = status
+
+
+@contextmanager
+def response_guard(response, deadline, cancelled):
+    """Interrupt only this response socket on absolute deadline/cancellation."""
+    finished = threading.Event()
+    sock = getattr(getattr(getattr(response, "fp", None), "raw", None), "_sock", None)
+    def watch():
+        while not finished.wait(0.05):
+            if cancelled.is_set() or time.monotonic() >= deadline:
+                if sock:
+                    try:
+                        sock.shutdown(socket.SHUT_RDWR)
+                        # Windows timed reads can remain in select() after
+                        # shutdown. Detach before close prevents a later file
+                        # cleanup from closing a reused socket handle.
+                        socket.close(sock.detach())
+                    except OSError:
+                        pass
+                return
+    watcher = threading.Thread(target=watch, daemon=True)
+    watcher.start()
+    try:
+        yield
+    finally:
+        finished.set()
+        watcher.join(0.2)
 
 
 def validate_request(payload):
@@ -77,7 +113,7 @@ def proxy_chat(port, model_id, messages, *, timeout=120):
         headers={"Content-Type": "application/json", "Accept": "application/json"},
         data=body)
     try:
-        with build_opener(ProxyHandler({})).open(req, timeout=timeout) as response:
+        with build_opener(ProxyHandler({}), NoRedirect()).open(req, timeout=timeout) as response:
             if response.status != 200:
                 raise ChatError("colibri_unavailable", 502)
             raw = response.read(512 * 1024 + 1)
@@ -101,3 +137,99 @@ def proxy_chat(port, model_id, messages, *, timeout=120):
     except (HTTPError, URLError, OSError, TimeoutError, ValueError,
             KeyError, IndexError, TypeError, json.JSONDecodeError):
         raise ChatError("colibri_inference_failed", 502) from None
+
+
+def proxy_stream(port, model_id, messages, *, timeout=120, cancelled=None):
+    """Colibri SSE -> bounded semantic events. Never replay a full answer.
+
+    EOF without [DONE] is an error. Separate reasoning deltas stay separate.
+    Closing this iterator closes upstream; no retry or synthetic token counts.
+    """
+    started = time.monotonic()
+    if type(timeout) not in (int, float) or not 0 < timeout <= 120:
+        raise ChatError("stream_deadline", 504)
+    req = Request(f"http://127.0.0.1:{port}/v1/chat/completions", method="POST",
+        headers={"Content-Type": "application/json", "Accept": "text/event-stream"},
+        data=json.dumps({"model": model_id, "messages": messages, "stream": True,
+                         "max_tokens": 512, "enable_thinking": False}).encode("utf-8"))
+    total = output = reasoning = 0
+    first = None
+    usage = {}
+    finish = "unknown"
+    cancelled = cancelled or threading.Event()
+    try:
+        with build_opener(ProxyHandler({}), NoRedirect()).open(req, timeout=timeout) as r, \
+                response_guard(r, started+timeout, cancelled):
+            if r.status != 200 or r.headers.get_content_type() != "text/event-stream":
+                raise ChatError("colibri_stream_not_supported", 502)
+            data_lines = []
+            while True:
+                if cancelled.is_set():
+                    raise ChatError("stream_cancelled", 409)
+                if time.monotonic() - started > timeout:
+                    raise ChatError("stream_deadline", 504)
+                line = r.readline(65538)
+                if cancelled.is_set():
+                    raise ChatError("stream_cancelled", 409)
+                if time.monotonic() - started > timeout:
+                    raise ChatError("stream_deadline", 504)
+                total += len(line)
+                if len(line) > 65536 or total > 1024 * 1024:
+                    raise ChatError("stream_too_large", 502)
+                if not line:
+                    raise ChatError("stream_truncated", 502)
+                line = line.decode("utf-8").rstrip("\r\n")
+                if line.startswith("data:"):
+                    data_lines.append(line[5:].lstrip(" "))
+                elif line == "" and data_lines:
+                    data = "\n".join(data_lines)
+                    data_lines = []
+                    if data == "[DONE]":
+                        if not output:
+                            raise ChatError("empty_stream", 502)
+                        yield {"type": "done", "finish_reason": finish, "usage": usage,
+                               "timing": {"first_fragment_ms": first,
+                                          "total_ms": round((time.monotonic()-started)*1000, 2)}}
+                        return
+                    chunk = json.loads(data)
+                    if not isinstance(chunk, dict) or not isinstance(chunk.get("choices", []), list):
+                        raise ChatError("invalid_stream_event", 502)
+                    if chunk.get("error"):
+                        raise ChatError("colibri_stream_error", 502)
+                    raw_usage = chunk.get("usage")
+                    if isinstance(raw_usage, dict):
+                        usage = {k: raw_usage[k] for k in ("prompt_tokens", "completion_tokens")
+                                 if type(raw_usage.get(k)) is int and raw_usage[k] >= 0}
+                    for choice in chunk.get("choices", []):
+                        if choice.get("index", 0) != 0:
+                            continue
+                        if choice.get("finish_reason"):
+                            finish = str(choice["finish_reason"])[:32]
+                        delta = choice.get("delta", {})
+                        for field, kind in (("content", "delta"), ("reasoning_content", "reasoning")):
+                            value = delta.get(field)
+                            if value is None or value == "":
+                                continue
+                            if not isinstance(value, str):
+                                raise ChatError("invalid_stream_delta", 502)
+                            if kind == "delta":
+                                output += len(value)
+                            else:
+                                reasoning += len(value)
+                            if output > 65536 or reasoning > 65536:
+                                raise ChatError("stream_too_large", 502)
+                            if first is None:
+                                first = round((time.monotonic()-started)*1000, 2)
+                            yield {"type": kind, "text": value}
+    except ChatError:
+        raise
+    except TimeoutError:
+        if cancelled.is_set():
+            raise ChatError("stream_cancelled", 409) from None
+        raise ChatError("stream_deadline", 504) from None
+    except (OSError, TimeoutError, ValueError, KeyError, IndexError, TypeError, AttributeError, URLError):
+        if cancelled.is_set():
+            raise ChatError("stream_cancelled", 409) from None
+        if time.monotonic()-started >= timeout:
+            raise ChatError("stream_deadline", 504) from None
+        raise ChatError("colibri_stream_failed", 502) from None

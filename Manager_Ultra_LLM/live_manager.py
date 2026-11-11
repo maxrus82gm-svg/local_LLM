@@ -1,9 +1,10 @@
-"""Ultra LLM Manager: HTTPS live monitoring and authorized CHAT-01 inference.
+"""Ultra LLM Manager: HTTPS monitoring, bounded chat and gated model control.
 
 Inventory comes from THIS server, never a Client-supplied path or SMB.
-The daemon does not launch/stop models. Chat requests can only reach a ready,
+Control defaults OFF; owner-enabled control reuses the isolated Colibri runner.
+Chat requests can only reach a ready,
 permitted, currently reported Colibri model on its configured loopback port.
-No resource reservations are granted. TLS + per-client bearer hashes apply.
+TLS, per-client bearer hashes and distinct model-control permissions apply.
 """
 from __future__ import annotations
 
@@ -26,7 +27,8 @@ import urllib.error
 import urllib.request
 
 from pairing_inbox import PairingInbox
-from chat_runtime import ChatError, validate_request, select_backend, proxy_chat
+from chat_runtime import ChatError, validate_request, select_backend, proxy_chat, proxy_stream
+from control_runtime import ModelControl, ControlError
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
 _LOG = logging.getLogger("ultra-live-manager")
@@ -84,6 +86,8 @@ def load_config(file: Path):
         if not isinstance(slot, dict):
             raise ValueError("Invalid slot")
         _text_id(slot.get("slot_id"), "slot_id")
+        if type(slot.get("protected", False)) is not bool:
+            raise ValueError("Invalid slot protection")
         n = slot.get("api_port")
         if type(n) is not int or not 1024 <= n <= 65535:
             raise ValueError("Invalid API port")
@@ -124,11 +128,30 @@ def load_config(file: Path):
             raise ValueError("Repeated client")
         if type(client.get("pairing_admin", False)) is not bool:
             raise ValueError("Invalid pairing_admin role")
+        if type(client.get("control_models", False)) is not bool:
+            raise ValueError("Invalid control_models role")
+        if client.get("allowed_models") is not None and (type(client["allowed_models"]) is not list
+                or any(type(k) is not str or k not in __import__('resource_catalog').initial_catalogue()
+                       for k in client["allowed_models"])):
+            raise ValueError("Invalid allowed_models")
         client_ids.add(client["client_id"])
         token_hashes.add(digest)
         allowed = client.get("allowed_slots")
         if not isinstance(allowed, list) or any(x not in ids for x in allowed):
             raise ValueError("Invalid client access list")
+    control = raw.get("control", {})
+    if type(control) is not dict or type(control.get("owner_go", False)) is not bool:
+        raise ValueError("Invalid control configuration")
+    if control.get("owner_go"):
+        import socket as host_socket
+        if control.get("host", "").casefold() != host_socket.gethostname().casefold():
+            raise ValueError("Control configured for another host")
+        for field in ("state_dir", "instance_root"):
+            value = control.get(field)
+            if not isinstance(value, str) or not Path(value).is_absolute() or value.startswith("\\\\"):
+                raise ValueError("Server-local control paths required")
+        if type(control.get("reviews", {})) is not dict:
+            raise ValueError("Invalid runtime reviews")
     return raw
 
 
@@ -313,9 +336,12 @@ def live_snapshot(config, client):
     return result
 
 
-def make_handler(config_file, config, inbox):
+def make_handler(config_file, config, inbox, *, controller=None):
     """HTTP handler; live role checks are repeated on every request."""
     chat_locks = {slot["slot_id"]: threading.Lock() for slot in config["slots"]}
+    active_streams = {}
+    streams_guard = threading.Lock()
+    controller = controller or ModelControl(config)
     class Handler(BaseHTTPRequestHandler):
         server_version = "UltraLLMManager/1.0"
         sys_version = ""
@@ -335,7 +361,7 @@ def make_handler(config_file, config, inbox):
                 current = load_config(config_file)
                 if any(current[field] != config[field] for field in
                        ("manager_id", "bind_host", "listen_port",
-                        "cert_file", "key_file")):
+                        "cert_file", "key_file", "slots", "colibri_root", "models_root")) or current.get("control") != config.get("control"):
                     self._reply(503, {"error": "manager_config_changed"})
                     return None
             except (OSError, ValueError, TypeError):
@@ -357,6 +383,9 @@ def make_handler(config_file, config, inbox):
             return True
 
         def _json_post(self, limit=4096):
+            if self.headers.get("Transfer-Encoding"):
+                self._reply(400, {"error": "unsupported_transfer_encoding"})
+                return None
             if self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
                 self._reply(415, {"error": "json_required"})
                 return None
@@ -383,13 +412,23 @@ def make_handler(config_file, config, inbox):
                 if not _MAX_REQUESTS.acquire(blocking=False):
                     return self._reply(503, {"error": "busy"})
                 try:
-                    self._reply(200, live_snapshot(current, client))
+                    data = live_snapshot(current, client)
+                    data["control"] = controller.catalog(client)
+                    self._reply(200, data)
                 except Exception as error:
                     _LOG.exception("Snapshot failed: %s", type(error).__name__)
                     self._reply(503, {"error": "temporarily_unavailable"})
                 finally:
                     _MAX_REQUESTS.release()
                 return
+            if self.path == "/v1/control/catalog":
+                client = _authorized_client(current, self.headers.get("Authorization", ""))
+                if client is None:
+                    return self._reply(401, {"error": "unauthorized"})
+                try:
+                    return self._reply(200, controller.catalog(client))
+                except Exception:
+                    return self._reply(503, {"error": "control_unavailable"})
             if self.path == "/v1/pairing/requests":
                 if not self._admin(current):
                     return
@@ -410,11 +449,43 @@ def make_handler(config_file, config, inbox):
             current = self._current()
             if current is None:
                 return
-            if self.path not in ("/v1/chat", "/v1/pairing/request",
+            if self.path not in ("/v1/control", "/v1/chat", "/v1/chat/stream", "/v1/chat/cancel", "/v1/pairing/request",
                                  "/v1/pairing/approve",
                                  "/v1/pairing/deny"):
                 return self._reply(405, {"error": "read_only_stage"})
-            if self.path == "/v1/chat":
+            if self.path == "/v1/control":
+                principal = _authorized_client(current, self.headers.get("Authorization", ""))
+                if principal is None:
+                    return self._reply(401, {"error": "unauthorized"})
+                if principal.get("control_models") is not True:
+                    return self._reply(403, {"error": "control_models_required"})
+                body = self._json_post(limit=4096)
+                if body is None:
+                    return
+                try:
+                    return self._reply(202, controller.handle(principal, body))
+                except ControlError as error:
+                    return self._reply(error.status, {"error": error.reason})
+                except Exception:
+                    return self._reply(503, {"error": "control_unavailable"})
+            if self.path == "/v1/chat/cancel":
+                principal = _authorized_client(current, self.headers.get("Authorization", ""))
+                if principal is None:
+                    return self._reply(401, {"error": "unauthorized"})
+                body = self._json_post(limit=1024)
+                if body is None:
+                    return
+                if (set(body) != {"slot_id", "request_id"} or type(body["request_id"]) is not str
+                        or not re.fullmatch(r"[a-f0-9]{32}", body["request_id"])
+                        or body["slot_id"] not in principal["allowed_slots"]):
+                    return self._reply(403, {"error": "stream_not_authorized"})
+                with streams_guard:
+                    item = active_streams.get((principal["client_id"], body["request_id"]))
+                    found = item is not None and item[0] == body["slot_id"]
+                    if found:
+                        item[1].set()
+                return self._reply(200, {"manager_id": current["manager_id"], "cancelled": found})
+            if self.path in ("/v1/chat", "/v1/chat/stream"):
                 principal = _authorized_client(
                     current, self.headers.get("Authorization", ""))
                 if principal is None:
@@ -423,6 +494,13 @@ def make_handler(config_file, config, inbox):
                 if body is None:
                     return
                 try:
+                    request_id = __import__('uuid').uuid4().hex
+                    cancelled = threading.Event()
+                    if self.path.endswith("/stream") and "request_id" in body:
+                        request_id = body["request_id"]
+                        if type(request_id) is not str or not re.fullmatch(r"[a-f0-9]{32}", request_id):
+                            raise ChatError("invalid_request_id")
+                        body = {k:v for k,v in body.items() if k != "request_id"}
                     slot_id, model_id, messages = validate_request(body)
                     lock = chat_locks.get(slot_id)
                     if lock is None:
@@ -433,6 +511,21 @@ def make_handler(config_file, config, inbox):
                         snapshot = live_snapshot(current, principal)
                         port = select_backend(
                             current, principal, snapshot, slot_id, model_id)
+                        try:
+                            controller.assert_chat_allowed(slot_id)
+                        except ControlError as error:
+                            raise ChatError(error.reason, error.status) from None
+                        if self.path.endswith("/stream"):
+                            stream_key = (principal["client_id"], request_id)
+                            with streams_guard:
+                                if stream_key in active_streams:
+                                    raise ChatError("stream_in_progress", 409)
+                                active_streams[stream_key] = (slot_id, cancelled)
+                            try:
+                                return self._stream_chat(port, model_id, messages, current, slot_id, cancelled)
+                            finally:
+                                with streams_guard:
+                                    active_streams.pop(stream_key, None)
                         response = proxy_chat(port, model_id, messages)
                         return self._reply(200, {
                             "schema": "ultra.manager.chat.v1",
@@ -480,6 +573,37 @@ def make_handler(config_file, config, inbox):
                 return self._reply(200, inbox.deny(body["ticket_id"]))
             except ValueError:
                 return self._reply(409, {"error": "not_pending"})
+        def _stream_chat(self, port, model_id, messages, current, slot_id, cancelled):
+            events = proxy_stream(port, model_id, messages, cancelled=cancelled)
+            try:
+                first = next(events)  # failures before headers retain HTTP status
+            except StopIteration:
+                raise ChatError("empty_stream", 502)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.close_connection = True
+            def emit(event):
+                self.wfile.write(json.dumps(event, ensure_ascii=False).encode("utf-8") + b"\n")
+                self.wfile.flush()
+            try:
+                emit({"type": "meta", "manager_id": current["manager_id"],
+                      "slot_id": slot_id, "model_id": model_id})
+                emit(first)
+                for event in events:
+                    emit(event)
+            except ChatError as error:
+                try:
+                    emit({"type": "error", "error": error.reason, "status": error.status})
+                except OSError:
+                    pass
+            except (OSError, TimeoutError):
+                pass  # downstream closed; finally closes Colibri, releases slot lock
+            finally:
+                events.close()
+
         def log_message(self, fmt, *args):
             # Never log URL paths/query strings or auth headers: they may
             # inadvertently contain secrets, even for rejected requests.

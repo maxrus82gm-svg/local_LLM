@@ -57,15 +57,54 @@ function closeSetup() {
   if (dialog.open) dialog.close();
 }
 function stat(id, value) { byId(id).textContent = String(value); }
-function modelList(container, slots, disk) {
+function controlReason(reason) {
+  const labels = {
+    owner_go_required:"Владелец ещё не разрешил управление на сервере",
+    control_models_required:"Клиенту не выдано право управления моделями",
+    runtime_review_required:"Совместимость runtime и ресурсный профиль ещё не подтверждены",
+    runtime_or_model_changed:"Файлы runtime или метаданные модели изменились после проверки",
+    resource_telemetry_unknown:"Нет достоверных данных о памяти и процессах сервера",
+    vram_telemetry_unknown:"Нет достоверных данных о свободной VRAM",
+    insufficient_ram:"Недостаточно свободной RAM с учётом резерва",
+    insufficient_vram:"Недостаточно свободной VRAM с учётом резерва",
+    cuda_measurement_unverified:"Потребление VRAM этой моделью ещё не измерено",
+    model_already_managed:"Для модели уже зарезервирован экземпляр",
+    no_free_authorized_slot:"Нет свободного разрешённого слота",
+    model_not_authorized:"Эта модель не разрешена клиенту",
+    instance_not_authorized:"Экземпляр принадлежит другому клиенту или слот не разрешён",
+    runner_action_unconfirmed:"Результат операции не подтверждён; слот защищён от повторного запуска",
+    supervisor_unverified:"Владение процессом не подтверждено",
+    runtime_or_telemetry_unverified:"Runtime или состояние сервера не подтверждены"
+  };
+  return labels[reason] ? labels[reason] + " (" + reason + ")" : reason;
+}
+function modelList(container, slots, disk, manager) {
+  const control = manager.data.control;
   const wrapper = node("section", "models-list");
   const heading = node("div", "manager-model-head");
   heading.append(node("h3", "", "МОДЕЛИ И УПРАВЛЕНИЕ"),
-    node("small", "", "Запуск и остановка будут доступны после подключения управления Manager"));
+    node("small", "", "Управление выполняет выбранный Manager"));
   wrapper.append(heading);
   const scroll = node("div", "manager-model-scroll");
   const rows = [];
   const names = new Set();
+  if (control && Array.isArray(control.models)) {
+    for (const model of control.models) {
+      const instances = (control.instances || []).filter(i => i.model_key === model.key);
+      const apiIds = [...(model.api_ids || []), ...instances.map(i => i.model_id).filter(x => typeof x === "string")];
+      const active = instances.filter(i => !i.released && i.state !== "STOPPED");
+      const external = slots.filter(s => (s.models || []).some(m => apiIds.includes(m)));
+      for (const name of [model.directory_name, ...apiIds]) {
+        if (typeof name === "string") names.add(name.toLowerCase());
+      }
+      const status = active.map(i => i.state + " · " + i.slot_id + " · " + i.mode +
+        (i.reason ? " · " + controlReason(i.reason) : "")).join("; ") ||
+        external.map(s => stateLabel(s.engine_state) + " · " + s.slot_id + " · внешний защищённый экземпляр").join("; ") ||
+        (instances.length ? instances[instances.length-1].state : "Не запущена");
+      rows.push({name:model.name, status, running:active.some(i => i.state === "READY") || external.length > 0,
+                 model, active});
+    }
+  }
   for (const slot of slots) {
     for (const model of (Array.isArray(slot.models) ? slot.models : [])) {
       if (typeof model !== "string" || !model.trim() || names.has(model.toLowerCase())) continue;
@@ -94,8 +133,29 @@ function modelList(container, slots, disk) {
       const button = node("button", "btn secondary small manager-model-action", title);
       button.type = "button";
       button.disabled = true;
-      button.title = "Управление START/STOP через Manager ещё не реализовано";
-      button.setAttribute("aria-label", title + " — " + item.name + " (пока недоступно)");
+      button.title = "Обновите Manager для управления моделями";
+      if (item.model) {
+        const mode = title === "Старт CPU" ? "cpu" : "cuda";
+        const own = item.active.find(i => i.can_stop);
+        const capability = item.model.modes[mode] || {};
+        button.disabled = title === "Стоп" ? !own : capability.available !== true;
+        button.title = title === "Стоп" ? (own ? "Остановить свой экземпляр " + own.instance_id :
+          "Нет собственного управляемого экземпляра") : (controlReason(capability.reason) || "Manager повторно проверит ресурсы");
+        button.addEventListener("click", async () => {
+          button.disabled = true;
+          const body = title === "Стоп" ? {op:"stop",instance_id:own.instance_id} :
+            {op:"start",model_key:item.model.key,mode};
+          try {
+            const result = await pairingPost("/api/control", {manager_id:manager.manager_id,
+              request_id:crypto.randomUUID().replaceAll("-", ""), ...body});
+            identity.querySelector("small").textContent = result.state + " · " + result.slot_id;
+            await refresh();
+          } catch (e) {
+            identity.querySelector("small").textContent = "Ошибка: " + controlReason(e.message);
+          }
+        });
+      }
+      button.setAttribute("aria-label", title + " — " + item.name + (button.disabled ? " (недоступно)" : ""));
       line.append(button);
     }
     scroll.append(line);
@@ -171,7 +231,7 @@ function makeManager(row) {
   body.append(node("div", "manager-slot-summary",
     "Слотов: " + slots.length + " · Готовы к запросам: " + available +
     " · Свободный слот сам по себе не означает запущенную LLM"));
-  modelList(body, slots, Array.isArray(data.models) ? data.models : []);
+  modelList(body, slots, Array.isArray(data.models) ? data.models : [], row);
   card.append(body);
   return card;
 }
@@ -441,6 +501,8 @@ byId("setup-form").addEventListener("submit", async event => {
 });
 init();
 setInterval(refresh, 25000);
+setInterval(() => { if (chatSnapshot && chatSnapshot.managers.some(m =>
+  m.data && m.data.control && m.data.control.instances.some(i => ["STARTING","STOPPING"].includes(i.state)))) refresh(); }, 2000);
 
 /* CHAT-01: model slots are discovered dynamically from live Manager snapshots.
    They are never predefined as "three" or tied to hard-coded IP addresses. */
@@ -449,6 +511,9 @@ let chatOpen = false;
 let chatItems = [];
 let chatSelected = "";
 let chatBusy = false;
+let chatAbort = null;
+let chatRetry = null;
+let activeChatKey = "";
 
 function showOverview(event) {
   if (event) event.preventDefault();
@@ -565,6 +630,7 @@ function renderMessages(messages) {
 async function loadChatHistory() {
   const chosen = currentChat();
   const key = chatSelected;
+  if (chatBusy && key === activeChatKey) return;
   if (!chosen) { renderMessages([]); return; }
   if (!chosen.model_id) { renderMessages([]); return; }
   const params = new URLSearchParams({
@@ -572,7 +638,7 @@ async function loadChatHistory() {
   });
   try {
     const result = await api("/api/chat/history?" + params.toString());
-    if (chatSelected === key) renderMessages(result.messages);
+    if (chatSelected === key && !(chatBusy && key === activeChatKey)) renderMessages(result.messages);
   } catch (error) {
     if (chatSelected === key) setChatNotice("Не удалось прочитать историю: " + error.message);
   }
@@ -585,15 +651,75 @@ async function submitChat(event) {
   if (!chatReady(target) || !message || message.length > 4000) return;
   chatBusy = true;
   const targetKey = chatSelected;
+  activeChatKey = targetKey;
   byId("chat-send").disabled = true;
   byId("chat-input").disabled = true;
   byId("chat-state").textContent = "Запрос выполняется на сервере. Ожидаем настоящий ответ модели…";
   setChatNotice("");
   try {
-    const result = await pairingPost("/api/chat/send", {
-      manager_id:target.manager_id, slot_id:target.slot_id,
-      model_id:target.model_id, message
-    });
+    const streaming = byId("chat-stream").checked;
+    if (!chatRetry || chatRetry.key !== targetKey || chatRetry.message !== message) {
+      chatRetry = {key:targetKey,message,id:crypto.randomUUID().replaceAll("-", "")};
+    }
+    let result;
+    if (!streaming) {
+      result = await pairingPost("/api/chat/send", {
+        manager_id:target.manager_id, slot_id:target.slot_id, model_id:target.model_id, message,
+        request_id:chatRetry.id
+      });
+    } else {
+      chatAbort = new AbortController();
+      byId("chat-cancel").disabled = false;
+      const response = await fetch("/api/chat/stream", {method:"POST", signal:chatAbort.signal,
+        headers:{"Content-Type":"application/json","X-Ultra-CSRF":csrf},
+        body:JSON.stringify({manager_id:target.manager_id,slot_id:target.slot_id,
+          model_id:target.model_id,message,request_id:chatRetry.id})});
+      if (!response.ok) {
+        const failure = await response.json();
+        throw Error(failure.error || String(response.status));
+      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8", {fatal:true});
+      let pending = "", answer = "", received = 0;
+      const bubble = node("div", "chat-bubble");
+      const text = node("div", "");
+      bubble.append(node("small", "", "LLM · поток"), text);
+      const holder = byId("chat-messages");
+      holder.append(bubble);
+      try {
+        while (true) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          received += chunk.value.byteLength;
+          if (received > 2*1024*1024) throw Error("stream_too_large");
+          pending += decoder.decode(chunk.value, {stream:true});
+          let end;
+          while ((end = pending.indexOf("\n")) >= 0) {
+            const event = JSON.parse(pending.slice(0, end));
+            pending = pending.slice(end+1);
+            if (event.type === "delta") {
+              answer += event.text;
+              if (chatSelected === targetKey) {
+                text.textContent = answer;
+                holder.scrollTop = holder.scrollHeight;
+                byId("chat-state").textContent = "Получаем ответ модели…";
+              }
+            }
+            if (event.type === "error") throw Error(event.error);
+            if (event.type === "done") result = event;
+          }
+        }
+        if (!result) throw Error("stream_truncated");
+      } finally {
+        await reader.cancel();
+        reader.releaseLock();
+      }
+    }
+    chatRetry = null;
+    if (result.history_reload) {
+      result = await api("/api/chat/history?" + new URLSearchParams({manager_id:target.manager_id,
+        slot_id:target.slot_id,model_id:target.model_id}));
+    }
     if (chatSelected === targetKey) {
       byId("chat-input").value = "";
       renderMessages(result.messages);
@@ -601,9 +727,11 @@ async function submitChat(event) {
     }
   } catch (error) {
     byId("chat-state").textContent = "";
-    setChatNotice("Сообщение не доставлено: " + error.message);
+    setChatNotice(error.name === "AbortError" ? "Поток отменён; неполный ответ не сохранён." : "Ошибка ответа: " + error.message);
   } finally {
     chatBusy = false;
+    chatAbort = null;
+    byId("chat-cancel").disabled = true;
     renderChatList(chatSnapshot);
   }
 }
@@ -612,6 +740,14 @@ byId("nav-overview").addEventListener("click", showOverview);
 byId("nav-chats").addEventListener("click", showChats);
 byId("chat-reload").addEventListener("click", refresh);
 byId("chat-form").addEventListener("submit", submitChat);
+byId("chat-cancel").addEventListener("click", async () => {
+  if (!chatAbort || !chatRetry) return;
+  const abort = chatAbort;
+  const [manager_id,slot_id,model_id] = JSON.parse(chatRetry.key);
+  try {
+    await pairingPost("/api/chat/cancel", {manager_id,slot_id,model_id,request_id:chatRetry.id});
+  } finally { abort.abort(); }
+});
 byId("chat-popout").addEventListener("click", () => {
   const target = currentChat();
   if (!target) return;

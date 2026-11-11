@@ -2,11 +2,13 @@
 
 Run with Python -B. No setup files, PID files, locks or logs are written.
 --demo uses synthetic observations; otherwise telemetry is read locally on the
-expected Windows server. Nothing here starts/stops an LLM or exposes a shell API.
+expected Windows server. The original dry-run contracts never start/stop an LLM.
 0D adds --inspect-server: read-only installation evidence for an owner-executed
 controlled Colibri2 start. It does not reserve a slot or apply dry-run admission.
 0D owner-only --colibri2 delegates the isolated CPU trial to colibri2_runner.
 The former DryRunRunner/service-core contracts remain non-executable.
+CONTROL-01 --managed composes the existing runner with the durable control
+coordinator. START/STOP require owner-enabled configuration and acknowledgement.
 
 Trust boundary: configuration, Principal, process records and observations must
 eventually come from trusted server code, never directly from browser JSON.
@@ -414,13 +416,51 @@ def main(argv=None):
                       help="0D read-only installation inspection; run on the server")
     mode.add_argument("--colibri2", choices=("plan", "start", "status", "stop"),
                       help="0D owner-run isolated CPU trial, server-local only")
-    parser.add_argument("--ack-first-cpu-policy", action="store_true",
+    mode.add_argument("--managed", choices=("plan", "start", "status", "stop"),
+                      help="CONTROL-01 configured owner CLI; live actions require owner GO")
+    parser.add_argument("--manager-config", type=__import__('pathlib').Path)
+    parser.add_argument("--backend", choices=("cpu", "cuda"), default="cpu")
+    parser.add_argument("--instance-id")
+    parser.add_argument("--ack-first-cpu-policy", "--ack-owner-go", action="store_true",
                         help="explicitly accept FIRST_CPU_14G for the first controlled start")
     parser.add_argument("--wait", type=int, default=900)
     parser.add_argument("--model", default="kat")
     parser.add_argument("--instance", default="slot2")
     args = parser.parse_args(argv)
     try:
+        if args.managed:
+            if args.manager_config is None:
+                raise RunnerDenied("--manager-config required")
+            from live_manager import load_config
+            from control_runtime import ModelControl
+            from colibri2_runner import configured, run
+            config = load_config(args.manager_config)
+            core_config = config if args.managed != "plan" else {
+                **config, "control": {**config.get("control", {}), "owner_go": False}}
+            core = ModelControl(core_config, dispatch=lambda fn: fn())
+            if args.managed == "plan":
+                slot = next((s for s in config["slots"] if s["slot_id"] == args.instance
+                             and not s.get("protected")), None)
+                if slot is None:
+                    raise RunnerDenied("Unknown or protected slot")
+                with configured(core._spec(slot, args.model, args.backend)):
+                    result = run("plan")
+            else:
+                if args.managed != "status" and not args.ack_first_cpu_policy:
+                    raise RunnerDenied("Owner-run START/STOP requires --ack-first-cpu-policy")
+                principal = {"client_id": "owner-cli", "control_models": True,
+                             "allowed_slots": [s["slot_id"] for s in config["slots"]]}
+                if args.managed == "status":
+                    result = core.catalog(principal)
+                else:
+                    body = {"op": args.managed, "request_id": __import__('uuid').uuid4().hex}
+                    if args.managed == "start":
+                        body.update(model_key=args.model, mode=args.backend)
+                    else:
+                        body["instance_id"] = args.instance_id
+                    result = core.handle(principal, body)
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return 0
         if args.colibri2:
             if args.instance != "slot2":
                 raise RunnerDenied("0D controlled trial is restricted to slot2; primary is protected")
