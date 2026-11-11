@@ -200,6 +200,26 @@ class WebClientP1Tests(unittest.TestCase):
         self.assertEqual(json.loads(body)["managers"][0]["pairing_state"],"pending")
         self.assertNotIn("token_file",body.decode())
 
+    def test_homepage_accepts_tracker_query_but_api_paths_stay_strict(self):
+        normal, html, headers = self.request("/")
+        self.assertEqual(normal, 200)
+        for suffix in ("?utm_source=chatgpt.com", "?utm_campaign=test&x=1"):
+            code, body, queried = self.request("/" + suffix)
+            self.assertEqual(code, 200)
+            self.assertEqual(body, html)
+            self.assertEqual(queried.get("Content-Type"), headers.get("Content-Type"))
+        self.assertEqual(self.request("/api/session?utm_source=chatgpt.com")[0], 404)
+        self.assertEqual(self.request("/not_a_page?utm_source=chatgpt.com")[0], 404)
+
+    def test_launcher_uses_stable_local_browser_route_not_python_browser(self):
+        launcher = (Path(web_client.__file__).parent /
+                    "Start_Ultra_LLM_Client.vbs").read_text(encoding="utf-8")
+        self.assertIn(' " --no-browser"', launcher)
+        self.assertIn('WinHttp.WinHttpRequest.5.1', launcher)
+        self.assertIn('verify.SetProxy 1', launcher)
+        self.assertIn('UltraLLMWeb/', launcher)
+        self.assertIn('browser.ShellExecute url', launcher)
+
     def test_server_never_offers_mutating_remote_operations(self):
         code, _, _ = self.request(
             "/api/start", method="POST",

@@ -10,8 +10,51 @@ shell.CurrentDirectory = here
 
 ' Portable distribution: use bundled Python runtime, never the system runtime.
 If fs.FileExists(exe) Then
-  shell.Run Chr(34) & exe & Chr(34), 0, False
-  WScript.Quit 0
+  ' The script, not the background Python instance, opens the browser.
+  ' This also works when the Client was already running before the click.
+  shell.Run Chr(34) & exe & Chr(34) & " --no-browser", 0, False
+  Dim portFile, stream, portText, port, url, verify, validPort, n, browser
+  portFile = fs.BuildPath(shell.ExpandEnvironmentStrings("%LOCALAPPDATA%\UltraLLM\Client"), ".web-client.port")
+  Set validPort = CreateObject("VBScript.RegExp")
+  validPort.Pattern = "^[0-9]{4,5}$"
+  validPort.Global = False
+  For n = 1 To 80
+    WScript.Sleep 250
+    If fs.FileExists(portFile) Then
+      On Error Resume Next
+      Err.Clear
+      portText = ""
+      Set stream = fs.OpenTextFile(portFile, 1, False)
+      If Err.Number = 0 Then
+        portText = Trim(stream.ReadAll)
+        stream.Close
+      End If
+      If Err.Number = 0 And validPort.Test(portText) Then
+        port = CLng(portText)
+        If port >= 1024 And port <= 65535 Then
+          url = "http://127.0.0.1:" & CStr(port) & "/"
+          Set verify = CreateObject("WinHttp.WinHttpRequest.5.1")
+          verify.SetProxy 1
+          verify.SetTimeouts 500, 500, 500, 1000
+          verify.Open "GET", url, False
+          verify.Send
+          If Err.Number = 0 Then
+            If verify.Status = 200 And Left(verify.GetResponseHeader("Server"), 12) = "UltraLLMWeb/" Then
+              Set browser = CreateObject("Shell.Application")
+              browser.ShellExecute url, "", "", "open", 1
+              If Err.Number = 0 Then
+                WScript.Quit 0
+              End If
+            End If
+          End If
+        End If
+      End If
+      Err.Clear
+      On Error GoTo 0
+    End If
+  Next
+  MsgBox "Ultra LLM Client не открыл локальный веб-интерфейс. Проверьте, что программа запущена, и повторите попытку.", vbExclamation, "Ultra LLM Client"
+  WScript.Quit 5
 End If
 
 ' Developer source fallback: this is NOT needed by the portable distribution.

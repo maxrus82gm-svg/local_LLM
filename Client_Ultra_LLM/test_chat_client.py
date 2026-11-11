@@ -113,8 +113,8 @@ class ChatWebTests(unittest.TestCase):
         self.assertIn("manager-memory-summary", js)
         self.assertIn('manager.data.slots', js)
         self.assertNotIn("maxChats = 3", js)
-        # A detached chat uses a URL fragment. A query on "/" would be
-        # rejected by the local Client router before the web page could load.
+        # Detached chat selection uses a URL fragment, not a chat query
+        # argument. The homepage now tolerates unrelated tracking queries.
         self.assertIn('window.location.hash.slice(1)', js)
         self.assertIn('url.hash = "chat=" + encodeURIComponent(target.key)', js)
         self.assertNotIn('url.searchParams.set("chat"', js)

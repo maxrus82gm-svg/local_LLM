@@ -246,7 +246,10 @@ def make_handler(folder: Path, port_getter, csrf: str):
         def do_GET(self):
             if self._bad_host():
                 return
-            path = self.path
+            # Tracking parameters added by browsers/link wrappers must not
+            # turn the homepage into a 404. Ignore queries ONLY for "/".
+            # API routes retain their exact validation/CSRF requirements.
+            path = "/" if self.path.startswith("/?") and len(self.path) <= 2048 else self.path
             if path in _STATIC_FILES:
                 name, mime = _STATIC_FILES[path]
                 file = STATIC / name

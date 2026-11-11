@@ -1,5 +1,11 @@
 # Ultra LLM Client — WEB P1 + переносимая WEB-02 + WEB-03 pairing
 
+## URLFIX-R4 LIVE — исправление локального 404 и повторного ярлыка (11.11.2026)
+
+Причина: ссылка на локальный Client была дополнена ?utm_source=chatgpt.com. До R4 роутер сравнивал полный URL с /, поэтому отвечал 404 not_found. Теперь домашняя страница допускает query, но API и POST/CSRF остались строго защищены. Отдельно устранена зависимость открытия браузера от фонового Python: Start_Ultra_LLM_Client.vbs запускает EXE с --no-browser, проверяет localhost HTTP 200, Server: UltraLLMWeb/ через прямой WinHTTP и открывает системный браузер через ShellExecute.
+
+QA: 35/35 Client PASS; изолированный R4 EXE GET / и /?utm_source=chatgpt.com HTTP 200, запросы с query к служебному API 404; CScript VBS exit 0. Сборка 69/69 файлов SHA256 PASS. R4 установлена в постоянную M:\UltraLLM_Client и запущена старым ярлыком. R3 сохранена в M:\UltraLLM_Builds\Stable_Backups\UltraLLM_Client_before_URLFIX_R4_20261111. Повторный запуск VBS exit0, Client остаётся одним экземпляром. Manager server77 ONLINE, 3 слота, истории/профили остались в защищённой пользовательской папке. Серверный Manager, Colibri и Valheim не изменены.
+
 ## PERMANENT LAUNCH POLICY — единый ярлык и рабочая папка (11.11.2026)
 
 **Постоянная инсталляция:** \`M:\UltraLLM_Client\` (программа \`UltraLLMClient.exe\`, штатный \`Start_Ultra_LLM_Client.vbs\`). **Один существующий значок** \`C:\Users\REX\Desktop\Ultra LLM Client.lnk\` ссылается на \`wscript.exe "M:\UltraLLM_Client\Start_Ultra_LLM_Client.vbs"\` и **больше не перенастраивается при выпуске новых версий**. Версионные папки \`M:\UltraLLM_Client_CHAT01_R2\`, \`M:\UltraLLM_Client_UI01_R3\`, архивы \`M:\UltraLLM_Builds\Release\` — staging/история, не цели ярлыка.
