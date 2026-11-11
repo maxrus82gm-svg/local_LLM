@@ -160,6 +160,7 @@ function makeRow(manager, slot) {
   return tr;
 }
 function render(payload) {
+  chatSnapshot = payload;
   const all = Array.isArray(payload.managers) ? payload.managers : [];
   const online = all.filter(x => x.status === "online");
   adminManagers = online.filter(x => x.data && x.data.pairing_admin === true)
@@ -211,6 +212,7 @@ function render(payload) {
   stat("last-update", new Date().toLocaleTimeString("ru-RU", {hour:"2-digit",minute:"2-digit"}));
   setNotice(all.some(m => m.status !== "online") ?
       "Не все Manager доступны. Проверьте сеть, сертификат и регистрацию этого компьютера." : "");
+  if (chatOpen) renderChatList(payload);
 }
 async function refresh() {
   if (isRefreshing) return;
@@ -234,6 +236,8 @@ async function init() {
     setNotice("Ошибка первоначальной настройки: " + e.message);
   }
   await refresh();
+  const requested = new URLSearchParams(window.location.search).get("chat");
+  if (requested) { chatSelected = requested; showChats(); }
 }
 
 function pairingError(error) {
@@ -432,3 +436,181 @@ byId("setup-form").addEventListener("submit", async event => {
 });
 init();
 setInterval(refresh, 25000);
+
+/* CHAT-01: model slots are discovered dynamically from live Manager snapshots.
+   They are never predefined as "three" or tied to hard-coded IP addresses. */
+let chatSnapshot = null;
+let chatOpen = false;
+let chatItems = [];
+let chatSelected = "";
+let chatBusy = false;
+
+function showOverview(event) {
+  if (event) event.preventDefault();
+  chatOpen = false;
+  byId("overview").classList.remove("hidden");
+  byId("chat-view").classList.add("hidden");
+  byId("nav-overview").classList.add("selected");
+  byId("nav-chats").classList.remove("selected");
+}
+function showChats() {
+  chatOpen = true;
+  byId("overview").classList.add("hidden");
+  byId("chat-view").classList.remove("hidden");
+  byId("nav-overview").classList.remove("selected");
+  byId("nav-chats").classList.add("selected");
+  renderChatList(chatSnapshot);
+}
+
+function chatTargetKey(target) {
+  return JSON.stringify([target.manager_id, target.slot_id, target.model_id]);
+}
+function currentChat() {
+  return chatItems.find(x => x.key === chatSelected) || null;
+}
+function chatTitle(target) {
+  return target.model_id || target.slot_id + " · модель не запущена";
+}
+function chatReady(target) {
+  return Boolean(target && target.model_id && target.online &&
+    target.engine_state === "ready" &&
+    target.availability === "ready_unreserved");
+}
+function setChatNotice(message) {
+  const el = byId("chat-notice");
+  el.textContent = message || "";
+  el.classList.toggle("hidden", !message);
+}
+function renderChatList(payload) {
+  if (!chatOpen) return;
+  const list = byId("chat-list");
+  const before = chatSelected;
+  chatItems = [];
+  for (const manager of (payload && Array.isArray(payload.managers) ? payload.managers : [])) {
+    if (manager.status !== "online" || !manager.data) continue;
+    for (const slot of (manager.data.slots || [])) {
+      const names = Array.isArray(slot.models) && slot.models.length ? slot.models : [""];
+      for (const model of names) {
+        const target = {
+          manager_id:manager.manager_id, manager_name:manager.name || manager.manager_id,
+          slot_id:slot.slot_id, model_id:model, engine_state:slot.engine_state,
+          availability:slot.availability, online:true
+        };
+        target.key = chatTargetKey(target);
+        chatItems.push(target);
+      }
+    }
+  }
+  if (!chatItems.some(x => x.key === chatSelected)) {
+    chatSelected = chatItems.length ? chatItems[0].key : "";
+  }
+  list.replaceChildren();
+  for (const item of chatItems) {
+    const card = node("button", "chat-choice" +
+      (item.key === chatSelected ? " active" : "") +
+      (chatReady(item) ? " is-ready" : ""));
+    card.type = "button";
+    card.append(node("b", "", chatTitle(item)),
+                node("small", "", item.manager_name + " · " + item.slot_id),
+                node("span", "chat-status", chatReady(item) ? "● Готова к переписке" :
+                   item.availability === "denied" ? "● Нет доступа" :
+                   item.engine_state === "not_running" ? "○ Не запущена" :
+                   "○ " + stateLabel(item.availability).textContent));
+    card.addEventListener("click", () => {
+      const old = chatSelected;
+      chatSelected = item.key;
+      renderChatList(chatSnapshot);
+      if (old === item.key) loadChatHistory();
+    });
+    list.append(card);
+  }
+  if (!chatItems.length) {
+    list.append(node("div", "placeholder", "Пока нет доступных слотов Manager."));
+  }
+  const selected = currentChat();
+  byId("chat-title").textContent = selected ? chatTitle(selected) : "Нет доступных моделей";
+  byId("chat-subtitle").textContent = selected ?
+    selected.manager_name + " / " + selected.slot_id : "Подключите Manager на вкладке «Обзор»";
+  byId("chat-popout").disabled = !selected;
+  byId("chat-input").disabled = !chatReady(selected) || chatBusy;
+  byId("chat-send").disabled = !chatReady(selected) || chatBusy;
+  byId("chat-state").textContent = selected && !chatReady(selected) ?
+    "Слот сейчас недоступен. Отправка отключена; Client не запускает LLM автоматически." : "";
+  if (chatSelected !== before) {
+    loadChatHistory();
+  }
+}
+function renderMessages(messages) {
+  const holder = byId("chat-messages");
+  holder.replaceChildren();
+  if (!Array.isArray(messages) || !messages.length) {
+    holder.append(node("div", "chat-empty",
+       "История пока пуста. Напишите сообщение, когда LLM будет готова."));
+  } else {
+    for (const message of messages) {
+      const bubble = node("div", "chat-bubble" + (message.role === "user" ? " user" : ""));
+      bubble.append(node("small", "", message.role === "user" ? "Вы" : "LLM"),
+                    node("div", "", message.content || ""));
+      holder.append(bubble);
+    }
+  }
+  holder.scrollTop = holder.scrollHeight;
+}
+async function loadChatHistory() {
+  const chosen = currentChat();
+  const key = chatSelected;
+  if (!chosen) { renderMessages([]); return; }
+  if (!chosen.model_id) { renderMessages([]); return; }
+  const params = new URLSearchParams({
+    manager_id:chosen.manager_id, slot_id:chosen.slot_id, model_id:chosen.model_id
+  });
+  try {
+    const result = await api("/api/chat/history?" + params.toString());
+    if (chatSelected === key) renderMessages(result.messages);
+  } catch (error) {
+    if (chatSelected === key) setChatNotice("Не удалось прочитать историю: " + error.message);
+  }
+}
+async function submitChat(event) {
+  event.preventDefault();
+  if (chatBusy) return;
+  const target = currentChat();
+  const message = byId("chat-input").value.trim();
+  if (!chatReady(target) || !message || message.length > 4000) return;
+  chatBusy = true;
+  const targetKey = chatSelected;
+  byId("chat-send").disabled = true;
+  byId("chat-input").disabled = true;
+  byId("chat-state").textContent = "Запрос выполняется на сервере. Ожидаем настоящий ответ модели…";
+  setChatNotice("");
+  try {
+    const result = await pairingPost("/api/chat/send", {
+      manager_id:target.manager_id, slot_id:target.slot_id,
+      model_id:target.model_id, message
+    });
+    if (chatSelected === targetKey) {
+      byId("chat-input").value = "";
+      renderMessages(result.messages);
+      byId("chat-state").textContent = "Ответ получен от " + target.model_id;
+    }
+  } catch (error) {
+    byId("chat-state").textContent = "";
+    setChatNotice("Сообщение не доставлено: " + error.message);
+  } finally {
+    chatBusy = false;
+    renderChatList(chatSnapshot);
+  }
+}
+
+byId("nav-overview").addEventListener("click", showOverview);
+byId("nav-chats").addEventListener("click", showChats);
+byId("chat-reload").addEventListener("click", refresh);
+byId("chat-form").addEventListener("submit", submitChat);
+byId("chat-popout").addEventListener("click", () => {
+  const target = currentChat();
+  if (!target) return;
+  const url = new URL(window.location.href);
+  url.searchParams.set("chat", target.key);
+  window.open(url.toString(), "_blank", "noopener");
+});
+window.addEventListener("focus", () => { if (chatOpen && !chatBusy) loadChatHistory(); });

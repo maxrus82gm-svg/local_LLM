@@ -22,6 +22,7 @@ import os
 from pathlib import Path
 import re
 import secrets
+import sqlite3
 import ssl
 import subprocess
 import sys
@@ -32,6 +33,9 @@ import webbrowser
 
 from live_client import fetch_all, load_profiles
 from pairing_client import _require_private_acl, enroll
+from chat_client import ChatClientError, send_chat
+from chat_store import (validate_key, history as load_chat_history,
+                        context_for, append_exchange)
 from pairing_live import (PairingRequestError, submit_profile, check_profile_ticket,
                           admin_requests, admin_decision)
 
@@ -172,6 +176,40 @@ def enroll_profile(folder: Path, payload: dict) -> dict:
             "state": state, "reason": error}
 
 
+CHAT_LOCKS = {}
+CHAT_LOCKS_GUARD = threading.RLock()
+
+
+def chat_exchange(folder: Path, payload: dict) -> dict:
+    """Send to only the Manager/slot/model named by the existing profile."""
+    if not isinstance(payload, dict) or set(payload) != {
+            "manager_id", "slot_id", "model_id", "message"}:
+        raise ValueError("invalid_chat_fields")
+    key = validate_key(payload["manager_id"], payload["slot_id"], payload["model_id"])
+    message = payload["message"]
+    if not isinstance(message, str) or not message.strip() or len(message) > 4000:
+        raise ValueError("invalid_chat_message")
+    profiles = load_profiles(folder / "managers.json")
+    profile = next((p for p in profiles if p["manager_id"] == key[0]), None)
+    if profile is None:
+        raise ChatClientError("unknown_manager", 404)
+    with CHAT_LOCKS_GUARD:
+        lock = CHAT_LOCKS.setdefault(key, threading.Lock())
+    if not lock.acquire(blocking=False):
+        raise ChatClientError("chat_in_progress", 409)
+    try:
+        existing = load_chat_history(folder, *key)
+        messages = context_for(existing)
+        messages.append({"role": "user", "content": message})
+        response = send_chat(profile, key[1], key[2], messages)
+        updated = append_exchange(folder, *key, message, response["reply"])
+        return {"reply": response["reply"], "messages": updated,
+                "usage": response.get("usage", {}),
+                "finish_reason": response.get("finish_reason")}
+    finally:
+        lock.release()
+
+
 def _secure_host(handler, port: int) -> bool:
     return handler.headers.get("Host", "") == f"127.0.0.1:{port}"
 
@@ -245,6 +283,22 @@ def make_handler(folder: Path, port_getter, csrf: str):
                         "configured": True, "managers": results})
                 except (OSError, ValueError, KeyError):
                     return self._send_json(503, {"error": "manager_config_unavailable"})
+            if path.startswith("/api/chat/history?"):
+                from urllib.parse import parse_qs
+                try:
+                    if len(path) > 1024:
+                        raise ValueError("invalid_query")
+                    query = parse_qs(path.split("?", 1)[1])
+                    if set(query) != {"manager_id", "slot_id", "model_id"}:
+                        raise ValueError("invalid_query")
+                    key = validate_key(*(query[k][0] for k in
+                        ("manager_id", "slot_id", "model_id")))
+                    return self._send_json(200, {
+                        "messages": load_chat_history(folder, *key)})
+                except (ValueError, KeyError, TypeError):
+                    return self._send_json(400, {"error": "invalid_chat_target"})
+                except (OSError, sqlite3.Error):
+                    return self._send_json(503, {"error": "chat_storage_unavailable"})
             if path.startswith("/api/pairing/admin?"):
                 from urllib.parse import parse_qs
                 params = parse_qs(path.split("?", 1)[1])
@@ -263,7 +317,7 @@ def make_handler(folder: Path, port_getter, csrf: str):
                     not secrets.compare_digest(
                         self.headers.get("X-Ultra-CSRF", ""), csrf)):
                 return self._send_json(403, {"error": "request_not_authorised"})
-            if self.path not in ("/api/enroll", "/api/shutdown",
+            if self.path not in ("/api/chat/send", "/api/enroll", "/api/shutdown",
                                   "/api/pairing/retry",
                                   "/api/pairing/approve",
                                   "/api/pairing/deny"):
@@ -284,6 +338,8 @@ def make_handler(folder: Path, port_getter, csrf: str):
                     return self._send_json(201, response)
                 if not isinstance(data, dict):
                     raise ValueError("Invalid form")
+                if self.path == "/api/chat/send":
+                    return self._send_json(200, chat_exchange(folder, data))
                 mid = data.get("manager_id")
                 if self.path == "/api/pairing/retry":
                     if set(data) != {"manager_id"}:
@@ -299,6 +355,10 @@ def make_handler(folder: Path, port_getter, csrf: str):
                     raise ValueError("Invalid denial")
                 return self._send_json(200, admin_decision(
                     folder, mid, ticket, approve=False))
+            except ChatClientError as error:
+                return self._send_json(error.status, {"error": error.reason})
+            except sqlite3.Error:
+                return self._send_json(503, {"error": "chat_storage_unavailable"})
             except PairingRequestError as error:
                 return self._send_json(409, {"error": error.reason})
             except (ValueError, KeyError, FileExistsError) as error:

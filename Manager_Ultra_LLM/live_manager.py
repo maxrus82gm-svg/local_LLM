@@ -1,9 +1,9 @@
-"""Ultra LLM Manager live read-only HTTPS host (Windows, stdlib only).
+"""Ultra LLM Manager: HTTPS live monitoring and authorized CHAT-01 inference.
 
-Live inventory is read from THIS machine, not from mock fixtures or SMB.
-The daemon does not launch/stop models. Model directories are unverified until
-Colibri itself reports an active model; no resource reservations are granted.
-Security: TLS + per-client bearer-token hash + bounded read-only endpoints.
+Inventory comes from THIS server, never a Client-supplied path or SMB.
+The daemon does not launch/stop models. Chat requests can only reach a ready,
+permitted, currently reported Colibri model on its configured loopback port.
+No resource reservations are granted. TLS + per-client bearer hashes apply.
 """
 from __future__ import annotations
 
@@ -26,6 +26,7 @@ import urllib.error
 import urllib.request
 
 from pairing_inbox import PairingInbox
+from chat_runtime import ChatError, validate_request, select_backend, proxy_chat
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
 _LOG = logging.getLogger("ultra-live-manager")
@@ -277,6 +278,7 @@ def live_snapshot(config, client):
 
 def make_handler(config_file, config, inbox):
     """HTTP handler; live role checks are repeated on every request."""
+    chat_locks = {slot["slot_id"]: threading.Lock() for slot in config["slots"]}
     class Handler(BaseHTTPRequestHandler):
         server_version = "UltraLLMManager/1.0"
         sys_version = ""
@@ -317,13 +319,13 @@ def make_handler(config_file, config, inbox):
                 return False
             return True
 
-        def _json_post(self):
+        def _json_post(self, limit=4096):
             if self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
                 self._reply(415, {"error": "json_required"})
                 return None
             try:
                 n = int(self.headers.get("Content-Length", "0"))
-                if not 0 < n <= 4096:
+                if not 0 < n <= limit:
                     raise ValueError()
                 payload = json.loads(self.rfile.read(n))
                 if not isinstance(payload, dict):
@@ -371,10 +373,41 @@ def make_handler(config_file, config, inbox):
             current = self._current()
             if current is None:
                 return
-            if self.path not in ("/v1/pairing/request",
+            if self.path not in ("/v1/chat", "/v1/pairing/request",
                                  "/v1/pairing/approve",
                                  "/v1/pairing/deny"):
                 return self._reply(405, {"error": "read_only_stage"})
+            if self.path == "/v1/chat":
+                principal = _authorized_client(
+                    current, self.headers.get("Authorization", ""))
+                if principal is None:
+                    return self._reply(401, {"error": "unauthorized"})
+                body = self._json_post(limit=48 * 1024)
+                if body is None:
+                    return
+                try:
+                    slot_id, model_id, messages = validate_request(body)
+                    lock = chat_locks.get(slot_id)
+                    if lock is None:
+                        raise ChatError("unknown_slot", 404)
+                    if not lock.acquire(blocking=False):
+                        raise ChatError("slot_chat_in_progress", 409)
+                    try:
+                        snapshot = live_snapshot(current, principal)
+                        port = select_backend(
+                            current, principal, snapshot, slot_id, model_id)
+                        response = proxy_chat(port, model_id, messages)
+                        return self._reply(200, {
+                            "schema": "ultra.manager.chat.v1",
+                            "manager_id": current["manager_id"],
+                            "slot_id": slot_id, "model_id": model_id, **response})
+                    finally:
+                        lock.release()
+                except ChatError as error:
+                    return self._reply(error.status, {"error": error.reason})
+                except Exception as error:
+                    _LOG.error("Chat failed: %s", type(error).__name__)
+                    return self._reply(503, {"error": "chat_temporarily_unavailable"})
             if self.path != "/v1/pairing/request" and not self._admin(current):
                 return
             body = self._json_post()

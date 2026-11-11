@@ -11,7 +11,8 @@
 <aside class="sidebar">
   <div class="brand"><span class="brand-mark">U</span><span><strong>ULTRA <em>LLM</em></strong><small>WEB CLIENT</small></span></div>
   <div class="sidebar-section">РАБОЧАЯ ОБЛАСТЬ</div>
-  <nav class="nav"><a class="nav-item selected" href="#overview"><span>▦</span> Обзор серверов</a>
+  <nav class="nav"><a class="nav-item selected" id="nav-overview" href="#overview"><span>▦</span> Обзор серверов</a>
+  <button class="nav-item" type="button" id="nav-chats"><span>◉</span> Чаты LLM</button>
   <button class="nav-item" type="button" id="nav-add"><span>＋</span> Подключить Manager</button>
   <button class="nav-item hidden" type="button" id="nav-pairing-admin"><span>◈</span> Заявки на доступ</button></nav>
   <div class="sidebar-bottom"><button class="quit-client" type="button" id="quit-client">⏻ Завершить Web Client</button><div class="privacy"><span class="privacy-dot"></span><div><b>Локальный клиент</b><small>127.0.0.1 · защищённая сеть</small></div></div><p>Токены хранятся на этом компьютере и не передаются в браузер.</p><span class="version">ULTRA LLM · WEB P1</span></div>
@@ -33,6 +34,31 @@
   <section class="section"><div class="section-head"><div><div class="eyebrow">РЕСУРСЫ И СЕССИИ</div><h2>Все слоты</h2></div><span class="section-description">START / STOP появятся после интеграции управления</span></div>
     <div class="table-scroll"><table><thead><tr><th>МЕНЕДЖЕР</th><th>СЛОТ</th><th>МОДЕЛЬ</th><th>СОСТОЯНИЕ</th><th>ДЛЯ КЛИЕНТА</th><th>ДЕЙСТВИЯ</th></tr></thead><tbody id="slot-table"><tr><td colspan="6" class="empty">Ожидаем данные…</td></tr></tbody></table></div>
   </section><footer>Ultra LLM Web Client · Только реальные данные по HTTPS · Управление START / STOP находится в разработке</footer>
+</main>
+<main class="main hidden" id="chat-view">
+  <div class="top-line"><span>Рабочая область <i>/</i> Чаты LLM</span><span class="live-pill">● РЕАЛЬНЫЕ МОДЕЛИ</span></div>
+  <header class="hero"><div><div class="eyebrow">НЕЗАВИСИМЫЕ ЭКЗЕМПЛЯРЫ LLM</div><h1>Чаты <span>Colibri</span></h1>
+    <p>Выберите Manager и слот. История хранится на этом компьютере, генерация выполняется на сервере.</p></div>
+    <div class="hero-actions"><button class="btn secondary" type="button" id="chat-reload">↻ Обновить серверы</button></div>
+  </header>
+  <div id="chat-notice" role="status" class="notice hidden"></div>
+  <div class="chat-layout">
+    <aside class="chat-sources"><div class="eyebrow">ПОДКЛЮЧЁННЫЕ СЛОТЫ</div>
+      <div id="chat-list" class="chat-list"><div class="placeholder">Загружаем слоты…</div></div>
+    </aside>
+    <section class="chat-panel" aria-label="Переписка с LLM">
+      <div class="chat-panel-header"><div><h2 id="chat-title">Выберите модель</h2>
+        <p id="chat-subtitle">Доступные экземпляры появятся слева</p></div>
+        <button class="btn secondary small" type="button" id="chat-popout" disabled>↗ Открепить окно</button></div>
+      <div id="chat-messages" class="chat-messages" aria-live="polite"><div class="chat-empty">Выберите слот для переписки.</div></div>
+      <div id="chat-state" class="chat-state" role="status"></div>
+      <form id="chat-form" class="chat-form">
+        <textarea id="chat-input" maxlength="4000" rows="3" placeholder="Сообщение выбранной LLM…" aria-label="Сообщение" disabled></textarea>
+        <button type="submit" class="btn primary" id="chat-send" disabled>Отправить</button>
+      </form>
+    </section>
+  </div>
+  <footer>CHAT-01 · Инференс выполняется на сервере · START/STOP пока недоступны</footer>
 </main></div>
 <dialog id="setup" aria-labelledby="setup-title">
   <div class="dialog-content">
