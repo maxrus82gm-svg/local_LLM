@@ -14,3 +14,20 @@ dialog{color:#ebf1fc;background:transparent;border:0;max-width:min(650px,calc(10
 @media (max-width:730px){.app{display:block}.sidebar{position:static;width:100%;height:auto;padding:16px;display:block}.brand{padding:0 0 14px}.sidebar-section,.sidebar-bottom{display:none}.nav{display:flex}.nav-item{width:auto;padding:9px}.main{width:100%;padding:0 16px}.top-line{height:48px}.top-status{gap:8px}.hero{padding:26px 0;gap:19px}.hero-actions{flex-wrap:wrap}.metrics{gap:8px}.metric{min-height:130px;padding:16px}.metric strong{font-size:26px;margin-top:15px}.metric p{font-size:10px}.metric small{font-size:9px}.manager-grid{grid-template-columns:1fr}.section-description{display:none}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.dialog-content{padding:19px}.steps{gap:6px}.steps span{font-size:10px}.top-status #last-update{display:none}}
 
 .quit-client{width:100%;margin-bottom:20px;text-align:left;background:#202b38;color:#b9c8db;border:1px solid #354357;border-radius:9px;padding:11px 13px;font-size:12px}.quit-client:hover{background:#324052;color:#fff}
+
+/* WEB-03: administrator-owned access requests */
+.admin-select{margin:22px 0 12px}
+.admin-select select{padding:12px;background:#111824;border:1px solid #3d4a5f;color:#eef3fa;border-radius:9px;width:100%}
+.requests-list{display:grid;gap:12px;margin-top:12px}
+.request-card{background:#111824;border:1px solid #36475a;border-radius:13px;padding:17px}
+.request-header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.request-header b{font-size:14px;word-break:break-all}
+.request-meta{margin:8px 0 13px;color:#8396ad;font-size:12px}
+.request-options{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.slot-checkbox{display:flex;align-items:center;gap:7px;border:1px solid #3b465a;border-radius:8px;padding:9px 12px;color:#cfd9e8;font-size:12px;cursor:pointer}
+.slot-checkbox input{accent-color:#817cf5}
+.request-actions{display:flex;gap:10px;margin-top:17px}
+.request-actions .btn{flex:1}
+.request-warning{color:#e5bc83;font-size:11px;margin:10px 0 0}
+.manager-pairing-note{margin:13px 0;color:#c7b8ff;font-size:12px}
+.manager-pairing-retry{margin-bottom:12px}

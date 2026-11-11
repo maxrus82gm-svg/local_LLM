@@ -136,6 +136,70 @@ class WebClientP1Tests(unittest.TestCase):
         self.thread.join(2)
         self.assertFalse(self.thread.is_alive())
 
+    def test_pairing_admin_read_uses_server_side_authorization(self):
+        data = {"manager_id":"manager-a","slots":[{"slot_id":"slot1"}],
+                "requests":[{"client_id":"client-b","source_ip":"127.0.0.1"}]}
+        with patch.object(web_client,"admin_requests",return_value=data) as call:
+            status,body,_=self.request("/api/pairing/admin?manager_id=manager-a")
+        self.assertEqual(status,200)
+        self.assertEqual(json.loads(body),data)
+        self.assertEqual(call.call_args.args[1],"manager-a")
+        with patch.object(web_client,"admin_requests",
+                          side_effect=web_client.PairingRequestError("access_denied")):
+            status,body,_=self.request("/api/pairing/admin?manager_id=manager-a")
+        self.assertEqual(status,403)
+        self.assertNotIn("token",body.decode())
+
+    def test_pairing_approval_and_denial_require_csrf(self):
+        payload={"manager_id":"manager-a",
+                 "ticket_id":"abcdefghijklmnopqrstuvwxyz012345",
+                 "allowed_slots":["slot2"]}
+        with patch.object(web_client,"admin_decision",return_value={"state":"approved"}) as call:
+            status,_,_=self.request("/api/pairing/approve",method="POST",body=payload)
+            self.assertEqual(status,403)
+            call.assert_not_called()
+            status,body,_=self.request(
+                "/api/pairing/approve",method="POST",body=payload,
+                origin=f"http://127.0.0.1:{self.port}",csrf=self.csrf)
+            self.assertEqual(status,200)
+            self.assertEqual(json.loads(body)["state"],"approved")
+            self.assertTrue(call.call_args.kwargs["approve"])
+        denial={"manager_id":"manager-a","ticket_id":payload["ticket_id"]}
+        with patch.object(web_client,"admin_decision",return_value={"state":"denied"}) as call:
+            status,body,_=self.request(
+                "/api/pairing/deny",method="POST",body=denial,
+                origin=f"http://127.0.0.1:{self.port}",csrf=self.csrf)
+            self.assertEqual(status,200)
+            self.assertEqual(json.loads(body)["state"],"denied")
+            self.assertFalse(call.call_args.kwargs["approve"])
+
+    def test_retry_uses_existing_profile_not_second_credential(self):
+        with patch.object(web_client,"submit_profile",
+                          return_value={"state":"pending","manager_id":"manager-a"}) as call:
+            status,body,_=self.request(
+                "/api/pairing/retry",method="POST",body={"manager_id":"manager-a"},
+                origin=f"http://127.0.0.1:{self.port}",csrf=self.csrf)
+        self.assertEqual(status,200)
+        self.assertEqual(json.loads(body)["state"],"pending")
+        self.assertEqual(call.call_args.args[1],"manager-a")
+        status,_,_=self.request(
+            "/api/pairing/retry",method="POST",
+            body={"manager_id":"manager-a","token":"bad"},
+            origin=f"http://127.0.0.1:{self.port}",csrf=self.csrf)
+        self.assertEqual(status,400)
+
+    def test_status_reports_ticket_without_exposing_config(self):
+        (self.root/"managers.json").write_text('{"managers":[{}]}',encoding="utf-8")
+        pretend=[{"manager_id":"manager-a","name":"QA Manager",
+                  "status":"unreachable","data":None,"error":"unauthorized"}]
+        with patch.object(web_client,"load_profiles",return_value=[{"manager_id":"manager-a"}]), \
+             patch.object(web_client,"fetch_all",return_value=pretend), \
+             patch.object(web_client,"check_profile_ticket",return_value="pending"):
+            status,body,_=self.request("/api/status")
+        self.assertEqual(status,200)
+        self.assertEqual(json.loads(body)["managers"][0]["pairing_state"],"pending")
+        self.assertNotIn("token_file",body.decode())
+
     def test_server_never_offers_mutating_remote_operations(self):
         code, _, _ = self.request(
             "/api/start", method="POST",

@@ -32,6 +32,8 @@ import webbrowser
 
 from live_client import fetch_all, load_profiles
 from pairing_client import _require_private_acl, enroll
+from pairing_live import (PairingRequestError, submit_profile, check_profile_ticket,
+                          admin_requests, admin_decision)
 
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "web_assets"
@@ -151,10 +153,23 @@ def enroll_profile(folder: Path, payload: dict) -> dict:
         finally:
             if cert_path is not None:
                 cert_path.unlink(missing_ok=True)
+    # This is a local user-requested enrollment action. Manager never sees the
+    # raw token: only its SHA-256 is sent over explicitly trusted HTTPS.
+    try:
+        submitted = submit_profile(folder, mid)
+        state = submitted["state"]
+        error = None
+    except PairingRequestError as failure:
+        state = "not_submitted"
+        error = failure.reason
+    except (OSError, ValueError):
+        # An unavailable server must not lose an already-created local profile.
+        state = "not_submitted"
+        error = "manager_unreachable_or_untrusted"
     return {"manager_id": mid, "client_id": cid, "endpoint": endpoint,
             "registration_sha256": digest,
             "certificate_sha256": fingerprint,
-            "state": "awaiting_manager_approval"}
+            "state": state, "reason": error}
 
 
 def _secure_host(handler, port: int) -> bool:
@@ -215,10 +230,29 @@ def make_handler(folder: Path, port_getter, csrf: str):
                     if not config_path.is_file():
                         return self._send_json(200, {"configured": False, "managers": []})
                     profiles = load_profiles(config_path)
+                    results = fetch_all(profiles)
+                    for row in results:
+                        if row["status"] == "online":
+                            row["pairing_state"] = "approved"
+                        else:
+                            try:
+                                row["pairing_state"] = check_profile_ticket(
+                                    folder, row["manager_id"])
+                            except (PairingRequestError, OSError, ValueError,
+                                    KeyError, json.JSONDecodeError):
+                                row["pairing_state"] = "unknown"
                     return self._send_json(200, {
-                        "configured": True, "managers": fetch_all(profiles)})
+                        "configured": True, "managers": results})
                 except (OSError, ValueError, KeyError):
                     return self._send_json(503, {"error": "manager_config_unavailable"})
+            if path.startswith("/api/pairing/admin?"):
+                from urllib.parse import parse_qs
+                params = parse_qs(path.split("?", 1)[1])
+                mid = params.get("manager_id", [None])[0]
+                try:
+                    return self._send_json(200, admin_requests(folder, mid))
+                except (PairingRequestError, OSError, ValueError, KeyError):
+                    return self._send_json(403, {"error": "pairing_admin_required_or_offline"})
             return self._send_json(404, {"error": "not_found"})
         def do_POST(self):
             if self._bad_host():
@@ -229,7 +263,10 @@ def make_handler(folder: Path, port_getter, csrf: str):
                     not secrets.compare_digest(
                         self.headers.get("X-Ultra-CSRF", ""), csrf)):
                 return self._send_json(403, {"error": "request_not_authorised"})
-            if self.path not in ("/api/enroll", "/api/shutdown"):
+            if self.path not in ("/api/enroll", "/api/shutdown",
+                                  "/api/pairing/retry",
+                                  "/api/pairing/approve",
+                                  "/api/pairing/deny"):
                 return self._send_json(404, {"error": "not_found"})
             if self.path == "/api/shutdown":
                 self._send_json(200, {"stopping": True})
@@ -242,8 +279,28 @@ def make_handler(folder: Path, port_getter, csrf: str):
                 if not 0 < size <= MAX_BODY:
                     return self._send_json(413, {"error": "invalid_request_size"})
                 data = json.loads(self.rfile.read(size))
-                response = enroll_profile(folder, data)
-                return self._send_json(201, response)
+                if self.path == "/api/enroll":
+                    response = enroll_profile(folder, data)
+                    return self._send_json(201, response)
+                if not isinstance(data, dict):
+                    raise ValueError("Invalid form")
+                mid = data.get("manager_id")
+                if self.path == "/api/pairing/retry":
+                    if set(data) != {"manager_id"}:
+                        raise ValueError("Invalid retry")
+                    return self._send_json(200, submit_profile(folder, mid))
+                ticket = data.get("ticket_id")
+                if self.path == "/api/pairing/approve":
+                    if set(data) != {"manager_id", "ticket_id", "allowed_slots"}:
+                        raise ValueError("Invalid approval")
+                    return self._send_json(200, admin_decision(
+                        folder, mid, ticket, data.get("allowed_slots"), approve=True))
+                if set(data) != {"manager_id", "ticket_id"}:
+                    raise ValueError("Invalid denial")
+                return self._send_json(200, admin_decision(
+                    folder, mid, ticket, approve=False))
+            except PairingRequestError as error:
+                return self._send_json(409, {"error": error.reason})
             except (ValueError, KeyError, FileExistsError) as error:
                 return self._send_json(400, {"error": str(error)[:200]})
             except (OSError, PermissionError):

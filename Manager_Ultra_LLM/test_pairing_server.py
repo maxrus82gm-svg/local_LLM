@@ -1,5 +1,6 @@
 """Admin-side pairing lifecycle without contacting models or opening ports."""
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import tempfile
 from types import SimpleNamespace as Args
@@ -7,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 from live_manager import load_config
-from pairing_server import create, grant, revoke
+from pairing_server import create, grant, revoke, set_pairing_admin
 
 
 def digest(text):
@@ -63,6 +64,29 @@ class PairingServerTests(unittest.TestCase):
         self.assertEqual([c["client_id"] for c in clients], ["client-b"])
         with self.assertRaises(ValueError):
             revoke(Args(config=self.config, client_id="client-b"))
+
+    def test_owner_must_explicitly_assign_pairing_admin(self):
+        create(self.args)
+        current = load_config(self.config)
+        self.assertFalse(current["clients"][0].get("pairing_admin", False))
+        set_pairing_admin(Args(config=self.config,client_id="client-a",enabled=True))
+        self.assertTrue(load_config(self.config)["clients"][0]["pairing_admin"])
+        set_pairing_admin(Args(config=self.config,client_id="client-a",enabled=False))
+        self.assertFalse(load_config(self.config)["clients"][0]["pairing_admin"])
+        with self.assertRaises(ValueError):
+            set_pairing_admin(Args(config=self.config,client_id="unknown",enabled=True))
+
+    def test_two_admin_grants_do_not_overwrite_each_other(self):
+        create(self.args)
+        def perform(value):
+            grant(Args(config=self.config,client_id="client-"+value,
+                       token_sha256=digest("TEST-DUMMY-"+value*20),
+                       grant_slot=["slot2"]))
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            list(pool.map(perform, ("b","c")))
+        record=load_config(self.config)
+        self.assertEqual({c["client_id"] for c in record["clients"]},
+                         {"client-a","client-b","client-c"})
 
     def test_wrong_slot_refuses_config_change(self):
         create(self.args)

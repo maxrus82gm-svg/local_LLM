@@ -7,6 +7,7 @@ process launches, firewall changes, or certificate/key exports.
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import ipaddress
 import json
 import os
@@ -15,6 +16,7 @@ import stat
 import subprocess
 import re
 import tempfile
+import time
 
 from live_manager import load_config
 
@@ -66,6 +68,44 @@ def _trusted_parent(file: Path):
         raise ValueError("Pre-provisioned protected private directory required")
     _require_private_acl(parent)
     return file
+
+
+@contextmanager
+def manager_config_lock(config_file: Path):
+    """Cross-process read/modify/write guard for every Manager-admin change."""
+    config_file = _trusted_parent(config_file)
+    lockfile = config_file.parent / ".ultra-client-config.lock"
+    if lockfile.is_symlink():
+        raise PermissionError("Manager config lock may not be a symlink")
+    with lockfile.open("a+b") as lock:
+        if lock.seek(0, os.SEEK_END) == 0:
+            lock.write(b"0")
+            lock.flush()
+        lock.seek(0)
+        if os.name == "nt":
+            import msvcrt
+            lockfn = lambda: msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+            unlock = lambda: msvcrt.locking(lock.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+            lockfn = lambda: fcntl.lockf(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB, 1)
+            unlock = lambda: fcntl.lockf(lock.fileno(), fcntl.LOCK_UN, 1)
+        acquired = False
+        try:
+            deadline = time.monotonic() + 5.0
+            while True:
+                try:
+                    lockfn()
+                    acquired = True
+                    break
+                except (OSError, BlockingIOError):
+                    if time.monotonic() > deadline:
+                        raise TimeoutError("Manager configuration is busy")
+                    time.sleep(.05)
+            yield
+        finally:
+            if acquired:
+                unlock()
 
 
 def _write_config(dest: Path, data: dict, *, new: bool):
@@ -138,28 +178,45 @@ def create(args):
         raise FileNotFoundError("Server TLS cert/key must already exist")
     if not args.colibri_root.is_dir() or not args.models_root.is_dir():
         raise FileNotFoundError("Colibri/models paths not found on this host")
-    _write_config(root, record, new=True)
+    with manager_config_lock(root):
+        _write_config(root, record, new=True)
     print("MANAGER_CONFIG_CREATED: client hash only; no raw token stored")
 
 
 def grant(args):
-    record = load_config(_trusted_parent(args.config))
-    entry = _entry(args.client_id, args.token_sha256, args.grant_slot)
-    if entry["client_id"] in {c["client_id"] for c in record["clients"]}:
-        raise ValueError("Client already registered; use revoke and re-pair")
-    record["clients"].append(entry)
-    _write_config(args.config, record, new=False)
+    with manager_config_lock(args.config):
+        record = load_config(_trusted_parent(args.config))
+        entry = _entry(args.client_id, args.token_sha256, args.grant_slot)
+        if entry["client_id"] in {c["client_id"] for c in record["clients"]}:
+            raise ValueError("Client already registered; use revoke and re-pair")
+        record["clients"].append(entry)
+        _write_config(args.config, record, new=False)
     print("CLIENT_GRANT_SAVED: active Manager reloads client list each request")
 
 
 def revoke(args):
-    record = load_config(_trusted_parent(args.config))
-    record["clients"] = [
-        c for c in record["clients"] if c["client_id"] != args.client_id]
-    if len(record["clients"]) == 0:
-        raise ValueError("Refusing to revoke last client; stop Manager first")
-    _write_config(args.config, record, new=False)
+    with manager_config_lock(args.config):
+        record = load_config(_trusted_parent(args.config))
+        record["clients"] = [
+            c for c in record["clients"] if c["client_id"] != args.client_id]
+        if len(record["clients"]) == 0:
+            raise ValueError("Refusing to revoke last client; stop Manager first")
+        _write_config(args.config, record, new=False)
     print("CLIENT_REVOKED: existing issued token no longer permitted")
+
+
+def set_pairing_admin(args):
+    """EXPLICIT local owner operation. Never inferred from first client."""
+    with manager_config_lock(args.config):
+        record = load_config(_trusted_parent(args.config))
+        matches = [x for x in record["clients"] if x["client_id"] == args.client_id]
+        if len(matches) != 1:
+            raise ValueError("Client must already be registered")
+        if type(args.enabled) is not bool:
+            raise ValueError("Explicit Boolean permission required")
+        matches[0]["pairing_admin"] = args.enabled
+        _write_config(args.config, record, new=False)
+    print("PAIRING_ADMIN_PERMISSION_UPDATED: scoped to client ID")
 
 
 def main():
@@ -188,6 +245,13 @@ def main():
             p.add_argument("--token-sha256", required=True)
             p.add_argument("--grant-slot", action="append", default=[])
         p.set_defaults(func=func)
+    admin = sub.add_parser("set-pairing-admin",
+                           help="Explicitly enable/disable enrollment approval role")
+    admin.add_argument("--client-id", required=True)
+    choice = admin.add_mutually_exclusive_group(required=True)
+    choice.add_argument("--enable", dest="enabled", action="store_true")
+    choice.add_argument("--disable", dest="enabled", action="store_false")
+    admin.set_defaults(func=set_pairing_admin)
     args = parser.parse_args()
     args.func(args)
 

@@ -12,7 +12,8 @@
   <div class="brand"><span class="brand-mark">U</span><span><strong>ULTRA <em>LLM</em></strong><small>WEB CLIENT</small></span></div>
   <div class="sidebar-section">РАБОЧАЯ ОБЛАСТЬ</div>
   <nav class="nav"><a class="nav-item selected" href="#overview"><span>▦</span> Обзор серверов</a>
-  <button class="nav-item" type="button" id="nav-add"><span>＋</span> Подключить Manager</button></nav>
+  <button class="nav-item" type="button" id="nav-add"><span>＋</span> Подключить Manager</button>
+  <button class="nav-item hidden" type="button" id="nav-pairing-admin"><span>◈</span> Заявки на доступ</button></nav>
   <div class="sidebar-bottom"><button class="quit-client" type="button" id="quit-client">⏻ Завершить Web Client</button><div class="privacy"><span class="privacy-dot"></span><div><b>Локальный клиент</b><small>127.0.0.1 · защищённая сеть</small></div></div><p>Токены хранятся на этом компьютере и не передаются в браузер.</p><span class="version">ULTRA LLM · WEB P1</span></div>
 </aside>
 <main class="main" id="overview">
@@ -51,12 +52,22 @@
     </form>
     <div id="setup-success" class="hidden success">
       <span class="success-check">✓</span><h3>Профиль клиента создан</h3>
-      <p>Секретный токен сохранён только на этом компьютере. Передайте администратору Manager следующий SHA-256 для разрешения доступа:</p>
-      <div class="digest-label">SHA-256 ДЛЯ РЕГИСТРАЦИИ</div><div class="digest"><code id="digest"></code><button type="button" id="copy-digest" class="btn secondary small">Копировать</button></div>
-      <p>Отпечаток сертификата: <code id="fingerprint"></code></p>
-      <p>Администратор должен зарегистрировать <strong id="client-label"></strong> и разрешить IP этого компьютера. Пока разрешения нет, Manager будет недоступен.</p>
-      <div class="dialog-actions"><button class="btn primary" type="button" id="setup-done">Перейти к панели →</button></div>
+      <p id="setup-state">Профиль сохранён локально. Проверяем отправку заявки по HTTPS…</p>
+      <div id="legacy-digest" class="hidden"><p>Этот Manager пока не принимает веб-заявки. Для старой серверной версии администратору можно передать SHA-256; это не секретный токен.</p>
+        <div class="digest-label">SHA-256 ДЛЯ РЕГИСТРАЦИИ</div><div class="digest"><code id="digest"></code><button type="button" id="copy-digest" class="btn secondary small">Копировать</button></div></div>
+      <p>Отпечаток публичного сертификата: <code id="fingerprint"></code></p>
+      <p>Клиент <strong id="client-label"></strong> сможет подключиться, когда администратор Manager подтвердит заявку и разрешит IP/слоты.</p>
+      <div class="dialog-actions"><button class="btn secondary" type="button" id="retry-pairing">Повторить заявку</button><button class="btn primary" type="button" id="setup-done">Перейти к панели →</button></div>
     </div>
+  </div>
+</dialog>
+<dialog id="admin-dialog" aria-labelledby="admin-title">
+  <div class="dialog-content">
+    <div class="dialog-top"><div><div class="eyebrow">УПРАВЛЕНИЕ ДОСТУПОМ</div><h2 id="admin-title">Заявки на подключение</h2><p>Только для уполномоченного администратора Manager. Никакие модели здесь не запускаются.</p></div><button class="close" type="button" id="close-admin" aria-label="Закрыть">✕</button></div>
+    <label class="field full admin-select">Manager<select id="admin-manager"></select></label>
+    <div class="notice hidden" id="admin-error" role="alert"></div>
+    <div id="admin-requests" class="requests-list"><div class="placeholder">Загружаем заявки…</div></div>
+    <div class="dialog-actions"><button type="button" class="btn secondary" id="refresh-admin">↻ Обновить заявки</button><button type="button" class="btn secondary" id="admin-done">Закрыть</button></div>
   </div>
 </dialog>
 </body></html>

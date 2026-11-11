@@ -25,6 +25,8 @@ import threading
 import urllib.error
 import urllib.request
 
+from pairing_inbox import PairingInbox
+
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
 _LOG = logging.getLogger("ultra-live-manager")
 _POWERSHELL = r"powershell.exe"
@@ -119,6 +121,8 @@ def load_config(file: Path):
             raise ValueError("Invalid client token digest")
         if client["client_id"] in client_ids or digest in token_hashes:
             raise ValueError("Repeated client")
+        if type(client.get("pairing_admin", False)) is not bool:
+            raise ValueError("Invalid pairing_admin role")
         client_ids.add(client["client_id"])
         token_hashes.add(digest)
         allowed = client.get("allowed_slots")
@@ -205,6 +209,7 @@ def live_snapshot(config, client):
               "host": socket.gethostname(),
               "generated_at_utc": _utc_now(),
               "viewer_id": client["client_id"],
+              "pairing_admin": bool(client.get("pairing_admin", False)),
               "admission_enabled": False,
               "reservation_granted": False,
               "memory": {"state": "unknown"},
@@ -270,8 +275,8 @@ def live_snapshot(config, client):
     return result
 
 
-def run(config_file):
-    config = load_config(config_file)
+def make_handler(config_file, config, inbox):
+    """HTTP handler; live role checks are repeated on every request."""
     class Handler(BaseHTTPRequestHandler):
         server_version = "UltraLLMManager/1.0"
         sys_version = ""
@@ -284,9 +289,7 @@ def run(config_file):
             self.send_header("X-Content-Type-Options", "nosniff")
             self.end_headers()
             self.wfile.write(encoded)
-        def do_GET(self):
-            if self.path != "/v1/snapshot":
-                return self._reply(404, {"error": "not_found"})
+        def _current(self):
             # Reload grants on EVERY request: revoke/rotate without a restart.
             # Never trust client-provided identity or X-Forwarded-For.
             try:
@@ -294,34 +297,146 @@ def run(config_file):
                 if any(current[field] != config[field] for field in
                        ("manager_id", "bind_host", "listen_port",
                         "cert_file", "key_file")):
-                    return self._reply(503, {"error": "manager_config_changed"})
+                    self._reply(503, {"error": "manager_config_changed"})
+                    return None
             except (OSError, ValueError, TypeError):
-                return self._reply(503, {"error": "configuration_unavailable"})
+                self._reply(503, {"error": "configuration_unavailable"})
+                return None
             if self.client_address[0] not in current["allowed_client_ips"]:
-                return self._reply(403, {"error": "source_not_permitted"})
+                self._reply(403, {"error": "source_not_permitted"})
+                return None
+            return current
+
+        def _admin(self, current):
             client = _authorized_client(current, self.headers.get("Authorization", ""))
             if client is None:
-                return self._reply(401, {"error": "unauthorized"})
-            if not _MAX_REQUESTS.acquire(blocking=False):
-                return self._reply(503, {"error": "busy"})
+                self._reply(401, {"error": "unauthorized"})
+                return False
+            if not client.get("pairing_admin", False):
+                self._reply(403, {"error": "pairing_admin_required"})
+                return False
+            return True
+
+        def _json_post(self):
+            if self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
+                self._reply(415, {"error": "json_required"})
+                return None
             try:
-                self._reply(200, live_snapshot(current, client))
-            except Exception as error:
-                _LOG.exception("Snapshot failed: %s", type(error).__name__)
-                self._reply(503, {"error": "temporarily_unavailable"})
-            finally:
-                _MAX_REQUESTS.release()
+                n = int(self.headers.get("Content-Length", "0"))
+                if not 0 < n <= 4096:
+                    raise ValueError()
+                payload = json.loads(self.rfile.read(n))
+                if not isinstance(payload, dict):
+                    raise ValueError()
+                return payload
+            except (ValueError, UnicodeDecodeError):
+                self._reply(400, {"error": "invalid_json_body"})
+                return None
+
+        def do_GET(self):
+            current = self._current()
+            if current is None:
+                return
+            if self.path == "/v1/snapshot":
+                client = _authorized_client(current, self.headers.get("Authorization", ""))
+                if client is None:
+                    return self._reply(401, {"error": "unauthorized"})
+                if not _MAX_REQUESTS.acquire(blocking=False):
+                    return self._reply(503, {"error": "busy"})
+                try:
+                    self._reply(200, live_snapshot(current, client))
+                except Exception as error:
+                    _LOG.exception("Snapshot failed: %s", type(error).__name__)
+                    self._reply(503, {"error": "temporarily_unavailable"})
+                finally:
+                    _MAX_REQUESTS.release()
+                return
+            if self.path == "/v1/pairing/requests":
+                if not self._admin(current):
+                    return
+                from pairing_workflow import request_summary
+                result = request_summary(current)
+                result["requests"] = inbox.pending()
+                return self._reply(200, result)
+            if self.path.startswith("/v1/pairing/status/"):
+                ticket = self.path[len("/v1/pairing/status/"):]
+                try:
+                    result = inbox.status(ticket, self.client_address[0])
+                except ValueError:
+                    return self._reply(400, {"error": "invalid_ticket"})
+                return self._reply(200, result)
+            return self._reply(404, {"error": "not_found"})
+
         def do_POST(self):
-            self._reply(405, {"error": "read_only_stage"})
+            current = self._current()
+            if current is None:
+                return
+            if self.path not in ("/v1/pairing/request",
+                                 "/v1/pairing/approve",
+                                 "/v1/pairing/deny"):
+                return self._reply(405, {"error": "read_only_stage"})
+            if self.path != "/v1/pairing/request" and not self._admin(current):
+                return
+            body = self._json_post()
+            if body is None:
+                return
+            if self.path == "/v1/pairing/request":
+                if set(body) != {"client_id", "token_sha256"}:
+                    return self._reply(400, {"error": "invalid_fields"})
+                try:
+                    ids = {x["client_id"] for x in current["clients"]}
+                    response = inbox.submit(body, self.client_address[0], ids)
+                    return self._reply(202, response)
+                except OverflowError:
+                    return self._reply(429, {"error": "pairing_rate_limited"})
+                except ValueError:
+                    return self._reply(400, {"error": "invalid_pairing_request"})
+            if self.path == "/v1/pairing/approve":
+                if set(body) != {"ticket_id", "allowed_slots"}:
+                    return self._reply(400, {"error": "invalid_fields"})
+                from pairing_workflow import grant_pending
+                try:
+                    response = inbox.approve(
+                        body["ticket_id"], body["allowed_slots"],
+                        lambda cid, digest, ip, allowed: grant_pending(
+                            config_file, cid, digest, ip, allowed))
+                    return self._reply(200, response)
+                except (ValueError, PermissionError, OSError) as error:
+                    _LOG.warning("Pairing approval refused: %s", type(error).__name__)
+                    return self._reply(409, {"error": "grant_not_applied"})
+            if set(body) != {"ticket_id"}:
+                return self._reply(400, {"error": "invalid_fields"})
+            try:
+                return self._reply(200, inbox.deny(body["ticket_id"]))
+            except ValueError:
+                return self._reply(409, {"error": "not_pending"})
         def log_message(self, fmt, *args):
             # Never log URL paths/query strings or auth headers: they may
             # inadvertently contain secrets, even for rejected requests.
             _LOG.info("HTTPS request from %s", self.client_address[0])
 
+    return Handler
+
+
+class ShortTimeoutManagerHTTPServer(ThreadingHTTPServer):
+    """Bound slow request clients; do not let unauthenticated pairing hang."""
+    request_queue_size = 16
+
+    def get_request(self):
+        connection, address = super().get_request()
+        connection.settimeout(8)
+        return connection, address
+
+
+def run(config_file):
+    config = load_config(config_file)
+    inbox = PairingInbox()
+    handler = make_handler(config_file, config, inbox)
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.minimum_version = ssl.TLSVersion.TLSv1_2
     context.load_cert_chain(config["cert_file"], config["key_file"])
-    server = ThreadingHTTPServer((config["bind_host"], config["listen_port"]), Handler)
+    server = ShortTimeoutManagerHTTPServer(
+        (config["bind_host"], config["listen_port"]), handler)
     server.daemon_threads = True
     server.socket = context.wrap_socket(server.socket, server_side=True)
     _LOG.info("Manager %s listening securely at %s:%d",
