@@ -1,5 +1,13 @@
 # Ultra LLM Client — WEB P1 + переносимая Windows-сборка WEB-02
 
+## WEB-02 — установлено и используется на домашнем ПК (11.11.2026)
+
+**Основная текущая домашняя копия:** `M:\UltraLLM_Client` — это распакованный переносимый Win64 Client со своим `UltraLLMClient.exe` и Python runtime. Обычный ярлык `C:\Users\REX\Desktop\Ultra LLM Client.lnk` уже перенастроен на `M:\UltraLLM_Client\Start_Ultra_LLM_Client.vbs` с помощью штатного `Install_Ultra_LLM_Client.vbs`. Прежний shortcut сохранён в `M:\UltraLLM_Builds\Shortcut_Backups\Ultra LLM Client_before_portable_WEB02.lnk`. Git исходники и ZIP не трогать. Чтобы открыть: **двойной щелчок по «Ultra LLM Client» на рабочем столе**; появляется браузерная веб-панель, без CMD/PowerShell. Повторный запуск не плодит процессы; выход — из интерфейса кнопкой «Завершить Web Client» (Manager/LLM не затрагивает).
+
+**Новый профиль на этом же ПК испытан отдельно:** упакованный EXE с временным изолированным LOCALAPPDATA (без обращения к рабочему token) → localhost HTTP200, мастер первого подключения присутствует, configured=false, защищённые ACL созданы. QA-папка удалена. При обычном запуске на домашнем ПК **мастер не появляется**, поскольку уже существует разрешённый `%LOCALAPPDATA%\UltraLLM\Client\managers.json`. Клиент автоматически использует его без изменений, показывает `manager-server77 ONLINE`, live RAM и 3 слота. Чтобы добавить ещё один Manager, нажать **«Подключить сервер»** внутри веб-панели, но новой машине по-прежнему потребуется отдельное разрешение администратора (WEB-03).
+
+**Статус:** домашняя установка и реальное подключение PASS; визуальный осмотр владельца ожидается, испытания на втором физическом ПК пока отложены по его решению. Смотри №18 §18.19.
+
 ## WEB-02 — готовая переносимая папка без установленного Python (11.11.2026)
 
 **Проверенный пакет на домашнем ПК:** `M:\UltraLLM_Builds\Release\UltraLLM_Client_WEB02_Win64.zip` (~9,3 MB). Рядом лежит уже распакованная папка `M:\UltraLLM_Builds\Release\UltraLLM_Client_WEB02_Win64`. Оба артефакта вне GitHub, содержат исполняемый `UltraLLMClient.exe`, всю папку `_internal` со встроенным Python 3.12, веб-ресурсами, `Start_Ultra_LLM_Client.vbs`, `Install_Ultra_LLM_Client.vbs`, `PORTABLE_README.txt`, Python license и `SHA256SUMS.txt`. **Не копировать только EXE:** требуется вся папка.
