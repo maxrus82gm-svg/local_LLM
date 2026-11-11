@@ -57,27 +57,55 @@ function closeSetup() {
   if (dialog.open) dialog.close();
 }
 function stat(id, value) { byId(id).textContent = String(value); }
-function modelList(container, models, disk) {
-  const wrap = node("div", "models-list");
-  wrap.append(node("h3", "", "ДОСТУПНЫЕ МОДЕЛИ И КАТАЛОГИ"));
-  if (!models.length && !disk.length) {
-    wrap.append(node("div", "model-item", "Модели не обнаружены или нет прав"));
-    container.append(wrap);
-    return;
-  }
-  for (const model of models) {
-    const line = node("div", "model-item");
-    line.append(node("span", "model-label", model), node("small", "", "API · подключена"));
-    wrap.append(line);
+function modelList(container, slots, disk) {
+  const wrapper = node("section", "models-list");
+  const heading = node("div", "manager-model-head");
+  heading.append(node("h3", "", "МОДЕЛИ И УПРАВЛЕНИЕ"),
+    node("small", "", "Запуск и остановка будут доступны после подключения управления Manager"));
+  wrapper.append(heading);
+  const scroll = node("div", "manager-model-scroll");
+  const rows = [];
+  const names = new Set();
+  for (const slot of slots) {
+    for (const model of (Array.isArray(slot.models) ? slot.models : [])) {
+      if (typeof model !== "string" || !model.trim() || names.has(model.toLowerCase())) continue;
+      names.add(model.toLowerCase());
+      rows.push({name:model, status:stateLabel(slot.engine_state) + " · " +
+        slot.slot_id + " · " + stateLabel(slot.availability), running:slot.engine_state === "ready"});
+    }
   }
   for (const item of disk) {
-    if (!item || typeof item.directory_name !== "string") continue;
-    const line = node("div", "model-item");
-    line.append(node("span", "model-label", item.directory_name),
-                node("small", "", "Файлы на диске · не проверены"));
-    wrap.append(line);
+    if (!item || typeof item.directory_name !== "string" ||
+        !item.directory_name.trim() || names.has(item.directory_name.toLowerCase())) continue;
+    names.add(item.directory_name.toLowerCase());
+    rows.push({name:item.directory_name, status:"Файлы на диске · совместимость и запуск не проверены",
+               running:false});
   }
-  container.append(wrap);
+  if (!rows.length) scroll.append(node("p", "manager-model-empty",
+    "Manager пока не сообщил ни одной модели."));
+  for (const item of rows) {
+    const line = node("div", "manager-model-row");
+    const identity = node("div", "manager-model-info");
+    identity.append(node("strong", "manager-model-name", item.name),
+                    node("small", item.running ? "model-live" : "model-unverified",
+                         item.status));
+    line.append(identity);
+    for (const title of ["Старт CPU", "Старт CUDA", "Стоп"]) {
+      const button = node("button", "btn secondary small manager-model-action", title);
+      button.type = "button";
+      button.disabled = true;
+      button.title = "Управление START/STOP через Manager ещё не реализовано";
+      button.setAttribute("aria-label", title + " — " + item.name + " (пока недоступно)");
+      line.append(button);
+    }
+    scroll.append(line);
+  }
+  wrapper.append(scroll);
+  const note = node("div", "manager-model-policy",
+    "CUDA: число одновременных запусков определит Manager по VRAM, модели и текущей нагрузке. " +
+    "Файлы на диске ещё не означают готовность модели.");
+  wrapper.append(note);
+  container.append(wrapper);
 }
 function makeManager(row) {
   const online = row.status === "online";
@@ -89,6 +117,16 @@ function makeManager(row) {
   heading.append(node("div", "manager-host", online ?
       (row.data.host || row.endpoint) : row.endpoint));
   top.append(heading);
+  const memory = online && row.data ? row.data.memory || {} : {};
+  const memoryText = memory.state === "live" ? [
+    ["DDR3", "DDR4", "DDR5"].includes(memory.ddr_generation) ?
+      memory.ddr_generation : "Тип DDR: не определён",
+    typeof memory.installed_gib === "number" && memory.installed_gib > 0 ?
+      "Установлено " + formatNumber(memory.installed_gib) + " GiB" :
+      "Всего " + formatNumber(memory.total_gib) + " GiB",
+    "Свободно " + formatNumber(memory.free_gib) + " GiB"
+  ].join(" · ") : "Память: нет подтверждённых данных";
+  top.append(node("span", "manager-memory-summary", memoryText));
   top.append(node("span", "status-pill" + (online ? "" : " offline"), online ? "● ONLINE" : "● OFFLINE"));
   card.append(top);
   const body = node("div", "manager-body");
@@ -129,35 +167,13 @@ function makeManager(row) {
   }
   const data = row.data || {};
   const slots = Array.isArray(data.slots) ? data.slots : [];
-  const ram = data.memory || {};
-  const stats = node("div", "server-stats");
-  for (const [name, val] of [
-    ["СВОБОДНАЯ RAM", ram.state === "live" ? formatNumber(ram.free_gib) + " GiB" : "—"],
-    ["СЛОТОВ", String(slots.length)]]) {
-    const cell = node("div");
-    cell.append(node("small", "", name), node("strong", "", val));
-    stats.append(cell);
-  }
-  body.append(stats);
-  const confirmed = [...new Set(slots.flatMap(s => Array.isArray(s.models) ? s.models : []))];
-  modelList(body, confirmed, Array.isArray(data.models) ? data.models : []);
+  const available = slots.filter(s => s.availability === "ready_unreserved").length;
+  body.append(node("div", "manager-slot-summary",
+    "Слотов: " + slots.length + " · Готовы к запросам: " + available +
+    " · Свободный слот сам по себе не означает запущенную LLM"));
+  modelList(body, slots, Array.isArray(data.models) ? data.models : []);
   card.append(body);
   return card;
-}
-function makeRow(manager, slot) {
-  const tr = node("tr");
-  for (const value of [manager.name || manager.manager_id,
-      slot.slot_id || "—",
-      (Array.isArray(slot.models) && slot.models.length ? slot.models.join(", ") : "—")]) {
-    tr.append(node("td", "", value));
-  }
-  const engine = node("td"); engine.append(labelState(slot.engine_state)); tr.append(engine);
-  const available = node("td"); available.append(labelState(slot.availability)); tr.append(available);
-  const action = node("td");
-  const disabled = node("button", "no-actions", "START / STOP скоро");
-  disabled.disabled = true; disabled.title = "Управление моделями будет реализовано в следующем этапе";
-  action.append(disabled);tr.append(action);
-  return tr;
 }
 function render(payload) {
   chatSnapshot = payload;
@@ -178,36 +194,25 @@ function render(payload) {
   }
   if (adminManagers.some(x => x.manager_id === selected)) adminSelect.value = selected;
   const models = new Set();
-  let ready = 0, ram = 0, ramHosts = 0;
+  let ready = 0;
   const grid = byId("managers");grid.replaceChildren();
-  const table = byId("slot-table");table.replaceChildren();
   for (const manager of all) {
     grid.append(makeManager(manager));
     if (manager.status !== "online" || !manager.data) continue;
     const data = manager.data;
     const slots = Array.isArray(data.slots) ? data.slots : [];
     for (const slot of slots) {
-      table.append(makeRow(manager, slot));
       if (slot.engine_state === "ready") {
         for (const model of (slot.models || [])) models.add(manager.manager_id + ":" + model);
       }
       if (slot.availability === "ready_unreserved") ready += 1;
     }
-    if (data.memory && data.memory.state === "live" &&
-        typeof data.memory.free_gib === "number") {
-      ram += data.memory.free_gib;ramHosts++;
-    }
   }
   if (!all.length) grid.append(node("div", "placeholder", "Нет подключённых менеджеров. Нажмите «Подключить сервер», чтобы начать."));
-  if (!table.children.length) {
-    const tr = node("tr");const td = node("td", "empty", "Нет доступных данных о слотах");
-    td.colSpan = 6;tr.append(td);table.append(tr);
-  }
   stat("metric-manager", all.length);
   stat("online-note", online.length + " онлайн из " + all.length);
   stat("metric-models", models.size);
   stat("metric-ready", ready);
-  stat("metric-ram", ramHosts ? formatNumber(ram) + " GiB" : "—");
   stat("server-count", all.length + " серверов");
   stat("last-update", new Date().toLocaleTimeString("ru-RU", {hour:"2-digit",minute:"2-digit"}));
   setNotice(all.some(m => m.status !== "online") ?

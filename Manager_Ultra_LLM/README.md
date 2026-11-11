@@ -1,5 +1,11 @@
 # Ultra LLM Manager — исходный снимок и офлайн-проверка
 
+## UI-01 — read-only аппаратные поля для карточек Manager (SOURCE, 11.11.2026)
+
+К `memory` live snapshot добавлены *необязательные* `ddr_generation` (DDR3/DDR4/DDR5 только при однозначной системной информации) и `installed_gib` (сумма ёмкостей Win32_PhysicalMemory). Существующие `total_gib` и `free_gib` сохранены. Если BIOS/CIM не дают достоверных сведений, поля опускаются; Client отображает «не определён». Чтение аппаратного типа выполняется только при первом обращении и кэшируется на срок работы Manager, чтобы не ухудшать каждый последующий запрос. Сервер Server77 read-only вручную подтвердил DDR4/48 GiB (модули 8+16+8+16), это **не** зашито в код.
+
+**Статус:** 251 Manager regression PASS, первый/кэшированный опрос локальной Windows подтверждён. Действующая служба не обновлялась; новый snapshot требует отдельной live-выкладки, без вмешательства в Colibri1 или Valheim. Права, TLS, модели, firewall не менялись; кнопки START/STOP в UI пока disabled.
+
 ## CHAT-01 LIVE на сервере 11.11.2026 — настоящий proxy к Colibri1
 
 После приёмки коммита #18 на сервере `DESKTOP-KT4G5SM` staged-код проверен на существующем private config (MANAGER_CONFIGURATION_OK), затем **только** `UltraLLM_Manager_LIVE` контролируемо остановлен/запущен. Развернуты `live_manager.py` (SHA256 `E15EF6CCEA34FC4A6D7BA2AFC2A4A37D6739D9B48884DCD99D0A9BAA4584DA51`) и `chat_runtime.py` (SHA256 `FC69896CC40A64237FF3125299D21D8E4A49EC0B5F0AE6EC64C1D905B9755466`). Backup: `C:\Server\Ultra_LLM\Manager_Live\.rollback_CHAT01_20261111_018` (четыре прежних Python модуля); staging: `.staging_CHAT01_20261111_018`. Реальные TLS/config/allowed_client_ips/pairing_admin/Firewall и другие службы не изменялись.

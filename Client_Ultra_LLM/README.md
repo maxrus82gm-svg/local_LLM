@@ -1,5 +1,11 @@
 # Ultra LLM Client — WEB P1 + переносимая WEB-02 + WEB-03 pairing
 
+## UI-01 — компактный обзор по Manager (SOURCE, 11.11.2026)
+
+На странице «Обзор серверов» оставлены три общесистемных счётчика: Manager, работающие модели и доступные для запросов слоты. Общая свободная RAM убрана (это характеристика конкретного Manager). У каждой карточки рядом с ONLINE добавлены тип DDR, установленная и свободная RAM, когда Manager возвращает проверенные read-only значения. Вместо двух дублирующих секций — один прокручиваемый список моделей: название и API/диск-статус, затем ровные столбцы **Старт CPU · Старт CUDA · Стоп**. До появления безопасных серверных действий все кнопки disabled, с поясняющим title. Поддерживается произвольное число Manager и моделей, без жёстких привязок. Прокрутка добавлена и для панели слотов в чатах.
+
+**Статус:** проверка статического JS и реальный Chrome DOM fake-Manager 11/11 PASS; 33 Client regression PASS. В installed CHAT01_R2 эти правки пока отсутствуют; отдельно собрать и проверить новый portable release. Реальный START/STOP не создан.
+
 ## CHAT-01 LIVE 11.11.2026 — работающая R2-сборка и настоящий Qwen3.6
 
 **Установлено:** `M:\UltraLLM_Client_CHAT01_R2\UltraLLMClient.exe`, домашний ярлык `Ultra LLM Client.lnk` ссылается на `M:\UltraLLM_Client_CHAT01_R2\Start_Ultra_LLM_Client.vbs`. WEB-03 и первая CHAT01 сборка не удалялись; резервные ярлыки `M:\UltraLLM_Builds\Shortcut_Backups\Ultra LLM Client_before_CHAT01_20261111.lnk` и `Ultra LLM Client_before_CHAT01_R2_20261111.lnk`. ZIP R2: `M:\UltraLLM_Builds\Release\UltraLLM_Client_CHAT01_R2_Win64.zip`, SHA256 `776275F1B720635BCDBE2EBA55839CB065DF7B5B6D2A6BA6503C17B218FDF3E3`; 69/69 хешей PASS. Токены остаются исключительно в существующем пользовательском профиле; новая регистрация не понадобилась.

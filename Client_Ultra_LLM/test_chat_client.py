@@ -104,6 +104,13 @@ class ChatWebTests(unittest.TestCase):
         self.assertIn('id="chat-view"', html)
         self.assertIn('id="nav-chats"', html)
         self.assertIn('id="chat-popout"', html)
+        self.assertNotIn('id="slot-table"', html)
+        self.assertNotIn('id="metric-ram"', html)
+        self.assertIn('id="metric-ready"', html)
+        self.assertIn('manager-model-scroll', js)
+        self.assertIn('["Старт CPU", "Старт CUDA", "Стоп"]', js)
+        self.assertIn("button.disabled = true", js)
+        self.assertIn("manager-memory-summary", js)
         self.assertIn('manager.data.slots', js)
         self.assertNotIn("maxChats = 3", js)
         # A detached chat uses a URL fragment. A query on "/" would be

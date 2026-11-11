@@ -55,6 +55,22 @@ class LiveSecurityTests(unittest.TestCase):
             self.assertEqual(row["models"], [])
             self.assertIsNone(row["scheduler"])
 
+    @patch.object(live, "_inventory_models", return_value=[])
+    @patch.object(live, "_local_api_json", return_value=None)
+    def test_snapshot_shows_verified_optional_ddr_and_installed_capacity(self, api, dirs):
+        evidence = dict(MEM, ddr_generation="DDR4", installed_gib=48.0)
+        with patch.object(live, "_os_telemetry", return_value=evidence):
+            result = live.live_snapshot(CFG, {"client_id": "c", "allowed_slots": ["slot1"]})
+        self.assertEqual(result["memory"]["ddr_generation"], "DDR4")
+        self.assertEqual(result["memory"]["installed_gib"], 48.0)
+        self.assertEqual(result["memory"]["free_gib"], 30.0)
+        evidence["ddr_generation"] = "UNKNOWN"
+        evidence["installed_gib"] = 0
+        with patch.object(live, "_os_telemetry", return_value=evidence):
+            result = live.live_snapshot(CFG, {"client_id": "c", "allowed_slots": ["slot1"]})
+        self.assertNotIn("ddr_generation", result["memory"])
+        self.assertNotIn("installed_gib", result["memory"])
+
     def test_token_digest_and_missing_bearer_fail_closed(self):
         token = "SAMPLE-UNIT-TEST-ONLY-xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
         conf = {"clients": [{"client_id": "alice",

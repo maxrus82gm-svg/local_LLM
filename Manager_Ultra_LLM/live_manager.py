@@ -132,15 +132,34 @@ def load_config(file: Path):
     return raw
 
 
+_HARDWARE_RAM_CACHE = None
+_HARDWARE_RAM_LOCK = threading.Lock()
+
+
 def _os_telemetry(ports):
     # Only validated integer ports are substituted. Never accepts input from HTTP.
     safe = ",".join(str(x) for x in sorted(set(ports)))
+    global _HARDWARE_RAM_CACHE
+    cached_hardware = _HARDWARE_RAM_CACHE
+    probe_hardware = cached_hardware is None
+    probe = (
+        r"$mem=@();try{$mem=@(Get-CimInstance Win32_PhysicalMemory -ErrorAction Stop)}catch{$mem=@()};"
+        r"$generation='';$installed=0.0;"
+        r"if($mem.Count -gt 0){$kinds=@($mem|ForEach-Object{[int]$_.SMBIOSMemoryType}|Sort-Object -Unique);"
+        r"if($kinds.Count -eq 1 -and $kinds[0] -eq 26){$generation='DDR4'}"
+        r"elseif($kinds.Count -eq 1 -and $kinds[0] -eq 34){$generation='DDR5'}"
+        r"elseif($kinds.Count -eq 1 -and $kinds[0] -eq 24){$generation='DDR3'};"
+        r"$installed=[double](($mem|Measure-Object -Property Capacity -Sum).Sum)/1GB};"
+    ) if probe_hardware else ""
+    fields = r"ddr_generation=$generation;installed_gib=$installed;" if probe_hardware else ""
     script = (r"$ErrorActionPreference='Stop';" +
               r"$os=Get-CimInstance Win32_OperatingSystem -ErrorAction Stop;" +
+              probe +
               r"$list=@(Get-NetTCPConnection -State Listen -ErrorAction Stop | " +
               r"Where-Object {$_.LocalPort -in @(" + safe + r")});" +
               r"[pscustomobject]@{total_gib=[double]$os.TotalVisibleMemorySize/1048576;" +
               r"free_gib=[double]$os.FreePhysicalMemory/1048576;" +
+              fields +
               r"listeners=@($list|ForEach-Object{" +
               r"[pscustomobject]@{port=[int]$_.LocalPort;pid=[int]$_.OwningProcess;" +
               r"address=[string]$_.LocalAddress}})} | ConvertTo-Json -Compress -Depth 4")
@@ -154,6 +173,18 @@ def _os_telemetry(ports):
     data = json.loads(result.stdout.strip())
     if not isinstance(data, dict) or not isinstance(data.get("listeners"), list):
         raise RuntimeError("Windows telemetry incomplete")
+    if probe_hardware:
+        stable = {}
+        if data.get("ddr_generation") in ("DDR3", "DDR4", "DDR5"):
+            stable["ddr_generation"] = data["ddr_generation"]
+        installed = data.get("installed_gib")
+        if type(installed) in (int, float) and 0 < installed < 8192:
+            stable["installed_gib"] = round(float(installed), 2)
+        with _HARDWARE_RAM_LOCK:
+            if _HARDWARE_RAM_CACHE is None:
+                _HARDWARE_RAM_CACHE = stable
+    else:
+        data.update(cached_hardware)
     return data
 
 
@@ -221,6 +252,12 @@ def live_snapshot(config, client):
         result["memory"] = {"state": "live",
                             "total_gib": round(float(evidence["total_gib"]), 2),
                             "free_gib": round(float(evidence["free_gib"]), 2)}
+        ddr = evidence.get("ddr_generation")
+        if ddr in ("DDR3", "DDR4", "DDR5"):
+            result["memory"]["ddr_generation"] = ddr
+        installed = evidence.get("installed_gib")
+        if type(installed) in (int, float) and 0 < installed < 8192:
+            result["memory"]["installed_gib"] = round(float(installed), 2)
         listening = {int(s["port"]): int(s["pid"])
                      for s in evidence["listeners"]
                      if isinstance(s, dict) and isinstance(s.get("port"), int)
