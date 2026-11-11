@@ -49,7 +49,9 @@ def _require_private_acl(parent: Path):
         "if($bad -contains $sid){exit 10}"
         "}};exit 0"
     )
-    command = ["powershell.exe", "-NoProfile", "-NonInteractive",
+    ps = Path(os.environ.get("SystemRoot") or
+              os.environ.get("WINDIR") or r"C:\Windows") / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+    command = [str(ps), "-NoProfile", "-NonInteractive",
                "-Command", check]
     result = subprocess.run(command, capture_output=True,
                             timeout=10, check=False)

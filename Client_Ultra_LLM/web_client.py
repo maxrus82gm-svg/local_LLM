@@ -62,7 +62,9 @@ def ensure_private_dir(folder: Path) -> Path:
     if not folder.exists():
         if os.name == "nt":
             installer = HERE / "Prepare-ClientPrivate.ps1"
-            cmd = ["powershell.exe", "-NoProfile", "-NonInteractive",
+            ps = Path(os.environ.get("SystemRoot") or
+                      os.environ.get("WINDIR") or r"C:\Windows") / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+            cmd = [str(ps), "-NoProfile", "-NonInteractive",
                    "-ExecutionPolicy", "Bypass", "-File", str(installer)]
             result = subprocess.run(
                 cmd, capture_output=True, timeout=25,
@@ -311,7 +313,10 @@ def run_server(folder: Path, *, port: int = 0, open_browser: bool = True):
         holder["port"] = server.server_address[1]
         address = f"http://127.0.0.1:{holder['port']}/"
         port_path.write_text(str(holder["port"]), encoding="ascii")
-        print("ULTRA_WEB_CLIENT_READY", address, flush=True)
+        # --windowed/--noconsole PyInstaller sets sys.stdout to None.
+        # Diagnostics must never prevent a GUI-only package from starting.
+        if sys.stdout is not None:
+            print("ULTRA_WEB_CLIENT_READY", address, flush=True)
         if open_browser:
             webbrowser.open(address)
         server.serve_forever(poll_interval=0.25)
@@ -339,7 +344,7 @@ if __name__ == "__main__":
     except Exception:
         # pythonw has no console; surface an actionable error without leaking
         # private paths, credentials, certificate content or HTTP responses.
-        if os.name == "nt":
+        if os.name == "nt" and sys.stderr is None:
             ctypes.windll.user32.MessageBoxW(
                 None,
                 "Не удалось запустить Ultra LLM Web Client. "
