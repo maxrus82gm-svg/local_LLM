@@ -1,5 +1,9 @@
 # Ultra LLM Manager — исходный снимок и офлайн-проверка
 
+## WEB-03 действительно установлен на Server77 (11.11.2026)
+
+После приёмки #15 все четыре серверных Python файла pairing взяты из `main`, SHA совпадает, на сервере compile/imports/config PASS. `UltraLLM_Manager_LIVE` на `DESKTOP-KT4G5SM` запущен с новой версией и слушает HTTPS 8443; домашний Client с проверенным CA получает реальный snapshot, admin API без прав — 401, START — 405. Старые `live_manager.py` и `pairing_server.py` сохранены в `C:\Server\Ultra_LLM\Manager_Live\.rollback_WEB03_20261111_015`; staging — `.staging_WEB03_20261111_015`. `manager.json`, TLS, FW/IP allowlist, Colibri1, Valheim не менялись. `pairing_admin` для существующего `home-rex` остаётся false: живое одобрение новой заявки ещё не проверялось и требует отдельного владельческого решения. Подробнее №18 §18.21.
+
 ## WEB-03 — подготовлен безопасный Web Pairing (НЕ включён в живом Manager)
 
 Новые серверные модули `pairing_inbox.py` и `pairing_workflow.py`, расширение `live_manager.py` и `pairing_server.py`. Уже авторизованный владелец с отдельной административной ролью `pairing_admin=true` может из своей Web Client панели увидеть новые заявки, проверить ID и фактический IP, выбрать допустимые слоты и подтвердить/отклонить клиента. **Роль по умолчанию false**. Новый Client не может сделать себя администратором. Нет API для START/STOP/lease.

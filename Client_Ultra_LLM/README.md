@@ -1,4 +1,10 @@
-# Ultra LLM Client — WEB P1 + переносимая WEB-02 + WEB-03 pairing (на проверке)
+# Ultra LLM Client — WEB P1 + переносимая WEB-02 + WEB-03 pairing
+
+## WEB-03 — установленная домашняя переносимая версия (11.11.2026)
+
+Используемая сборка: `M:\UltraLLM_Client_WEB03`, запуск из существующего ярлыка **Ultra LLM Client**. Архив для переноса: `M:\UltraLLM_Builds\Release\UltraLLM_Client_WEB03_Win64.zip`, SHA256 `D5AAB605599168249058E4A399458D71F28DC551857A4DAFB2176E295C15D735`, 67/67 файлов проверено, без пользовательских token/config. Старая версия `M:\UltraLLM_Client` сохранена; резервный shortcut `M:\UltraLLM_Builds\Shortcut_Backups\Ultra LLM Client_before_WEB03_20261111.lnk`. В локальной установленной версии real Manager ONLINE, три слота и RAM, новый pairing UI загружен, повторный запуск не плодит процессы. Чистый запуск без настроек (отдельная QA-папка) и protected ACL PASS.
+
+Manager на сервере также обновлён до WEB-03. **НО** роль `pairing_admin` текущему `home-rex` не назначена; настоящий approve нового Client не испытывался. Не пытаться обходить роль, IP allowlist или проверку TLS. START/STOP ещё не работают. Полный evidence и rollback №18 §18.21.
 
 ## WEB-03 — заявки через Web UI, без передачи SHA-256 вручную (код готов, LIVE DEPLOY OPEN)
 
