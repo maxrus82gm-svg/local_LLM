@@ -1,5 +1,12 @@
 # Ultra LLM Manager — исходный снимок и офлайн-проверка
 
+## CHAT-01 LIVE на сервере 11.11.2026 — настоящий proxy к Colibri1
+
+После приёмки коммита #18 на сервере `DESKTOP-KT4G5SM` staged-код проверен на существующем private config (MANAGER_CONFIGURATION_OK), затем **только** `UltraLLM_Manager_LIVE` контролируемо остановлен/запущен. Развернуты `live_manager.py` (SHA256 `E15EF6CCEA34FC4A6D7BA2AFC2A4A37D6739D9B48884DCD99D0A9BAA4584DA51`) и `chat_runtime.py` (SHA256 `FC69896CC40A64237FF3125299D21D8E4A49EC0B5F0AE6EC64C1D905B9755466`). Backup: `C:\Server\Ultra_LLM\Manager_Live\.rollback_CHAT01_20261111_018` (четыре прежних Python модуля); staging: `.staging_CHAT01_20261111_018`. Реальные TLS/config/allowed_client_ips/pairing_admin/Firewall и другие службы не изменялись.
+
+**LIVE QA:** из существующего домашнего `home-rex` по проверенному TLS POST `/v1/chat` → реальный Colibri1/8000 с Qwen3.6 ответ `READY` за 4,36 с, usage 20 prompt + 1 completion. Установленный Web Client CHAT01 R2 выполнил два последовательных коротких запроса и сохранил 4 сообщения. Менеджер после установки `Running`, HTTPS 8443; Colibri1 и Valheim продолжают работать. 250/250 offline Manager PASS. `/v1/start` по-прежнему 405; никаких новых LLM не запускали. Colibri2/3 остаются not_running, 2–3 одновременных генерации ещё не проверены. Детали №18 §18.23.
+
+
 ## CHAT-01 — безопасная отправка к уже работающей модели (исходники; 11.11.2026)
 
 Добавлен ограниченный `POST /v1/chat` для клиента с существующим Bearer и allowed_slots. Тело ровно `{"slot_id":"slot1","model_id":"...","messages":[{"role":"user","content":"Привет"}]}`. Manager сверяет реально доступную модель, текущие права, свежий LIVE_HOST snapshot и состояние слота; только после этого отправляет запрос на `http://127.0.0.1:<порт из конфигурации Manager>/v1/chat/completions`. Клиент не может указать произвольный URL, порт или путь. При ошибке сервер возвращает отказ и не имитирует ответ. Для первого этапа одновременно выполняется не более одного запроса чата на один слот; другие слоты могут обслуживаться независимо. START/STOP не добавлены. Для короткой первой проверки задано `max_tokens=512`, `stream=false` и явное отключение thinking; режимы streaming/reasoning позже.

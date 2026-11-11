@@ -236,7 +236,7 @@ async function init() {
     setNotice("Ошибка первоначальной настройки: " + e.message);
   }
   await refresh();
-  const requested = new URLSearchParams(window.location.search).get("chat");
+  const requested = new URLSearchParams(window.location.hash.slice(1)).get("chat");
   if (requested) { chatSelected = requested; showChats(); }
 }
 
@@ -460,6 +460,7 @@ function showChats() {
   byId("nav-overview").classList.remove("selected");
   byId("nav-chats").classList.add("selected");
   renderChatList(chatSnapshot);
+  if (currentChat()) loadChatHistory();
 }
 
 function chatTargetKey(target) {
@@ -515,7 +516,7 @@ function renderChatList(payload) {
                 node("span", "chat-status", chatReady(item) ? "● Готова к переписке" :
                    item.availability === "denied" ? "● Нет доступа" :
                    item.engine_state === "not_running" ? "○ Не запущена" :
-                   "○ " + stateLabel(item.availability).textContent));
+                   "○ " + stateLabel(item.availability)));
     card.addEventListener("click", () => {
       const old = chatSelected;
       chatSelected = item.key;
@@ -610,7 +611,7 @@ byId("chat-popout").addEventListener("click", () => {
   const target = currentChat();
   if (!target) return;
   const url = new URL(window.location.href);
-  url.searchParams.set("chat", target.key);
+  url.hash = "chat=" + encodeURIComponent(target.key);
   window.open(url.toString(), "_blank", "noopener");
 });
 window.addEventListener("focus", () => { if (chatOpen && !chatBusy) loadChatHistory(); });

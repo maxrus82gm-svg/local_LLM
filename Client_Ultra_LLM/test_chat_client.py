@@ -106,6 +106,13 @@ class ChatWebTests(unittest.TestCase):
         self.assertIn('id="chat-popout"', html)
         self.assertIn('manager.data.slots', js)
         self.assertNotIn("maxChats = 3", js)
+        # A detached chat uses a URL fragment. A query on "/" would be
+        # rejected by the local Client router before the web page could load.
+        self.assertIn('window.location.hash.slice(1)', js)
+        self.assertIn('url.hash = "chat=" + encodeURIComponent(target.key)', js)
+        self.assertNotIn('url.searchParams.set("chat"', js)
+        self.assertIn('if (currentChat()) loadChatHistory();', js)
+        self.assertNotIn('stateLabel(item.availability).textContent', js)
         self.assertEqual(self.req("/api/chat/history?manager_id=../etc&slot_id=s&model_id=m")[0], 400)
         with self.assertRaises(ValueError):
             chat_store.validate_key("../folder", "s", "m")
