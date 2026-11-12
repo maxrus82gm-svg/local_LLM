@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Ultra LLM — Web Client</title>
+<link rel="stylesheet" href="/client.css"><script src="/client.js" defer></script>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="brand"><span class="brand-mark">U</span><span><strong>ULTRA <em>LLM</em></strong><small>WEB CLIENT</small></span></div>
+  <div class="sidebar-section">РАБОЧАЯ ОБЛАСТЬ</div>
+  <nav class="nav"><a class="nav-item selected" href="#overview"><span>▦</span> Обзор серверов</a>
+  <button class="nav-item" type="button" id="nav-add"><span>＋</span> Подключить Manager</button></nav>
+  <div class="sidebar-bottom"><button class="quit-client" type="button" id="quit-client">⏻ Завершить Web Client</button><div class="privacy"><span class="privacy-dot"></span><div><b>Локальный клиент</b><small>127.0.0.1 · защищённая сеть</small></div></div><p>Токены хранятся на этом компьютере и не передаются в браузер.</p><span class="version">ULTRA LLM · WEB P1</span></div>
+</aside>
+<main class="main" id="overview">
+  <div class="top-line"><span>Рабочая область <i>/</i> Обзор серверов</span><span class="top-status"><span class="live-pill">● LIVE MONITORING</span><span id="last-update">Не обновлялось</span></span></div>
+  <header class="hero"><div><div class="eyebrow">ИНФРАСТРУКТУРА ИСКУССТВЕННОГО ИНТЕЛЛЕКТА</div><h1>Управление <span>LLM</span></h1><p>Все ваши серверы, модели и вычислительные ресурсы — в одном месте.</p></div>
+  <div class="hero-actions"><button class="btn secondary" type="button" id="refresh">↻ Обновить</button><button class="btn primary" type="button" id="add">＋ Подключить сервер</button></div></header>
+  <section class="metrics" aria-label="Сводка">
+    <article class="metric"><small>МЕНЕДЖЕРЫ</small><strong id="metric-manager">—</strong><p id="online-note">Проверяем подключения</p><span class="metric-icon">▤</span></article>
+    <article class="metric"><small>РАБОТАЮЩИЕ МОДЕЛИ</small><strong id="metric-models">—</strong><p>Подтверждены через API</p><span class="metric-icon">◈</span></article>
+    <article class="metric"><small>ДОСТУПНЫЕ СЛОТЫ</small><strong id="metric-ready">—</strong><p>Без гарантии резервирования</p><span class="metric-icon">⌁</span></article>
+    <article class="metric"><small>СВОБОДНАЯ RAM</small><strong id="metric-ram">—</strong><p>На подключённых Manager</p><span class="metric-icon">▥</span></article>
+  </section>
+  <section class="section"><div class="section-head"><div><div class="eyebrow">ПОДКЛЮЧЁННЫЕ УЗЛЫ</div><h2>Менеджеры и модели</h2></div><span class="counter" id="server-count">0 серверов</span></div>
+    <div id="notice" role="status" class="notice hidden"></div>
+    <div class="manager-grid" id="managers"><div class="placeholder">Получаем данные с серверов…</div></div>
+  </section>
+  <section class="section"><div class="section-head"><div><div class="eyebrow">РЕСУРСЫ И СЕССИИ</div><h2>Все слоты</h2></div><span class="section-description">START / STOP появятся после интеграции управления</span></div>
+    <div class="table-scroll"><table><thead><tr><th>МЕНЕДЖЕР</th><th>СЛОТ</th><th>МОДЕЛЬ</th><th>СОСТОЯНИЕ</th><th>ДЛЯ КЛИЕНТА</th><th>ДЕЙСТВИЯ</th></tr></thead><tbody id="slot-table"><tr><td colspan="6" class="empty">Ожидаем данные…</td></tr></tbody></table></div>
+  </section><footer>Ultra LLM Web Client · Только реальные данные по HTTPS · Управление START / STOP находится в разработке</footer>
+</main></div>
+<dialog id="setup" aria-labelledby="setup-title">
+  <div class="dialog-content">
+    <div class="dialog-top"><div><div class="eyebrow">НАСТРОЙКА ПОДКЛЮЧЕНИЯ</div><h2 id="setup-title">Добавить Ultra LLM Manager</h2><p>Укажите адрес сервера и его публичный сертификат</p></div><button type="button" class="close" id="close-setup" aria-label="Закрыть">✕</button></div>
+    <div class="steps"><span><b>1</b> Адрес и сертификат</span><i></i><span><b>2</b> Разрешение Manager</span></div>
+    <form id="setup-form">
+      <div class="form-grid">
+        <label class="field full">Название сервера<input required name="display_name" maxlength="80" placeholder="Например: Сервер Colibri"></label>
+        <label class="field">ID Manager<input required name="manager_id" pattern="[A-Za-z0-9][A-Za-z0-9_.-]{0,63}" placeholder="manager-server77"><small>Узнайте у администратора Manager</small></label>
+        <label class="field">ID клиента<input required name="client_id" pattern="[A-Za-z0-9][A-Za-z0-9_.-]{0,63}" placeholder="client-my-pc"><small>Уникальное имя этого компьютера</small></label>
+        <label class="field">IP-адрес или имя сервера<input required name="host" placeholder="192.168.0.77" spellcheck="false"></label>
+        <label class="field">HTTPS-порт<input required name="port" type="number" min="1024" max="65535" value="8443"></label>
+        <label class="field full">Публичный сертификат Manager (.pem / .crt)<input type="file" id="cert-file" accept=".pem,.crt,text/plain"><small>Получите сертификат от администратора через доверенный канал. Не используйте неизвестные сертификаты.</small></label>
+        <label class="field full">Содержимое публичного сертификата<textarea name="certificate" id="cert-pem" rows="3" required placeholder="-----BEGIN CERTIFICATE----- ... -----END CERTIFICATE-----"></textarea></label>
+      </div><div class="form-error hidden" role="alert" id="setup-error"></div>
+      <div class="dialog-actions"><button class="btn secondary" type="button" id="cancel-setup">Отмена</button><button type="submit" class="btn primary" id="setup-save">Создать профиль →</button></div>
+    </form>
+    <div id="setup-success" class="hidden success">
+      <span class="success-check">✓</span><h3>Профиль клиента создан</h3>
+      <p>Секретный токен сохранён только на этом компьютере. Передайте администратору Manager следующий SHA-256 для разрешения доступа:</p>
+      <div class="digest-label">SHA-256 ДЛЯ РЕГИСТРАЦИИ</div><div class="digest"><code id="digest"></code><button type="button" id="copy-digest" class="btn secondary small">Копировать</button></div>
+      <p>Отпечаток сертификата: <code id="fingerprint"></code></p>
+      <p>Администратор должен зарегистрировать <strong id="client-label"></strong> и разрешить IP этого компьютера. Пока разрешения нет, Manager будет недоступен.</p>
+      <div class="dialog-actions"><button class="btn primary" type="button" id="setup-done">Перейти к панели →</button></div>
+    </div>
+  </div>
+</dialog>
+</body></html>

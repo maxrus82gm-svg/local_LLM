@@ -1,0 +1,559 @@
+{
+  "task_id": "CODEX-UL-CLIENT-DEPLOY-20261112-001",
+  "host": "DESKTOP-SC96D3U",
+  "source_commit": "132474781e760e463944c76efcd9d3ff192e8f18",
+  "source_files": [
+    {
+      "path": "Client_Ultra_LLM/Build-Portable.ps1",
+      "sha256": "f85ad81bfad98810fa0fefb30ca637b20376feb4d5f4034d26df469559fb7791"
+    },
+    {
+      "path": "Client_Ultra_LLM/Create-DesktopShortcut.ps1",
+      "sha256": "76fbb850a2640b0e3ca172c8da61924eeee03cf173e06af7c0eebefd0e19a755"
+    },
+    {
+      "path": "Client_Ultra_LLM/Install_Ultra_LLM_Client.vbs",
+      "sha256": "f122717121d1ceb2b87d7d13c8b73ee54a961bd9541a36cfd1e334b2beab1c4d"
+    },
+    {
+      "path": "Client_Ultra_LLM/PORTABLE_README.txt",
+      "sha256": "9882412f2fd12fc50f7508eea6b22053b086fd7335ef3779850c15d9a5d024e6"
+    },
+    {
+      "path": "Client_Ultra_LLM/Prepare-ClientPrivate.ps1",
+      "sha256": "d9ec208e39f380fe7ee41523d888de54afba2c029b2a1512e4c45efea6dae47a"
+    },
+    {
+      "path": "Client_Ultra_LLM/README.md",
+      "sha256": "907567c1686145d8c9183b38c40a8ffbfe53be9600771f623460b9386a6acbac"
+    },
+    {
+      "path": "Client_Ultra_LLM/Start_Ultra_LLM_Client.vbs",
+      "sha256": "35e0a10b231805ea3cd0fdc7ddb39b19bba7ec5153da0348bd74c2004f1253cb"
+    },
+    {
+      "path": "Client_Ultra_LLM/browser_qa_helpers.mjs",
+      "sha256": "5e6757ebe12b28341b2e80f4f27881b26a63ce1004a55c5d1a0f48fcfe4639e8"
+    },
+    {
+      "path": "Client_Ultra_LLM/chat_client.py",
+      "sha256": "bfa672e6c30d63e09041a809df309d7af70c8882fde00e2e0a9f4654fa83af81"
+    },
+    {
+      "path": "Client_Ultra_LLM/chat_store.py",
+      "sha256": "ac0fcdb63f414995655feb08cf0db69507dea5043035d1caa1d03670c1900455"
+    },
+    {
+      "path": "Client_Ultra_LLM/index.html",
+      "sha256": "890a87cf5efee4e80366f4b62c69d6576ae28a904e8fc6ad91beddb30cbe5898"
+    },
+    {
+      "path": "Client_Ultra_LLM/live_client.py",
+      "sha256": "916c137501de78901d7ded234c7b9fe713e2e24aa6dcacdaaf15dea958674efb"
+    },
+    {
+      "path": "Client_Ultra_LLM/live_client_gui.py",
+      "sha256": "5a895525d7cd0593174f654285170c7cb99c1e59aa73ab19f6729b4b4284586a"
+    },
+    {
+      "path": "Client_Ultra_LLM/offline_stream_host.py",
+      "sha256": "60cbd392cd50c927fd065f0b601295231260adbf80187850b0cc0c6eeb69f285"
+    },
+    {
+      "path": "Client_Ultra_LLM/pairing_client.py",
+      "sha256": "4676a1ad5b6c0c1a38cff9229fe414e1eda504d2522d9f3c1ebbe10874ac0deb"
+    },
+    {
+      "path": "Client_Ultra_LLM/pairing_live.py",
+      "sha256": "faaeea23001f5f1edbc7fb8e6bf256d68837008f2b21ba422f077da755586f5f"
+    },
+    {
+      "path": "Client_Ultra_LLM/stream_slots_browser.png",
+      "sha256": "1e6c28dc3d6c84d3c75ed2df5780a3de2322460bbb1537f72057ccf511ff85ef"
+    },
+    {
+      "path": "Client_Ultra_LLM/test_browser_control_stream.mjs",
+      "sha256": "3eae15842033d596109e397363367a780ef60c14869c204ee889ac181e90f439"
+    },
+    {
+      "path": "Client_Ultra_LLM/test_browser_slots_source.mjs",
+      "sha256": "2463a82f1fbea42e393ff0904f66ed9af91be951348241eed0469f4a97665440"
+    },
+    {
+      "path": "Client_Ultra_LLM/test_browser_stream_source.mjs",
+      "sha256": "26702884f44a2555c777e30a494811f093326fcdf0abbb7895735987e0aacaac"
+    },
+    {
+      "path": "Client_Ultra_LLM/test_chat_client.py",
+      "sha256": "2cad90db61ef969a6a8bb0a02b44d6c6bc3074dc0780dcec4e31aa4199a1446f"
+    },
+    {
+      "path": "Client_Ultra_LLM/test_client_mock.py",
+      "sha256": "6f9e9f9b35f91d9d6db2913151848dbef37d21219de549d75afd36da103d3340"
+    },
+    {
+      "path": "Client_Ultra_LLM/test_live_client.py",
+      "sha256": "5502bcfbda9b055aacb2c23f6b76fe52abe49c8fd1c20e5d9797b9037b7639cf"
+    },
+    {
+      "path": "Client_Ultra_LLM/test_pairing_client.py",
+      "sha256": "0d528ef9d16c8cf934a917a5e6400e6466c40374144953736c4d2089d9152f88"
+    },
+    {
+      "path": "Client_Ultra_LLM/test_pairing_live.py",
+      "sha256": "4bf43e40699335a2c41b33a0d892cfb49c463415d7ffc9078fbb4909a1897ed0"
+    },
+    {
+      "path": "Client_Ultra_LLM/test_streaming.py",
+      "sha256": "bf546fa919bf14ab00cac5e9a41bf394c8aa14c133b3d21b737eaa47a2f4d56e"
+    },
+    {
+      "path": "Client_Ultra_LLM/test_web_client.py",
+      "sha256": "48a88e66a19a9fed9fa732f18c855dbb3d565a8b0baba604e090a1bdc640a1ae"
+    },
+    {
+      "path": "Client_Ultra_LLM/web_assets/client.css",
+      "sha256": "b57db640f0987185ead7525446106436fa6d7ac47bbed2dc8eb81d2c1a7d0f13"
+    },
+    {
+      "path": "Client_Ultra_LLM/web_assets/client.js",
+      "sha256": "193b21ddca48d39d3b0af4cf1ce0c95831a25757db8c1985476fb313af17f3b7"
+    },
+    {
+      "path": "Client_Ultra_LLM/web_assets/index.html",
+      "sha256": "f2e31264e224ec14bfa4774483f595844904a88f5a68a8313e4ea9bc3c85ec0e"
+    },
+    {
+      "path": "Client_Ultra_LLM/web_client.py",
+      "sha256": "5e0eab07649b494548f0cb7f08b681cc7270db2fcac2f52c7d3e939a8b31ebff"
+    },
+    {
+      "path": "Manager_Ultra_LLM/.gitattributes",
+      "sha256": "5f3c55c191b6c046ba78eb4b7f4b55e3cec9bc1f991a2339d0427366f7703ec4"
+    },
+    {
+      "path": "Manager_Ultra_LLM/Manage-ManagerTask.ps1",
+      "sha256": "8435e3ed885d8594a427cae164a4b2fd9511f0a2b43d1e7734fc6efc4782969f"
+    },
+    {
+      "path": "Manager_Ultra_LLM/README.md",
+      "sha256": "50d2c52dec80fc044f47865aed096e64993e02b2cbd72265cd3f2556a277f08d"
+    },
+    {
+      "path": "Manager_Ultra_LLM/STREAM_SLOTS_EVIDENCE.json",
+      "sha256": "9d624c5c8b1f64be20ec32c33309dd54aa4842d1085da549c429043658cee4d3"
+    },
+    {
+      "path": "Manager_Ultra_LLM/STREAM_SLOTS_REPORT.txt",
+      "sha256": "e92e78247a5eb0f1110d2fc81ba2a5344712a05b199ae4b5db09303a83903d43"
+    },
+    {
+      "path": "Manager_Ultra_LLM/chat_runtime.py",
+      "sha256": "17d65c18fb213c642e566eb523d58caf1ab242e3a087f2469a44ea2ea2bbebf8"
+    },
+    {
+      "path": "Manager_Ultra_LLM/chat_settings.py",
+      "sha256": "63886f6ef58d37636da799f9240fb74f06e97dee95edbcace9b70964de769473"
+    },
+    {
+      "path": "Manager_Ultra_LLM/colibri2_runner.py",
+      "sha256": "43a228abf1634575179c7d73b710f50d7609ff59d627428a07582aaa494b8b09"
+    },
+    {
+      "path": "Manager_Ultra_LLM/control_runtime.py",
+      "sha256": "0f24c5a411846f407f11f49aac20caf90bd41dfe4aae49c1dd24529a75996b5f"
+    },
+    {
+      "path": "Manager_Ultra_LLM/index.html",
+      "sha256": "47f32f75e7bed85f8d06f70ae0f2d8498962451178be2ba9d036ed48c1c6d706"
+    },
+    {
+      "path": "Manager_Ultra_LLM/launch_contract.py",
+      "sha256": "a255c3242435291df3ae10efcd1afe78130c907c8c140a02bcf2dda7daddc86f"
+    },
+    {
+      "path": "Manager_Ultra_LLM/live_manager.py",
+      "sha256": "7dee682ad4fa5cf692a637d3b3a334b74a67dd5707273f9183a095a58e5a406e"
+    },
+    {
+      "path": "Manager_Ultra_LLM/live_tls_smoke.py",
+      "sha256": "8c6a4cd0ccc80d933cc8ab617f733175ac34422bbcdf20b45bd2a539d4869f17"
+    },
+    {
+      "path": "Manager_Ultra_LLM/manager_core.py",
+      "sha256": "21473cb2babd8719a6223fd609c3e6f7b65b12ebecdd8741dbf0b9d296b42cd4"
+    },
+    {
+      "path": "Manager_Ultra_LLM/pairing_inbox.py",
+      "sha256": "a963c4dedef64a10109664903010d99057dc777fd26a3ec399a4e44d32543f18"
+    },
+    {
+      "path": "Manager_Ultra_LLM/pairing_server.py",
+      "sha256": "0e1c390d455a52edba0e9eb538eae01c2e7db1953c7e9f5a9b9e811b5ca60943"
+    },
+    {
+      "path": "Manager_Ultra_LLM/pairing_workflow.py",
+      "sha256": "51c33d9e7e64554059f7b36c22049d1caff53317c2cb535f09fbd6ed9d8a33aa"
+    },
+    {
+      "path": "Manager_Ultra_LLM/resource_catalog.py",
+      "sha256": "3bc5e52f13af01c518e376fb450bc695ee6de2422eacd0475e78eb3636c3ab2b"
+    },
+    {
+      "path": "Manager_Ultra_LLM/resource_policy.py",
+      "sha256": "318f15cc16a776c0e4546ea0ebe47bb93e0e84a4a81238d8e4a736c7f0622782"
+    },
+    {
+      "path": "Manager_Ultra_LLM/server_preflight.py",
+      "sha256": "36083ae3671ac887efd744f64932e8903e18ba9e1931387c1b1e93820a49c548"
+    },
+    {
+      "path": "Manager_Ultra_LLM/server_runner.py",
+      "sha256": "983bf6c46f0bf87230ca0b79c4118df366f7d239953a163c5bb43545afe0dbd1"
+    },
+    {
+      "path": "Manager_Ultra_LLM/service_core.py",
+      "sha256": "7a2840d9eac3f0bd6f3fc97f1b851f755affad61a837367f3a08f1ecbe4319be"
+    },
+    {
+      "path": "Manager_Ultra_LLM/slot_registry.py",
+      "sha256": "056efcae2d75a9572a279151bef5a38bc0fef89840d337f4794b1e98505f9e3a"
+    },
+    {
+      "path": "Manager_Ultra_LLM/test_chat_runtime.py",
+      "sha256": "487767d982179535d6ad368666408d05ba08277965238fd4df9a7901acb39ed9"
+    },
+    {
+      "path": "Manager_Ultra_LLM/test_colibri2_runner.py",
+      "sha256": "0b35d558fc4ef76d34fdb92bb55ed1576b30a5909c3b04ce032fc841cdeb7033"
+    },
+    {
+      "path": "Manager_Ultra_LLM/test_control_runtime.py",
+      "sha256": "b98063b4533bbe5910884685489bc40fc7e6625bd9d495952497f431de88bd3e"
+    },
+    {
+      "path": "Manager_Ultra_LLM/test_launch_contract.py",
+      "sha256": "805add73c6f1c08b9d1a413c5be41b4f5b06b227d2514deeb965c5812d889d8f"
+    },
+    {
+      "path": "Manager_Ultra_LLM/test_live_manager.py",
+      "sha256": "c27922c956eb98a7e7cb4809e10ce3f3c59c0942a6f36b6f866dcc54c212941a"
+    },
+    {
+      "path": "Manager_Ultra_LLM/test_manager_core.py",
+      "sha256": "780fd53f59af4c01db1c3392a09fde7df6cabf19013214e25554f3c6631464ef"
+    },
+    {
+      "path": "Manager_Ultra_LLM/test_pairing_http.py",
+      "sha256": "f803ca2a8fe5c8f02dd6821f3893dc8077ab6921bb3ccc1f01e6fd3c943b529f"
+    },
+    {
+      "path": "Manager_Ultra_LLM/test_pairing_inbox.py",
+      "sha256": "f307c880a277c3e10f7a574174ced578de237986fb2aff2602f0daf6339fe3f8"
+    },
+    {
+      "path": "Manager_Ultra_LLM/test_pairing_server.py",
+      "sha256": "a8d251bbbd6052b394bffe134a935bb750bde3e0a85fac0b8d12f40bee376951"
+    },
+    {
+      "path": "Manager_Ultra_LLM/test_resource_catalog.py",
+      "sha256": "0327b5e2f1a3e15e3f88df5af2fb5c17feeb8401a2c1ea6c1b04c7bf53567ee2"
+    },
+    {
+      "path": "Manager_Ultra_LLM/test_server_preflight.py",
+      "sha256": "bbf2a5749c842700fb9aab8354059223cf0129569c2477d3df7013112a01f153"
+    },
+    {
+      "path": "Manager_Ultra_LLM/test_server_runner.py",
+      "sha256": "e0528ac1154f63aa8cf50158bab4cc917bb84d491cb4f4293d8fdb244dc198bc"
+    },
+    {
+      "path": "Manager_Ultra_LLM/test_service_core.py",
+      "sha256": "de2cff330b143117906cc77aa3170af5528727b52f88133b14814fab4dbdfc83"
+    },
+    {
+      "path": "Manager_Ultra_LLM/test_streaming.py",
+      "sha256": "24006943b3596ba37164adfc3e5d1da8476b39527f7cde1fa1ffe05edb9eeaf9"
+    },
+    {
+      "path": "Manager_Ultra_LLM/verify_offline.ps1",
+      "sha256": "9ad9f8dd1b0a66bcbed3f0698f0c35ba9898dd3d7f71a747550d9371ab0609ec"
+    },
+    {
+      "path": "Manager_Ultra_LLM/verify_stream_slots.py",
+      "sha256": "a7e553423fa8b8b477f291fe67a2638dd1720d339a05df35b49db948d9996038"
+    },
+    {
+      "path": "Manager_Ultra_LLM/windows_process.py",
+      "sha256": "aeebedc4bbd3902ef87dc20052cf9399579a879decc97ed0cce1d4569dd0e77d"
+    }
+  ],
+  "stages": [
+    {
+      "name": "client_unittest",
+      "command": [
+        "C:\\Users\\REX\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "-X",
+        "utf8",
+        "-B",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "Client_Ultra_LLM",
+        "-q"
+      ],
+      "cwd": "M:\\UltraLLM_Builds\\Release\\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\\QA\\Source",
+      "exit_code": 0,
+      "seconds": 13.171,
+      "stdout": "",
+      "stderr": "----------------------------------------------------------------------\r\nRan 49 tests in 12.764s\r\n\r\nOK\r\n"
+    },
+    {
+      "name": "js_syntax",
+      "command": [
+        "node",
+        "--check",
+        "Client_Ultra_LLM/web_assets/client.js"
+      ],
+      "cwd": "M:\\UltraLLM_Builds\\Release\\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\\QA\\Source",
+      "exit_code": 0,
+      "seconds": 0.108,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "legacy_chrome",
+      "command": [
+        "node",
+        "Client_Ultra_LLM/test_browser_control_stream.mjs"
+      ],
+      "cwd": "M:\\UltraLLM_Builds\\Release\\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\\QA\\Source",
+      "exit_code": 0,
+      "seconds": 6.476,
+      "stdout": "{\n  \"status\": \"PASS\",\n  \"browser\": \"Chrome headless (separate temporary profile)\",\n  \"tests\": [\n    \"PASS: two Manager identities, five slots, one model list per Manager\",\n    \"PASS: CPU/disabled CUDA reason, STARTING, correct Manager identity\",\n    \"PASS: STOPPING and stable owned instance_id\",\n    \"PASS: visible real HTTP fragments before completion, browser_first_fragment_ms=64 (fake model)\",\n    \"PASS: ordinary chat independent from streaming\"\n  ],\n  \"console_errors\": []\n}\n",
+      "stderr": ""
+    },
+    {
+      "name": "p0_source_chrome",
+      "command": [
+        "node",
+        "Client_Ultra_LLM/test_browser_stream_source.mjs"
+      ],
+      "cwd": "M:\\UltraLLM_Builds\\Release\\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\\QA\\Source",
+      "exit_code": 0,
+      "seconds": 8.539,
+      "stdout": "{\n  \"status\": \"PASS\",\n  \"chain\": \"Chrome / SOURCE Client / verified TLS SOURCE Manager / fake Colibri\",\n  \"first_before_done\": true,\n  \"fragmented_utf8_json\": true,\n  \"separate_reasoning\": true,\n  \"thinking_controls\": true,\n  \"persisted_reasoning\": true,\n  \"requests\": 3,\n  \"metrics\": {\n    \"browser_request_unix_ms\": 1794486887299.6,\n    \"route\": {\n      \"first_fragment_ms\": 45.21,\n      \"total_ms\": 84.67,\n      \"colibri_completed_unix_ms\": 1794486888320.05,\n      \"manager_received_unix_ms\": 1794486888190.01,\n      \"manager_preflight_ms\": 44.356,\n      \"colibri_request_started_unix_ms\": 1794486888235.214,\n      \"colibri_first_fragment_unix_ms\": 1794486888279.542,\n      \"manager_first_forward_unix_ms\": 1794486888280.879,\n      \"manager_first_forward_delay_ms\": 0.286,\n      \"manager_total_ms\": 129.05,\n      \"manager_emit_unix_ms\": 1794486888320.05,\n      \"client_token_read_ms\": 0.1,\n      \"client_tls_setup_ms\": 1.459,\n      \"client_http_headers_ms\": 93.141,\n      \"client_first_fragment_unix_ms\": 1794486888280.879,\n      \"client_first_fragment_elapsed_ms\": 95.108,\n      \"client_received_unix_ms\": 1794486888320.05,\n      \"client_elapsed_ms\": 134.232,\n      \"client_profile_load_ms\": 0.729,\n      \"client_sqlite_claim_ms\": 882.759,\n      \"client_history_load_ms\": 1.226,\n      \"client_prepare_ms\": 884.83,\n      \"client_local_elapsed_ms\": 1019.071,\n      \"client_persist_ms\": 112.769,\n      \"client_local_total_ms\": 1131.852,\n      \"client_emit_unix_ms\": 1794486888432.318\n    },\n    \"engine_limits\": {\n      \"context_tokens\": 32768,\n      \"max_tokens\": 8192\n    },\n    \"transport_policy\": {\n      \"request_bytes\": 1048576,\n      \"message_chars\": 131072,\n      \"history_messages\": 128,\n      \"history_chars\": 240000,\n      \"response_chars\": 1048576,\n      \"stream_bytes\": 8388608,\n      \"timeout_seconds\": 300\n    },\n    \"context\": {\n      \"available_messages\": 0,\n      \"sent_history_messages\": 0,\n      \"omitted_messages\": 0,\n      \"history_char_budget\": 200000,\n      \"history_message_budget\": 100,\n      \"units\": \"characters_not_tokens\"\n    },\n    \"browser_first_dom_update_unix_ms\": 1794486888283.1,\n    \"browser_first_fragment_ms\": 983.5,\n    \"browser_first_paint_opportunity_unix_ms\": 1794486888315.2,\n    \"usage\": {\n      \"prompt_tokens\": 7,\n      \"completion_tokens\": 5\n    },\n    \"throughput\": {\n      \"completion_tokens_per_second\": 59.051,\n      \"basis\": \"provider_completion_tokens / upstream_request_seconds_including_prefill\",\n      \"window_ms\": 84.673\n    },\n    \"browser_total_ms\": 1134\n  },\n  \"comparison\": {\n    \"identical_upstream_payload\": true,\n    \"direct\": {\n      \"first_fragment_ms\": 45.15779999999995,\n      \"total_ms\": 125.64099999999962\n    },\n    \"routed_with_history\": {\n      \"browser_request_unix_ms\": 1794486888737.5,\n      \"route\": {\n        \"first_fragment_ms\": 81.12,\n        \"total_ms\": 163.05,\n        \"colibri_completed_unix_ms\": 1794486889111.683,\n        \"manager_received_unix_ms\": 1794486888891.724,\n        \"manager_preflight_ms\": 57.665,\n        \"colibri_request_started_unix_ms\": 1794486888948.915,\n        \"colibri_first_fragment_unix_ms\": 1794486889030.144,\n        \"manager_first_forward_unix_ms\": 1794486889030.65,\n        \"manager_first_forward_delay_ms\": 0.383,\n        \"manager_total_ms\": 220.743,\n        \"manager_emit_unix_ms\": 1794486889111.683,\n        \"client_token_read_ms\": 0.149,\n        \"client_tls_setup_ms\": 1.662,\n        \"client_http_headers_ms\": 142.231,\n        \"client_first_fragment_unix_ms\": 1794486889030.65,\n        \"client_first_fragment_elapsed_ms\": 144.779,\n        \"client_received_unix_ms\": 1794486889111.683,\n        \"client_elapsed_ms\": 225.997,\n        \"client_profile_load_ms\": 1.187,\n        \"client_sqlite_claim_ms\": 144.299,\n        \"client_history_load_ms\": 1.735,\n        \"client_prepare_ms\": 147.255,\n        \"client_local_elapsed_ms\": 373.266,\n        \"client_persist_ms\": 219.057,\n        \"client_local_total_ms\": 592.338,\n        \"client_emit_unix_ms\": 1794486889331.412\n      },\n      \"engine_limits\": {\n        \"context_tokens\": 32768,\n        \"max_tokens\": 8192\n      },\n      \"transport_policy\": {\n        \"request_bytes\": 1048576,\n        \"message_chars\": 131072,\n        \"history_messages\": 128,\n        \"history_chars\": 240000,\n        \"response_chars\": 1048576,\n        \"stream_bytes\": 8388608,\n        \"timeout_seconds\": 300\n      },\n      \"context\": {\n        \"available_messages\": 2,\n        \"sent_history_messages\": 2,\n        \"omitted_messages\": 0,\n        \"history_char_budget\": 200000,\n        \"history_message_budget\": 100,\n        \"units\": \"characters_not_tokens\"\n      },\n      \"browser_first_dom_update_unix_ms\": 1794486889034.6,\n      \"browser_first_fragment_ms\": 297.09999999403954,\n      \"browser_first_paint_opportunity_unix_ms\": 1794486889063.2,\n      \"usage\": {\n        \"prompt_tokens\": 7,\n        \"completion_tokens\": 5\n      },\n      \"throughput\": {\n        \"completion_tokens_per_second\": 30.665,\n        \"basis\": \"provider_completion_tokens / upstream_request_seconds_including_prefill\",\n        \"window_ms\": 163.051\n      },\n      \"browser_total_ms\": 594.6999999880791\n    },\n    \"kind\": \"fake-model-only\"\n  },\n  \"console_errors\": []\n}\n",
+      "stderr": ""
+    },
+    {
+      "name": "p1_source_chrome",
+      "command": [
+        "node",
+        "Client_Ultra_LLM/test_browser_slots_source.mjs"
+      ],
+      "cwd": "M:\\UltraLLM_Builds\\Release\\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\\QA\\Source",
+      "exit_code": 0,
+      "seconds": 31.384,
+      "stdout": "{\n  \"status\": \"PASS\",\n  \"scope\": \"SOURCE API + SQLite + TLS + Chrome; fake engines/resources\",\n  \"default_slots\": 3,\n  \"persisted_slots\": 5,\n  \"simultaneous_same_model_cpu\": 2,\n  \"simultaneous_same_model_cuda\": 2,\n  \"unique_instance_ids\": true,\n  \"ipv6_listener_skipped\": true,\n  \"concurrent_chats_isolated\": true,\n  \"stop_one_preserves_other\": true,\n  \"controller_and_browser_reload\": true,\n  \"history_preserved\": true,\n  \"risk_cancel_and_confirm\": true,\n  \"console_errors\": []\n}\n",
+      "stderr": ""
+    },
+    {
+      "name": "p0_packaged_exe_tls_chrome",
+      "scope": "Actual frozen EXE / source TLS Manager / fake Colibri and resource telemetry",
+      "command": [
+        "node",
+        "M:\\UltraLLM_Builds\\Release\\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\\QA\\Source\\Client_Ultra_LLM\\test_browser_stream_source.mjs"
+      ],
+      "exit_code": 1,
+      "seconds": 1.481,
+      "stdout": "",
+      "stderr": "file:///M:/UltraLLM_Builds/Release/CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219/QA/Source/Client_Ultra_LLM/test_browser_stream_source.mjs:18\r\n    fixture.on('exit',code=>{if(code)reject(Error(`Fixture exited ${code}: ${errors}`));});\r\n                                            ^\r\n\r\nError: Fixture exited 1: Traceback (most recent call last):\r\r\n  File \"M:\\UltraLLM_Builds\\Release\\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\\QA\\Source\\Client_Ultra_LLM\\offline_stream_host.py\", line 214, in <module>\r\r\n    if __name__==\"__main__\":main()\r\r\n                            ^^^^^^\r\r\n  File \"M:\\UltraLLM_Builds\\Release\\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\\QA\\Source\\Client_Ultra_LLM\\offline_stream_host.py\", line 29, in main\r\r\n    subprocess.run([str(Path(os.environ.get(\"SystemRoot\",r\"C:\\Windows\"))/\"System32/WindowsPowerShell/v1.0/powershell.exe\"),\r\r\n  File \"C:\\Users\\REX\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\subprocess.py\", line 571, in run\r\r\n    raise CalledProcessError(retcode, process.args,\r\r\nsubprocess.CalledProcessError: Command '['C:\\\\WINDOWS\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', 'M:\\\\UltraLLM_Builds\\\\Release\\\\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\\\\QA\\\\Source\\\\Client_Ultra_LLM\\\\Prepare-ClientPrivate.ps1']' returned non-zero exit status 1.\r\r\n\r\n    at ChildProcess.<anonymous> (file:///M:/UltraLLM_Builds/Release/CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219/QA/Source/Client_Ultra_LLM/test_browser_stream_source.mjs:18:45)\r\n    at ChildProcess.emit (node:events:519:28)\r\n    at ChildProcess._handle.onexit (node:internal/child_process:293:12)\r\n\r\nNode.js v22.20.0\r\n"
+    },
+    {
+      "name": "p0_packaged_exe_tls_chrome",
+      "scope": "Actual frozen EXE / source TLS Manager / fake Colibri and resource telemetry",
+      "command": [
+        "node",
+        "M:\\UltraLLM_Builds\\Release\\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\\QA\\Source\\Client_Ultra_LLM\\test_browser_stream_source.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 10.938,
+      "stdout": "{\n  \"status\": \"PASS\",\n  \"chain\": \"Chrome / SOURCE Client / verified TLS SOURCE Manager / fake Colibri\",\n  \"first_before_done\": true,\n  \"fragmented_utf8_json\": true,\n  \"separate_reasoning\": true,\n  \"thinking_controls\": true,\n  \"persisted_reasoning\": true,\n  \"requests\": 3,\n  \"metrics\": {\n    \"browser_request_unix_ms\": 1794487072988.9001,\n    \"route\": {\n      \"first_fragment_ms\": 21.5,\n      \"total_ms\": 55.5,\n      \"colibri_completed_unix_ms\": 1794487074234.739,\n      \"manager_received_unix_ms\": 1794487074134.694,\n      \"manager_preflight_ms\": 45.415,\n      \"colibri_request_started_unix_ms\": 1794487074179.125,\n      \"colibri_first_fragment_unix_ms\": 1794487074201.238,\n      \"manager_first_forward_unix_ms\": 1794487074201.238,\n      \"manager_first_forward_delay_ms\": 0.123,\n      \"manager_total_ms\": 100.937,\n      \"manager_emit_unix_ms\": 1794487074234.739,\n      \"client_token_read_ms\": 0.134,\n      \"client_tls_setup_ms\": 1.093,\n      \"client_http_headers_ms\": 94.269,\n      \"client_first_fragment_unix_ms\": 1794487074202.374,\n      \"client_first_fragment_elapsed_ms\": 95.938,\n      \"client_received_unix_ms\": 1794487074235.837,\n      \"client_elapsed_ms\": 129.497,\n      \"client_profile_load_ms\": 0.913,\n      \"client_sqlite_claim_ms\": 1113.56,\n      \"client_history_load_ms\": 1.332,\n      \"client_prepare_ms\": 1115.893,\n      \"client_local_elapsed_ms\": 1245.402,\n      \"client_persist_ms\": 270.838,\n      \"client_local_total_ms\": 1516.254,\n      \"client_emit_unix_ms\": 1794487074505.973\n    },\n    \"engine_limits\": {\n      \"context_tokens\": 32768,\n      \"max_tokens\": 8192\n    },\n    \"transport_policy\": {\n      \"request_bytes\": 1048576,\n      \"message_chars\": 131072,\n      \"history_messages\": 128,\n      \"history_chars\": 240000,\n      \"response_chars\": 1048576,\n      \"stream_bytes\": 8388608,\n      \"timeout_seconds\": 300\n    },\n    \"context\": {\n      \"available_messages\": 0,\n      \"sent_history_messages\": 0,\n      \"omitted_messages\": 0,\n      \"history_char_budget\": 200000,\n      \"history_message_budget\": 100,\n      \"units\": \"characters_not_tokens\"\n    },\n    \"browser_first_dom_update_unix_ms\": 1794487074204.7002,\n    \"browser_first_fragment_ms\": 1215.800000011921,\n    \"browser_first_paint_opportunity_unix_ms\": 1794487074223,\n    \"usage\": {\n      \"prompt_tokens\": 7,\n      \"completion_tokens\": 5\n    },\n    \"throughput\": {\n      \"completion_tokens_per_second\": 90.092,\n      \"basis\": \"provider_completion_tokens / upstream_request_seconds_including_prefill\",\n      \"window_ms\": 55.499\n    },\n    \"browser_total_ms\": 1518.5\n  },\n  \"comparison\": {\n    \"identical_upstream_payload\": true,\n    \"direct\": {\n      \"first_fragment_ms\": 43.515299999999115,\n      \"total_ms\": 125.6263999999992\n    },\n    \"routed_with_history\": {\n      \"browser_request_unix_ms\": 1794487074777.5,\n      \"route\": {\n        \"first_fragment_ms\": 71.65,\n        \"total_ms\": 152.82,\n        \"colibri_completed_unix_ms\": 1794487075170.923,\n        \"manager_received_unix_ms\": 1794487074973.763,\n        \"manager_preflight_ms\": 44.758,\n        \"colibri_request_started_unix_ms\": 1794487075018.062,\n        \"colibri_first_fragment_unix_ms\": 1794487075089.934,\n        \"manager_first_forward_unix_ms\": 1794487075089.934,\n        \"manager_first_forward_delay_ms\": 0.16,\n        \"manager_total_ms\": 197.601,\n        \"manager_emit_unix_ms\": 1794487075170.923,\n        \"client_token_read_ms\": 0.108,\n        \"client_tls_setup_ms\": 1.031,\n        \"client_http_headers_ms\": 136.618,\n        \"client_first_fragment_unix_ms\": 1794487075090.932,\n        \"client_first_fragment_elapsed_ms\": 138.269,\n        \"client_received_unix_ms\": 1794487075170.923,\n        \"client_elapsed_ms\": 218.863,\n        \"client_profile_load_ms\": 0.665,\n        \"client_sqlite_claim_ms\": 171.166,\n        \"client_history_load_ms\": 1.096,\n        \"client_prepare_ms\": 172.958,\n        \"client_local_elapsed_ms\": 391.83,\n        \"client_persist_ms\": 267.84,\n        \"client_local_total_ms\": 659.681,\n        \"client_emit_unix_ms\": 1794487075439.119\n      },\n      \"engine_limits\": {\n        \"context_tokens\": 32768,\n        \"max_tokens\": 8192\n      },\n      \"transport_policy\": {\n        \"request_bytes\": 1048576,\n        \"message_chars\": 131072,\n        \"history_messages\": 128,\n        \"history_chars\": 240000,\n        \"response_chars\": 1048576,\n        \"stream_bytes\": 8388608,\n        \"timeout_seconds\": 300\n      },\n      \"context\": {\n        \"available_messages\": 2,\n        \"sent_history_messages\": 2,\n        \"omitted_messages\": 0,\n        \"history_char_budget\": 200000,\n        \"history_message_budget\": 100,\n        \"units\": \"characters_not_tokens\"\n      },\n      \"browser_first_dom_update_unix_ms\": 1794487075092.8,\n      \"browser_first_fragment_ms\": 315.2999999821186,\n      \"browser_first_paint_opportunity_unix_ms\": 1794487075122.3,\n      \"usage\": {\n        \"prompt_tokens\": 7,\n        \"completion_tokens\": 5\n      },\n      \"throughput\": {\n        \"completion_tokens_per_second\": 32.718,\n        \"basis\": \"provider_completion_tokens / upstream_request_seconds_including_prefill\",\n        \"window_ms\": 152.819\n      },\n      \"browser_total_ms\": 662.3999999761581\n    },\n    \"kind\": \"fake-model-only\"\n  },\n  \"console_errors\": []\n}\n",
+      "stderr": ""
+    },
+    {
+      "name": "p1_packaged_exe_tls_chrome",
+      "scope": "Actual frozen EXE / source TLS Manager / fake Colibri and resource telemetry",
+      "command": [
+        "node",
+        "M:\\UltraLLM_Builds\\Release\\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\\QA\\Source\\Client_Ultra_LLM\\test_browser_slots_source.mjs"
+      ],
+      "exit_code": 1,
+      "seconds": 120.977,
+      "stdout": "",
+      "stderr": "{\"snapshot\":{\"configured\":true,\"managers\":[{\"manager_id\":\"qa-manager\",\"name\":\"SOURCE Manager (fake model)\",\"endpoint\":\"https://127.0.0.1:55159\",\"status\":\"online\",\"data\":{\"schema\":\"ultra.manager.live.v1\",\"source\":\"LIVE_HOST\",\"manager_id\":\"qa-manager\",\"display_name\":\"SOURCE Manager (fake model)\",\"host\":\"DESKTOP-SC96D3U\",\"generated_at_utc\":\"2026-11-12T12:39:38+00:00\",\"viewer_id\":\"qa-client\",\"pairing_admin\":false,\"admission_enabled\":false,\"reservation_granted\":false,\"memory\":{\"state\":\"live\",\"total_gib\":64,\"free_gib\":8},\"slots\":[{\"slot_id\":\"slot1\",\"api_port\":55158,\"protected\":true,\"pid\":9468,\"engine_state\":\"ready\",\"models\":[\"qa-model\"],\"scheduler\":{\"active\":0,\"queued\":0,\"capacity\":1},\"availability\":\"ready_unreserved\",\"reservation_granted\":false,\"instance_id\":\"legacy-e895aecec0eb6050cbaa7176602b0fc7\"},{\"slot_id\":\"slot2\",\"api_port\":38000,\"protected\":false,\"pid\":null,\"engine_state\":\"not_running\",\"models\":[],\"scheduler\":null,\"availability\":\"not_running\",\"reservation_granted\":false},{\"slot_id\":\"slot3\",\"api_port\":38001,\"protected\":false,\"pid\":9468,\"engine_state\":\"ready\",\"models\":[\"ultra-slot3-kat-cpu-260e93c7c1ad41309a705716e4ed91e4\"],\"scheduler\":{\"active\":0,\"queued\":0,\"capacity\":1},\"availability\":\"ready_unreserved\",\"reservation_granted\":false,\"instance_id\":\"260e93c7c1ad41309a705716e4ed91e4\"},{\"slot_id\":\"slot4\",\"api_port\":38003,\"protected\":false,\"pid\":9468,\"engine_state\":\"ready\",\"models\":[\"ultra-slot4-qwen36-cuda-7852d9bc024f4b5fb8f1474f64c98e26\"],\"scheduler\":{\"active\":0,\"queued\":0,\"capacity\":1},\"availability\":\"ready_unreserved\",\"reservation_granted\":false,\"instance_id\":\"7852d9bc024f4b5fb8f1474f64c98e26\"},{\"slot_id\":\"slot5\",\"api_port\":38004,\"protected\":false,\"pid\":9468,\"engine_state\":\"ready\",\"models\":[\"ultra-slot5-qwen36-cuda-28a9f339303a4c42b0dcc339255a471e\"],\"scheduler\":{\"active\":0,\"queued\":0,\"capacity\":1},\"availability\":\"ready_unreserved\",\"reservation_granted\":false,\"instance_id\":\"28a9f339303a4c42b0dcc339255a471e\"}],\"models\":[],\"control\":{\"manager_id\":\"qa-manager\",\"models\":[{\"key\":\"kat\",\"name\":\"KAT-Coder V2.5 Dev\",\"modes\":{\"cpu\":{\"available\":true,\"reason\":null,\"forecast\":{\"ram_free_gib\":8,\"ram_reserved_gib\":0,\"ram_estimate_gib\":2,\"ram_after_gib\":6,\"ram_warning_gib\":10,\"estimate_evidence\":\"measured\",\"vram_free_gib\":null,\"vram_reserved_gib\":0,\"vram_estimate_gib\":0,\"vram_after_gib\":null,\"job_limit_gib\":null},\"warnings\":[\"low_ram_forecast\"],\"requires_ack\":true,\"risk_ack_allowed\":true},\"cuda\":{\"available\":true,\"reason\":null,\"forecast\":{\"ram_free_gib\":8,\"ram_reserved_gib\":0,\"ram_estimate_gib\":2,\"ram_after_gib\":6,\"ram_warning_gib\":10,\"estimate_evidence\":\"measured\",\"vram_free_gib\":32,\"vram_reserved_gib\":0,\"vram_estimate_gib\":2,\"vram_after_gib\":30,\"job_limit_gib\":null},\"warnings\":[\"low_ram_forecast\"],\"requires_ack\":true,\"risk_ack_allowed\":true}},\"files_present\":false,\"runtime_checked\":true,\"running_instances\":1,\"directory_name\":null,\"api_ids\":[]},{\"key\":\"qwen36\",\"name\":\"Qwen3.6-35B-A3B\",\"modes\":{\"cpu\":{\"available\":true,\"reason\":null,\"forecast\":{\"ram_free_gib\":8,\"ram_reserved_gib\":0,\"ram_estimate_gib\":2,\"ram_after_gib\":6,\"ram_warning_gib\":10,\"estimate_evidence\":\"measured\",\"vram_free_gib\":null,\"vram_reserved_gib\":0,\"vram_estimate_gib\":0,\"vram_after_gib\":null,\"job_limit_gib\":null},\"warnings\":[\"low_ram_forecast\"],\"requires_ack\":true,\"risk_ack_allowed\":true},\"cuda\":{\"available\":true,\"reason\":null,\"forecast\":{\"ram_free_gib\":8,\"ram_reserved_gib\":0,\"ram_estimate_gib\":2,\"ram_after_gib\":6,\"ram_warning_gib\":10,\"estimate_evidence\":\"measured\",\"vram_free_gib\":32,\"vram_reserved_gib\":0,\"vram_estimate_gib\":2,\"vram_after_gib\":30,\"job_limit_gib\":null},\"warnings\":[\"low_ram_forecast\"],\"requires_ack\":true,\"risk_ack_allowed\":true}},\"files_present\":false,\"runtime_checked\":true,\"running_instances\":2,\"directory_name\":null,\"api_ids\":[]}],\"instances\":[{\"instance_id\":\"260e93c7c1ad41309a705716e4ed91e4\",\"slot_id\":\"slot3\",\"model_key\":\"kat\",\"mode\":\"cpu\",\"state\":\"READY\",\"reason\":null,\"model_id\":\"ultra-slot3-kat-cpu-260e93c7c1ad41309a705716e4ed91e4\",\"released\":false,\"can_stop\":true},{\"instance_id\":\"7852d9bc024f4b5fb8f1474f64c98e26\",\"slot_id\":\"slot4\",\"model_key\":\"qwen36\",\"mode\":\"cuda\",\"state\":\"READY\",\"reason\":null,\"model_id\":\"ultra-slot4-qwen36-cuda-7852d9bc024f4b5fb8f1474f64c98e26\",\"released\":false,\"can_stop\":true},{\"instance_id\":\"28a9f339303a4c42b0dcc339255a471e\",\"slot_id\":\"slot5\",\"model_key\":\"qwen36\",\"mode\":\"cuda\",\"state\":\"READY\",\"reason\":null,\"model_id\":\"ultra-slot5-qwen36-cuda-28a9f339303a4c42b0dcc339255a471e\",\"released\":false,\"can_stop\":true},{\"instance_id\":\"b4a49f2868084dbda1a4a2f17f445470\",\"slot_id\":\"slot2\",\"model_key\":\"kat\",\"mode\":\"cpu\",\"state\":\"STOPPED\",\"reason\":null,\"model_id\":\"ultra-slot2-kat-cpu-b4a49f2868084dbda1a4a2f17f445470\",\"released\":true,\"can_stop\":false}],\"enabled\":true,\"control_models\":true,\"slots\":[{\"slot_id\":\"slot1\",\"api_port\":55158,\"protected\":true,\"model_key\":null,\"mode\":\"cpu\",\"revision\":0,\"authorized\":true},{\"slot_id\":\"slot2\",\"api_port\":38000,\"protected\":false,\"model_key\":\"kat\",\"mode\":\"cpu\",\"revision\":2,\"authorized\":true},{\"slot_id\":\"slot3\",\"api_port\":38001,\"protected\":false,\"model_key\":\"kat\",\"mode\":\"cpu\",\"revision\":2,\"authorized\":true},{\"slot_id\":\"slot4\",\"api_port\":38003,\"protected\":false,\"model_key\":\"qwen36\",\"mode\":\"cuda\",\"revision\":2,\"authorized\":true},{\"slot_id\":\"slot5\",\"api_port\":38004,\"protected\":false,\"model_key\":\"qwen36\",\"mode\":\"cuda\",\"revision\":2,\"authorized\":true}],\"can_add_slot\":true},\"chat\":{\"streaming\":true,\"reasoning_events\":true,\"transport_policy\":{\"request_bytes\":1048576,\"message_chars\":131072,\"history_messages\":128,\"history_chars\":240000,\"response_chars\":1048576,\"stream_bytes\":8388608,\"timeout_seconds\":300}}},\"error\":null,\"pairing_state\":\"approved\"}]},\"notice\":\"\",\"rows\":[{\"id\":\"slot1\",\"text\":\"slot1 · защищённыйВыберите модельKAT-Coder V2.5 DevQwen3.6-35B-A3Bqa-modelРаботает · внешний экземплярСтарт CPUСтарт CUDAСтоп\",\"buttons\":[{\"text\":\"Старт CPU\",\"disabled\":true},{\"text\":\"Старт CUDA\",\"disabled\":true},{\"text\":\"Стоп\",\"disabled\":true}]},{\"id\":\"slot2\",\"text\":\"slot2Выберите модельKAT-Coder V2.5 DevQwen3.6-35B-A3BОстановлен · выбран cpuСтарт CPUСтарт CUDAСтоп\",\"buttons\":[{\"text\":\"Старт CPU\",\"disabled\":false},{\"text\":\"Старт CUDA\",\"disabled\":false},{\"text\":\"Стоп\",\"disabled\":true}]},{\"id\":\"slot3\",\"text\":\"slot3Выберите модельKAT-Coder V2.5 DevQwen3.6-35B-A3BREADY · cpu · 260e93c7c1ad41309a705716e4ed91e4Старт CPUСтарт CUDAСтоп\",\"buttons\":[{\"text\":\"Старт CPU\",\"disabled\":true},{\"text\":\"Старт CUDA\",\"disabled\":true},{\"text\":\"Стоп\",\"disabled\":false}]},{\"id\":\"slot4\",\"text\":\"slot4Выберите модельKAT-Coder V2.5 DevQwen3.6-35B-A3BREADY · cuda · 7852d9bc024f4b5fb8f1474f64c98e26Старт CPUСтарт CUDAСтоп\",\"buttons\":[{\"text\":\"Старт CPU\",\"disabled\":true},{\"text\":\"Старт CUDA\",\"disabled\":true},{\"text\":\"Стоп\",\"disabled\":false}]},{\"id\":\"slot5\",\"text\":\"slot5Выберите модельKAT-Coder V2.5 DevQwen3.6-35B-A3BREADY · cuda · 28a9f339303a4c42b0dcc339255a471eСтарт CPUСтарт CUDAСтоп\",\"buttons\":[{\"text\":\"Старт CPU\",\"disabled\":true},{\"text\":\"Старт CUDA\",\"disabled\":true},{\"text\":\"Стоп\",\"disabled\":false}]}]}\nfile:///M:/UltraLLM_Builds/Release/CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219/QA/Source/Client_Ultra_LLM/browser_qa_helpers.mjs:32\r\n    const until=async expression=>{for(let i=0;i<200;i++){if(await evaluate(expression))return;await delay(50);}throw Error(`DOM deadline: ${expression}`);};\r\n                                                                                                                      ^\r\n\r\nError: DOM deadline: api(\"/api/status\").then(x=>x.managers[0].data.control.instances.some(i=>i.slot_id===\"slot2\"&&i.state===\"READY\"))\r\n    at until (file:///M:/UltraLLM_Builds/Release/CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219/QA/Source/Client_Ultra_LLM/browser_qa_helpers.mjs:32:119)\r\n    at async ready (file:///M:/UltraLLM_Builds/Release/CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219/QA/Source/Client_Ultra_LLM/test_browser_slots_source.mjs:35:5)\r\n    at async file:///M:/UltraLLM_Builds/Release/CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219/QA/Source/Client_Ultra_LLM/test_browser_slots_source.mjs:83:36\r\n\r\nNode.js v22.20.0\r\n"
+    },
+    {
+      "name": "p1_packaged_exe_tls_chrome",
+      "scope": "Actual frozen EXE / source TLS Manager / fake Colibri and resource telemetry",
+      "command": [
+        "node",
+        "M:\\UltraLLM_Builds\\Release\\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\\QA\\Source\\Client_Ultra_LLM\\test_browser_slots_source.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 33.016,
+      "stdout": "{\n  \"status\": \"PASS\",\n  \"scope\": \"SOURCE API + SQLite + TLS + Chrome; fake engines/resources\",\n  \"default_slots\": 3,\n  \"persisted_slots\": 5,\n  \"simultaneous_same_model_cpu\": 2,\n  \"simultaneous_same_model_cuda\": 2,\n  \"unique_instance_ids\": true,\n  \"ipv6_listener_skipped\": true,\n  \"concurrent_chats_isolated\": true,\n  \"stop_one_preserves_other\": true,\n  \"controller_and_browser_reload\": true,\n  \"history_preserved\": true,\n  \"risk_cancel_and_confirm\": true,\n  \"console_errors\": []\n}\n",
+      "stderr": ""
+    }
+  ],
+  "status": "CLIENT DEPLOY PASS / MANAGER VERSION GATE",
+  "independent_acceptance": "SUBMITTED / REVIEW PENDING",
+  "completed_at_utc": "2026-11-12T12:57:11.922293+00:00",
+  "release": {
+    "release_dir": "M:\\UltraLLM_Builds\\Release\\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\\UltraLLM_Client_STREAM_SLOTS_R5_Win64",
+    "zip": "M:\\UltraLLM_Builds\\Release\\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\\UltraLLM_Client_STREAM_SLOTS_R5_Win64.zip",
+    "zip_bytes": 10742313,
+    "zip_sha256": "bc37f43f84263da8f42e006ab3e3833e85a3781bfb11858809882a51b34a9d8a",
+    "payload_files": 72,
+    "manifest_all_match": true,
+    "zip_restore_all_match": true,
+    "relocated_payload": "C:\\Users\\REX\\AppData\\Local\\Temp\\UltraLLM_Deploy_20261112_001_173219\\Portable Test Unicode Тест\\UltraLLM_Client_STREAM_SLOTS_R5_Win64",
+    "private_artifacts": 0
+  },
+  "backup": {
+    "backup_path": "M:\\UltraLLM_Builds\\Stable_Backups\\UltraLLM_Client_R4_before_CLIENT_DEPLOY_20261112_173219",
+    "verified_files": 70,
+    "status": "PASS",
+    "exe_sha256": "97133ba39690dd057d83993925c7e17d89a8a8e47a3fc295eaaed8ff496f2b1d"
+  },
+  "live_ui": {
+    "status": "CLIENT DEPLOY PASS / MANAGER VERSION GATE",
+    "scope": "Installed EXE / real existing Manager read-only / actual Chrome DOM",
+    "snapshot": {
+      "title": "Ultra LLM — Web Client",
+      "origin": "http://127.0.0.1:60720",
+      "managers": [
+        {
+          "id": "manager-server77",
+          "status": "online",
+          "slot_count": 3,
+          "inventory_count": 2,
+          "streaming": false,
+          "dynamic_slots": false
+        }
+      ],
+      "running_metric": "1",
+      "catalog_rows": 3
+    },
+    "chat": {
+      "displayed_messages": 34,
+      "choices": 3,
+      "thinking_control": true,
+      "reasoning_display_control": true,
+      "stream_control": true,
+      "fallback_ordinary": true,
+      "send_enabled": true
+    },
+    "console_errors": [],
+    "history_content_exported": false,
+    "model_generation": "NOT RUN",
+    "model_control": "NOT RUN",
+    "reasoning_live": "NOT AVAILABLE FROM OLD MANAGER"
+  },
+  "lifecycle": {
+    "status": "PASS",
+    "existing_shortcut_repeated_launches": 2,
+    "duplicate_processes": 0,
+    "same_pid_on_repeat": 30708,
+    "graceful_shutdown_confirmed": true,
+    "restart_from_existing_shortcut": true,
+    "final_process": {
+      "pid": 29492,
+      "exe": "M:\\UltraLLM_Client\\UltraLLMClient.exe",
+      "creation": "2026-11-12T12:49:36.6123520Z",
+      "ports": [
+        {
+          "LocalAddress": "127.0.0.1",
+          "LocalPort": 60720
+        }
+      ],
+      "current_user_ownership_verified": true
+    },
+    "final_url": "http://127.0.0.1:60720",
+    "real_manager_online": true,
+    "profile_and_secret_files_unchanged": true,
+    "history_messages_preserved": 34,
+    "history_original_content_unchanged": true,
+    "sqlite_integrity": "ok",
+    "schema_before": 0,
+    "schema_after": 1,
+    "schema_change": "Additive instance_id/reasoning_content and chat_requests; original rows unchanged",
+    "shortcut_bytes_unchanged": true
+  },
+  "portability": {
+    "status": "PASS",
+    "actual_packaged_exe": "C:\\Users\\REX\\AppData\\Local\\Temp\\UltraLLM_Deploy_20261112_001_173219\\Portable Test Unicode Тест\\UltraLLM_Client_STREAM_SLOTS_R5_Win64\\UltraLLMClient.exe",
+    "pid": 32660,
+    "url": "http://127.0.0.1:50791",
+    "clean_profile": true,
+    "profile_creation_by_exe": true,
+    "system_python_in_path": false,
+    "python_runtime": "C:\\Users\\REX\\AppData\\Local\\Temp\\UltraLLM_Deploy_20261112_001_173219\\Portable Test Unicode Тест\\UltraLLM_Client_STREAM_SLOTS_R5_Win64\\_internal\\python312.dll",
+    "system_python_uninstalled": false,
+    "second_pc": "NOT RUN",
+    "relocated_to_C_drive_with_spaces_and_unicode": true,
+    "single_instance_direct_and_vbs": true,
+    "vbs_exit_code": 0,
+    "listener": [
+      {
+        "LocalAddress": "127.0.0.1",
+        "LocalPort": 50791
+      }
+    ],
+    "browser_shell_execute": "VBS exit 0; visible window inspection separate",
+    "secrets_created": false
+  },
+  "rotation": {
+    "task_id": "CODEX-UL-CLIENT-DEPLOY-20261112-001",
+    "status": "SUBMITTED / REVIEW PENDING",
+    "block1": "FREE",
+    "block1_1": "EXACT TASK ORIGINAL",
+    "previous_archive_git_sha": "9900ccd27ce60f713146da3b9037c99b68bfb2b2",
+    "previous_archive_registered_05_09": true,
+    "previous_task_sha256": "5761d8798eb98c44153359b8e06c6dbd9fe0ac7a57fd18d197d8ca79e98df92d",
+    "current_task_sha256": "0a06219ec17fffbce0451f758219bbb9a7daf230278d91b56d0d8e87c986103c",
+    "block4_byte_unchanged": true,
+    "block4_sha256": "12324821beb5d46af0ba091defe3155f9eda82e4257062a25942a458dbc954a0",
+    "document_before_sha256": "c8aae27a16535527e85e00c548ed30da432dfc77e8a7a95862f92e7f0220c9cf",
+    "document_after_sha256": "55a6a37c25f4a633f69094e830c685f4e7572ee4ea2e809f10b69482fbcadb07",
+    "document": "M:\\GitHub\\local_LLM\\Documents\\07_Задачи Codex.md",
+    "short_index_entries": 5,
+    "git_commit_push": "NOT RUN"
+  },
+  "cleanup": {
+    "status": "RETAINED",
+    "action": "recursive removal of task-only QA folders",
+    "automatic_review": "REJECTED: blocked by policy",
+    "bypass_attempted": false,
+    "in_portable_zip": false
+  },
+  "source_unchanged": true,
+  "installed_hashes_verified": 73,
+  "backup_hashes_verified": 70,
+  "historical_failed_attempts": 2,
+  "latest_stage_results": {
+    "client_unittest": 0,
+    "js_syntax": 0,
+    "legacy_chrome": 0,
+    "p0_source_chrome": 0,
+    "p1_source_chrome": 0,
+    "p0_packaged_exe_tls_chrome": 0,
+    "p1_packaged_exe_tls_chrome": 0
+  },
+  "server_changes": false,
+  "real_model_start_stop": false,
+  "real_inference": false,
+  "git_commit_push": false,
+  "archive_previous_task": "9900ccd27ce60f713146da3b9037c99b68bfb2b2:Documents/07_Задачи Codex.md"
+}

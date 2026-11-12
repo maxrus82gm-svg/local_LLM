@@ -1,0 +1,37 @@
+{
+  "status": "PASS",
+  "operation": "install",
+  "installed_path": "M:\\UltraLLM_Client",
+  "retired_path": "M:\\UltraLLM_Builds\\Stable_Backups\\UltraLLM_Client_R4_retired_CLIENT_DEPLOY_20261112_173219",
+  "backup_path": "M:\\UltraLLM_Builds\\Stable_Backups\\UltraLLM_Client_R4_before_CLIENT_DEPLOY_20261112_173219",
+  "verified_files": 73,
+  "shortcut_path": "C:\\Users\\REX\\Desktop\\Ultra LLM Client.lnk",
+  "shortcut_sha256": "658e88888c9bb28791c038c71ce56fcb1e14af35280d47a4f859321cc57ae070",
+  "previous_process": {
+    "pid": 18512,
+    "exe": "M:\\UltraLLM_Client\\UltraLLMClient.exe",
+    "creation": "2026-11-12T08:27:43.4198070Z",
+    "ports": [
+      {
+        "LocalAddress": "127.0.0.1",
+        "LocalPort": 57538
+      }
+    ],
+    "current_user_ownership_verified": true
+  },
+  "current_process": {
+    "pid": 30708,
+    "exe": "M:\\UltraLLM_Client\\UltraLLMClient.exe",
+    "creation": "2026-11-12T12:46:08.5315560Z",
+    "ports": [
+      {
+        "LocalAddress": "127.0.0.1",
+        "LocalPort": 63437
+      }
+    ],
+    "current_user_ownership_verified": true
+  },
+  "url": "http://127.0.0.1:63437",
+  "manager_online": true,
+  "source_commit": "132474781e760e463944c76efcd9d3ff192e8f18"
+}

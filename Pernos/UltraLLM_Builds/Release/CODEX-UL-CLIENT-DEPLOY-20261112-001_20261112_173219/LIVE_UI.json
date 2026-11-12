@@ -1,0 +1,34 @@
+{
+  "status": "CLIENT DEPLOY PASS / MANAGER VERSION GATE",
+  "scope": "Installed EXE / real existing Manager read-only / actual Chrome DOM",
+  "snapshot": {
+    "title": "Ultra LLM — Web Client",
+    "origin": "http://127.0.0.1:60720",
+    "managers": [
+      {
+        "id": "manager-server77",
+        "status": "online",
+        "slot_count": 3,
+        "inventory_count": 2,
+        "streaming": false,
+        "dynamic_slots": false
+      }
+    ],
+    "running_metric": "1",
+    "catalog_rows": 3
+  },
+  "chat": {
+    "displayed_messages": 34,
+    "choices": 3,
+    "thinking_control": true,
+    "reasoning_display_control": true,
+    "stream_control": true,
+    "fallback_ordinary": true,
+    "send_enabled": true
+  },
+  "console_errors": [],
+  "history_content_exported": false,
+  "model_generation": "NOT RUN",
+  "model_control": "NOT RUN",
+  "reasoning_live": "NOT AVAILABLE FROM OLD MANAGER"
+}

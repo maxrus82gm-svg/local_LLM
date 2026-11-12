@@ -1,0 +1,78 @@
+PACKAGING_TOOLCHAIN=Python 3.12 Win64 / PyInstaller 6.16.0
+184 INFO: PyInstaller: 6.16.0, contrib hooks: 2026.10
+184 INFO: Python: 3.12.10
+216 INFO: Platform: Windows-11-10.0.26300-SP0
+216 INFO: Python environment: M:\UltraLLM_Builds\.venv
+216 INFO: wrote M:\UltraLLM_Builds\Release\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\_work_UltraLLM_Client_STREAM_SLOTS_R5_Win64\spec\UltraLLMClient.spec
+221 INFO: Removing temporary files and cleaning cache in C:\Users\REX\AppData\Local\pyinstaller
+227 INFO: Module search paths (PYTHONPATH):
+['M:\\GitHub\\local_LLM',
+ 'C:\\Users\\REX\\AppData\\Local\\Programs\\Python\\Python312\\python312.zip',
+ 'C:\\Users\\REX\\AppData\\Local\\Programs\\Python\\Python312\\DLLs',
+ 'C:\\Users\\REX\\AppData\\Local\\Programs\\Python\\Python312\\Lib',
+ 'C:\\Users\\REX\\AppData\\Local\\Programs\\Python\\Python312',
+ 'M:\\UltraLLM_Builds\\.venv',
+ 'M:\\UltraLLM_Builds\\.venv\\Lib\\site-packages',
+ 'M:\\GitHub\\local_LLM\\Client_Ultra_LLM']
+690 INFO: Appending 'datas' from .spec
+691 INFO: checking Analysis
+691 INFO: Building Analysis because Analysis-00.toc is non existent
+691 INFO: Looking for Python shared library...
+691 INFO: Using Python shared library: C:\Users\REX\AppData\Local\Programs\Python\Python312\python312.dll
+692 INFO: Running Analysis Analysis-00.toc
+692 INFO: Target bytecode optimization level: 0
+692 INFO: Initializing module dependency graph...
+695 INFO: Initializing module graph hook caches...
+1038 INFO: Analyzing modules for base_library.zip ...
+2064 INFO: Processing standard module hook 'hook-encodings.py' from 'M:\\UltraLLM_Builds\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+4278 INFO: Processing standard module hook 'hook-pickle.py' from 'M:\\UltraLLM_Builds\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+5512 INFO: Processing standard module hook 'hook-heapq.py' from 'M:\\UltraLLM_Builds\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+6645 INFO: Caching module dependency graph...
+6669 INFO: Analyzing M:\GitHub\local_LLM\Client_Ultra_LLM\web_client.py
+6717 INFO: Processing standard module hook 'hook-_ctypes.py' from 'M:\\UltraLLM_Builds\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+7144 INFO: Processing standard module hook 'hook-sqlite3.py' from 'M:\\UltraLLM_Builds\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+7652 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'M:\\UltraLLM_Builds\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+7779 INFO: Processing standard module hook 'hook-xml.py' from 'M:\\UltraLLM_Builds\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+8132 INFO: Processing module hooks (post-graph stage)...
+8252 INFO: Performing binary vs. data reclassification (5 entries)
+8254 INFO: Looking for ctypes DLLs
+8263 INFO: Analyzing run-time hooks ...
+8264 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'M:\\UltraLLM_Builds\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+8274 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'M:\\UltraLLM_Builds\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+8289 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'M:\\UltraLLM_Builds\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+8312 INFO: Creating base_library.zip...
+8363 INFO: Looking for dynamic libraries
+8568 INFO: Extra DLL search directories (AddDllDirectory): []
+8568 INFO: Extra DLL search directories (PATH): []
+9002 INFO: Warnings written to M:\UltraLLM_Builds\Release\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\_work_UltraLLM_Client_STREAM_SLOTS_R5_Win64\build\UltraLLMClient\warn-UltraLLMClient.txt
+9015 INFO: Graph cross-reference written to M:\UltraLLM_Builds\Release\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\_work_UltraLLM_Client_STREAM_SLOTS_R5_Win64\build\UltraLLMClient\xref-UltraLLMClient.html
+9079 INFO: checking PYZ
+9079 INFO: Building PYZ because PYZ-00.toc is non existent
+9079 INFO: Building PYZ (ZlibArchive) M:\UltraLLM_Builds\Release\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\_work_UltraLLM_Client_STREAM_SLOTS_R5_Win64\build\UltraLLMClient\PYZ-00.pyz
+9241 INFO: Building PYZ (ZlibArchive) M:\UltraLLM_Builds\Release\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\_work_UltraLLM_Client_STREAM_SLOTS_R5_Win64\build\UltraLLMClient\PYZ-00.pyz completed successfully.
+9248 INFO: checking PKG
+9249 INFO: Building PKG because PKG-00.toc is non existent
+9249 INFO: Building PKG (CArchive) UltraLLMClient.pkg
+9285 INFO: Building PKG (CArchive) UltraLLMClient.pkg completed successfully.
+9286 INFO: Bootloader M:\UltraLLM_Builds\.venv\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\runw.exe
+9286 INFO: checking EXE
+9286 INFO: Building EXE because EXE-00.toc is non existent
+9286 INFO: Building EXE from EXE-00.toc
+9295 INFO: Copying bootloader EXE to M:\UltraLLM_Builds\Release\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\_work_UltraLLM_Client_STREAM_SLOTS_R5_Win64\build\UltraLLMClient\UltraLLMClient.exe
+9440 INFO: Copying icon to EXE
+9548 INFO: Copying 0 resources to EXE
+9548 INFO: Embedding manifest in EXE
+9580 INFO: Appending PKG archive to EXE
+9647 INFO: Fixing EXE headers
+9824 INFO: Building EXE from EXE-00.toc completed successfully.
+9825 INFO: checking COLLECT
+9825 INFO: Building COLLECT because COLLECT-00.toc is non existent
+9826 INFO: Building COLLECT COLLECT-00.toc
+10007 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+10009 INFO: Build complete! The results are available in: M:\UltraLLM_Builds\Release\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\_work_UltraLLM_Client_STREAM_SLOTS_R5_Win64\dist
+PORTABLE_BUILD_OK
+RELEASE_DIR=M:\UltraLLM_Builds\Release\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\UltraLLM_Client_STREAM_SLOTS_R5_Win64
+RELEASE_ZIP=M:\UltraLLM_Builds\Release\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\UltraLLM_Client_STREAM_SLOTS_R5_Win64.zip
+PACKAGED_FILES=72
+PORTABLE_ZIP_BYTES=10742313
+PORTABLE_ZIP_SHA256=BC37F43F84263DA8F42E006AB3E3833E85A3781BFB11858809882A51B34A9D8A

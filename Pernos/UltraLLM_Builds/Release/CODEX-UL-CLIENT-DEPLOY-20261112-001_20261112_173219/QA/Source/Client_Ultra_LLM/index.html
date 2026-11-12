@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ultra LLM Client — P0 OFFLINE MOCK</title>
+<style>
+:root{color-scheme:dark;--bg:#10151d;--panel:#17212c;--line:#344454;--text:#edf3fa;--muted:#adbdcd;--blue:#8ec9ff;--green:#8ee0ba;--amber:#ffd28e;--red:#ffaaaa;--purple:#d1b4ff;font-family:system-ui,Segoe UI,sans-serif;background:var(--bg);color:var(--text)}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh}
+button,select{font:inherit}
+button,select{border-radius:7px}
+button{background:#243748;color:var(--text);border:1px solid #506579;padding:7px 10px;font-size:12px}
+button:disabled{opacity:.45;cursor:not-allowed}
+select{background:#111b26;color:var(--text);border:1px solid #506579;padding:8px 11px;width:100%;font-size:12px}
+select:disabled{opacity:.65}
+.header{padding:16px clamp(18px,4vw,48px);background:#111b26;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.brand{display:flex;gap:13px;align-items:center}
+.logo{display:grid;place-items:center;border-radius:11px;background:#263e52;border:1px solid #557893;color:var(--blue);width:42px;height:42px;font-size:19px;font-weight:800}
+h1,h2,h3,p{margin:0}h1{font-size:18px}h2{font-size:18px}h3{font-size:14px}
+.sub{color:var(--muted);font-size:12px;margin-top:4px}
+.pill{font:700 10px/1.5 ui-monospace,Consolas,monospace;letter-spacing:.07em;border:1px solid #7b6439;background:#39301e;color:var(--amber);padding:5px 9px;border-radius:7px}
+main{max-width:1410px;margin:auto;padding:26px clamp(18px,4vw,48px) 55px}
+.eyebrow{font-size:11px;font-weight:800;letter-spacing:.15em;color:var(--blue);margin-bottom:10px}
+.hero{display:flex;gap:20px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.intro{font-size:13px;color:var(--muted);line-height:1.6;max-width:730px}
+.notice{margin:18px 0 23px;border:1px solid #795d37;background:#31291c;color:var(--amber);padding:12px 15px;border-radius:9px;font-size:12px;line-height:1.5}
+.kpi{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:18px 0 27px}
+.metric{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:15px 16px}
+.metric .value{font-size:22px;font-weight:800;margin:4px 0}
+.metric .hint{font-size:11px;color:var(--muted)}
+.caption{display:flex;align-items:baseline;justify-content:space-between;gap:15px;margin:15px 0;flex-wrap:wrap}
+.caption small{font-size:11px;color:var(--muted)}
+.table-wrap{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+table{width:100%;border-collapse:collapse;min-width:1060px;font-size:12px}
+th{text-align:left;color:var(--muted);font-weight:600;background:#121c27;padding:13px 14px;border-bottom:1px solid var(--line)}
+td{padding:14px;border-bottom:1px solid var(--line);vertical-align:middle}tr:last-child td{border-bottom:none}
+.index{display:flex;align-items:center;gap:11px}
+.num{display:grid;place-items:center;background:#203244;border:1px solid #53677b;color:var(--blue);border-radius:8px;width:31px;height:31px;font-size:11px;font-weight:800}
+.name strong{display:block;font-size:13px}.name span{display:block;font-size:11px;color:var(--muted);margin-top:4px}
+.status{display:inline-block;font:700 10px ui-monospace,Consolas,monospace;padding:5px 8px;border-radius:6px;background:#30283f;color:var(--purple);border:1px solid #705687}
+.status.warn{background:#39301e;color:var(--amber);border-color:#7b6439}
+.status.good{background:#19362d;color:var(--green);border-color:#3b7360}
+.actions{display:flex;gap:5px;white-space:nowrap}
+.help{font-size:11px;color:var(--muted);line-height:1.5;margin-top:7px}
+.section{margin-top:27px}
+.columns{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:13px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+.card h3{font-size:14px;margin-bottom:10px}
+.card p{font-size:12px;color:var(--muted);line-height:1.8}
+.line{height:1px;background:var(--line);margin:13px 0}
+footer{color:var(--muted);font-size:11px;margin-top:28px;line-height:1.6}
+@media(max-width:800px){.kpi{grid-template-columns:repeat(2,minmax(0,1fr))}.columns{grid-template-columns:1fr}}
+
+.lang-switch{display:flex;align-items:center;gap:3px;background:#111b26;border:1px solid var(--line);padding:3px;border-radius:9px}
+.lang-switch button{cursor:pointer;font-size:11px;font-weight:700;line-height:1.1;min-width:34px;padding:7px 9px;border:1px solid transparent;background:transparent;color:var(--muted)}
+.lang-switch button[aria-pressed="true"]{background:#263e52;color:var(--blue);border-color:#557893}
+.lang-switch button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="brand">
+    <div class="logo">U</div>
+    <div><h1>Ultra LLM Client</h1><p class="sub">Colibrì · экземпляры моделей · панель управления</p></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <div class="lang-switch" role="group" aria-label="Язык интерфейса">
+      <button type="button" id="locale-ru" aria-pressed="true" title="Русский язык">RU</button>
+      <button type="button" id="locale-en" aria-pressed="false" title="English language">EN</button>
+    </div>
+    <span class="pill">UL-CLIENT-P0 / МАКЕТ</span>
+    <span class="sub">DESKTOP-KT4G5SM · клиентский макет</span>
+  </div>
+</header>
+<main>
+  <div class="hero">
+    <div><p class="eyebrow">СИСТЕМА УПРАВЛЕНИЯ МОДЕЛЯМИ</p>
+      <h2>Экземпляры Colibrì</h2>
+      <p class="intro" style="margin-top:9px">Единая компактная панель для независимых слотов. На этом этапе только демонстрация интерфейса и изолированная проверка правил. Связи с работающими процессами нет.</p>
+    </div>
+  </div>
+  <div class="notice" role="status">
+    Это автономный HTML-макет без API, серверного мониторинга и управляющих команд.
+    Все кнопки намеренно отключены. Показания Colibri на 08.11.2026 взяты из сохранённого отчёта и не являются текущим состоянием.
+  </div>
+  <div class="kpi" aria-label="Сводка макета">
+    <div class="metric"><div class="sub">Слотов в проекте</div><div class="value">3</div><div class="hint">1 существующий + 2 будущих</div></div>
+    <div class="metric"><div class="sub">Активность сейчас</div><div class="value">—</div><div class="hint">Текущая телеметрия отсутствует</div></div>
+    <div class="metric"><div class="sub">RAM сервера</div><div class="value">~48 <span style="font-size:13px">ГиБ</span></div><div class="hint">Свободная RAM: неизвестно</div></div>
+    <div class="metric"><div class="sub">Видеокарта</div><div class="value">8 <span style="font-size:13px">ГиБ</span></div><div class="hint">RTX 3070 · не более 1 CUDA</div></div>
+  </div>
+
+  <section aria-labelledby="slots-title">
+    <div class="caption"><h2 id="slots-title">Управляемые слоты</h2><small>Макет • никаких изменений в действующем сервере</small></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Экземпляр</th><th>Состояние</th><th>Модель</th><th>Режим</th><th>API</th><th>Пользователь</th><th>Управление</th></tr></thead>
+      <tbody>
+        <tr><td><div class="index"><span class="num">01</span><div class="name"><strong>Colibri</strong><span>Существующий · только чтение</span></div></div></td>
+          <td><span class="status warn">НЕ ПРОВЕРЕНО СЕЙЧАС</span><div class="help">Снимок: READY 07:13 UTC</div></td>
+          <td>Qwen3.6-35B-A3B<div class="help">По сохранённому снимку</div></td>
+          <td>CUDA<div class="help">По конфигурации</div></td>
+          <td><code>127.0.0.1:8000</code></td><td>Существующий / неизвестно</td>
+          <td><div class="actions"><button disabled title="Существующий слот: управление не разрешено">▶ Старт</button><button disabled title="Недоступно в mock">■ Стоп</button><button disabled title="Недоступно в mock">↻</button><button disabled title="Чат открывается только после живого READY">Чат</button></div></td>
+        </tr>
+        <tr><td><div class="index"><span class="num">02</span><div class="name"><strong>Colibri2</strong><span>План · CPU сначала</span></div></div></td>
+          <td><span class="status">НЕ РАЗВЁРНУТ</span><div class="help">Логическая конфигурация</div></td>
+          <td><select disabled aria-label="Модель Colibri2"><option>KAT-Coder V2.5 Dev</option><option>Qwen3.6-35B-A3B</option></select><div class="help">План RAM: 5–10 ГиБ (оценка), резерв 10 ГиБ</div></td>
+          <td><select disabled aria-label="Режим Colibri2"><option>CPU</option><option>CUDA (позже)</option></select></td>
+          <td><code>8001*</code><div class="help">Порт не утверждён</div></td><td>Свободен (проект)</td>
+          <td><div class="actions"><button disabled title="Работающий менеджер отсутствует">▶ Старт</button><button disabled>■ Стоп</button><button disabled>↻</button><button disabled>Чат</button></div></td>
+        </tr>
+        <tr><td><div class="index"><span class="num">03</span><div class="name"><strong>Colibri3 CUDA</strong><span>После успешных 2 × CPU</span></div></div></td>
+          <td><span class="status">НЕ РАЗВЁРНУТ</span><div class="help">Зависит от UL-MGR-1</div></td>
+          <td><select disabled aria-label="Модель Colibri3"><option>Qwen3.6-35B-A3B</option><option>KAT-Coder V2.5 Dev</option></select><div class="help">План RAM: 5–10 ГиБ (оценка), резерв 10 ГиБ</div></td>
+          <td><select disabled aria-label="Режим Colibri3"><option>CUDA</option><option>CPU</option></select></td>
+          <td><code>8002*</code><div class="help">Порт не утверждён</div></td><td>Свободен (проект)</td>
+          <td><div class="actions"><button disabled>▶ Старт</button><button disabled>■ Стоп</button><button disabled>↻</button><button disabled>Чат</button></div></td>
+        </tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="section" aria-labelledby="gates-title">
+    <div class="caption"><h2 id="gates-title">Безопасность и допуск</h2><small>Проверки макета, не реальные серверные измерения</small></div>
+    <div class="columns">
+      <div class="card"><h3>Изоляция процесса</h3>
+        <p>Отдельные идентификаторы слотов, PID и время создания, владелец gateway, порт, setup-home и пути состояния.<br>Совпадение <code>qwen36.exe</code> не считается доказательством владения процессом.</p>
+      </div>
+      <div class="card"><h3>Ограничение ресурсов</h3>
+        <p>Отказ при RAM менее 10 ГиБ, проверка ожидаемого пика и резерва после старта. В начальном режиме — только одна CUDA. Неизвестная телеметрия блокирует запуск.</p>
+      </div>
+    </div>
+  </section>
+  <footer>UL-CLIENT-P0 • Макет / сухой прогон • Общий каталог весов Base_LLM/Models (не модифицируется) • Нет сети, серверного API, процессного управления или авторизации.</footer>
+</main>
+
+<script>
+"use strict";
+/* UL-MGR-0A localization only. No networking or lifecycle actions. */
+const DEFAULT_LANGUAGE = "ru";
+const LOCALE_STORAGE_KEY = "ultra-llm-client.language";
+const TRANSLATIONS = [["План RAM: 5–10 ГиБ (оценка), резерв 10 ГиБ","RAM plan: 5–10 GiB (estimate), reserve 10 GiB"],["Colibrì · экземпляры моделей · панель управления","Colibrì · model instances · control plane"],["DESKTOP-KT4G5SM · клиентский макет","DESKTOP-KT4G5SM · client mock-up"],["UL-CLIENT-P0 / МАКЕТ","UL-CLIENT-P0 / MOCK"],["Язык интерфейса","Interface language"],["Русский язык","Russian language"],["English language","English language"],["СИСТЕМА УПРАВЛЕНИЯ МОДЕЛЯМИ","MODEL MANAGEMENT SYSTEM"],["Экземпляры Colibrì","Colibrì instances"],["Единая компактная панель для независимых слотов. На этом этапе только демонстрация интерфейса и изолированная проверка правил. Связи с работающими процессами нет.","One compact panel for independent instances. This stage demonstrates the UI and tests safety rules in isolation. There is no connection to live processes."],["Это автономный HTML-макет без API, серверного мониторинга и управляющих команд. Все кнопки намеренно отключены. Показания Colibri на 08.11.2026 взяты из сохранённого отчёта и не являются текущим состоянием.","This is a standalone HTML mock-up without an API, server monitoring or control commands. All lifecycle buttons are deliberately disabled. Colibri readings dated 2026-11-08 come from a saved report and are not live data."],["Сводка макета","Mock-up summary"],["Слотов в проекте","Planned instances"],["1 существующий + 2 будущих","1 existing + 2 planned"],["Активность сейчас","Current activity"],["Текущая телеметрия отсутствует","No live telemetry"],["RAM сервера","Server RAM"],["Свободная RAM: неизвестно","Available RAM: unknown"],["Видеокарта","Graphics card"],["RTX 3070 · не более 1 CUDA","RTX 3070 · at most 1 CUDA instance"],["ГиБ","GiB"],["Управляемые слоты","Managed instances"],["Макет • никаких изменений в действующем сервере","Mock-up • no changes to the running server"],["Экземпляр","Instance"],["Состояние","Status"],["Модель","Model"],["Режим","Backend"],["Пользователь","User"],["Управление","Controls"],["Существующий · только чтение","Existing · read only"],["НЕ ПРОВЕРЕНО СЕЙЧАС","NOT VERIFIED LIVE"],["Снимок: READY 07:13 UTC","Snapshot: READY 07:13 UTC"],["По сохранённому снимку","From saved snapshot"],["По конфигурации","Configured backend"],["Существующий / неизвестно","Existing / unknown"],["▶ Старт","▶ Start"],["■ Стоп","■ Stop"],["Чат","Chat"],["Существующий слот: управление не разрешено","Existing instance: control not authorized"],["Недоступно в mock","Unavailable in mock mode"],["Чат открывается только после живого READY","Chat can open only after live READY verification"],["План · CPU сначала","Planned · CPU first"],["НЕ РАЗВЁРНУТ","NOT DEPLOYED"],["Логическая конфигурация","Logical configuration"],["Модель Colibri2","Colibri2 model"],["Модель Colibri3","Colibri3 model"],["Режим Colibri2","Colibri2 backend"],["Режим Colibri3","Colibri3 backend"],["CUDA (позже)","CUDA (later)"],["Порт не утверждён","Port not approved"],["Свободен (проект)","Available (planned)"],["Работающий менеджер отсутствует","No live manager available"],["После успешных 2 × CPU","After successful 2 × CPU"],["Зависит от UL-MGR-1","Requires UL-MGR-1"],["Безопасность и допуск","Safety and admission"],["Проверки макета, не реальные серверные измерения","Mock checks, not real server measurements"],["Изоляция процесса","Process isolation"],["Отдельные идентификаторы слотов, PID и время создания, владелец gateway, порт, setup-home и пути состояния.","Separate instance IDs, PID and creation time, gateway owner, port, setup-home and state paths."],["Совпадение","Matching"],["не считается доказательством владения процессом.","does not prove process ownership."],["Ограничение ресурсов","Resource admission"],["Отказ при RAM менее 10 ГиБ, проверка ожидаемого пика и резерва после старта. В начальном режиме — только одна CUDA. Неизвестная телеметрия блокирует запуск.","Reject starts with less than 10 GiB RAM, and check predicted peak use and post-start reserve. Initially only one CUDA instance is allowed. Missing telemetry prevents startup."],["UL-CLIENT-P0 • Макет / сухой прогон • Общий каталог весов Base_LLM/Models (не модифицируется) • Нет сети, серверного API, процессного управления или авторизации.","UL-CLIENT-P0 • Mock / dry run • Shared model weights Base_LLM/Models (unchanged) • No network, server API, lifecycle control or authentication."]];
+const catalogue = new Map(TRANSLATIONS.map(([ru,en]) => [ru, {ru,en}]));
+const remembered = [];
+const trimSpace = text => text.trim().replace(/\s+/g, " ");
+const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+while (walker.nextNode()) {
+  const node = walker.currentNode;
+  if (node.parentElement && node.parentElement.closest("script,style")) continue;
+  const source = node.nodeValue;
+  const translated = catalogue.get(trimSpace(source));
+  if (!translated) continue;
+  remembered.push({node, translated,
+    leading: (source.match(/^\s*/) || [""])[0],
+    trailing: (source.match(/\s*$/) || [""])[0]});
+}
+const attrTranslations = [];
+for (const element of document.querySelectorAll("[title],[aria-label]")) {
+  for (const name of ["title","aria-label"]) {
+    const value = element.getAttribute(name);
+    if (catalogue.has(value)) attrTranslations.push({element,name,translated:catalogue.get(value)});
+  }
+}
+function applyLanguage(language) {
+  const selected = language === "en" ? "en" : DEFAULT_LANGUAGE;
+  document.documentElement.lang = selected;
+  for (const item of remembered)
+    item.node.nodeValue = item.leading + item.translated[selected] + item.trailing;
+  for (const item of attrTranslations)
+    item.element.setAttribute(item.name, item.translated[selected]);
+  document.getElementById("locale-ru").setAttribute("aria-pressed", String(selected === "ru"));
+  document.getElementById("locale-en").setAttribute("aria-pressed", String(selected === "en"));
+  try { localStorage.setItem(LOCALE_STORAGE_KEY, selected); } catch (_) { /* file:// privacy mode */ }
+}
+let preferred = DEFAULT_LANGUAGE;
+try { if (localStorage.getItem(LOCALE_STORAGE_KEY) === "en") preferred = "en"; }
+catch (_) { /* Default to Russian if storage is unavailable. */ }
+document.getElementById("locale-ru").addEventListener("click", () => applyLanguage("ru"));
+document.getElementById("locale-en").addEventListener("click", () => applyLanguage("en"));
+applyLanguage(preferred);
+</script>
+</body>
+</html>

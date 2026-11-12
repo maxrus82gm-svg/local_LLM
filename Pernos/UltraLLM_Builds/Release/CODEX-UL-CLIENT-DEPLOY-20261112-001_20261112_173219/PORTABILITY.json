@@ -1,0 +1,23 @@
+{
+  "status": "PASS",
+  "actual_packaged_exe": "C:\\Users\\REX\\AppData\\Local\\Temp\\UltraLLM_Deploy_20261112_001_173219\\Portable Test Unicode Тест\\UltraLLM_Client_STREAM_SLOTS_R5_Win64\\UltraLLMClient.exe",
+  "pid": 32660,
+  "url": "http://127.0.0.1:50791",
+  "clean_profile": true,
+  "profile_creation_by_exe": true,
+  "system_python_in_path": false,
+  "python_runtime": "C:\\Users\\REX\\AppData\\Local\\Temp\\UltraLLM_Deploy_20261112_001_173219\\Portable Test Unicode Тест\\UltraLLM_Client_STREAM_SLOTS_R5_Win64\\_internal\\python312.dll",
+  "system_python_uninstalled": false,
+  "second_pc": "NOT RUN",
+  "relocated_to_C_drive_with_spaces_and_unicode": true,
+  "single_instance_direct_and_vbs": true,
+  "vbs_exit_code": 0,
+  "listener": [
+    {
+      "LocalAddress": "127.0.0.1",
+      "LocalPort": 50791
+    }
+  ],
+  "browser_shell_execute": "VBS exit 0; visible window inspection separate",
+  "secrets_created": false
+}

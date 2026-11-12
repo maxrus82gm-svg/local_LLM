@@ -1,0 +1,30 @@
+{
+  "status": "PASS",
+  "existing_shortcut_repeated_launches": 2,
+  "duplicate_processes": 0,
+  "same_pid_on_repeat": 30708,
+  "graceful_shutdown_confirmed": true,
+  "restart_from_existing_shortcut": true,
+  "final_process": {
+    "pid": 29492,
+    "exe": "M:\\UltraLLM_Client\\UltraLLMClient.exe",
+    "creation": "2026-11-12T12:49:36.6123520Z",
+    "ports": [
+      {
+        "LocalAddress": "127.0.0.1",
+        "LocalPort": 60720
+      }
+    ],
+    "current_user_ownership_verified": true
+  },
+  "final_url": "http://127.0.0.1:60720",
+  "real_manager_online": true,
+  "profile_and_secret_files_unchanged": true,
+  "history_messages_preserved": 34,
+  "history_original_content_unchanged": true,
+  "sqlite_integrity": "ok",
+  "schema_before": 0,
+  "schema_after": 1,
+  "schema_change": "Additive instance_id/reasoning_content and chat_requests; original rows unchanged",
+  "shortcut_bytes_unchanged": true
+}
