@@ -1,0 +1,11 @@
+{
+  "release_dir": "M:\\UltraLLM_Builds\\Release\\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\\UltraLLM_Client_STREAM_SLOTS_R5_Win64",
+  "zip": "M:\\UltraLLM_Builds\\Release\\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\\UltraLLM_Client_STREAM_SLOTS_R5_Win64.zip",
+  "zip_bytes": 10742313,
+  "zip_sha256": "bc37f43f84263da8f42e006ab3e3833e85a3781bfb11858809882a51b34a9d8a",
+  "payload_files": 72,
+  "manifest_all_match": true,
+  "zip_restore_all_match": true,
+  "relocated_payload": "C:\\Users\\REX\\AppData\\Local\\Temp\\UltraLLM_Deploy_20261112_001_173219\\Portable Test Unicode \u0422\u0435\u0441\u0442\\UltraLLM_Client_STREAM_SLOTS_R5_Win64",
+  "private_artifacts": 0
+}

@@ -1,0 +1,782 @@
+"""Ultra LLM Manager: HTTPS monitoring, bounded chat and gated model control.
+
+Inventory comes from THIS server, never a Client-supplied path or SMB.
+Control defaults OFF; owner-enabled control reuses the isolated Colibri runner.
+Chat requests can only reach a ready,
+permitted, currently reported Colibri model on its configured loopback port.
+TLS, per-client bearer hashes and distinct model-control permissions apply.
+"""
+from __future__ import annotations
+
+import argparse
+from datetime import datetime, timezone
+import hashlib
+import ipaddress
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import hmac
+import json
+import logging
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
+import re
+import socket
+import ssl
+import subprocess
+import threading
+import time
+import urllib.error
+import urllib.request
+
+from pairing_inbox import PairingInbox
+from chat_runtime import ChatError, validate_request, select_backend, proxy_chat, proxy_stream
+from control_runtime import ModelControl, ControlError
+from chat_settings import policy as chat_policy, upstream_options
+
+
+def _chat_listener(port):
+    """Native selected-port identity; no PowerShell, RAM or other-slot probes."""
+    from windows_process import NativeWindows
+    native = NativeWindows()
+    owners = {row["pid"] for row in native.listeners() if row["port"] == port}
+    if len(owners) != 1:
+        raise ChatError("slot_process_unverified", 409)
+    with native.process(owners.pop()) as handle:
+        identity = native.identity(handle)
+    encoded = json.dumps(identity, sort_keys=True).encode()
+    return identity["pid"], "legacy-" + hashlib.sha256(encoded).hexdigest()[:32]
+
+
+def chat_snapshot(config, principal, slot_id):
+    slots = [s for s in config["slots"] if s["slot_id"] == slot_id]
+    if not slots:
+        raise ChatError("unknown_slot", 404)
+    if slot_id not in principal["allowed_slots"]:
+        raise ChatError("slot_not_authorized", 403)
+    port = slots[0]["api_port"]
+    pid, identity = _chat_listener(port)
+    health = _local_api_json(port, "/health")
+    models = _local_api_json(port, "/v1/models")
+    row = {"slot_id": slot_id, "pid": pid, "instance_id": identity, "models": [],
+           "engine_state": "unknown", "availability": "unknown"}
+    if isinstance(health, dict) and health.get("status") == "ok":
+        row["engine_state"] = "ready"
+        q = health.get("scheduler")
+        if isinstance(q, dict) and all(type(q.get(k)) is int and q[k] >= 0 for k in ("active","queued","capacity")):
+            row["availability"] = "ready_unreserved" if q["capacity"] > q["active"] and q["queued"] == 0 else "busy"
+    if isinstance(models, dict) and isinstance(models.get("data"), list):
+        row["models"] = [m["id"] for m in models["data"] if isinstance(m,dict) and type(m.get("id")) is str]
+    # Verify the same process still owns the port after the metadata reads.
+    if _chat_listener(port) != (pid, identity):
+        raise ChatError("slot_process_changed", 409)
+    return {"source":"LIVE_HOST", "viewer_id":principal["client_id"], "slots":[row],
+            "engine_limits": {k:health[k] for k in ("context_tokens","max_tokens")
+                              if isinstance(health,dict) and type(health.get(k)) is int}}
+
+_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
+_LOG = logging.getLogger("ultra-live-manager")
+_POWERSHELL = r"powershell.exe"
+_API_TIMEOUT = 2
+_OS_TIMEOUT = 8
+_MAX_REQUESTS = threading.BoundedSemaphore(4)
+
+
+def _utc_now():
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _read_json(path: Path):
+    with path.open("r", encoding="utf-8-sig") as stream:
+        return json.load(stream)
+
+
+def _text_id(value, field):
+    if not isinstance(value, str) or not _ID.fullmatch(value):
+        raise ValueError("Invalid " + field)
+    return value
+
+
+def load_config(file: Path):
+    raw = _read_json(file)
+    if not isinstance(raw, dict):
+        raise ValueError("Invalid config")
+    _text_id(raw.get("manager_id"), "manager_id")
+    name = raw.get("display_name")
+    if not isinstance(name, str) or not 1 <= len(name.strip()) <= 80:
+        raise ValueError("Invalid display_name")
+    for field in ("colibri_root", "models_root", "cert_file", "key_file"):
+        value = raw.get(field)
+        if not isinstance(value, str) or not Path(value).is_absolute():
+            raise ValueError("Missing absolute " + field)
+    bind = raw.get("bind_host")
+    if not isinstance(bind, str):
+        raise ValueError("Explicit IP bind_host required")
+    try:
+        ip = ipaddress.ip_address(bind)
+    except ValueError as error:
+        raise ValueError("bind_host must be a numeric interface IP") from error
+    if (ip.is_unspecified or ip.is_multicast or ip.is_link_local
+            or not (ip.is_private or ip.is_loopback)):
+        raise ValueError("Only explicit private/loopback binds allowed at LAN stage")
+    port = raw.get("listen_port")
+    if type(port) is not int or not (1024 <= port <= 65535):
+        raise ValueError("Invalid listen_port")
+    slots = raw.get("slots")
+    if slots is None:
+        from launch_contract import initial_instances
+        slots=[{"slot_id":s.slot_id,"api_port":s.port,"protected":s.is_legacy} for s in initial_instances()]
+        raw["slots"]=slots
+    if not isinstance(slots, list) or not slots:
+        raise ValueError("No slots")
+    ids, ports = set(), set()
+    for slot in slots:
+        if not isinstance(slot, dict):
+            raise ValueError("Invalid slot")
+        _text_id(slot.get("slot_id"), "slot_id")
+        if type(slot.get("protected", False)) is not bool:
+            raise ValueError("Invalid slot protection")
+        n = slot.get("api_port")
+        if type(n) is not int or not 1024 <= n <= 65535:
+            raise ValueError("Invalid API port")
+        if slot["slot_id"] in ids or n in ports or n == port:
+            raise ValueError("Duplicate slot/port")
+        ids.add(slot["slot_id"])
+        ports.add(n)
+    allowed_ips = raw.get("allowed_client_ips")
+    if not isinstance(allowed_ips, list) or not allowed_ips:
+        raise ValueError("Explicit allowlist of client IPs required")
+    normalized = []
+    for address in allowed_ips:
+        if not isinstance(address, str):
+            raise ValueError("Invalid client IP")
+        try:
+            addr = ipaddress.ip_address(address)
+        except ValueError as error:
+            raise ValueError("Client allowlist must contain literal IP addresses") from error
+        if (addr.is_unspecified or addr.is_multicast or addr.is_link_local
+                or not (addr.is_private or addr.is_loopback)):
+            raise ValueError("Only explicitly allowed private/loopback client IPs")
+        normalized.append(str(addr))
+    if len(set(normalized)) != len(normalized):
+        raise ValueError("Duplicate allowed client IP")
+    raw["allowed_client_ips"] = normalized
+    clients = raw.get("clients")
+    if not isinstance(clients, list) or not clients:
+        raise ValueError("No client credentials")
+    client_ids, token_hashes = set(), set()
+    # Durable server-issued slot IDs are also valid pairing grants. Definitions
+    # and ports stay in the controller DB; no client supplies a port or path.
+    known_ids=set(ids)
+    control_options=raw.get("control",{})
+    if type(control_options) is dict and control_options.get("owner_go") is True:
+        import sqlite3
+        from contextlib import closing
+        state_dir=control_options.get("state_dir")
+        if type(state_dir) is str and Path(state_dir).is_absolute():
+            database=Path(state_dir)/"control.sqlite3"
+            if database.is_file() and not database.is_symlink():
+                try:
+                    with closing(sqlite3.connect(database.resolve().as_uri()+"?mode=ro",uri=True,timeout=1)) as db:
+                        known_ids.update(r[0] for r in db.execute("SELECT slot_id FROM slots") if type(r[0]) is str and _ID.fullmatch(r[0]))
+                except sqlite3.Error:
+                    raise ValueError("Dynamic slot registry unavailable") from None
+    for client in clients:
+        if not isinstance(client, dict):
+            raise ValueError("Invalid client")
+        _text_id(client.get("client_id"), "client_id")
+        digest = client.get("sha256")
+        if not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest):
+            raise ValueError("Invalid client token digest")
+        if client["client_id"] in client_ids or digest in token_hashes:
+            raise ValueError("Repeated client")
+        if type(client.get("pairing_admin", False)) is not bool:
+            raise ValueError("Invalid pairing_admin role")
+        if type(client.get("control_models", False)) is not bool:
+            raise ValueError("Invalid control_models role")
+        if client.get("allowed_models") is not None and (type(client["allowed_models"]) is not list
+                or any(type(k) is not str or k not in __import__('resource_catalog').initial_catalogue()
+                       for k in client["allowed_models"])):
+            raise ValueError("Invalid allowed_models")
+        client_ids.add(client["client_id"])
+        token_hashes.add(digest)
+        allowed = client.get("allowed_slots")
+        if not isinstance(allowed, list) or any(x not in known_ids for x in allowed):
+            raise ValueError("Invalid client access list")
+    control = raw.get("control", {})
+    if type(control) is not dict or type(control.get("owner_go", False)) is not bool:
+        raise ValueError("Invalid control configuration")
+    if control.get("owner_go"):
+        import socket as host_socket
+        if control.get("host", "").casefold() != host_socket.gethostname().casefold():
+            raise ValueError("Control configured for another host")
+        for field in ("state_dir", "instance_root"):
+            value = control.get(field)
+            if not isinstance(value, str) or not Path(value).is_absolute() or value.startswith("\\\\"):
+                raise ValueError("Server-local control paths required")
+        if type(control.get("reviews", {})) is not dict:
+            raise ValueError("Invalid runtime reviews")
+    chat_policy(raw)
+    from resource_policy import validate_settings
+    validate_settings(raw)
+    return raw
+
+
+_HARDWARE_RAM_CACHE = None
+_HARDWARE_RAM_LOCK = threading.Lock()
+
+
+def _os_telemetry(ports):
+    # Only validated integer ports are substituted. Never accepts input from HTTP.
+    safe = ",".join(str(x) for x in sorted(set(ports)))
+    global _HARDWARE_RAM_CACHE
+    cached_hardware = _HARDWARE_RAM_CACHE
+    probe_hardware = cached_hardware is None
+    probe = (
+        r"$mem=@();try{$mem=@(Get-CimInstance Win32_PhysicalMemory -ErrorAction Stop)}catch{$mem=@()};"
+        r"$generation='';$installed=0.0;"
+        r"if($mem.Count -gt 0){$kinds=@($mem|ForEach-Object{[int]$_.SMBIOSMemoryType}|Sort-Object -Unique);"
+        r"if($kinds.Count -eq 1 -and $kinds[0] -eq 26){$generation='DDR4'}"
+        r"elseif($kinds.Count -eq 1 -and $kinds[0] -eq 34){$generation='DDR5'}"
+        r"elseif($kinds.Count -eq 1 -and $kinds[0] -eq 24){$generation='DDR3'};"
+        r"$installed=[double](($mem|Measure-Object -Property Capacity -Sum).Sum)/1GB};"
+    ) if probe_hardware else ""
+    fields = r"ddr_generation=$generation;installed_gib=$installed;" if probe_hardware else ""
+    script = (r"$ErrorActionPreference='Stop';" +
+              r"$os=Get-CimInstance Win32_OperatingSystem -ErrorAction Stop;" +
+              probe +
+              r"$list=@(Get-NetTCPConnection -State Listen -ErrorAction Stop | " +
+              r"Where-Object {$_.LocalPort -in @(" + safe + r")});" +
+              r"[pscustomobject]@{total_gib=[double]$os.TotalVisibleMemorySize/1048576;" +
+              r"free_gib=[double]$os.FreePhysicalMemory/1048576;" +
+              fields +
+              r"listeners=@($list|ForEach-Object{" +
+              r"[pscustomobject]@{port=[int]$_.LocalPort;pid=[int]$_.OwningProcess;" +
+              r"address=[string]$_.LocalAddress}})} | ConvertTo-Json -Compress -Depth 4")
+    cmd = [_POWERSHELL, "-NoProfile", "-NonInteractive",
+           "-EncodedCommand", __import__("base64").b64encode(
+               script.encode("utf-16le")).decode("ascii")]
+    result = subprocess.run(cmd, capture_output=True, text=True,
+                            encoding="utf-8", errors="replace", timeout=_OS_TIMEOUT)
+    if result.returncode:
+        raise RuntimeError("Windows telemetry query failed")
+    data = json.loads(result.stdout.strip())
+    if not isinstance(data, dict) or not isinstance(data.get("listeners"), list):
+        raise RuntimeError("Windows telemetry incomplete")
+    if probe_hardware:
+        stable = {}
+        if data.get("ddr_generation") in ("DDR3", "DDR4", "DDR5"):
+            stable["ddr_generation"] = data["ddr_generation"]
+        installed = data.get("installed_gib")
+        if type(installed) in (int, float) and 0 < installed < 8192:
+            stable["installed_gib"] = round(float(installed), 2)
+        with _HARDWARE_RAM_LOCK:
+            if _HARDWARE_RAM_CACHE is None:
+                _HARDWARE_RAM_CACHE = stable
+    else:
+        data.update(cached_hardware)
+    return data
+
+
+def _local_api_json(port, path):
+    request = urllib.request.Request(
+        f"http://127.0.0.1:{port}{path}", headers={"Accept": "application/json"})
+    try:
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with opener.open(request, timeout=_API_TIMEOUT) as response:
+            if response.status != 200:
+                return None
+            data = response.read(256 * 1024)
+        return json.loads(data)
+    except (OSError, TimeoutError, ValueError, urllib.error.URLError):
+        return None
+
+
+def _inventory_models(models_root):
+    root = Path(models_root)
+    if not root.is_dir():
+        return []
+    out = []
+    for child in sorted(root.iterdir(), key=lambda p: p.name.lower()):
+        if not child.is_dir() or child.is_symlink() or len(out) >= 100:
+            continue
+        # Directory presence does not prove completed downloads or compatibility.
+        metadata = any(x.is_file() for x in child.glob("*.gguf")) or any(
+            x.is_file() for x in child.glob("*.colibri/config.json"))
+        out.append({"directory_name": child.name[:128],
+                    "evidence": "files_present_unverified",
+                    "metadata_detected": bool(metadata)})
+    return out
+
+
+def _authorized_client(config, authorization):
+    if not authorization.startswith("Bearer ") or len(authorization) > 256:
+        return None
+    token = authorization[7:]
+    if len(token) < 32:
+        return None
+    digest = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    selected = None
+    for client in config["clients"]:
+        if hmac.compare_digest(digest, client["sha256"]):
+            selected = client
+    return selected
+
+
+def live_snapshot(config, client):
+    slots = config["slots"]
+    result = {"schema": "ultra.manager.live.v1", "source": "LIVE_HOST",
+              "manager_id": config["manager_id"],
+              "display_name": config["display_name"],
+              "host": socket.gethostname(),
+              "generated_at_utc": _utc_now(),
+              "viewer_id": client["client_id"],
+              "pairing_admin": bool(client.get("pairing_admin", False)),
+              "admission_enabled": False,
+              "reservation_granted": False,
+              "memory": {"state": "unknown"},
+              "slots": [],
+              "models": _inventory_models(config["models_root"])}
+    try:
+        evidence = _os_telemetry([s["api_port"] for s in slots])
+        result["memory"] = {"state": "live",
+                            "total_gib": round(float(evidence["total_gib"]), 2),
+                            "free_gib": round(float(evidence["free_gib"]), 2)}
+        ddr = evidence.get("ddr_generation")
+        if ddr in ("DDR3", "DDR4", "DDR5"):
+            result["memory"]["ddr_generation"] = ddr
+        installed = evidence.get("installed_gib")
+        if type(installed) in (int, float) and 0 < installed < 8192:
+            result["memory"]["installed_gib"] = round(float(installed), 2)
+        listening = {int(s["port"]): int(s["pid"])
+                     for s in evidence["listeners"]
+                     if isinstance(s, dict) and isinstance(s.get("port"), int)
+                     and isinstance(s.get("pid"), int)}
+    except (RuntimeError, ValueError, KeyError, subprocess.TimeoutExpired) as error:
+        _LOG.warning("Host telemetry unavailable: %s", type(error).__name__)
+        listening = {}
+    for slot in slots:
+        slot_id = slot["slot_id"]
+        port = slot["api_port"]
+        allowed = slot_id in client["allowed_slots"]
+        row = {"slot_id": slot_id, "api_port": port,
+               "protected": bool(slot.get("protected", False)),
+               "pid": listening.get(port),
+               "engine_state": "unknown",
+               "models": [],
+               "scheduler": None,
+               "availability": "denied" if not allowed else "unknown",
+               "reservation_granted": False}
+        if result["memory"]["state"] == "live" and port not in listening:
+            row["engine_state"] = "not_running"
+            if allowed:
+                row["availability"] = "not_running"
+        elif port in listening:
+            health = _local_api_json(port, "/health")
+            models = _local_api_json(port, "/v1/models")
+            if isinstance(health, dict) and health.get("status") == "ok":
+                row["engine_state"] = "ready"
+                queue = health.get("scheduler")
+                if isinstance(queue, dict):
+                    vals = [queue.get(k) for k in ("active", "queued", "capacity")]
+                    if all(type(x) is int and x >= 0 for x in vals):
+                        row["scheduler"] = dict(zip(("active", "queued", "capacity"), vals))
+                if allowed:
+                    if row["scheduler"] is None or row["scheduler"]["capacity"] == 0:
+                        row["availability"] = "unknown"
+                    elif (row["scheduler"]["active"] >= row["scheduler"]["capacity"]
+                          or row["scheduler"]["queued"] > 0):
+                        row["availability"] = "busy"
+                    else:
+                        row["availability"] = "ready_unreserved"
+            if allowed and isinstance(models, dict) and isinstance(models.get("data"), list):
+                row["models"] = [
+                    str(m["id"])[:128] for m in models["data"][:30]
+                    if isinstance(m, dict) and isinstance(m.get("id"), str)]
+        if not allowed:
+            # An unauthorised viewer gets no PID, model details or live scheduler.
+            row.update(pid=None, models=[], scheduler=None)
+        result["slots"].append(row)
+    # Never disclose model catalog paths to clients lacking any slot grant.
+    if not client["allowed_slots"]:
+        result["models"] = []
+    return result
+
+
+def make_handler(config_file, config, inbox, *, controller=None):
+    """HTTP handler; live role checks are repeated on every request."""
+    chat_locks = {slot["slot_id"]: threading.Lock() for slot in config["slots"]}
+    active_streams = {}
+    streams_guard = threading.Lock()
+    controller = controller or ModelControl(config)
+    class Handler(BaseHTTPRequestHandler):
+        server_version = "UltraLLMManager/1.0"
+        sys_version = ""
+        def _reply(self, status, payload):
+            encoded = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(encoded)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.end_headers()
+            self.wfile.write(encoded)
+        def _current(self):
+            # Reload grants on EVERY request: revoke/rotate without a restart.
+            # Never trust client-provided identity or X-Forwarded-For.
+            try:
+                current = load_config(config_file)
+                if any(current[field] != config[field] for field in
+                       ("manager_id", "bind_host", "listen_port",
+                        "cert_file", "key_file", "slots", "colibri_root", "models_root")) or current.get("control") != config.get("control"):
+                    self._reply(503, {"error": "manager_config_changed"})
+                    return None
+            except (OSError, ValueError, TypeError):
+                self._reply(503, {"error": "configuration_unavailable"})
+                return None
+            if self.client_address[0] not in current["allowed_client_ips"]:
+                self._reply(403, {"error": "source_not_permitted"})
+                return None
+            return controller.runtime_config(current)
+
+        def _admin(self, current):
+            client = _authorized_client(current, self.headers.get("Authorization", ""))
+            if client is None:
+                self._reply(401, {"error": "unauthorized"})
+                return False
+            if not client.get("pairing_admin", False):
+                self._reply(403, {"error": "pairing_admin_required"})
+                return False
+            return True
+
+        def _json_post(self, limit=4096):
+            if self.headers.get("Transfer-Encoding"):
+                self._reply(400, {"error": "unsupported_transfer_encoding"})
+                return None
+            if self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
+                self._reply(415, {"error": "json_required"})
+                return None
+            try:
+                n = int(self.headers.get("Content-Length", "0"))
+                if not 0 < n <= limit:
+                    raise ValueError()
+                payload = json.loads(self.rfile.read(n))
+                if not isinstance(payload, dict):
+                    raise ValueError()
+                return payload
+            except (ValueError, UnicodeDecodeError):
+                self._reply(400, {"error": "invalid_json_body"})
+                return None
+
+        def do_GET(self):
+            current = self._current()
+            if current is None:
+                return
+            if self.path == "/v1/snapshot":
+                client = _authorized_client(current, self.headers.get("Authorization", ""))
+                if client is None:
+                    return self._reply(401, {"error": "unauthorized"})
+                if not _MAX_REQUESTS.acquire(blocking=False):
+                    return self._reply(503, {"error": "busy"})
+                try:
+                    data = live_snapshot(current, client)
+                    data["control"] = controller.catalog(client)
+                    by_slot = {i["slot_id"]:i for i in data["control"].get("instances",[]) if not i.get("released")}
+                    for row in data["slots"]:
+                        if row["slot_id"] in by_slot:
+                            row["instance_id"] = by_slot[row["slot_id"]]["instance_id"]
+                        elif row.get("engine_state") == "ready" and row["slot_id"] in client["allowed_slots"]:
+                            try:
+                                row["instance_id"] = _chat_listener(row["api_port"])[1]
+                            except Exception:
+                                row["instance_id"] = None
+                    data["chat"] = {"streaming":True, "reasoning_events":True,
+                                    "transport_policy":chat_policy(current)}
+                    self._reply(200, data)
+                except Exception as error:
+                    _LOG.exception("Snapshot failed: %s", type(error).__name__)
+                    self._reply(503, {"error": "temporarily_unavailable"})
+                finally:
+                    _MAX_REQUESTS.release()
+                return
+            if self.path == "/v1/control/catalog":
+                client = _authorized_client(current, self.headers.get("Authorization", ""))
+                if client is None:
+                    return self._reply(401, {"error": "unauthorized"})
+                try:
+                    return self._reply(200, controller.catalog(client))
+                except Exception:
+                    return self._reply(503, {"error": "control_unavailable"})
+            if self.path == "/v1/pairing/requests":
+                if not self._admin(current):
+                    return
+                from pairing_workflow import request_summary
+                result = request_summary(current)
+                result["requests"] = inbox.pending()
+                return self._reply(200, result)
+            if self.path.startswith("/v1/pairing/status/"):
+                ticket = self.path[len("/v1/pairing/status/"):]
+                try:
+                    result = inbox.status(ticket, self.client_address[0])
+                except ValueError:
+                    return self._reply(400, {"error": "invalid_ticket"})
+                return self._reply(200, result)
+            return self._reply(404, {"error": "not_found"})
+
+        def do_POST(self):
+            arrived = time.perf_counter()
+            manager_received = round(time.time()*1000, 3)
+            current = self._current()
+            if current is None:
+                return
+            if self.path not in ("/v1/control", "/v1/chat", "/v1/chat/stream", "/v1/chat/cancel", "/v1/pairing/request",
+                                 "/v1/pairing/approve",
+                                 "/v1/pairing/deny"):
+                return self._reply(405, {"error": "read_only_stage"})
+            if self.path == "/v1/control":
+                principal = _authorized_client(current, self.headers.get("Authorization", ""))
+                if principal is None:
+                    return self._reply(401, {"error": "unauthorized"})
+                if principal.get("control_models") is not True:
+                    return self._reply(403, {"error": "control_models_required"})
+                body = self._json_post(limit=4096)
+                if body is None:
+                    return
+                try:
+                    return self._reply(202, controller.handle(principal, body))
+                except ControlError as error:
+                    return self._reply(error.status, {"error": error.reason})
+                except Exception:
+                    return self._reply(503, {"error": "control_unavailable"})
+            if self.path == "/v1/chat/cancel":
+                principal = _authorized_client(current, self.headers.get("Authorization", ""))
+                if principal is None:
+                    return self._reply(401, {"error": "unauthorized"})
+                body = self._json_post(limit=1024)
+                if body is None:
+                    return
+                if (set(body) != {"slot_id", "request_id"} or type(body["request_id"]) is not str
+                        or not re.fullmatch(r"[a-f0-9]{32}", body["request_id"])
+                        or body["slot_id"] not in principal["allowed_slots"]):
+                    return self._reply(403, {"error": "stream_not_authorized"})
+                with streams_guard:
+                    item = active_streams.get((principal["client_id"], body["request_id"]))
+                    found = item is not None and item[0] == body["slot_id"]
+                    if found:
+                        item[1].set()
+                return self._reply(200, {"manager_id": current["manager_id"], "cancelled": found})
+            if self.path in ("/v1/chat", "/v1/chat/stream"):
+                principal = _authorized_client(
+                    current, self.headers.get("Authorization", ""))
+                if principal is None:
+                    return self._reply(401, {"error": "unauthorized"})
+                policy = chat_policy(current)
+                body = self._json_post(limit=policy["request_bytes"])
+                if body is None:
+                    return
+                try:
+                    request_id = __import__('uuid').uuid4().hex
+                    cancelled = threading.Event()
+                    if self.path.endswith("/stream") and "request_id" in body:
+                        request_id = body["request_id"]
+                        if type(request_id) is not str or not re.fullmatch(r"[a-f0-9]{32}", request_id):
+                            raise ChatError("invalid_request_id")
+                        body = {k:v for k,v in body.items() if k != "request_id"}
+                    slot_id, model_id, messages = validate_request(body, policy=policy)
+                    if not any(s["slot_id"]==slot_id for s in current["slots"]):
+                        raise ChatError("unknown_slot", 404)
+                    with streams_guard:
+                        lock=chat_locks.setdefault(slot_id,threading.Lock())
+                    if not lock.acquire(blocking=False):
+                        raise ChatError("slot_chat_in_progress", 409)
+                    try:
+                        snapshot = chat_snapshot(current, principal, slot_id)
+                        port = select_backend(
+                            current, principal, snapshot, slot_id, model_id)
+                        try:
+                            controller.assert_chat_allowed(slot_id)
+                            owned = controller.chat_binding(slot_id)
+                        except ControlError as error:
+                            raise ChatError(error.reason, error.status) from None
+                        identity = owned or snapshot["slots"][0]["instance_id"]
+                        expected = body.get("instance_id")
+                        if (owned and expected is None) or (expected is not None and expected != identity):
+                            raise ChatError("instance_identity_mismatch", 409)
+                        try:
+                            upstream_options(body.get("options"), thinking_supported=False
+                                if "qwen3-coder" in model_id.lower() else None)
+                        except ValueError as error:
+                            raise ChatError(str(error)) from None
+                        requested_output=(body.get("options") or {}).get("max_output_tokens")
+                        engine_output=snapshot.get("engine_limits",{}).get("max_tokens")
+                        if requested_output is not None and engine_output and requested_output>engine_output:
+                            raise ChatError("requested_output_exceeds_engine_limit")
+                        timing = {"manager_received_unix_ms": manager_received,
+                                  "_manager_perf": arrived,
+                                  "manager_preflight_ms": round((time.perf_counter()-arrived)*1000, 3)}
+                        if self.path.endswith("/stream"):
+                            stream_key = (principal["client_id"], request_id)
+                            with streams_guard:
+                                if stream_key in active_streams:
+                                    raise ChatError("stream_in_progress", 409)
+                                active_streams[stream_key] = (slot_id, cancelled)
+                            try:
+                                return self._stream_chat(port, model_id, messages, current, slot_id, cancelled,
+                                    instance_id=identity, options=body.get("options"), policy=policy,
+                                    timing=timing, engine_limits=snapshot.get("engine_limits", {}))
+                            finally:
+                                with streams_guard:
+                                    active_streams.pop(stream_key, None)
+                        response = proxy_chat(port, model_id, messages, options=body.get("options"),
+                                              policy=policy, timeout=policy["timeout_seconds"])
+                        return self._reply(200, {
+                            "schema": "ultra.manager.chat.v1",
+                            "manager_id": current["manager_id"],
+                            "slot_id": slot_id, "instance_id": identity, "model_id": model_id, **response})
+                    finally:
+                        lock.release()
+                except ChatError as error:
+                    return self._reply(error.status, {"error": error.reason})
+                except Exception as error:
+                    _LOG.error("Chat failed: %s", type(error).__name__)
+                    return self._reply(503, {"error": "chat_temporarily_unavailable"})
+            if self.path != "/v1/pairing/request" and not self._admin(current):
+                return
+            body = self._json_post()
+            if body is None:
+                return
+            if self.path == "/v1/pairing/request":
+                if set(body) != {"client_id", "token_sha256"}:
+                    return self._reply(400, {"error": "invalid_fields"})
+                try:
+                    ids = {x["client_id"] for x in current["clients"]}
+                    response = inbox.submit(body, self.client_address[0], ids)
+                    return self._reply(202, response)
+                except OverflowError:
+                    return self._reply(429, {"error": "pairing_rate_limited"})
+                except ValueError:
+                    return self._reply(400, {"error": "invalid_pairing_request"})
+            if self.path == "/v1/pairing/approve":
+                if set(body) != {"ticket_id", "allowed_slots"}:
+                    return self._reply(400, {"error": "invalid_fields"})
+                from pairing_workflow import grant_pending
+                try:
+                    response = inbox.approve(
+                        body["ticket_id"], body["allowed_slots"],
+                        lambda cid, digest, ip, allowed: grant_pending(
+                            config_file, cid, digest, ip, allowed))
+                    return self._reply(200, response)
+                except (ValueError, PermissionError, OSError) as error:
+                    _LOG.warning("Pairing approval refused: %s", type(error).__name__)
+                    return self._reply(409, {"error": "grant_not_applied"})
+            if set(body) != {"ticket_id"}:
+                return self._reply(400, {"error": "invalid_fields"})
+            try:
+                return self._reply(200, inbox.deny(body["ticket_id"]))
+            except ValueError:
+                return self._reply(409, {"error": "not_pending"})
+        def _stream_chat(self, port, model_id, messages, current, slot_id, cancelled, *, instance_id, options, policy, timing, engine_limits):
+            events = proxy_stream(port, model_id, messages, cancelled=cancelled, options=options,
+                                  policy=policy, timing=timing, timeout=policy["timeout_seconds"])
+            try:
+                first = next(events)  # failures before headers retain HTTP status
+            except StopIteration:
+                raise ChatError("empty_stream", 502)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
+            self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Accel-Buffering", "no")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.close_connection = True
+            def emit(event):
+                if event.get("type") in ("delta", "reasoning") and "manager_first_forward_unix_ms" not in timing:
+                    timing["manager_first_forward_unix_ms"] = round(time.time()*1000, 3)
+                    timing["manager_first_forward_delay_ms"] = round((time.perf_counter()-timing["_colibri_first_perf"])*1000,3)
+                if event.get("type") == "done":
+                    timing["manager_total_ms"] = round((time.perf_counter()-timing["_manager_perf"])*1000,3)
+                event["timing"] = {**event.get("timing", {}), **timing,
+                    "manager_emit_unix_ms": round(time.time()*1000, 3)}
+                event["timing"] = {k:v for k,v in event["timing"].items() if not k.startswith("_")}
+                self.wfile.write(json.dumps(event, ensure_ascii=False).encode("utf-8") + b"\n")
+                self.wfile.flush()
+            try:
+                emit({"type": "meta", "schema":"ultra.manager.stream.v2", "manager_id": current["manager_id"],
+                      "slot_id": slot_id, "instance_id": instance_id, "model_id": model_id,
+                      "transport_policy": policy, "engine_limits":engine_limits,
+                      "options": options or {"thinking":"auto"}})
+                emit(first)
+                for event in events:
+                    emit(event)
+            except ChatError as error:
+                try:
+                    emit({"type": "error", "error": error.reason, "status": error.status})
+                except OSError:
+                    pass
+            except (OSError, TimeoutError):
+                pass  # downstream closed; finally closes Colibri, releases slot lock
+            finally:
+                events.close()
+
+        def log_message(self, fmt, *args):
+            # Never log URL paths/query strings or auth headers: they may
+            # inadvertently contain secrets, even for rejected requests.
+            _LOG.info("HTTPS request from %s", self.client_address[0])
+
+    return Handler
+
+
+class ShortTimeoutManagerHTTPServer(ThreadingHTTPServer):
+    """Bound slow request clients; do not let unauthenticated pairing hang."""
+    request_queue_size = 16
+
+    def get_request(self):
+        connection, address = super().get_request()
+        connection.settimeout(8)
+        return connection, address
+
+
+def run(config_file):
+    config = load_config(config_file)
+    inbox = PairingInbox()
+    handler = make_handler(config_file, config, inbox)
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    context.load_cert_chain(config["cert_file"], config["key_file"])
+    server = ShortTimeoutManagerHTTPServer(
+        (config["bind_host"], config["listen_port"]), handler)
+    server.daemon_threads = True
+    server.socket = context.wrap_socket(server.socket, server_side=True)
+    _LOG.info("Manager %s listening securely at %s:%d",
+              config["manager_id"], config["bind_host"], config["listen_port"])
+    server.serve_forever(poll_interval=0.5)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=Path, required=True)
+    parser.add_argument("--log-dir", type=Path,
+                        help="Existing ACL-protected directory outside Git")
+    parser.add_argument("--check-config", action="store_true",
+                        help="Validate the configuration without binding a port")
+    args = parser.parse_args()
+    log_handlers = []
+    if args.log_dir:
+        log_dir = args.log_dir
+        if (not log_dir.is_absolute() or not log_dir.is_dir() or
+                log_dir.is_symlink()):
+            parser.error("--log-dir must be an existing absolute directory")
+        log_handlers.append(RotatingFileHandler(
+            log_dir / "manager.log", maxBytes=2 * 1024 * 1024,
+            backupCount=3, encoding="utf-8"))
+    if not log_handlers:
+        log_handlers.append(logging.StreamHandler())
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s %(levelname)s %(message)s",
+                        handlers=log_handlers)
+    if args.check_config:
+        config = load_config(args.config)
+        if not Path(config["cert_file"]).is_file() or not Path(config["key_file"]).is_file():
+            parser.error("Missing TLS certificate or key")
+        print("MANAGER_CONFIGURATION_OK")
+    else:
+        run(args.config)

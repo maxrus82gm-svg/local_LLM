@@ -1,0 +1,3 @@
+# Preserve the 16 imported server manager_dev files byte-for-byte on Git checkout.
+*.py -text
+index.html -text

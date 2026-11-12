@@ -1,0 +1,7 @@
+{
+  "status": "RETAINED",
+  "action": "recursive removal of task-only QA folders",
+  "automatic_review": "REJECTED: blocked by policy",
+  "bypass_attempted": false,
+  "in_portable_zip": false
+}

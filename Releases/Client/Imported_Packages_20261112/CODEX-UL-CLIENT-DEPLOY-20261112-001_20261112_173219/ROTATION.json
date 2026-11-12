@@ -1,0 +1,17 @@
+{
+  "task_id": "CODEX-UL-CLIENT-DEPLOY-20261112-001",
+  "status": "SUBMITTED / REVIEW PENDING",
+  "block1": "FREE",
+  "block1_1": "EXACT TASK ORIGINAL",
+  "previous_archive_git_sha": "9900ccd27ce60f713146da3b9037c99b68bfb2b2",
+  "previous_archive_registered_05_09": true,
+  "previous_task_sha256": "5761d8798eb98c44153359b8e06c6dbd9fe0ac7a57fd18d197d8ca79e98df92d",
+  "current_task_sha256": "0a06219ec17fffbce0451f758219bbb9a7daf230278d91b56d0d8e87c986103c",
+  "block4_byte_unchanged": true,
+  "block4_sha256": "12324821beb5d46af0ba091defe3155f9eda82e4257062a25942a458dbc954a0",
+  "document_before_sha256": "c8aae27a16535527e85e00c548ed30da432dfc77e8a7a95862f92e7f0220c9cf",
+  "document_after_sha256": "55a6a37c25f4a633f69094e830c685f4e7572ee4ea2e809f10b69482fbcadb07",
+  "document": "M:\\GitHub\\local_LLM\\Documents\\07_Задачи Codex.md",
+  "short_index_entries": 5,
+  "git_commit_push": "NOT RUN"
+}

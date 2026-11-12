@@ -18,14 +18,8 @@
 /Backups/
 /Test/
 /Releases/
-# Historical material brought into main at commit 29 is READ-ONLY pending inventory.
-# Prevent new generated contents being added accidentally; existing tracked files remain tracked.
-/Pernos/UltraLLM_Builds/.venv/
-/Pernos/UltraLLM_Builds/Debug_*/
-/Pernos/UltraLLM_Builds/QA_*/
-/Pernos/UltraLLM_Builds/Stable_Backups/
-/Pernos/UltraLLM_Builds/Release/*/QA/ActualInstalledChrome*/
-/Pernos/UltraLLM_Builds/Release/*/QA/ActualInstalledChrome_Final*/
+# Pernos was sorted into Releases/, Backups/, Test/, Tools/.
+# Existing tracked files require privacy review; ignore rules protect future additions.
 
 # Browser profiles / local transient state
 **/ChromeProfile/
