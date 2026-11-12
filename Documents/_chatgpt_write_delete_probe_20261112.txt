@@ -1,0 +1,4 @@
+Temporary GitHub connector write/read/delete verification.
+Repo: maxrus82gm-svg/local_LLM
+Branch: GPT
+Date: 2026-11-12
