@@ -1,5 +1,12 @@
-Observed tool command: py -3.12 -B -X utf8 Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/isolated_checks.py
-Command exit: 1
-Traceback: isolated_checks.py line 45, assert process.poll() is None, "Packaged client exited before ready"
-AssertionError: Packaged client exited before ready
-Packaged EXE exit code was not recorded by the initial harness. No retry after this failure.
+Historical initial failure was preserved at pre_amendment_01/isolated_failure.txt.
+AMENDMENT 01 controlled reproduction: EXE returncode=1 (0x00000001).
+Exit observed UTC: 2026-11-12T18:51:05.451303+00:00
+Traceback (most recent call last):
+  File "web_client.py", line 689, in <module>
+  File "web_client.py", line 684, in main
+  File "web_client.py", line 642, in run_server
+  File "web_client.py", line 80, in ensure_private_dir
+PermissionError: Unable to create protected Client directory
+
+Root cause: child Windows PowerShell 5.1 inherits PSMODULEPATH pointing first to PowerShell 7 Security module; Get-Acl autoload fails at bundled helper line 18.
+Corrected child-only environment: Stage C PASS, six returncodes=0.

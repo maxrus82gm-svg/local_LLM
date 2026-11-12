@@ -1,77 +1,140 @@
 # CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001
 
-12.11.2026. Codex. **BLOCKED / этап C: изолированный packaged Client завершился до HTTP-ready.** Миграция остановлена согласно §6 постановки. OWNER GO не получен и пока не запрашивается: контрольная точка A–C ещё не пройдена. Действующий Client не закрыт, ярлык не изменён, Production не создан. Самопроверка не является независимой приёмкой.
+## AMENDMENT 01 — диагностический checkpoint
 
-## DONE
+Отчёт актуализирован 13.11.2026 (Asia/Yekaterinburg); исходные TASK и AMENDMENT от 12.11.2026. Время запусков сохранено с UTC offset.
 
-Подтверждён домашний компьютер `DESKTOP-SC96D3U`, пользователь `DESKTOP-SC96D3U\REX`. Единственный workspace — `M:\GitHub\local_LLM`. Сверены актуальные локальные №00/000/07/13, FOLLOWUP-UL-ROOT-MIGRATION-20261112-001 в №05, №18 §§18.26–18.27, прежняя R5 TASK в БЛОКЕ 1.1 и перенесённые REPORT/INSTALL/LIFECYCLE/PORTABILITY. Первоначально открытая по прежнему UNC-пути карточка была исторической, её БЛОК 1 WAITING; источником назначения использована актуальная локальная карточка. Серверные runtime не исследовались и не изменялись.
+**STAGED / OWNER GO REQUIRED. Stage C — PASS в изолированном QA. Stage D — NOT RUN.**
 
-Git HEAD: `03d1cd961fd9ec8216d5281f36bd1b771c43f44b`, текущая ветка `main`. До начала уже изменены `Documents/07_Задачи Codex.md` (назначение владельца) и `Documents/.obsidian/workspace.json`; они не перезаписывались. Новые branch/worktree/clone не создавались. Коммит, push, merge не выполнялись. Задача не завершена; промежуточный коммит запрещён. Номер и место единственного итогового коммита необходимо согласовать с владельцем после успешного продолжения; чужая GPT_2_local не использовалась.
+Причина преждевременного выхода доказательно локализована в окружении диагностического harness, без изменения Client или сборки. Контролируемое воспроизведение завершилось с **exit code 1 (`0x00000001`)**. После удаления только унаследованного `PSMODULEPATH` из окружения дочерних QA-процессов тот же проверенный EXE прошёл два цикла startup/HTTP/assets/single-instance/shutdown; коды выхода всех шести успешных процессов — **0**.
 
-## CHANGED / DIFF
+Это авторская диагностическая проверка, не независимая приёмка и не LIVE PASS. Переключение не выполнялось. OWNER GO не получен; дальнейшие действия остановлены перед этапом D.
 
-Созданы новые материалы внутри workspace:
+### DONE / точная причина
 
-- `Backups/Client/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/Installed_Original_68_files` — точная копия фактического старого каталога, **68/68 SHA совпали**.
-- Там же `Rollback_R5_Complete` — полный проверенный R5 из ZIP, **73/73 файла с manifest совпали**; копии исходного `.lnk`, карточки №07 и manifest backup.
-- `Test/ClientMigration_20261112/R5` — изолированно распакованный ZIP, **73/73 SHA совпали**; отдельные synthetic AppData и Temp. Историческую опубликованную .venv не запускали.
-- Данный каталог отчёта: inventory/checks/checkpoint, скрипт воспроизведения изолированной проверки и stdout/stderr 49 тестов.
+1. EXE из `Test/ClientMigration_20261112/R5` воспроизвёл `PermissionError: Unable to create protected Client directory` в `web_client.py:80`, вызванном из `run_server:642` и `main:684`. Traceback сохранён из stderr и независимо прочитан в собственном QA error dialog. Другие окна/рабочий Client не закрывались.
+2. `ensure_private_dir` запускает bundled `Prepare-ClientPrivate.ps1` через системный **Windows PowerShell 5.1.26100.9711**, с имеющимся в Client `-ExecutionPolicy Bypass`. Helper успевает создать пустую директорию и настроить её ACL, затем падает на **строке 18: Get-Acl**. Его exit code — **1**; Client превращает это в общий PermissionError. Это не доказательство отказа файловой системы в создании каталога: каталог реально создан, ACL protected=true, три правила.
+3. Harness наследовал `PSMODULEPATH` из Codex PowerShell 7. Сначала в нём обнаруживается `Microsoft.PowerShell.Security` **7.0.0.0** из `%USERPROFILE%/.cache/codex-runtimes/.../powershell/Modules`, а не системный модуль **3.0.0.0** Windows PowerShell. Ошибка автозагрузки: **CouldNotAutoloadMatchingModule**. Явный import при той же процессной ExecutionPolicy даёт `FormatXmlUpdateException`: дублируются члены TypeData `AuditToString`, `AccessToString`, `Sddl`, `Access`, `Group`, `Owner`, `Path`.
+4. A/B на одном синтетическом профиле и одном bundled helper: inherited PSMODULEPATH → helper/ACL/import exit 1; исключён только этот ключ в дочернем окружении → helper/ACL/import exit 0, загружен системный модуль. Бинарные файлы, helper, профиль и параметры политики не менялись между этими сопоставлениями.
+5. С этим единственным исправлением окружения в harness свежий профиль создан самим frozen EXE. Полный повтор Stage C — PASS.
 
-В своей карточке №07 добавлен factual BLOCKED checkpoint в БЛОК 2; БЛОКИ 1/1.1/4 побайтово сохранены. Исходники Client/Manager, общие нормативные документы, старые установки и действующий ярлык не редактировались. Корневой `.gitignore` уже исключает новые `/Backups/`, `/Test/`, `/Production/`, `/Releases/`; изменения не потребовались. Это не исключает старые tracked артефакты из истории, их privacy cleanup здесь не выполнялся. Отчёт не содержит приватной переписки, Manager credentials или экспортов профиля.
+### EXIT CODE / время / первичное доказательство
 
-## Инвентаризация и SHA
+- Воспроизведение: PID **3536**, EXE `M:/GitHub/local_LLM/Test/ClientMigration_20261112/R5/UltraLLMClient.exe`, аргумент `--no-browser`.
+- Запуск UTC: `2026-11-12T18:49:45.007554+00:00`.
+- Код: **1 / 0x00000001**.
+- Выход наблюдён UTC: `2026-11-12T18:51:05.451303+00:00`; Asia/Yekaterinburg: `2026-11-12T23:51:05.451303+05:00`.
+- Наблюдаемая длительность: **80443.156 ms**, включая ожидание закрытия traceback-диалога. Это не время inference и не startup benchmark. Метка — время наблюдения exit, не Windows kernel event timestamp.
+- Точный код самого первого запуска до AMENDMENT 01 ретроспективно восстановить нельзя: старый harness его не записал. Код 1 относится именно к контролируемому воспроизведению; первоначальный пробел в evidence не скрывается.
+- Все предыдущие report/checks/checkpoint/manifest/harness/failure/unit logs сохранены с SHA в `pre_amendment_01`; карта — `amendment_01_originals.json`.
 
-Постоянная цель: `M:\GitHub\local_LLM\Production\Client` — **отсутствует / не установлено**.
+```text
+Traceback (most recent call last):
+  File "web_client.py", line 689, in <module>
+  File "web_client.py", line 684, in main
+  File "web_client.py", line 642, in run_server
+  File "web_client.py", line 80, in ensure_private_dir
+PermissionError: Unable to create protected Client directory
+```
 
-Работающий Client: PID **29492**, parent 27244, EXE `M:\UltraLLM_Client\UltraLLMClient.exe`, creation `2026-11-12T12:49:36.612352Z`, loopback-порт **60720**. После тестов остался только этот исходный Client с тем же PID/path/creation. Его завершение не запрашивалось. Миграция не переносит уже загруженный процесс простым копированием файлов.
+### CHANGED / DIFF
 
-Ярлык `C:\Users\REX\Desktop\Ultra LLM Client.lnk` указывает на `C:\Windows\System32\wscript.exe`, arguments `"M:\UltraLLM_Client\Start_Ultra_LLM_Client.vbs"`, working directory `M:\UltraLLM_Client`. Его SHA-256 **658e88888c9bb28791c038c71ce56fcb1e14af35280d47a4f859321cc57ae070**, до/после и в backup совпал.
+Только внутри разрешённого каталога отчёта:
 
-**Расхождение:** старый каталог содержит лишь EXE + `_internal`, 68 файлов. Все имеющиеся файлы совпадают с оригинальным R5. Отсутствуют пять root-файлов: `Start_Ultra_LLM_Client.vbs`, `Install_Ultra_LLM_Client.vbs`, `PORTABLE_README.txt`, `PYTHON_LICENSE.txt`, `SHA256SUMS.txt`. Таким образом, действующий процесс продолжает работать, но повторный запуск по нынешнему ярлыку нельзя считать исправным: его VBS-target отсутствует. Не пытались нажимать ярлык или восстанавливать внешний каталог. `M:\UltraLLM_Builds` отсутствует. Это отличается от прежнего отчёта о полной установке.
+- `isolated_checks.py` стал коротким entry point в `startup_diagnostics.py`; исходный файл сохранён как `pre_amendment_01/isolated_checks.py`.
+- Новый диагностический harness сохраняет PID, команду, UTC startup/exit, actual returncode и hex, lifetime, безопасные stdout/stderr, readiness и состояния до/после. Ошибка больше не теряется за голым AssertionError.
+- Каждый запуск получает новый synthetic AppData/Temp внутри `Test/ClientMigration_20261112/Amendment01`. Старый пустой профиль после отказа сохранён. Ничего не удалялось и не переносилось в Production.
+- Контроль среды исключает PYTHONHOME/PYTHONPATH как раньше и дополнительно PSMODULEPATH только в дочернем QA env. Системные/user environment, execution-policy registry, ACL настоящего профиля не менялись.
+- Добавлены защита home-host/workspace, проверка всех 72 payload SHA, native DLL/listener, distinct mutex и read-only сравнение старой установки/ярлыка/PID до и после.
+- Обновлены этот существующий report.md, checks.json, checkpoint.json, isolated_failure.txt и manifest. Клиентские/серверные исходники, EXE, общий №07 и другие нормативные документы не редактировались. Новых веток, корней, коммитов/push нет. Видимые пользовательские изменения №07 и внешнее изменение Obsidian workspace.json не редактировались и не откатывались этим harness.
 
-R5 ZIP:
+Текущий проверенный HEAD workspace: `312106680ae60b72243132bfc0710857127f3b72`. Исходный Stage A имел другой HEAD, `03d1cd9...`; исторические значения не подменяются. Испытывается существующая R5 из authoritative ZIP, без пересборки и без архивной .venv.
 
-`Releases/Client/Imported_Packages_20261112/CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219/UltraLLM_Client_STREAM_SLOTS_R5_Win64.zip`
+### TESTS / EVIDENCE
 
-SHA-256: **bc37f43f84263da8f42e006ab3e3833e85a3781bfb11858809882a51b34a9d8a** — совпал с постановкой. Все **72 payload hashes** внутри ZIP проверены; с manifest всего 73 файла. Source SHA `132474781e760e463944c76efcd9d3ff192e8f18` взят из R5 deploy evidence, а не из вымышленной embedded FileVersion: у EXE такой версии нет.
+| Проверка | Результат |
+|---|---|
+| Authoritative ZIP SHA | PASS: `bc37f43f84263da8f42e006ab3e3833e85a3781bfb11858809882a51b34a9d8a` |
+| QA R5 | PASS: 72 payload SHA, 73 файла с manifest |
+| Bundled helper vs текущий source helper | PASS: byte-exact |
+| Original backup | PASS: 68/68 файлов повторно сверены |
+| Полный rollback R5 backup | PASS: 73/73 файлов повторно сверены |
+| Failure reproduction | CONFIRMED: EXE exit 1, traceback `ensure_private_dir:80` |
+| Helper A/B со штатным ExecutionPolicy Bypass | Inherited env FAIL/1 → system-default module env PASS/0 |
+| Client unit | **49/49 PASS**, 17.092 s, отдельные новые stdout/stderr |
+| Два цикла первого запуска/закрытия | PASS, PID 17664/17976; оба shutdown exit 0 |
+| Четыре duplicate EXE | PASS, все exit 0; основной PID/port не изменились |
+| HTTP /api/config и /api/status | PASS: configured=false, managers=[] |
+| HTML/CSS/JS | PASS: три ответа byte-exact к frozen payload в обоих циклах |
+| Bundled Python | PASS: QA `R5/_internal/python312.dll` |
+| Loopback listener | PASS: только 127.0.0.1; QA порты 52207/51217, старый 60720 не использован |
+| Visual browser / запуск VBS | NOT RUN в этой диагностике; старый ярлык ни разу не запускался |
+| Windows Event Log | SKIP: первичная ошибка уже установлена без чтения посторонних журналов |
+| Stage D / Production / LIVE migration | **NOT RUN / OWNER GO ABSENT** |
+| Real Manager calls / inference / server control | **0 / NOT RUN** |
 
-Отдельная распакованная копия выпуска в Releases имеет четыре raw SHA mismatch: PYTHON_LICENSE и три web-assets. Проверка показала равенство **только после CRLF→LF нормализации**. Первоначальная строгая проверка этой копии дала AssertionError; её отвергли как byte-exact источник. Копирование для QA/полного rollback выполнялось исключительно из исходного ZIP с правильным SHA, не из нормализованной Git-копии. Сама распакованная копия не исправлялась.
+Первый ручной helper-probe был вызван без штатного процессного `-ExecutionPolicy Bypass` и поэтому дал PSSecurityException в обеих ветках. Это ошибка диагностической пробы, а не причина реального frozen failure. Проба сохранена отдельно как `amendment_01_environment_without_startup_policy.json`; вывод сделан по исправленному сопоставлению со штатным параметром в `amendment_01_environment.json`. Никакая глобальная политика выполнения не изменялась.
 
-## TESTS / EVIDENCE
+Команды из домашнего workspace:
 
-Команда: `py -3.12 -B -X utf8 Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/isolated_checks.py` из единственного workspace.
+```text
+py -3.12 -X utf8 -B Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/startup_diagnostics.py --diagnose
+py -3.12 -X utf8 -B Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/isolated_checks.py
+```
 
-1. **PASS:** текущая/backup установка 68 SHA; ZIP 72 payload; QA и полный rollback по 73 SHA; исходный ярлык/backup совпали. После проверки старые файлы повторно сверены и неизменны.
-2. **PASS:** все **49 Client unit tests**, 0 failures/errors, 16.819 s. `PYTHONDONTWRITEBYTECODE=1`; LOCALAPPDATA, TEMP, TMP, TMPDIR направлены в `Test/ClientMigration_20261112`. Логи `unittest.stdout.txt`, `unittest.stderr.txt`. Архивное окружение сборки не использовалось.
-3. **FAIL:** frozen EXE запущен с `--no-browser` из QA/R5 с отдельным LOCALAPPDATA, но завершился до HTTP-ready. Harness остановился на строке 45: `AssertionError: Packaged client exited before ready`. Точный exit code EXE первоначальный harness не сохранил; причина **UNRESOLVED**, не объявляется доказанным дефектом сборки или GUI. Повторный запуск, изменение ACL/окружения/сборки после отказа не проводились: соблюдён stop-on-error этапа C. Единственный QA EXE уже завершился, оставшихся QA Client нет.
-4. **NOT RUN / не достигнуты:** packaged HTTP/UI assets, два повтора EXE, shutdown/reopen, визуальный browser/VBS, установка в Production, изменение ярлыка, real Manager ONLINE/catalogue, подтверждение 34 сообщений по метаданным после миграции. Наличие 34 сообщений известно только из предыдущего отчёта и сейчас не проверялось. Содержимое настоящей истории/секретов не открывалось и не копировалось.
-5. **NOT RUN:** серверные START/STOP, Manager deploy, модели, streaming benchmark, firewall/TLS/службы/Valheim. Действующий Client оставлен работать с прежним профилем; глобальная неизменность сервера не объявляется независимо измеренной, агент серверных runtime-команд не выполнял.
+Первая команда намеренно воспроизводит плохую среду и может показать диагностическое окно. Её controller exit 0 означает «ошибка успешно воспроизведена», **не** успех EXE; actual child returncode=1 записан отдельно. Повторять без необходимости не нужно.
 
-`inventory.json` содержит безопасные file hashes и карту путей. `checks.json` — итоговые проверки и только безопасные process metadata. `checkpoint.json` — точный статус продолжения. Manifest рядом фиксирует SHA отчётных файлов. Тестовые synthetic профили и бинарные backup в Git не добавлялись.
+Основные доказательства:
 
-## PROBLEMS / QUESTIONS
+- `amendment_01_reproduction.json` — actual failure exit/times/stderr и неизменность baseline.
+- `amendment_01_environment.json` — контролируемый helper/import/ACL A/B с теми же параметрами запуска.
+- `amendment_01_dialog.json` — текст окна только QA EXE и его process-backed app path; точный traceback без личной истории.
+- `isolated_result.json` — текущий PASS Stage C со всеми шестью exit codes и native metadata.
+- `amendment_01_unittest.stderr.txt` — полный 49-test прогон.
+- `checks.json`, `checkpoint.json`, `manifest.json` — текущий статус и SHA.
 
-Блокер — неуспешный изолированный запуск того же verified ZIP. Требуется отдельная адресная диагностика раннего завершения с сохранением exit code/безопасных локальных QA diagnostics. Причина пока неизвестна; запуск исходников 49/49 не доказывает работоспособности frozen EXE в новом месте. Новая сборка без отдельного изменения scope не допускается.
+### Проверенные гипотезы
 
-Второй риск — отсутствующий VBS старой установки. Rollback через простое восстановление исходного ярлыка недостаточен. За пределами workspace восстанавливать старый каталог запрещено; перед переключением необходимо утвердить проверенный rollback через **полный backup R5 внутри workspace**, с прежним защищённым пользовательским профилем. Его фактический запуск ещё не проверен, поэтому безопасный operational rollback пока **NOT VERIFIED**.
+- Повреждённый/неполный EXE: исключено SHA ZIP/payload; используется проверенный ZIP, а не loose-копия с CRLF-расхождениями.
+- Отсутствующий helper: исключено, он есть в bundle и совпадает с source.
+- Неверный LOCALAPPDATA/настоящий профиль: исключено явной изоляцией fresh AppData в QA и configured=false. Реальные profiles/history/secrets не читались и не копировались.
+- Отсутствие прав на директорию: не является причиной этого сбоя; directory/ACL созданы, отказ возникает при импорте команды проверки ACL. С system module теми же правами запуск проходит.
+- Занятый production port: исключено; ошибка возникает до bind, а успешные QA listeners имеют другие порты.
+- Конфликт single-instance mutex: исключено и distinct path hash, и успешной параллельной работой QA с неизменным старым PID. Отказ helper происходит до `_instance_mutex`.
+- Глобальная ExecutionPolicy: не первопричина, штатный process Bypass сохранён в причинном A/B.
+- Contaminated PSMODULEPATH: **подтверждено** отрицательным/положительным helper и frozen startup контролями.
 
-## План после устранения блокера — пока НЕ ВЫПОЛНЯТЬ
+### Сохранность защищённых объектов
 
-Сначала добиться успешного отдельного QA startup/HTTP/UI/repeat/shutdown, подтвердить полный runtime и путь загрузки bundled Python. Затем представить владельцу новый checkpoint и точный OWNER GO. Только после него: перепроверить PID/path/creation/порт исходного Client, штатно закрыть именно его через защищённый loopback shutdown; установить byte-exact ZIP payload в Production; проверить 73 SHA; один раз сохранить изменение существующего ярлыка на относительный VBS в Production; проверить один процесс, Manager ONLINE/catalogue, метаданные истории и два повтора/закрытие/повторный запуск. Модели и сервер не переключать.
+Старый процесс **29492** с прежними exe path/creation продолжает работать; старые 68 файлов и SHA ярлыка совпали до/после. Пять отсутствующих root-файлов старой установки, включая VBS, **не восстанавливались**. Ярлык не менялся и не запускался. `Production/Client` не создан.
 
-При разрешённом rollback: закрыть только подтверждённый новый Client; сохранить неуспешную Production-папку внутри workspace; по отдельно согласованному плану перенаправить существующий ярлык на VBS **проверенного полного backup** внутри workspace и проверить единственный процесс с прежним защищённым профилем. Не записывать ничего в старый `M:\UltraLLM_Client`, не удалять его и не заявлять заранее, что он самостоятельно восстанавливается.
+Серверных runtime-команд, запросов Manager из QA, START/STOP, операций Colibri/Qwen/Valheim, WinRM/firewall/TLS/secrets не выполнялось. Глобальная побайтовая неизменность сервера независимо не измерялась: сервер не исследовался. Подтверждается отсутствие действий агента, а не вымышленный remote audit. Настоящая история/профиль не открывались; её число сообщений в этой диагностике не перепроверялось.
 
-## DOC IMPACT для координатора
+### PROBLEMS / QUESTIONS
 
-- №13: NOW — домашний ПК подтверждён, A/B завершены с расхождениями, C BLOCKED, старый PID/ярлык не изменены; причина frozen startup UNRESOLVED.
-- №05: FOLLOWUP-UL-ROOT-MIGRATION остаётся OPEN/BLOCKED, Production NOT DEPLOYED.
-- №09: сохранить этот TASK, hashes, 49 source PASS и packaged startup FAIL отдельно от предыдущего R5 LIVE evidence.
-- №06: нового решения владельца не было; потребуется запись, если изменится согласованный rollback или объём диагностики.
-- №18: добавить фактическое отсутствие пяти root-файлов старой установки, authoritative ZIP и расположение verified backup/QA; runtime нового пути ещё не подтверждён.
-- №00: постоянная установка ещё не изменена; не объявлять Production рабочим.
+Диагностический startup blocker устранён в harness. Сам Client по-прежнему не защищает свой PowerShell child от произвольного несовместимого PSMODULEPATH внешней оболочки; изменение Client для общего hardening — отдельное возможное предложение, **не выполнено и не требуется для текущего QA PASS**.
 
-Нормативные документы обновляет координатор после независимой проверки. БЛОК 4 не изменён; текущая TASK не ротирована и остаётся активной для продолжения. Итоговый commit отсутствует, промежуточных commit нет.
+Неразрешённый operational риск сохраняется: старый ярлык ссылается на отсутствующий VBS. Возврат простым восстановлением .lnk на старый каталог не доказан и не предлагается как надёжный rollback. Полный workspace backup R5 byte-exact к успешно испытанному комплекту; фактический запуск backup с настоящим профилем и LIVE rollback здесь NOT RUN. Удаление QA-каталогов не требуется, они оставлены как диагностические evidence.
 
-## NEXT
+Технических вопросов для диагностики нет. OWNER GO на переключение отсутствует. Задача миграции остаётся активной; карточка/архив не ротируются, итоговый или промежуточный коммит не создаётся.
 
-**BLOCKED.** Передать пакет независимой проверке и согласовать узкую диагностику раннего выхода packaged EXE в изолированном QA. До её PASS запрещены stop действующего Client, переключение ярлыка и объявление STAGED/OWNER-GO-ready. Все новые материалы остаются внутри `M:\GitHub\local_LLM`, backup сохранён.
+### Подготовленный объём будущего OWNER GO — НЕ ВЫПОЛНЕН
+
+1. Повторно проверить current PID/path/creation/owner/listener, backup и protected profile availability; не закрывать PID по имени или устаревшему номеру.
+2. Штатно завершить только подтверждённый пользовательский Client. На этом шаге требуется отдельное явное разрешение владельца.
+3. Скопировать полный verified ZIP payload в `M:/GitHub/local_LLM/Production/Client`, проверить все 73 файла. Старый `M:/UltraLLM_Client` не восстанавливать и не изменять.
+4. После проверки backup .lnk один раз изменить существующий ярлык: target системный wscript.exe, argument VBS внутри Production/Client, working directory тот же новый каталог. Не создавать ещё один основной ярлык.
+5. Запустить один новый Client с прежним защищённым профилем, проверить ONLINE/catalogue/метаданные истории, два повтора и штатное закрытие/повторный запуск. Использовать совместимое дочернее окружение; не менять системные настройки. Сервер/модели не переключать.
+6. Согласовать rollback через **полный R5 backup внутри workspace**, а не через отсутствующий старый VBS. При отказе сохранять неуспешную Production-папку и диагностические данные, закрывать только собственный подтверждённый новый процесс и после разрешения направлять тот же .lnk на verified backup VBS. Личные данные не откатывать/не переносить. Это план для утверждения, не разрешение и не выполненная операция.
+
+### DOC IMPACT / NEXT
+
+Координатору: №13/05/09 — заменить текущий UNRESOLVED Stage C blocker на **AMENDMENT 01: причина установлена, isolated Stage C PASS, STAGED / OWNER GO REQUIRED**; сохранить исходный FAIL и отсутствие его exit code как исторический факт. №18 — child PSMODULEPATH/Windows PowerShell module mismatch и готовность workspace QA/backup; отсутствие старого VBS и невыполненный LIVE rollback оставить OPEN. №00 — Production не установлена. №06 — нового OWNER GO не было.
+
+Обновлены только разрешённые checkpoint/checks/report/evidence внутри каталога задачи. Нормативные документы и БЛОК 4 не редактировались. **NEXT: независимая проверка диагностического пакета; этап D только по отдельному решению владельца.**
+
+---
+
+## Исторический checkpoint до AMENDMENT 01
+
+Исходный report сохранён дословно в `pre_amendment_01/report_original.txt` (SHA в `amendment_01_originals.json`); первоначальные checks/checkpoint/manifest/failure/unit logs рядом. Исходный Stage C имел BLOCKED, 49 source PASS, packaged startup FAIL с незафиксированным exit code. Новые данные выше не присваивают старому запуску вымышленный код или успешный результат.

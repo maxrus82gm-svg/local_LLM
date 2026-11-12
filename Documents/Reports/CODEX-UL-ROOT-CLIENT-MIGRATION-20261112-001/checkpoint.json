@@ -1,10 +1,31 @@
 {
   "task_id": "CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001",
-  "status": "BLOCKED / ISOLATED PACKAGED STARTUP FAILED",
-  "stage_A": "COMPLETE WITH INVENTORY DISCREPANCIES",
-  "stage_B": "VERIFIED BACKUP + ZIP STAGE COMPLETE",
-  "stage_C": "49 SOURCE PASS; PACKAGED STARTUP FAIL",
+  "amendment": "01",
+  "status": "STAGED / OWNER GO REQUIRED",
+  "stage_A": "COMPLETE WITH PREVIOUSLY RECORDED INVENTORY DISCREPANCIES",
+  "stage_B": "VERIFIED BACKUPS AND ZIP RECHECKED",
+  "stage_C": "PASS: 49 unit; 2 isolated EXE cycles; 4 duplicate launches; HTTP/asset/runtime/shutdown",
   "stage_D": "NOT RUN / OWNER GO ABSENT",
-  "next": "Diagnose isolated packaged startup from safe QA diagnostics, without production switch, rebuild, live Client close or server operations",
-  "backup": "M:\\GitHub\\local_LLM\\Backups\\Client\\CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001"
+  "diagnostic_reproduction_exit_code": 1,
+  "corrected_exit_codes": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "current_source_head": "312106680ae60b72243132bfc0710857127f3b72",
+  "old_client_pid": 29492,
+  "old_client_stopped": false,
+  "shortcut_launched_or_changed": false,
+  "production_created": false,
+  "server_operations": false,
+  "system_settings_changed": false,
+  "old_history_or_secrets_read": false,
+  "backup": "M:\\GitHub\\local_LLM\\Backups\\Client\\CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001",
+  "next": "Report diagnostic result; Stage D only after separate explicit OWNER GO; keep task active, no rotation/commit.",
+  "diagnostic_finalized_at_utc": "2026-11-12T19:03:11.504019+00:00",
+  "diagnostic_finalized_at_client_timezone": "2026-11-13T00:03:11.504019+05:00",
+  "client_timezone": "Asia/Yekaterinburg"
 }

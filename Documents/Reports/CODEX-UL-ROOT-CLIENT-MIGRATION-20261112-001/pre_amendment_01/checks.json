@@ -1,0 +1,37 @@
+{
+  "task_id": "CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001",
+  "status": "BLOCKED / ISOLATED PACKAGED STARTUP FAILED",
+  "source_unit_tests": {
+    "run": 49,
+    "passed": 49,
+    "failures": 0,
+    "errors": 0,
+    "elapsed_seconds": 16.819
+  },
+  "packaged_startup": "FAIL: process exited before HTTP readiness",
+  "packaged_exit_code": "NOT CAPTURED by initial harness",
+  "packaged_HTTP_UI_single_instance_shutdown": "NOT RUN / not reached",
+  "harness_failure": "AssertionError: Packaged client exited before ready, line 45",
+  "backup_original_68": "PASS",
+  "backup_complete_R5_73": "PASS",
+  "isolated_R5_73": "PASS",
+  "old_install_68_unchanged": "PASS",
+  "shortcut_unchanged": "PASS",
+  "only_remaining_client": [
+    {
+      "ProcessId": 29492,
+      "ParentProcessId": 27244,
+      "ExecutablePath": "M:\\UltraLLM_Client\\UltraLLMClient.exe",
+      "CreationDate": "/Date(1794487776612)/"
+    }
+  ],
+  "production_created": false,
+  "owner_go_received": false,
+  "old_client_closed": false,
+  "shortcut_switched": false,
+  "private_history_or_secret_contents_read": false,
+  "archive_test_environment_used": false,
+  "commit_push": "NOT RUN",
+  "next": "Diagnose isolated packaged startup from safe QA diagnostics, without production switch, rebuild, live Client close or server operations",
+  "server_runtime_commands_or_mutation": false
+}

@@ -1,0 +1,45 @@
+{
+  "scope": "Preserved original Stage C evidence; no private profiles",
+  "files": [
+    {
+      "file": "report.md",
+      "sha256": "9bb465bf1453431e8718fc5c3d3720eb31502b6f5e53546d854684f7bbef30c4",
+      "preserved_as": "pre_amendment_01/report_original.txt"
+    },
+    {
+      "file": "checks.json",
+      "sha256": "febe45fe423e4e97d661e3a018dbddf9cb8c055b2a899dfafa71b2c670149246",
+      "preserved_as": "pre_amendment_01/checks.json"
+    },
+    {
+      "file": "checkpoint.json",
+      "sha256": "215190af5e8415ad0f5d93715edc43d9e6838aff3a4f6c50805f82104e6f9187",
+      "preserved_as": "pre_amendment_01/checkpoint.json"
+    },
+    {
+      "file": "manifest.json",
+      "sha256": "d50ed9388aa28c4cec687d65a889a6e756edc3adb31818b4bd093510806966cf",
+      "preserved_as": "pre_amendment_01/manifest.json"
+    },
+    {
+      "file": "isolated_checks.py",
+      "sha256": "265719444bc8b260fd6e1881ea29ce0bb9714b099f10173e4327bc039ef42156",
+      "preserved_as": "pre_amendment_01/isolated_checks.py"
+    },
+    {
+      "file": "isolated_failure.txt",
+      "sha256": "afdcdeb05633136f271970b8184f8284b15864f0b012a8f1533694c2d1cfc8fc",
+      "preserved_as": "pre_amendment_01/isolated_failure.txt"
+    },
+    {
+      "file": "unittest.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "preserved_as": "pre_amendment_01/unittest.stdout.txt"
+    },
+    {
+      "file": "unittest.stderr.txt",
+      "sha256": "25c467b4c19ae9c1db17eebebf0217e9346d99108ff81a6792b973494ad42aee",
+      "preserved_as": "pre_amendment_01/unittest.stderr.txt"
+    }
+  ]
+}
