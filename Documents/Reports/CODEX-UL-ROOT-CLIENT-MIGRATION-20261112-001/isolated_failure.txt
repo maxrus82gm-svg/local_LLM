@@ -1,0 +1,5 @@
+Observed tool command: py -3.12 -B -X utf8 Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/isolated_checks.py
+Command exit: 1
+Traceback: isolated_checks.py line 45, assert process.poll() is None, "Packaged client exited before ready"
+AssertionError: Packaged client exited before ready
+Packaged EXE exit code was not recorded by the initial harness. No retry after this failure.
