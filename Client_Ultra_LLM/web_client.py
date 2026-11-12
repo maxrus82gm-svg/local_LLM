@@ -43,7 +43,7 @@ HERE = Path(__file__).resolve().parent
 STATIC = HERE / "web_assets"
 IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
 HOSTNAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.-]{0,251}$")
-MAX_BODY = 48 * 1024
+MAX_BODY = 1048576
 _STATIC_FILES = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/client.css": ("client.css", "text/css; charset=utf-8"),
@@ -191,15 +191,34 @@ def selected_profile(folder, manager_id):
     return profile
 
 
-def chat_stream_exchange(folder, payload):
-    if type(payload) is not dict or set(payload) != {
-            "manager_id", "slot_id", "model_id", "message", "request_id"}:
+def chat_parameters(payload, *, stream=False):
+    required = {"manager_id", "slot_id", "model_id", "message"} | ({"request_id"} if stream else set())
+    if type(payload) is not dict or not required <= set(payload) or set(payload)-required-{"request_id","instance_id","options","context"}:
         raise ValueError("invalid_chat_fields")
-    key = validate_key(payload["manager_id"], payload["slot_id"], payload["model_id"])
+    key = validate_key(payload["manager_id"],payload["slot_id"],payload["model_id"])
+    identity = payload.get("instance_id")
+    if identity is not None and (type(identity) is not str or not re.fullmatch(r"[a-f0-9]{32}|legacy-[A-Za-z0-9_.-]{1,96}",identity)):
+        raise ValueError("invalid_instance_id")
     message = payload["message"]
-    if not isinstance(message, str) or not message.strip() or len(message) > 4000:
+    if type(message) is not str or not message.strip() or len(message)>131072:
         raise ValueError("invalid_chat_message")
+    context = payload.get("context", {})
+    if type(context) is not dict or set(context)-{"max_messages","max_chars"}:
+        raise ValueError("invalid_context_policy")
+    selected = {"max_messages":context.get("max_messages",100), "max_chars":context.get("max_chars",200000)}
+    context_for([], **selected)  # validate before claiming the request
+    if type(payload.get("options",{})) is not dict:
+        raise ValueError("invalid_generation_options")
+    history_id = identity if identity and not identity.startswith("legacy-") else None
+    return key, identity, history_id, selected
+
+
+def chat_stream_exchange(folder, payload):
+    started = time.perf_counter()
+    key, identity, history_id, context_policy = chat_parameters(payload, stream=True)
+    message = payload["message"]
     profile = selected_profile(folder, key[0])
+    phases = {"client_profile_load_ms":round((time.perf_counter()-started)*1000,3)}
     if type(payload["request_id"]) is not str or not re.fullmatch(r"[a-f0-9]{32}", payload["request_id"]):
         raise ValueError("invalid_request_id")
     with CHAT_LOCKS_GUARD:
@@ -211,9 +230,12 @@ def chat_stream_exchange(folder, payload):
     cancelled = threading.Event()
     active_key = (*key, payload["request_id"])
     try:
-        state = claim_request(folder, payload["request_id"], key, message)
+        claim_started=time.perf_counter()
+        state = claim_request(folder, payload["request_id"], (*key,history_id), message,
+            request_options={"options":payload.get("options"),"context":context_policy})
+        phases["client_sqlite_claim_ms"] = round((time.perf_counter()-claim_started)*1000,3)
         if state == "complete":
-            updated = load_chat_history(folder, *key)
+            updated = load_chat_history(folder, *key, instance_id=history_id)
             yield stream_history_event({"type": "done", "cached": True}, updated)
             return
         if state != "new":
@@ -221,21 +243,41 @@ def chat_stream_exchange(folder, payload):
         claimed = True
         with CHAT_LOCKS_GUARD:
             ACTIVE_STREAMS[active_key] = cancelled
-        messages = context_for(load_chat_history(folder, *key)) + [{"role": "user", "content": message}]
-        upstream = stream_chat(profile, key[1], key[2], messages, request_id=payload["request_id"])
+        context_started=time.perf_counter()
+        messages, context_info = context_for(load_chat_history(folder, *key, instance_id=history_id, limit=1024),
+            **context_policy, with_info=True)
+        messages.append({"role":"user","content":message})
+        client_prepare_ms = round((time.perf_counter()-started)*1000,3)
+        phases["client_history_load_ms"] = round((time.perf_counter()-context_started)*1000,3)
+        upstream = stream_chat(profile, key[1], key[2], messages, request_id=payload["request_id"],
+                               instance_id=identity, options=payload.get("options"))
         reply = ""
+        reasoning = ""
         for event in upstream:
             if cancelled.is_set():
                 raise ChatClientError("stream_cancelled", 409)
             if event["type"] == "delta":
                 value = event.get("text")
-                if not isinstance(value, str) or len(reply) + len(value) > 65536:
+                if not isinstance(value, str) or len(reply) + len(value) > 1048576:
                     raise ChatClientError("invalid_stream_delta")
                 reply += value
+            if event["type"] == "meta":
+                event["context"] = context_info
+            if event["type"] == "reasoning":
+                value = event.get("text")
+                if type(value) is not str or len(reasoning)+len(value)>1048576:
+                    raise ChatClientError("invalid_reasoning_delta")
+                reasoning += value
+            event["timing"] = {**event.get("timing",{}), **phases, "client_prepare_ms":client_prepare_ms,
+                "client_local_elapsed_ms":round((time.perf_counter()-started)*1000,3)}
             if event["type"] == "done":
-                if not reply.strip():
+                if not (reply.strip() or reasoning.strip()):
                     raise ChatClientError("empty_stream")
-                updated = append_exchange(folder, *key, message, reply, request_id=payload["request_id"])
+                persist_started=time.perf_counter()
+                updated = append_exchange(folder, *key, message, reply, request_id=payload["request_id"],
+                    instance_id=history_id, reasoning=reasoning)
+                event["timing"]["client_persist_ms"] = round((time.perf_counter()-persist_started)*1000,3)
+                event["timing"]["client_local_total_ms"] = round((time.perf_counter()-started)*1000,3)
                 claimed = False
                 yield stream_history_event(event, updated)
                 return
@@ -263,13 +305,8 @@ def stream_history_event(event, messages):
 
 def chat_exchange(folder: Path, payload: dict) -> dict:
     """Send to only the Manager/slot/model named by the existing profile."""
-    fields = {"manager_id", "slot_id", "model_id", "message"}
-    if not isinstance(payload, dict) or set(payload) not in (fields, fields | {"request_id"}):
-        raise ValueError("invalid_chat_fields")
-    key = validate_key(payload["manager_id"], payload["slot_id"], payload["model_id"])
+    key, identity, history_id, context_policy = chat_parameters(payload)
     message = payload["message"]
-    if not isinstance(message, str) or not message.strip() or len(message) > 4000:
-        raise ValueError("invalid_chat_message")
     profiles = load_profiles(folder / "managers.json")
     profile = next((p for p in profiles if p["manager_id"] == key[0]), None)
     if profile is None:
@@ -282,20 +319,22 @@ def chat_exchange(folder: Path, payload: dict) -> dict:
     claimed = False
     try:
         if request_id is not None:
-            state = claim_request(folder, request_id, key, message)
+            state = claim_request(folder, request_id, (*key,history_id), message,
+                request_options={"options":payload.get("options"),"context":context_policy})
             if state == "complete":
-                updated = load_chat_history(folder, *key)
+                updated = load_chat_history(folder, *key, instance_id=history_id)
                 return {"messages": updated, "reply": updated[-1]["content"] if updated else "", "cached": True}
             if state != "new":
                 raise ChatClientError("chat_request_already_attempted", 409)
             claimed = True
-        existing = load_chat_history(folder, *key)
-        messages = context_for(existing)
+        existing = load_chat_history(folder, *key, instance_id=history_id, limit=1024)
+        messages, context_info = context_for(existing, **context_policy, with_info=True)
         messages.append({"role": "user", "content": message})
-        response = send_chat(profile, key[1], key[2], messages)
-        updated = append_exchange(folder, *key, message, response["reply"], request_id=request_id)
+        response = send_chat(profile, key[1], key[2], messages, instance_id=identity, options=payload.get("options"))
+        updated = append_exchange(folder, *key, message, response["reply"], request_id=request_id,
+            instance_id=history_id, reasoning=response.get("reasoning", ""))
         claimed = False
-        return {"reply": response["reply"], "messages": updated,
+        return {"reply": response["reply"], "messages": updated, "context":context_info,
                 "usage": response.get("usage", {}),
                 "finish_reason": response.get("finish_reason")}
     finally:
@@ -334,12 +373,37 @@ def make_handler(folder: Path, port_getter, csrf: str):
             raw = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
             self._headers(status, "application/json; charset=utf-8", len(raw))
             self.wfile.write(raw)
+        def _reject_post(self, status, data):
+            # Closing with unread request bytes can reset Windows TCP before
+            # the caller receives the rejection. Discard only a bounded body,
+            # without parsing it or allowing a slow sender to hold this thread.
+            if self.command == "POST" and not self.headers.get("Transfer-Encoding"):
+                lengths = self.headers.get_all("Content-Length", [])
+                try:
+                    remaining = int(lengths[0]) if len(lengths) == 1 else 0
+                except ValueError:
+                    remaining = 0
+                if 0 < remaining <= MAX_BODY:
+                    previous_timeout = self.connection.gettimeout()
+                    deadline = time.perf_counter() + 0.2
+                    try:
+                        while remaining and time.perf_counter() < deadline:
+                            self.connection.settimeout(max(0.001, deadline-time.perf_counter()))
+                            chunk = self.rfile.read1(min(remaining, 65536))
+                            if not chunk:
+                                break
+                            remaining -= len(chunk)
+                    except OSError:
+                        pass
+                    finally:
+                        self.connection.settimeout(previous_timeout)
+            return self._send_json(status, data)
         def _bad_host(self):
             if not _secure_host(self, port_getter()):
-                self._send_json(403, {"error": "untrusted_host"})
+                self._reject_post(403, {"error": "untrusted_host"})
                 return True
             if self.client_address[0] != "127.0.0.1":
-                self._send_json(403, {"error": "loopback_only"})
+                self._reject_post(403, {"error": "loopback_only"})
                 return True
             return False
         def do_GET(self):
@@ -402,12 +466,13 @@ def make_handler(folder: Path, port_getter, csrf: str):
                     if len(path) > 1024:
                         raise ValueError("invalid_query")
                     query = parse_qs(path.split("?", 1)[1])
-                    if set(query) != {"manager_id", "slot_id", "model_id"}:
+                    if not {"manager_id", "slot_id", "model_id"} <= set(query) or set(query)-{"manager_id", "slot_id", "model_id", "instance_id"}:
                         raise ValueError("invalid_query")
                     key = validate_key(*(query[k][0] for k in
                         ("manager_id", "slot_id", "model_id")))
                     return self._send_json(200, {
-                        "messages": load_chat_history(folder, *key)})
+                        "messages": load_chat_history(folder, *key, instance_id=query.get("instance_id",[None])[0]),
+                        "history_window_messages":100})
                 except (ValueError, KeyError, TypeError):
                     return self._send_json(400, {"error": "invalid_chat_target"})
                 except (OSError, sqlite3.Error):
@@ -429,18 +494,18 @@ def make_handler(folder: Path, port_getter, csrf: str):
             if (origin != expected or
                     not secrets.compare_digest(
                         self.headers.get("X-Ultra-CSRF", ""), csrf)):
-                return self._send_json(403, {"error": "request_not_authorised"})
+                return self._reject_post(403, {"error": "request_not_authorised"})
             if self.path not in ("/api/chat/send", "/api/chat/stream", "/api/chat/cancel", "/api/control", "/api/enroll", "/api/shutdown",
                                   "/api/pairing/retry",
                                   "/api/pairing/approve",
                                   "/api/pairing/deny"):
-                return self._send_json(404, {"error": "not_found"})
+                return self._reject_post(404, {"error": "not_found"})
             if self.path == "/api/shutdown":
                 self._send_json(200, {"stopping": True})
                 threading.Thread(target=self.server.shutdown, daemon=True).start()
                 return
             if self.headers.get("Content-Type", "").split(";")[0] != "application/json":
-                return self._send_json(415, {"error": "json_only"})
+                return self._reject_post(415, {"error": "json_only"})
             try:
                 if self.headers.get("Transfer-Encoding"):
                     raise ValueError("unsupported_transfer_encoding")
@@ -507,9 +572,12 @@ def make_handler(folder: Path, port_getter, csrf: str):
             events = chat_stream_exchange(folder, payload)
             try:
                 first = next(events)
+                import socket
+                self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
                 self._headers(200, "application/x-ndjson; charset=utf-8", None)
                 self.close_connection = True
                 def emit(event):
+                    event["timing"] = {**event.get("timing",{}), "client_emit_unix_ms":round(time.time()*1000,3)}
                     self.wfile.write(json.dumps(event, ensure_ascii=False).encode("utf-8") + b"\n")
                     self.wfile.flush()
                 try:

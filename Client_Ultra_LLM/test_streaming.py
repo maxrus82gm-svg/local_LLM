@@ -17,6 +17,32 @@ import chat_client
 
 
 class HistoryStreamTests(unittest.TestCase):
+    def test_reasoning_persists_separately_and_instances_do_not_mix(self):
+        def reasoning(*args,**kwargs):
+            yield {"type":"reasoning","text":"separate"}
+            yield {"type":"delta","text":"answer"}
+            yield {"type":"done"}
+        with patch.object(web,"stream_chat",side_effect=reasoning):
+            first=list(web.chat_stream_exchange(self.folder,{**self.payload,"instance_id":"1"*32}))[-1]
+        self.assertEqual(first["messages"][-1],{"role":"assistant","content":"answer","reasoning_content":"separate"})
+        self.assertEqual(chat_store.history(self.folder,"m","slot2","kat",instance_id="2"*32),[])
+        self.assertEqual(chat_store.history(self.folder,"m","slot2","kat"),[])
+
+    def test_context_omissions_are_observable_and_do_not_delete_history(self):
+        messages=[{"role":"user" if i%2==0 else "assistant","content":"x"*100} for i in range(20)]
+        selected,info=chat_store.context_for(messages,max_messages=4,max_chars=500,with_info=True)
+        self.assertEqual(info["sent_history_messages"],4)
+        self.assertEqual(info["omitted_messages"],16)
+        self.assertEqual(len(messages),20)
+
+    def test_old_schema_is_migrated_without_losing_legacy_messages(self):
+        import sqlite3
+        from contextlib import closing
+        with closing(sqlite3.connect(self.folder/"chat_history.sqlite3")) as db:
+            db.execute(chat_store._SCHEMA)
+            db.execute("INSERT INTO messages(manager_id,slot_id,model_id,role,content) VALUES('m','slot2','kat','user','old')")
+            db.commit()
+        self.assertEqual(chat_store.history(self.folder,"m","slot2","kat"),[{"role":"user","content":"old"}])
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
@@ -70,7 +96,8 @@ class HistoryStreamTests(unittest.TestCase):
             list(web.chat_stream_exchange(self.folder,{**self.payload,"request_id":"c"*32}))
     def test_long_reply_next_context_does_not_break_manager_limit(self):
         messages=[{"role":"user","content":"Hi"},{"role":"assistant","content":"x"*5000}]
-        self.assertEqual(chat_store.context_for(messages),[])
+        self.assertEqual(chat_store.context_for(messages),messages)
+        self.assertEqual(chat_store.context_for(messages,max_chars=4000),[])
 
     def test_explicit_cancel_prevents_final_sqlite_commit(self):
         with patch.object(web,"stream_chat",side_effect=self.events):
@@ -142,11 +169,11 @@ class FullChainTests(unittest.TestCase):
         upstream=serve(FakeColibri)
         config={'manager_id':'m','display_name':'fake','slots':[{'slot_id':'slot2','api_port':upstream.server_address[1]}]}
         principal={'client_id':'alice','allowed_slots':['slot2']}
-        snapshot={'source':'LIVE_HOST','viewer_id':'alice','slots':[{'slot_id':'slot2','engine_state':'ready','availability':'ready_unreserved','models':['kat']}]}
+        snapshot={'source':'LIVE_HOST','viewer_id':'alice','slots':[{'slot_id':'slot2','instance_id':'legacy-fixture','engine_state':'ready','availability':'ready_unreserved','models':['kat']}]}
         # Keep all validation/select_backend/lock/stream handlers real.
         with patch.object(live_manager,'load_config',return_value=config), \
              patch.object(live_manager,'_authorized_client',return_value=principal), \
-             patch.object(live_manager,'live_snapshot',return_value=snapshot):
+             patch.object(live_manager,'chat_snapshot',return_value=snapshot):
             config.update({'bind_host':'127.0.0.1','listen_port':12345,'cert_file':'dummy','key_file':'dummy',
                            'colibri_root':'dummy','models_root':'dummy','allowed_client_ips':['127.0.0.1']})
             manager=serve(live_manager.make_handler(Path('unused'),config,PairingInbox()))

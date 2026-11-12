@@ -6,6 +6,7 @@ const dialog = byId("setup");
 const adminDialog = byId("admin-dialog");
 let csrf = "";
 let isRefreshing = false;
+let refreshQueued = false;
 let firstSetup = false;
 let lastEnrolledManagerId = "";
 let adminManagers = [];
@@ -59,6 +60,13 @@ function closeSetup() {
 function stat(id, value) { byId(id).textContent = String(value); }
 function controlReason(reason) {
   const labels = {
+    resource_risk_not_permitted:"На сервере не разрешено подтверждать ресурсные риски",
+    requested_output_exceeds_engine_limit:"Запрошенный выход превышает фактический лимит движка; проверьте параметры Colibri",
+    colibri_request_rejected:"Движок отклонил параметры или размер контекста",
+    risk_ack_required:"Необходимо явно подтвердить ресурсный прогноз",
+    risk_confirmation_stale:"Состояние ресурсов изменилось; повторите проверку",
+    slot_selection_changed:"Выбор в слоте изменился другим запросом; обновите данные",
+    slot_in_use:"В слоте есть действующий или неподтверждённый экземпляр",
     owner_go_required:"Владелец ещё не разрешил управление на сервере",
     control_models_required:"Клиенту не выдано право управления моделями",
     runtime_review_required:"Совместимость runtime и ресурсный профиль ещё не подтверждены",
@@ -78,8 +86,118 @@ function controlReason(reason) {
   };
   return labels[reason] ? labels[reason] + " (" + reason + ")" : reason;
 }
+const slotPending=new Set();
+function workspaces(container,manager) {
+  const control=manager.data.control;
+  const catalog=node("section","slot-catalog");
+  catalog.append(node("h3","","КАТАЛОГ МОДЕЛЕЙ"));
+  const known=new Set();
+  for(const model of control.models || []) {
+    if(model.directory_name)known.add(model.directory_name);
+    const entry=node("div","catalog-entry");
+    entry.append(node("strong","",model.name),node("small","",
+      [model.files_present ? "Файлы обнаружены" : "Наличие файлов не подтверждено",
+       model.runtime_checked ? "Runtime проверен" : "Совместимость требует проверки",
+       "Доступен старт: "+["cpu","cuda"].filter(mode=>model.modes?.[mode]?.available).map(mode=>mode.toUpperCase()).join(" / ")+(Object.values(model.modes || {}).some(m=>m.available) ? "" : "требуется допуск"),
+       "Работает экземпляров: "+(model.running_instances || 0)].join(" · ")));
+    catalog.append(entry);
+  }
+  for(const disk of manager.data.models || []) {
+    if(known.has(disk.directory_name))continue;
+    const entry=node("div","catalog-entry");
+    entry.append(node("strong","",disk.directory_name),node("small","","Файлы обнаружены · управляемый профиль не подтверждён"));
+    catalog.append(entry);
+  }
+  container.append(catalog);
+  const area=node("section","working-slots");
+  const heading=node("div","manager-model-head");
+  heading.append(node("h3","","РАБОЧИЕ СЛОТЫ · "+control.slots.length));
+  const add=node("button","btn secondary small","＋ Добавить слот");
+  add.type="button";add.classList.add("add-slot");add.disabled=!control.can_add_slot;
+  add.title=control.can_add_slot ? "Manager назначит слот и свободный порт" : "Необходимо разрешение управления на Manager";
+  add.addEventListener("click",async()=>{add.disabled=true;try{
+    await pairingPost("/api/control",{manager_id:manager.manager_id,op:"add_slot",request_id:crypto.randomUUID().replaceAll("-","")});
+    await refresh(true);
+  }catch(e){setNotice(controlReason(e.message));add.disabled=!control.can_add_slot;}});
+  heading.append(add);area.append(heading);
+  const list=node("div","manager-model-scroll");
+  for(const slot of control.slots) {
+    const key=manager.manager_id+":"+slot.slot_id;
+    const item=(control.instances || []).find(i=>i.slot_id===slot.slot_id&&!i.released);
+    const live=(manager.data.slots || []).find(i=>i.slot_id===slot.slot_id)||{};
+    const line=node("div","manager-model-row working-slot");line.dataset.slotId=slot.slot_id;
+    const info=node("div","manager-model-info");
+    info.append(node("strong","",slot.slot_id+(slot.protected ? " · защищённый" : "")));
+    const select=node("select","slot-model");select.setAttribute("aria-label","Модель "+slot.slot_id);
+    select.append(node("option","","Выберите модель"));select.options[0].value="";
+    for(const model of control.models || []){const option=node("option","",model.name);option.value=model.key;select.append(option);}
+    if(slot.protected) {
+      const names=(live.models || []).join(", ");
+      if(names){const option=node("option","",names);option.value="legacy";select.append(option);select.value="legacy";}
+    }else select.value=slot.model_key || "";
+    select.disabled=slot.protected||!slot.authorized||!control.control_models||!control.enabled||Boolean(item)||slotPending.has(key);
+    const status=node("small","slot-state",item ? item.state+" · "+item.mode+" · "+item.instance_id :
+      slot.protected ? stateLabel(live.engine_state)+" · внешний экземпляр" : "Остановлен · выбран "+slot.mode);
+    info.append(select,status);line.append(info);
+    select.addEventListener("change",async()=>{
+      if(!select.value)return;
+      slotPending.add(key);select.disabled=true;
+      try{await pairingPost("/api/control",{manager_id:manager.manager_id,op:"select",slot_id:slot.slot_id,
+        model_key:select.value,mode:slot.mode,expected_revision:slot.revision,request_id:crypto.randomUUID().replaceAll("-","")});}
+      catch(e){status.textContent=controlReason(e.message);}
+      finally{slotPending.delete(key);await refresh(true);}
+    });
+    for(const title of ["Старт CPU", "Старт CUDA", "Стоп"]) {
+      const mode=title==="Старт CPU" ? "cpu" : "cuda";
+      const button=node("button","btn secondary small manager-model-action",title);button.type="button";
+      const model=(control.models || []).find(m=>m.key===select.value);
+      const capability=model?.modes?.[mode];
+      button.disabled=slotPending.has(key)||(title==="Стоп" ? !item?.can_stop :
+        Boolean(item)||slot.protected||!slot.authorized||!control.control_models||!control.enabled||!model||!capability?.available);
+      button.title=title==="Стоп" ? (item?.can_stop ? "Остановить только этот экземпляр" : "Нет собственного управляемого экземпляра") :
+        (controlReason(capability?.reason)||"Проверить запуск в этом слоте");
+      if(title!=="Стоп" && capability?.forecast) {
+        const forecast=capability.forecast;
+        button.title+=" · Ожидаемый остаток RAM: "+(forecast.ram_after_gib===null ? "неизвестен" : formatNumber(forecast.ram_after_gib)+" GiB")+
+          " · VRAM: "+(forecast.vram_after_gib===null ? "не применяется" : formatNumber(forecast.vram_after_gib)+" GiB")+
+          " · Оценка: "+forecast.estimate_evidence;
+      }
+      button.addEventListener("click",async()=>{
+        slotPending.add(key);button.disabled=true;
+        for(const input of line.querySelectorAll("select,button"))input.disabled=true;
+        try {
+          let body;
+          if(title==="Стоп")body={op:"stop",instance_id:item.instance_id};
+          else {
+            const target={slot_id:slot.slot_id,model_key:select.value,mode};
+            const checked=await pairingPost("/api/control",{manager_id:manager.manager_id,op:"check",...target,request_id:crypto.randomUUID().replaceAll("-","")});
+            let ack=false;
+            if(checked.requires_ack) {
+              const forecast=checked.forecast;
+              const details="Ожидаемый остаток RAM: "+(forecast.ram_after_gib===null ? "неизвестен" : formatNumber(forecast.ram_after_gib)+" GiB")+
+                "; VRAM: "+(forecast.vram_after_gib===null ? "не применяется" : formatNumber(forecast.vram_after_gib)+" GiB")+
+                ". Достоверность: "+forecast.estimate_evidence+". Предупреждения: "+checked.warnings.join(", ");
+              status.textContent=details;
+              if(!checked.risk_ack_allowed)throw Error("resource_risk_not_permitted");
+              ack=confirm(details+". Возможны замедление других моделей и программ сервера. Подтвердить риск этого запуска?");
+              if(!ack)return;
+            }
+            body={op:"start",...target,...(ack ? {risk_ack:true,risk_token:checked.risk_token} : {})};
+          }
+          const response=await pairingPost("/api/control",{manager_id:manager.manager_id,...body,request_id:crypto.randomUUID().replaceAll("-","")});
+          status.textContent=response.state;
+        }catch(e){status.textContent=controlReason(e.message);setNotice(controlReason(e.message));}
+        finally{slotPending.delete(key);await refresh(true);}
+      });
+      line.append(button);
+    }
+    list.append(line);
+  }
+  area.append(list);container.append(area);
+}
 function modelList(container, slots, disk, manager) {
   const control = manager.data.control;
+  if (control && Array.isArray(control.slots)) {workspaces(container,manager);return;}
   const wrapper = node("section", "models-list");
   const heading = node("div", "manager-model-head");
   heading.append(node("h3", "", "МОДЕЛИ И УПРАВЛЕНИЕ"),
@@ -279,8 +397,8 @@ function render(payload) {
       "Не все Manager доступны. Проверьте сеть, сертификат и регистрацию этого компьютера." : "");
   if (chatOpen) renderChatList(payload);
 }
-async function refresh() {
-  if (isRefreshing) return;
+async function refresh(force=false) {
+  if (isRefreshing) {if(force===true)refreshQueued=true;return;}
   isRefreshing = true;
   const button = byId("refresh"); button.disabled = true;
   try {
@@ -290,6 +408,7 @@ async function refresh() {
   } finally {
     isRefreshing = false;
     button.disabled = false;
+    if(refreshQueued){refreshQueued=false;await refresh(true);}
   }
 }
 async function init() {
@@ -534,7 +653,8 @@ function showChats() {
 }
 
 function chatTargetKey(target) {
-  return JSON.stringify([target.manager_id, target.slot_id, target.model_id]);
+  return JSON.stringify([target.manager_id, target.slot_id, target.model_id,
+    ...(target.instance_id && !target.instance_id.startsWith("legacy-") ? [target.instance_id] : [])]);
 }
 function currentChat() {
   return chatItems.find(x => x.key === chatSelected) || null;
@@ -564,7 +684,8 @@ function renderChatList(payload) {
       for (const model of names) {
         const target = {
           manager_id:manager.manager_id, manager_name:manager.name || manager.manager_id,
-          slot_id:slot.slot_id, model_id:model, engine_state:slot.engine_state,
+          slot_id:slot.slot_id, model_id:model, instance_id:slot.instance_id,
+          streaming:manager.data.chat ? manager.data.chat.streaming === true : false, engine_state:slot.engine_state,
           availability:slot.availability, online:true
         };
         target.key = chatTargetKey(target);
@@ -611,6 +732,29 @@ function renderChatList(payload) {
     loadChatHistory();
   }
 }
+function reasoningPanel(text) {
+  const detail = node("details", "reasoning-panel");
+  detail.open = true;
+  detail.classList.toggle("hidden", !byId("chat-show-reasoning").checked);
+  detail.append(node("summary", "", "Рассуждения · отдельный поток модели"), node("div", "reasoning-text", text || ""));
+  return detail;
+}
+let streamMetrics = {};
+function updateMetrics(extra) {
+  streamMetrics = {...streamMetrics, ...extra};
+  byId("chat-metrics").textContent = JSON.stringify(streamMetrics, null, 2);
+}
+function targetFields(target, history=false) {
+  const result = {manager_id:target.manager_id,slot_id:target.slot_id,model_id:target.model_id};
+  if (target.instance_id && (!history || !target.instance_id.startsWith("legacy-"))) result.instance_id=target.instance_id;
+  return result;
+}
+function generationFields() {
+  const maximum=byId("chat-max-tokens").value;
+  return {options:{thinking:byId("chat-thinking").value,reasoning_effort:byId("chat-effort").value,
+    ...(maximum ? {max_output_tokens:Number(maximum)} : {})},
+    context:{max_messages:Number(byId("chat-history-messages").value),max_chars:Number(byId("chat-history-chars").value)}};
+}
 function renderMessages(messages) {
   const holder = byId("chat-messages");
   holder.replaceChildren();
@@ -622,6 +766,7 @@ function renderMessages(messages) {
       const bubble = node("div", "chat-bubble" + (message.role === "user" ? " user" : ""));
       bubble.append(node("small", "", message.role === "user" ? "Вы" : "LLM"),
                     node("div", "", message.content || ""));
+      if (message.reasoning_content) bubble.prepend(reasoningPanel(message.reasoning_content));
       holder.append(bubble);
     }
   }
@@ -633,9 +778,7 @@ async function loadChatHistory() {
   if (chatBusy && key === activeChatKey) return;
   if (!chosen) { renderMessages([]); return; }
   if (!chosen.model_id) { renderMessages([]); return; }
-  const params = new URLSearchParams({
-    manager_id:chosen.manager_id, slot_id:chosen.slot_id, model_id:chosen.model_id
-  });
+  const params = new URLSearchParams(targetFields(chosen, true));
   try {
     const result = await api("/api/chat/history?" + params.toString());
     if (chatSelected === key && !(chatBusy && key === activeChatKey)) renderMessages(result.messages);
@@ -648,8 +791,10 @@ async function submitChat(event) {
   if (chatBusy) return;
   const target = currentChat();
   const message = byId("chat-input").value.trim();
-  if (!chatReady(target) || !message || message.length > 4000) return;
+  if (!chatReady(target) || !message || message.length > 131072) return;
   chatBusy = true;
+  const started=performance.now();
+  streamMetrics={browser_request_unix_ms:performance.timeOrigin+started};
   const targetKey = chatSelected;
   activeChatKey = targetKey;
   byId("chat-send").disabled = true;
@@ -657,14 +802,16 @@ async function submitChat(event) {
   byId("chat-state").textContent = "Запрос выполняется на сервере. Ожидаем настоящий ответ модели…";
   setChatNotice("");
   try {
-    const streaming = byId("chat-stream").checked;
-    if (!chatRetry || chatRetry.key !== targetKey || chatRetry.message !== message) {
-      chatRetry = {key:targetKey,message,id:crypto.randomUUID().replaceAll("-", "")};
+    const streaming = byId("chat-stream").checked && target.streaming !== false;
+    const generation = generationFields();
+    if(target.streaming===false)delete generation.options;
+    if (!chatRetry || chatRetry.key !== targetKey || chatRetry.message !== message || chatRetry.parameters !== JSON.stringify(generation)) {
+      chatRetry = {key:targetKey,message,parameters:JSON.stringify(generation),id:crypto.randomUUID().replaceAll("-", "")};
     }
     let result;
     if (!streaming) {
       result = await pairingPost("/api/chat/send", {
-        manager_id:target.manager_id, slot_id:target.slot_id, model_id:target.model_id, message,
+        ...targetFields(target), ...generation, message,
         request_id:chatRetry.id
       });
     } else {
@@ -672,31 +819,42 @@ async function submitChat(event) {
       byId("chat-cancel").disabled = false;
       const response = await fetch("/api/chat/stream", {method:"POST", signal:chatAbort.signal,
         headers:{"Content-Type":"application/json","X-Ultra-CSRF":csrf},
-        body:JSON.stringify({manager_id:target.manager_id,slot_id:target.slot_id,
-          model_id:target.model_id,message,request_id:chatRetry.id})});
+        body:JSON.stringify({...targetFields(target), ...generation, message,request_id:chatRetry.id})});
       if (!response.ok) {
         const failure = await response.json();
         throw Error(failure.error || String(response.status));
       }
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8", {fatal:true});
-      let pending = "", answer = "", received = 0;
+      let pending = "", answer = "", reasoning = "", received = 0, firstVisible = false;
       const bubble = node("div", "chat-bubble");
       const text = node("div", "");
-      bubble.append(node("small", "", "LLM · поток"), text);
+      const reasoningDetail = reasoningPanel("");
+      reasoningDetail.classList.add("hidden");
+      bubble.append(node("small", "", "LLM · поток"), reasoningDetail, text);
       const holder = byId("chat-messages");
       holder.append(bubble);
       try {
         while (true) {
           const chunk = await reader.read();
-          if (chunk.done) break;
+          if (chunk.done) { pending += decoder.decode(); if (pending.trim()) throw Error("stream_truncated"); break; }
           received += chunk.value.byteLength;
-          if (received > 2*1024*1024) throw Error("stream_too_large");
+          if (received > 64*1024*1024) throw Error("stream_too_large");
           pending += decoder.decode(chunk.value, {stream:true});
           let end;
           while ((end = pending.indexOf("\n")) >= 0) {
             const event = JSON.parse(pending.slice(0, end));
             pending = pending.slice(end+1);
+            if (event.timing) updateMetrics({route:event.timing});
+            if (event.type === "meta") {
+              updateMetrics({engine_limits:event.engine_limits || {},transport_policy:event.transport_policy || {},context:event.context || {}});
+              if (event.context && event.context.omitted_messages) setChatNotice("В контекст не вошло сообщений: " + event.context.omitted_messages + ". Настройки истории доступны выше.");
+            }
+            if (event.type === "reasoning") {
+              reasoning += event.text;
+              reasoningDetail.querySelector(".reasoning-text").textContent = reasoning;
+              reasoningDetail.classList.toggle("hidden", !byId("chat-show-reasoning").checked);
+            }
             if (event.type === "delta") {
               answer += event.text;
               if (chatSelected === targetKey) {
@@ -705,8 +863,14 @@ async function submitChat(event) {
                 byId("chat-state").textContent = "Получаем ответ модели…";
               }
             }
+            if (!firstVisible && chatSelected===targetKey &&
+                (event.type==="delta" || (event.type==="reasoning" && byId("chat-show-reasoning").checked))) {
+              firstVisible=true;
+              updateMetrics({browser_first_dom_update_unix_ms:performance.timeOrigin+performance.now(),browser_first_fragment_ms:performance.now()-started});
+              requestAnimationFrame(() => requestAnimationFrame(() => updateMetrics({browser_first_paint_opportunity_unix_ms:performance.timeOrigin+performance.now()})));
+            }
             if (event.type === "error") throw Error(event.error);
-            if (event.type === "done") result = event;
+            if (event.type === "done") { result = event; updateMetrics({usage:event.usage || {},throughput:event.throughput || {},browser_total_ms:performance.now()-started}); }
           }
         }
         if (!result) throw Error("stream_truncated");
@@ -717,8 +881,7 @@ async function submitChat(event) {
     }
     chatRetry = null;
     if (result.history_reload) {
-      result = await api("/api/chat/history?" + new URLSearchParams({manager_id:target.manager_id,
-        slot_id:target.slot_id,model_id:target.model_id}));
+      result = await api("/api/chat/history?" + new URLSearchParams(targetFields(target,true)));
     }
     if (chatSelected === targetKey) {
       byId("chat-input").value = "";
@@ -727,7 +890,7 @@ async function submitChat(event) {
     }
   } catch (error) {
     byId("chat-state").textContent = "";
-    setChatNotice(error.name === "AbortError" ? "Поток отменён; неполный ответ не сохранён." : "Ошибка ответа: " + error.message);
+    setChatNotice(error.name === "AbortError" ? "Поток отменён; неполный ответ не сохранён." : "Ошибка ответа: " + controlReason(error.message));
   } finally {
     chatBusy = false;
     chatAbort = null;
@@ -740,6 +903,7 @@ byId("nav-overview").addEventListener("click", showOverview);
 byId("nav-chats").addEventListener("click", showChats);
 byId("chat-reload").addEventListener("click", refresh);
 byId("chat-form").addEventListener("submit", submitChat);
+byId("chat-show-reasoning").addEventListener("change", () => { document.querySelectorAll(".reasoning-panel").forEach(x => x.classList.toggle("hidden", !byId("chat-show-reasoning").checked)); });
 byId("chat-cancel").addEventListener("click", async () => {
   if (!chatAbort || !chatRetry) return;
   const abort = chatAbort;

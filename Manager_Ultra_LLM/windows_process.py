@@ -217,9 +217,14 @@ class NativeWindows:
             raise WindowsError("Session job already exists")
         limits = ExtendedLimit()
         # KILL_ON_JOB_CLOSE | JOB_MEMORY | PRIORITY_CLASS; no breakaway allowed.
-        limits.Basic.LimitFlags = 0x2000 | 0x200 | 0x20
+        limits.Basic.LimitFlags = 0x2000 | 0x20
         limits.Basic.PriorityClass = 0x4000  # BELOW_NORMAL_PRIORITY_CLASS
-        limits.JobMemoryLimit = int(private_limit_gib * 2**30)
+        if private_limit_gib is not None:
+            if type(private_limit_gib) not in (int,float) or not 0<private_limit_gib<float('inf'):
+                self.close(handle)
+                raise WindowsError("Invalid configured job memory limit")
+            limits.Basic.LimitFlags |= 0x200
+            limits.JobMemoryLimit = int(private_limit_gib * 2**30)
         if not self.k.SetInformationJobObject(handle, 9, c.byref(limits), c.sizeof(limits)):
             self.close(handle)
             raise WindowsError("Cannot apply job limits; no child started")

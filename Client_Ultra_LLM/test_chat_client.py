@@ -127,7 +127,7 @@ class ChatWebTests(unittest.TestCase):
     def test_turn_context_is_bounded(self):
         messages = [{"role": "user" if i % 2 == 0 else "assistant",
                      "content": "x" * 1800} for i in range(40)]
-        context = chat_store.context_for(messages)
+        context = chat_store.context_for(messages, max_messages=14, max_chars=18000)
         self.assertLessEqual(len(context), 14)
         self.assertLessEqual(sum(len(m["content"]) for m in context), 18000)
 

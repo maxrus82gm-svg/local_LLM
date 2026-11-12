@@ -18,7 +18,7 @@ const model={key:'kat',name:'KAT-Coder V2.5 Dev',directory_name:'KAT',api_ids:['
   modes:{cpu:{available:true},cuda:{available:false,reason:'vram_telemetry_unknown'}}};
 function snapshot(){
   return {configured:true,managers:[{manager_id:'manager-b',name:'Manager B',status:'online',data:{host:'QA B',
-    memory:{state:'live',ddr_generation:'DDR5',installed_gib:64,free_gib:40},models:[{directory_name:'KAT'}],
+    chat:{streaming:true},memory:{state:'live',ddr_generation:'DDR5',installed_gib:64,free_gib:40},models:[{directory_name:'KAT'}],
     slots:Array.from({length:5},(_,i)=>({slot_id:`slot${i+1}`,models:i===0?['legacy']:i===1&&phase==='READY'?['ultra-slot2-kat-cpu']:[],
       engine_state:i===0||i===1&&phase==='READY'?'ready':'not_running',availability:i===0||i===1&&phase==='READY'?'ready_unreserved':'not_running'})),
     control:{models:[{...model,modes:{...model.modes,cpu:{available:phase==='STOPPED'}}}],
@@ -124,5 +124,5 @@ try {
   if(ws)ws.close();
   if(chrome&&chrome.exitCode===null){await delay(500);if(chrome.exitCode===null)chrome.kill();}
   if(server)await new Promise(r=>server.close(r));
-  for(let i=0;i<10;i++){try{await fs.rm(tmp,{recursive:true,force:true});break;}catch{await delay(200);}}
+  for(let i=0;i<10;i++){try{assert(path.resolve(tmp).startsWith(path.resolve(here)+path.sep));await fs.rm(tmp,{recursive:true,force:true});break;}catch{await delay(200);}}
 }

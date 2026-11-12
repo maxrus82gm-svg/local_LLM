@@ -68,6 +68,8 @@ class RunnerSpec:
     instance_root: str = str(ROOT)
     manager_root: str = str(ROOT)
     primary_port: int = 8000
+    instance_id: str | None = None
+    resources: dict = field(default_factory=dict)
 
     def __post_init__(self):
         if (type(self.slot_id) is not str or not re.fullmatch(r"[a-z][a-z0-9_-]{0,31}", self.slot_id)
@@ -77,16 +79,23 @@ class RunnerSpec:
                 or self.port in (8000, 8443, self.primary_port) or self.model_key not in initial_catalogue()
                 or self.backend not in ("cpu", "cuda") or type(self.review) is not dict):
             raise ValueError("Invalid managed runner specification")
+        if self.instance_id is not None and (type(self.instance_id) is not str or not re.fullmatch(r"[a-f0-9]{32}",self.instance_id)):
+            raise ValueError("Invalid instance identity")
+        if type(self.resources) is not dict:
+            raise ValueError("Invalid resource policy")
         for path in (self.project, self.colibri_root, self.models_root, self.instance_root, self.manager_root):
             if not Path(path).is_absolute() or str(path).startswith("\\\\"):
                 raise ValueError("Server-local absolute runner paths required")
 
     @property
     def home(self):
-        return Path(self.instance_root) / "instances" / self.slot_id
+        root=Path(self.instance_root) / "instances" / self.slot_id
+        return root / "sessions" / self.instance_id if self.instance_id else root
 
     @property
     def api_id(self):
+        if self.instance_id:
+            return f"ultra-{self.slot_id[:24]}-{self.model_key[:32]}-{self.backend}-{self.instance_id}"
         return f"ultra-{self.slot_id}-{self.model_key}-{self.backend}"
 
     @property
@@ -159,6 +168,10 @@ def verify_review(plan):
                 or type(review.get("vram_gib")) not in (int, float)
                 or not 0 < review["vram_gib"] < 1024):
             raise StartDenied("cuda_runtime_or_measurement_unverified")
+        from resource_policy import read_vram
+        vram=read_vram()
+        if vram is None:raise StartDenied("vram_telemetry_unknown")
+        if vram["free_gib"]<review["vram_gib"]:raise StartDenied("insufficient_vram")
 
 
 def validate_model(model, root, profile):
@@ -247,6 +260,12 @@ def read_state():
 
 
 def policy_check(free_gib):
+    if _SPEC.get() is not None:
+        if type(free_gib) not in (int,float) or not 0<=free_gib<float("inf"):
+            raise StartDenied("resource_telemetry_unknown")
+        floor=_SPEC.get().resources.get("min_free_at_start_gib",0)
+        if free_gib<floor:raise StartDenied("resources_changed_requires_confirmation")
+        return
     if type(free_gib) not in (int, float) or not 24 <= free_gib < float("inf"):
         raise StartDenied("FIRST_CPU_14G requires at least 24 GiB actually available RAM")
 
@@ -334,7 +353,7 @@ def make_plan(native):
     hashes = {str(p): digest(p) for p in (
         launcher, launcher.with_name("openai_server.py"), launcher.with_name("version.py"),
         *metadata, *runtime_files)}
-    return {"instance": setting("slot_id"), "port": setting("port"), "model_key": setting("model_key"),
+    plan = {"instance": setting("slot_id"), "port": setting("port"), "model_key": setting("model_key"),
             "model": str(model), "model_id": setting("api_id"), "backend": setting("backend"), "policy": POLICY,
             "primary": primary, "primary_engine": engine_record, "owner_sid": owner,
             "source_engine": str(engine), "launcher": str(launcher),
@@ -345,6 +364,10 @@ def make_plan(native):
                           "min_available_before_gib": 24, "free_floor_gib": 10,
                           "threads": 2, "context": 2048, "max_output": 256, "cap": 8,
                           "range_evidence": "unmeasured_first_trial"}}
+    if _SPEC.get():
+        plan.update(policy="MODEL_REVIEW",resources=_SPEC.get().resources,
+                    launch_options=_SPEC.get().review.get("launch",{}))
+    return plan
 
 
 def command_and_environment(plan):
@@ -373,6 +396,29 @@ def command_and_environment(plan):
         PYTHONDONTWRITEBYTECODE="1", PYTHONNOUSERSITE="1", PYTHONUNBUFFERED="1",
         OMP_NUM_THREADS="2", OMP_THREAD_LIMIT="2", OPENBLAS_NUM_THREADS="2", MKL_NUM_THREADS="2",
     )
+    if _SPEC.get() is not None:
+        launch=_SPEC.get().review.get("launch",{})
+        if type(launch) is not dict or set(launch)-{"cache_ram_gib","context_tokens","max_output_tokens","threads","thinking","load_timeout_seconds"}:
+            raise StartDenied("invalid_launch_policy")
+        for flag in ("--ram","--ctx","--ngen"):
+            index=command.index(flag);del command[index:index+2]
+        command.remove("--no-think")
+        env.pop("COLI_THINK",None)
+        for name in ("OMP_NUM_THREADS","OMP_THREAD_LIMIT","OPENBLAS_NUM_THREADS","MKL_NUM_THREADS"):
+            env.pop(name,None)
+        for key,flag in (("cache_ram_gib","--ram"),("context_tokens","--ctx"),("max_output_tokens","--ngen")):
+            value=launch.get(key)
+            if value is not None:
+                if type(value) is not int or not 1<=value<=2147483647:raise StartDenied("invalid_launch_policy")
+                command.extend([flag,str(value)])
+        if launch.get("thinking") is not None:
+            if type(launch["thinking"]) is not bool:raise StartDenied("invalid_launch_policy")
+            env["COLI_THINK"]="1" if launch["thinking"] else "0"
+            if not launch["thinking"]:command.append("--no-think")
+        if launch.get("threads") is not None:
+            value=launch["threads"]
+            if type(value) is not int or not 1<=value<=1024:raise StartDenied("invalid_launch_policy")
+            env.update({k:str(value) for k in ("OMP_NUM_THREADS","OMP_THREAD_LIMIT","OPENBLAS_NUM_THREADS","MKL_NUM_THREADS")})
     return command, env
 
 
@@ -458,6 +504,8 @@ def supervise(session):
     require_execution()
     if not re.fullmatch(r"[0-9a-f]{32}", session):
         raise StartDenied("Invalid session")
+    if _SPEC.get() and _SPEC.get().instance_id and session!=_SPEC.get().instance_id:
+        raise StartDenied("Instance/session mismatch")
     native = NativeWindows()
     with native.mutex(setting("mutex")), file_lock():
         plan = None
@@ -487,7 +535,8 @@ def supervise(session):
                     raise StartDenied("Reviewed source/model metadata changed during preparation")
             if native.k.WaitForSingleObject(event, 0) == 0:
                 raise OwnerCancelled("owner cancelled preparation")
-            job = native.job(rf"Global\UltraLLM-{setting('slot_id')}-job-{session}", 14)
+            cap=_SPEC.get().resources.get("job_limit_gib") if _SPEC.get() else 14
+            job = native.job(rf"Global\UltraLLM-{setting('slot_id')}-job-{session}", cap)
             command, env = command_and_environment(plan)
             log = safe_write_path(Path(plan["paths"]["logs"]) / f"{session}.stdout.log")
             error_log = safe_write_path(Path(plan["paths"]["logs"]) / f"{session}.stderr.log")
@@ -500,16 +549,21 @@ def supervise(session):
                 write_json(plan["paths"]["pid"], {
                     "instance": setting("slot_id"), "session": session, "supervisor": state["supervisor"],
                     "gateway": gateway, "port": setting("port")})
-                deadline = time.monotonic() + 900
+                load_timeout=_SPEC.get().review.get("launch",{}).get("load_timeout_seconds",900) if _SPEC.get() else 900
+                if type(load_timeout) is not int or not 1<=load_timeout<=3600:raise StartDenied("invalid_launch_timeout")
+                deadline = time.monotonic() + load_timeout
                 low_samples = 0
                 while native.alive(gateway_handle):
                     state["updated_utc"] = stamp()
                     free = native.memory()["free_gib"]
                     state["free_gib"] = free
-                    low_samples = low_samples + 1 if free < 10 else 0
-                    if native.k.WaitForSingleObject(event, 0) == 0 or low_samples >= 2:
+                    threshold=_SPEC.get().resources.get("ram_warning_gib",10) if _SPEC.get() else 10
+                    low_samples = low_samples + 1 if free < threshold else 0
+                    state["resource_warnings"]=["low_ram"] if low_samples else []
+                    owner_stop=native.k.WaitForSingleObject(event,0)==0
+                    if owner_stop or (_SPEC.get() is None and low_samples >= 2):
                         state["state"] = "STOPPING"
-                        state["reason"] = "owner stop" if low_samples < 2 else "low server RAM"
+                        state["reason"] = "owner stop" if owner_stop else "low server RAM"
                         break
                     verify_primary(native, plan)
                     engines = []
@@ -641,7 +695,7 @@ def run(action, *, acknowledge=False, wait=900, session_id=None):
     current = status(native)
     if current.get("supervisor_verified"):
         raise StartDenied("Colibri2 already has a verified supervisor")
-    session = session_id or uuid.uuid4().hex
+    session = session_id or (_SPEC.get().instance_id if _SPEC.get() else None) or uuid.uuid4().hex
     if not re.fullmatch(r"[a-f0-9]{32}", session):
         raise StartDenied("Invalid session")
     # Parent does not materialize or overwrite instance files before lock owner.

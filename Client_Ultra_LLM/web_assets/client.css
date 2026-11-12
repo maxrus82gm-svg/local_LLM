@@ -81,3 +81,7 @@ dialog{color:#ebf1fc;background:transparent;border:0;max-width:min(650px,calc(10
 .chat-stream-options{display:flex;gap:14px;align-items:center;padding:8px 20px;color:#a7b7cb;font-size:12px}
 @media(max-width:900px){.manager-memory-summary{margin-left:0;text-align:left;flex:1 1 250px}}
 @media(max-width:730px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.chat-settings{padding:8px 20px;color:#a7b7cb;font-size:12px}.chat-settings label{display:inline-flex;gap:6px;align-items:center;margin:8px}.chat-settings input[type=number]{width:125px}.chat-settings pre{white-space:pre-wrap;max-height:240px;overflow:auto}.reasoning-panel{padding:10px;background:#142032;border:1px solid #526584;border-radius:8px;color:#aabfd8;margin-bottom:10px}.reasoning-text{white-space:pre-wrap;margin-top:8px}
+
+.slot-catalog{margin-bottom:18px}.slot-catalog h3,.working-slots h3{font-size:11px;letter-spacing:1px;color:#a7b4cb}.catalog-entry{display:flex;justify-content:space-between;gap:14px;padding:8px;border-bottom:1px solid #29374a}.catalog-entry small{color:#8da1b8}.slot-model{width:100%;padding:7px;background:#172332;color:#e4edfa;border:1px solid #526584;border-radius:6px}.working-slot{min-width:720px}.slot-state{overflow-wrap:anywhere}

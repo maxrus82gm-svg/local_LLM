@@ -6,7 +6,7 @@ ambiguous instances remain quarantined until verified runner cleanup; recovery
 never adopts or kills a process by name/PID alone.
 """
 from contextlib import closing
-from dataclasses import asdict
+from dataclasses import asdict, replace
 import json
 import math
 from pathlib import Path
@@ -17,6 +17,8 @@ import time
 import uuid
 
 from resource_catalog import initial_catalogue
+from resource_policy import assess
+from slot_registry import SlotRegistry
 from colibri2_runner import RunnerSpec, configured
 import colibri2_runner as runner
 
@@ -37,23 +39,12 @@ class ColibriBackend:
         # ModelControl checks configured host before invoking this adapter.
         from windows_process import NativeWindows
         native = NativeWindows()
-        vram = None
-        import os
-        import subprocess
-        executable = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "nvidia-smi.exe"
-        if executable.is_file():
-            try:
-                result = subprocess.run([str(executable), "--id=0", "--query-gpu=memory.total,memory.used,memory.free",
-                    "--format=csv,noheader,nounits"], capture_output=True, text=True, timeout=5,
-                    check=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-                total, used, free = map(float, result.stdout.strip().split(","))
-                if all(number(v) for v in (total, used, free)) and total > 0 and used + free <= total + 2:
-                    vram = free / 1024
-            except (ValueError, OSError, subprocess.SubprocessError):
-                pass
+        from resource_policy import read_vram
+        gpu=read_vram()
         return {**native.memory(), "ports": [r["port"] for r in native.listeners()],
                 "sampled": time.monotonic(), "verified": True,
-                "vram_free_gib": vram}
+                "vram_free_gib":gpu["free_gib"] if gpu else None,
+                "vram_total_gib":gpu["total_gib"] if gpu else None}
 
     def preflight(self, spec):
         with configured(spec):
@@ -92,6 +83,7 @@ class ModelControl:
         self.backend = backend or ColibriBackend()
         self.dispatch = dispatch or self._dispatch
         self.db_path = None
+        self.registry = SlotRegistry(config)
         options = config.get("control", {})
         if options.get("owner_go") is True:
             if backend is None:
@@ -112,6 +104,7 @@ class ModelControl:
                 db.execute("CREATE TABLE IF NOT EXISTS instances (id TEXT PRIMARY KEY, slot TEXT NOT NULL, model TEXT NOT NULL, mode TEXT NOT NULL, owner TEXT NOT NULL, state TEXT NOT NULL, released INTEGER NOT NULL, spec TEXT NOT NULL, reason TEXT, created REAL NOT NULL)")
                 db.execute("CREATE UNIQUE INDEX IF NOT EXISTS reserved_slot ON instances(slot) WHERE released=0")
                 db.execute("CREATE TABLE IF NOT EXISTS requests (owner TEXT, id TEXT, fingerprint TEXT NOT NULL, instance TEXT NOT NULL, PRIMARY KEY(owner,id))")
+                self.registry.initialize(db)
                 db.commit()
 
     @staticmethod
@@ -145,26 +138,43 @@ class ModelControl:
             if row and row[0] != "READY":
                 raise ControlError("instance_not_ready")
 
-    def _gate(self, key, mode, telemetry, reserved, vram_reserved=0):
-        review = self.config.get("control", {}).get("reviews", {}).get(key, {}).get(mode, {})
-        if review.get("evidence") not in ("measured", "bounded_owner_trial") or not review.get("source_hashes"):
+    def chat_binding(self, slot_id):
+        if self.db_path:
+            with self.db() as db:
+                row = db.execute("SELECT id,state FROM instances WHERE slot=? AND released=0", (slot_id,)).fetchone()
+            if row:
+                if row[1] != "READY":
+                    raise ControlError("instance_not_ready")
+                return row[0]
+        return None
+
+    def effective_principal(self, principal):
+        if not self.db_path:return principal
+        with self.db() as db:return self.registry.principal(db,principal)
+
+    def runtime_config(self,current):
+        if not self.db_path:return current
+        with self.db() as db:
+            slots=self.registry.definitions(db)
+            clients=[self.registry.principal(db,p) for p in current["clients"]]
+        return {**current,"slots":slots,"clients":clients}
+
+    def _gate(self,key,mode,telemetry,rows):
+        review=self.config.get("control",{}).get("reviews",{}).get(key,{}).get(mode,{})
+        if review.get("evidence") not in ("measured","bounded_owner_trial") or not review.get("source_hashes"):
             raise ControlError("runtime_review_required")
-        if (telemetry.get("verified") is not True or not number(telemetry.get("free_gib"))
-                or not number(telemetry.get("sampled"))
-                or not 0 <= time.monotonic() - telemetry["sampled"] <= 5
-                or type(telemetry.get("ports")) is not list):
-            raise ControlError("resource_telemetry_unknown", 503)
-        # First bounded trial retains reviewed 14 GiB job cap + 10 GiB headroom.
-        if telemetry["free_gib"] - reserved*14 < 24:
-            raise ControlError("insufficient_ram")
-        if mode == "cuda":
-            need, free = review.get("vram_gib"), telemetry.get("vram_free_gib")
-            if review.get("evidence") != "measured" or not number(need) or need <= 0:
-                raise ControlError("cuda_measurement_unverified")
-            if not number(free):
-                raise ControlError("vram_telemetry_unknown", 503)
-            if free - vram_reserved < need + 1:
-                raise ControlError("insufficient_vram")
+        reservations=[]
+        for row in rows:
+            if row["released"]:continue
+            spec=json.loads(row["spec"])
+            resources=spec.get("resources") or {
+                "ram_gib":spec.get("review",{}).get("ram_gib"),
+                "vram_gib":spec.get("review",{}).get("vram_gib") if row["mode"]=="cuda" else 0}
+            reservations.append({**resources,"state":row["state"]})
+        try:return assess(self.config,review,mode,telemetry,reservations)
+        except ValueError as error:
+            reason=str(error)
+            raise ControlError(reason,503 if reason.endswith("unknown") else 409) from None
 
     def _rows(self, db):
         return [dict(zip(("instance_id", "slot_id", "model_key", "mode", "owner", "state",
@@ -192,29 +202,36 @@ class ModelControl:
     @staticmethod
     def _public(row, principal):
         return {k:row[k] for k in ("instance_id", "slot_id", "model_key", "mode", "state", "reason")} | {
-            "model_id": f"ultra-{row['slot_id']}-{row['model_key']}-{row['mode']}",
+            "model_id": RunnerSpec(**json.loads(row["spec"])).api_id,
             "released": bool(row["released"]),
             "can_stop": row["owner"] == principal["client_id"] and not row["released"]
                         and row["state"] in ("STARTING", "READY") and principal.get("control_models") is True}
 
     def catalog(self, principal):
+        principal=self.effective_principal(principal)
+        definitions=self.config["slots"]
         instances = []
         all_rows = []
         if self.db_path:
             with self.db() as db:
                 db.execute("BEGIN IMMEDIATE")
                 self._sync(db)
+                definitions=self.registry.definitions(db)
                 all_rows = self._rows(db)
                 visible = [r for r in all_rows if not r["released"]]
-                active_models = {r["model_key"] for r in visible}
+                active_slots = {r["slot_id"] for r in visible}
                 latest = {}
                 for row in sorted(all_rows, key=lambda r:r["created"], reverse=True):
-                    if row["released"] and row["model_key"] not in active_models:
-                        latest.setdefault(row["model_key"], row)
+                    if row["released"] and row["slot_id"] not in active_slots:
+                        latest.setdefault(row["slot_id"], row)
                 instances = [self._public(r, principal) for r in [*visible, *latest.values()]
                              if r["slot_id"] in principal["allowed_slots"]]
                 db.commit()
         models = []
+        checks={}
+        if self.db_path:
+            with self.db() as db:
+                checks={(r[0],r[1]):(r[2],r[3]) for r in db.execute("SELECT * FROM model_checks")}
         telemetry = None
         from server_preflight import read_profiles
         profiles = read_profiles(Path(self.config.get("colibri_root", ".")) / "ULTRA-CONTROL.py")
@@ -225,45 +242,80 @@ class ModelControl:
             for mode in ("cpu", "cuda"):
                 try:
                     self._auth(principal)
-                    if any(r["model_key"] == key and not r["released"] for r in all_rows):
-                        raise ControlError("model_already_managed")
-                    reserved = sum(not r["released"] for r in all_rows)
                     if telemetry is None:
                         telemetry = self.backend.telemetry()
                     t = telemetry
-                    self._gate(key, mode, t, reserved, self._vram_reserved(all_rows))
+                    assessment=self._gate(key, mode, t, all_rows)
                     if not any(not s.get("protected") and s["slot_id"] != "slot1"
                                and s["api_port"] != 8000 and s["slot_id"] in principal["allowed_slots"]
                                and s["api_port"] not in t["ports"]
                                and not any(i["slot_id"] == s["slot_id"] and not i["released"] for i in all_rows)
-                               for s in self.config["slots"]):
+                               for s in definitions):
                         raise ControlError("no_free_authorized_slot")
-                    modes[mode] = {"available": True, "reason": None}
+                    modes[mode] = {"available":True,"reason":None,**{k:assessment[k] for k in ("forecast","warnings","requires_ack","risk_ack_allowed")}}
                 except ControlError as error:
                     modes[mode] = {"available": False, "reason": error.reason}
                 except Exception:
                     modes[mode] = {"available": False, "reason": "runtime_or_telemetry_unverified"}
             profile = profiles.get(choice.profile, {})
+            folder=Path(self.config.get("models_root","."))/str(profile.get("folder","__missing__"))
+            root=Path(self.config.get("models_root",".")).resolve()
+            present=bool(profile) and folder.resolve().is_relative_to(root) and folder.is_dir()
+            checked={mode:checks.get((key,mode)) for mode in ("cpu","cuda")}
+            reviewed=self.config.get("control",{}).get("reviews",{}).get(key,{})
+            compatible=any(value and value[0]==json.dumps(reviewed.get(mode,{}),sort_keys=True) for mode,value in checked.items())
             models.append({"key": key, "name": choice.display_name, "modes": modes,
+                "files_present":present,"runtime_checked":compatible,
+                "running_instances":sum(r["model_key"]==key and r["state"]=="READY" and not r["released"] for r in all_rows),
                 "directory_name": profile.get("folder"), "api_ids": [profile["model_id"]] if profile.get("model_id") else []})
         return {"manager_id": self.config["manager_id"], "models": models, "instances": instances,
-                "control_models": principal.get("control_models") is True}
+                "enabled":self.db_path is not None,
+                "control_models": principal.get("control_models") is True,
+                "slots":[{**{k:v for k,v in item.items() if k!="creator"},
+                          "authorized":item["slot_id"] in principal["allowed_slots"],
+                          "model_key":item.get("model_key") if item["slot_id"] in principal["allowed_slots"] else None}
+                         for item in definitions], "can_add_slot":self.db_path is not None and principal.get("control_models") is True}
+
+    def _model_allowed(self,principal,key,mode):
+        if type(key) is not str or key not in initial_catalogue() or mode not in ("cpu","cuda"):
+            raise ControlError("invalid_model_or_mode",400)
+        if principal.get("allowed_models") is not None and key not in principal["allowed_models"]:
+            raise ControlError("model_not_authorized",403)
 
     def handle(self, principal, payload):
         self._auth(principal)
+        principal=self.effective_principal(principal)
         op = payload.get("op") if type(payload) is dict else None
         fields = {"start": {"op", "model_key", "mode", "request_id"},
                   "check": {"op", "model_key", "mode", "request_id"},
-                  "stop": {"op", "instance_id", "request_id"}}
-        if (type(op) is not str or op not in fields or set(payload) != fields[op]
+                  "stop": {"op", "instance_id", "request_id"},
+                  "add_slot":{"op","request_id"},
+                  "select":{"op","slot_id","model_key","mode","request_id"}}
+        if (type(op) is not str or op not in fields or (not fields[op] <= set(payload) or set(payload)-fields[op]-({"slot_id","risk_ack","risk_token"} if op in ("start","check") else {"expected_revision"} if op=="select" else set()))
                 or type(payload["request_id"]) is not str or not re.fullmatch(r"[a-f0-9]{32}", payload["request_id"])):
             raise ControlError("invalid_control_fields", 400)
+        if "risk_ack" in payload and type(payload["risk_ack"]) is not bool:raise ControlError("invalid_risk_ack",400)
         owner = principal["client_id"]
         fingerprint = json.dumps(payload, sort_keys=True)
         with self.db() as db:
             db.execute("BEGIN IMMEDIATE")
             self._sync(db)
             rows = self._rows(db)
+            definitions=self.registry.definitions(db)
+            cross=db.execute("SELECT fingerprint FROM requests WHERE owner=? AND id=?",(owner,payload["request_id"])).fetchone() if op in ("select","add_slot") else db.execute("SELECT fingerprint FROM slot_requests WHERE owner=? AND id=?",(owner,payload["request_id"])).fetchone()
+            if cross:raise ControlError("request_id_conflict")
+            if op in ("select","add_slot"):
+                if op=="select":self._model_allowed(principal,payload["model_key"],payload["mode"])
+                try:
+                    telemetry=self.backend.telemetry() if op=="add_slot" else {}
+                    if op=="add_slot" and (telemetry.get("verified") is not True or type(telemetry.get("ports")) is not list
+                            or not number(telemetry.get("sampled")) or not 0<=time.monotonic()-telemetry["sampled"]<=5):
+                        raise ControlError("resource_telemetry_unknown",503)
+                    result=self.registry.action(db,principal,payload,telemetry,rows)
+                except PermissionError as error:raise ControlError(str(error),403) from None
+                except ValueError as error:raise ControlError(str(error)) from None
+                db.commit()
+                return {"manager_id":self.config["manager_id"],**result}
             previous = db.execute("SELECT fingerprint,instance FROM requests WHERE owner=? AND id=?",
                                   (owner, payload["request_id"])).fetchone()
             if previous:
@@ -276,25 +328,26 @@ class ModelControl:
                 return {"manager_id": self.config["manager_id"], **self._public(row, principal)}
             if op in ("start", "check"):
                 key, mode = payload["model_key"], payload["mode"]
-                if type(key) is not str or key not in initial_catalogue() or mode not in ("cpu", "cuda"):
-                    raise ControlError("invalid_model_or_mode", 400)
-                if principal.get("allowed_models") is not None and key not in principal["allowed_models"]:
-                    raise ControlError("model_not_authorized", 403)
-                if any(r["model_key"] == key and not r["released"] for r in rows):
-                    raise ControlError("model_already_managed")
+                self._model_allowed(principal,key,mode)
                 try:
                     telemetry = self.backend.telemetry()
                 except Exception:
                     raise ControlError("resource_telemetry_unknown", 503) from None
-                self._gate(key, mode, telemetry, sum(not r["released"] for r in rows), self._vram_reserved(rows))
-                slot = next((s for s in self.config["slots"] if not s.get("protected")
+                assessment=self._gate(key,mode,telemetry,rows)
+                requested=payload.get("slot_id")
+                if requested is not None:
+                    if type(requested) is not str or not any(s["slot_id"]==requested for s in definitions):raise ControlError("unknown_slot",404)
+                    if requested not in principal["allowed_slots"]:raise ControlError("slot_not_authorized",403)
+                    if any(s["slot_id"]==requested and s["protected"] for s in definitions):raise ControlError("legacy_slot_protected",403)
+                slot = next((s for s in definitions if (requested is None or s["slot_id"]==requested) and not s.get("protected")
                     and s["slot_id"] != "slot1" and s["api_port"] != 8000
                     and s["slot_id"] in principal["allowed_slots"]
                     and s["api_port"] not in telemetry["ports"]
                     and not any(r["slot_id"] == s["slot_id"] and not r["released"] for r in rows)), None)
                 if slot is None:
                     raise ControlError("no_free_authorized_slot")
-                spec = self._spec(slot, key, mode)
+                identity=uuid.uuid4().hex
+                spec = replace(self._spec(slot,key,mode),instance_id=identity,resources=assessment["policy"])
                 try:
                     self.backend.preflight(spec)
                 except ControlError:
@@ -305,10 +358,18 @@ class ModelControl:
                                       "cuda_runtime_or_measurement_unverified"):
                         reason = "runtime_preflight_unverified"
                     raise ControlError(reason) from None
+                db.execute("INSERT OR REPLACE INTO model_checks VALUES(?,?,?,?)",(key,mode,json.dumps(spec.review,sort_keys=True),time.time()))
                 if op == "check":
+                    result={"manager_id":self.config["manager_id"],"state":"CHECKED","slot_id":slot["slot_id"],
+                            **{k:assessment[k] for k in ("forecast","warnings","requires_ack","risk_ack_allowed")}}
+                    if assessment["requires_ack"] and assessment["risk_ack_allowed"]:
+                        result["risk_token"]=self.registry.risk_token(db,principal,slot["slot_id"],key,mode,assessment)
                     db.commit()
-                    return {"manager_id": self.config["manager_id"], "state": "CHECKED", "slot_id": slot["slot_id"]}
-                identity = uuid.uuid4().hex
+                    return result
+                try:self.registry.confirm_risk(db,principal,payload,slot["slot_id"],assessment)
+                except PermissionError as error:raise ControlError(str(error),403) from None
+                except ValueError as error:raise ControlError(str(error)) from None
+                db.execute("UPDATE slots SET model_key=?,mode=?,revision=revision+1 WHERE slot_id=?",(key,mode,slot["slot_id"]))
                 row = {"instance_id": identity, "slot_id": slot["slot_id"], "model_key": key,
                        "mode": mode, "owner": owner, "state": "STARTING", "released": False,
                        "reason": None, "created": time.time(), "spec": json.dumps(asdict(spec))}
@@ -329,6 +390,11 @@ class ModelControl:
         def perform():
             try:
                 getattr(self.backend, op)(spec, identity)
+                status=self.backend.status(spec,identity)
+                with self.db() as db:
+                    db.execute("UPDATE instances SET state=?,reason=?,released=? WHERE id=?",
+                        (status["state"],status.get("reason"),int(status.get("released") is True),identity))
+                    db.commit()
             except Exception:
                 # Never release a slot on an ambiguous launch/stop result.
                 with self.db() as db:

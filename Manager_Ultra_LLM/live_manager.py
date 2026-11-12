@@ -23,12 +23,54 @@ import socket
 import ssl
 import subprocess
 import threading
+import time
 import urllib.error
 import urllib.request
 
 from pairing_inbox import PairingInbox
 from chat_runtime import ChatError, validate_request, select_backend, proxy_chat, proxy_stream
 from control_runtime import ModelControl, ControlError
+from chat_settings import policy as chat_policy, upstream_options
+
+
+def _chat_listener(port):
+    """Native selected-port identity; no PowerShell, RAM or other-slot probes."""
+    from windows_process import NativeWindows
+    native = NativeWindows()
+    owners = {row["pid"] for row in native.listeners() if row["port"] == port}
+    if len(owners) != 1:
+        raise ChatError("slot_process_unverified", 409)
+    with native.process(owners.pop()) as handle:
+        identity = native.identity(handle)
+    encoded = json.dumps(identity, sort_keys=True).encode()
+    return identity["pid"], "legacy-" + hashlib.sha256(encoded).hexdigest()[:32]
+
+
+def chat_snapshot(config, principal, slot_id):
+    slots = [s for s in config["slots"] if s["slot_id"] == slot_id]
+    if not slots:
+        raise ChatError("unknown_slot", 404)
+    if slot_id not in principal["allowed_slots"]:
+        raise ChatError("slot_not_authorized", 403)
+    port = slots[0]["api_port"]
+    pid, identity = _chat_listener(port)
+    health = _local_api_json(port, "/health")
+    models = _local_api_json(port, "/v1/models")
+    row = {"slot_id": slot_id, "pid": pid, "instance_id": identity, "models": [],
+           "engine_state": "unknown", "availability": "unknown"}
+    if isinstance(health, dict) and health.get("status") == "ok":
+        row["engine_state"] = "ready"
+        q = health.get("scheduler")
+        if isinstance(q, dict) and all(type(q.get(k)) is int and q[k] >= 0 for k in ("active","queued","capacity")):
+            row["availability"] = "ready_unreserved" if q["capacity"] > q["active"] and q["queued"] == 0 else "busy"
+    if isinstance(models, dict) and isinstance(models.get("data"), list):
+        row["models"] = [m["id"] for m in models["data"] if isinstance(m,dict) and type(m.get("id")) is str]
+    # Verify the same process still owns the port after the metadata reads.
+    if _chat_listener(port) != (pid, identity):
+        raise ChatError("slot_process_changed", 409)
+    return {"source":"LIVE_HOST", "viewer_id":principal["client_id"], "slots":[row],
+            "engine_limits": {k:health[k] for k in ("context_tokens","max_tokens")
+                              if isinstance(health,dict) and type(health.get(k)) is int}}
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
 _LOG = logging.getLogger("ultra-live-manager")
@@ -79,6 +121,10 @@ def load_config(file: Path):
     if type(port) is not int or not (1024 <= port <= 65535):
         raise ValueError("Invalid listen_port")
     slots = raw.get("slots")
+    if slots is None:
+        from launch_contract import initial_instances
+        slots=[{"slot_id":s.slot_id,"api_port":s.port,"protected":s.is_legacy} for s in initial_instances()]
+        raw["slots"]=slots
     if not isinstance(slots, list) or not slots:
         raise ValueError("No slots")
     ids, ports = set(), set()
@@ -117,6 +163,22 @@ def load_config(file: Path):
     if not isinstance(clients, list) or not clients:
         raise ValueError("No client credentials")
     client_ids, token_hashes = set(), set()
+    # Durable server-issued slot IDs are also valid pairing grants. Definitions
+    # and ports stay in the controller DB; no client supplies a port or path.
+    known_ids=set(ids)
+    control_options=raw.get("control",{})
+    if type(control_options) is dict and control_options.get("owner_go") is True:
+        import sqlite3
+        from contextlib import closing
+        state_dir=control_options.get("state_dir")
+        if type(state_dir) is str and Path(state_dir).is_absolute():
+            database=Path(state_dir)/"control.sqlite3"
+            if database.is_file() and not database.is_symlink():
+                try:
+                    with closing(sqlite3.connect(database.resolve().as_uri()+"?mode=ro",uri=True,timeout=1)) as db:
+                        known_ids.update(r[0] for r in db.execute("SELECT slot_id FROM slots") if type(r[0]) is str and _ID.fullmatch(r[0]))
+                except sqlite3.Error:
+                    raise ValueError("Dynamic slot registry unavailable") from None
     for client in clients:
         if not isinstance(client, dict):
             raise ValueError("Invalid client")
@@ -137,7 +199,7 @@ def load_config(file: Path):
         client_ids.add(client["client_id"])
         token_hashes.add(digest)
         allowed = client.get("allowed_slots")
-        if not isinstance(allowed, list) or any(x not in ids for x in allowed):
+        if not isinstance(allowed, list) or any(x not in known_ids for x in allowed):
             raise ValueError("Invalid client access list")
     control = raw.get("control", {})
     if type(control) is not dict or type(control.get("owner_go", False)) is not bool:
@@ -152,6 +214,9 @@ def load_config(file: Path):
                 raise ValueError("Server-local control paths required")
         if type(control.get("reviews", {})) is not dict:
             raise ValueError("Invalid runtime reviews")
+    chat_policy(raw)
+    from resource_policy import validate_settings
+    validate_settings(raw)
     return raw
 
 
@@ -370,7 +435,7 @@ def make_handler(config_file, config, inbox, *, controller=None):
             if self.client_address[0] not in current["allowed_client_ips"]:
                 self._reply(403, {"error": "source_not_permitted"})
                 return None
-            return current
+            return controller.runtime_config(current)
 
         def _admin(self, current):
             client = _authorized_client(current, self.headers.get("Authorization", ""))
@@ -414,6 +479,17 @@ def make_handler(config_file, config, inbox, *, controller=None):
                 try:
                     data = live_snapshot(current, client)
                     data["control"] = controller.catalog(client)
+                    by_slot = {i["slot_id"]:i for i in data["control"].get("instances",[]) if not i.get("released")}
+                    for row in data["slots"]:
+                        if row["slot_id"] in by_slot:
+                            row["instance_id"] = by_slot[row["slot_id"]]["instance_id"]
+                        elif row.get("engine_state") == "ready" and row["slot_id"] in client["allowed_slots"]:
+                            try:
+                                row["instance_id"] = _chat_listener(row["api_port"])[1]
+                            except Exception:
+                                row["instance_id"] = None
+                    data["chat"] = {"streaming":True, "reasoning_events":True,
+                                    "transport_policy":chat_policy(current)}
                     self._reply(200, data)
                 except Exception as error:
                     _LOG.exception("Snapshot failed: %s", type(error).__name__)
@@ -446,6 +522,8 @@ def make_handler(config_file, config, inbox, *, controller=None):
             return self._reply(404, {"error": "not_found"})
 
         def do_POST(self):
+            arrived = time.perf_counter()
+            manager_received = round(time.time()*1000, 3)
             current = self._current()
             if current is None:
                 return
@@ -490,7 +568,8 @@ def make_handler(config_file, config, inbox, *, controller=None):
                     current, self.headers.get("Authorization", ""))
                 if principal is None:
                     return self._reply(401, {"error": "unauthorized"})
-                body = self._json_post(limit=48 * 1024)
+                policy = chat_policy(current)
+                body = self._json_post(limit=policy["request_bytes"])
                 if body is None:
                     return
                 try:
@@ -501,20 +580,38 @@ def make_handler(config_file, config, inbox, *, controller=None):
                         if type(request_id) is not str or not re.fullmatch(r"[a-f0-9]{32}", request_id):
                             raise ChatError("invalid_request_id")
                         body = {k:v for k,v in body.items() if k != "request_id"}
-                    slot_id, model_id, messages = validate_request(body)
-                    lock = chat_locks.get(slot_id)
-                    if lock is None:
+                    slot_id, model_id, messages = validate_request(body, policy=policy)
+                    if not any(s["slot_id"]==slot_id for s in current["slots"]):
                         raise ChatError("unknown_slot", 404)
+                    with streams_guard:
+                        lock=chat_locks.setdefault(slot_id,threading.Lock())
                     if not lock.acquire(blocking=False):
                         raise ChatError("slot_chat_in_progress", 409)
                     try:
-                        snapshot = live_snapshot(current, principal)
+                        snapshot = chat_snapshot(current, principal, slot_id)
                         port = select_backend(
                             current, principal, snapshot, slot_id, model_id)
                         try:
                             controller.assert_chat_allowed(slot_id)
+                            owned = controller.chat_binding(slot_id)
                         except ControlError as error:
                             raise ChatError(error.reason, error.status) from None
+                        identity = owned or snapshot["slots"][0]["instance_id"]
+                        expected = body.get("instance_id")
+                        if (owned and expected is None) or (expected is not None and expected != identity):
+                            raise ChatError("instance_identity_mismatch", 409)
+                        try:
+                            upstream_options(body.get("options"), thinking_supported=False
+                                if "qwen3-coder" in model_id.lower() else None)
+                        except ValueError as error:
+                            raise ChatError(str(error)) from None
+                        requested_output=(body.get("options") or {}).get("max_output_tokens")
+                        engine_output=snapshot.get("engine_limits",{}).get("max_tokens")
+                        if requested_output is not None and engine_output and requested_output>engine_output:
+                            raise ChatError("requested_output_exceeds_engine_limit")
+                        timing = {"manager_received_unix_ms": manager_received,
+                                  "_manager_perf": arrived,
+                                  "manager_preflight_ms": round((time.perf_counter()-arrived)*1000, 3)}
                         if self.path.endswith("/stream"):
                             stream_key = (principal["client_id"], request_id)
                             with streams_guard:
@@ -522,15 +619,18 @@ def make_handler(config_file, config, inbox, *, controller=None):
                                     raise ChatError("stream_in_progress", 409)
                                 active_streams[stream_key] = (slot_id, cancelled)
                             try:
-                                return self._stream_chat(port, model_id, messages, current, slot_id, cancelled)
+                                return self._stream_chat(port, model_id, messages, current, slot_id, cancelled,
+                                    instance_id=identity, options=body.get("options"), policy=policy,
+                                    timing=timing, engine_limits=snapshot.get("engine_limits", {}))
                             finally:
                                 with streams_guard:
                                     active_streams.pop(stream_key, None)
-                        response = proxy_chat(port, model_id, messages)
+                        response = proxy_chat(port, model_id, messages, options=body.get("options"),
+                                              policy=policy, timeout=policy["timeout_seconds"])
                         return self._reply(200, {
                             "schema": "ultra.manager.chat.v1",
                             "manager_id": current["manager_id"],
-                            "slot_id": slot_id, "model_id": model_id, **response})
+                            "slot_id": slot_id, "instance_id": identity, "model_id": model_id, **response})
                     finally:
                         lock.release()
                 except ChatError as error:
@@ -573,24 +673,37 @@ def make_handler(config_file, config, inbox, *, controller=None):
                 return self._reply(200, inbox.deny(body["ticket_id"]))
             except ValueError:
                 return self._reply(409, {"error": "not_pending"})
-        def _stream_chat(self, port, model_id, messages, current, slot_id, cancelled):
-            events = proxy_stream(port, model_id, messages, cancelled=cancelled)
+        def _stream_chat(self, port, model_id, messages, current, slot_id, cancelled, *, instance_id, options, policy, timing, engine_limits):
+            events = proxy_stream(port, model_id, messages, cancelled=cancelled, options=options,
+                                  policy=policy, timing=timing, timeout=policy["timeout_seconds"])
             try:
                 first = next(events)  # failures before headers retain HTTP status
             except StopIteration:
                 raise ChatError("empty_stream", 502)
             self.send_response(200)
             self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
+            self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Accel-Buffering", "no")
             self.send_header("Connection", "close")
             self.end_headers()
             self.close_connection = True
             def emit(event):
+                if event.get("type") in ("delta", "reasoning") and "manager_first_forward_unix_ms" not in timing:
+                    timing["manager_first_forward_unix_ms"] = round(time.time()*1000, 3)
+                    timing["manager_first_forward_delay_ms"] = round((time.perf_counter()-timing["_colibri_first_perf"])*1000,3)
+                if event.get("type") == "done":
+                    timing["manager_total_ms"] = round((time.perf_counter()-timing["_manager_perf"])*1000,3)
+                event["timing"] = {**event.get("timing", {}), **timing,
+                    "manager_emit_unix_ms": round(time.time()*1000, 3)}
+                event["timing"] = {k:v for k,v in event["timing"].items() if not k.startswith("_")}
                 self.wfile.write(json.dumps(event, ensure_ascii=False).encode("utf-8") + b"\n")
                 self.wfile.flush()
             try:
-                emit({"type": "meta", "manager_id": current["manager_id"],
-                      "slot_id": slot_id, "model_id": model_id})
+                emit({"type": "meta", "schema":"ultra.manager.stream.v2", "manager_id": current["manager_id"],
+                      "slot_id": slot_id, "instance_id": instance_id, "model_id": model_id,
+                      "transport_policy": policy, "engine_limits":engine_limits,
+                      "options": options or {"thinking":"auto"}})
                 emit(first)
                 for event in events:
                     emit(event)

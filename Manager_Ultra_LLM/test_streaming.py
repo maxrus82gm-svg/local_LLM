@@ -8,6 +8,28 @@ from chat_runtime import proxy_stream, ChatError
 
 
 class StreamingTests(unittest.TestCase):
+    def test_combined_delta_order_and_reasoning_only_completion(self):
+        combined=b'data: {"choices":[{"delta":{"reasoning_content":"why","content":"answer"}}]}\n\n'
+        events=list(proxy_stream(self.upstream([combined,b'data: [DONE]\n\n']),"test",[]))
+        self.assertEqual([e["type"] for e in events],["reasoning","delta","done"])
+        self.assertEqual([e["sequence"] for e in events[:-1]],[1,2])
+        events=list(proxy_stream(self.upstream([self.delta("only","reasoning_content"),b'data: [DONE]\n\n']),"test",[]))
+        self.assertEqual(events[-1]["type"],"done")
+
+    def test_generation_options_are_explicit_and_defaults_inherit_engine(self):
+        from chat_settings import upstream_options
+        self.assertEqual(upstream_options(),{})
+        self.assertEqual(upstream_options({"thinking":"on","max_output_tokens":2048}),
+                         {"enable_thinking":True,"max_tokens":2048})
+        with self.assertRaisesRegex(ValueError,"thinking_not_supported"):
+            upstream_options({"thinking":"on"},thinking_supported=False)
+        with self.assertRaises(ValueError):
+            upstream_options({"executable":"cmd.exe"})
+
+    def test_wrong_upstream_model_rejected(self):
+        event=b'data: {"model":"foreign","choices":[{"delta":{"content":"no"}}]}\n\n'
+        with self.assertRaisesRegex(ChatError,"identity_mismatch"):
+            list(proxy_stream(self.upstream([event]),"test",[]))
     def upstream(self, segments, *, gate=None, content_type="text/event-stream"):
         class Fake(BaseHTTPRequestHandler):
             def do_POST(h):
@@ -41,7 +63,9 @@ class StreamingTests(unittest.TestCase):
         port=self.upstream([self.delta("Привет "),self.delta("мир"),b"data: [DONE]\n\n"],gate=gate)
         events=proxy_stream(port,"test",[{"role":"user","content":"Hi"}])
         started=time.monotonic()
-        self.assertEqual(next(events),{"type":"delta","text":"Привет "})
+        first=next(events)
+        self.assertEqual((first["type"],first["text"],first["sequence"]),("delta","Привет ",1))
+        self.assertIn("colibri_first_fragment_unix_ms",first["timing"])
         self.assertFalse(gate.is_set())
         self.assertLess(time.monotonic()-started,1)
         gate.set()
@@ -50,6 +74,7 @@ class StreamingTests(unittest.TestCase):
         self.assertEqual(remaining[-1]["type"],"done")
         self.assertIn("first_fragment_ms",remaining[-1]["timing"])
         self.assertEqual(remaining[-1]["usage"],{})
+        self.assertEqual(remaining[-1]["throughput"],{})
     def test_truncated_or_unsupported_or_invalid_sse_fails(self):
         for segments,mime in (([self.delta("partial")],"text/event-stream"),
                               ([b'data: invalid\n\n'],"text/event-stream"),
@@ -64,10 +89,14 @@ class StreamingTests(unittest.TestCase):
         self.assertEqual(events[0]["type"],"reasoning")
         self.assertEqual(events[1]["type"],"delta")
         self.assertEqual(events[-1]["usage"],{"completion_tokens":2,"prompt_tokens":3})
+        throughput=events[-1]["throughput"]
+        self.assertIn("including_prefill",throughput["basis"])
+        self.assertAlmostEqual(throughput["completion_tokens_per_second"],2000/throughput["window_ms"],delta=1)
     def test_bounded_output(self):
         port=self.upstream([self.delta("x"*40000),self.delta("y"*40000)])
         with self.assertRaisesRegex(ChatError,"stream_too_large"):
-            list(proxy_stream(port,"test",[]))
+            from chat_settings import policy
+            list(proxy_stream(port,"test",[],policy={**policy(),"response_chars":65536}))
     def test_deadline(self):
         port=self.upstream([self.delta("first"),b'data: [DONE]\n\n'])
         with self.assertRaisesRegex(ChatError,"stream_deadline"):

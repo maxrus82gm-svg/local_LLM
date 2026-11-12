@@ -153,7 +153,7 @@ class ChatRouteTests(unittest.TestCase):
             {**good, "url": "http://evil.example"},
             {**good, "messages": []},
             {**good, "messages": [{"role": "system", "content": "hack"}]},
-            {**good, "messages": [{"role": "user", "content": "x" * 4100}]},
+            {**good, "messages": [{"role": "user", "content": "x" * 131073}]},
             {**good, "messages": [{"role": "assistant", "content": "old"}]},
         ):
             self.assertEqual(self.req(bad)[0], 400)
@@ -163,13 +163,22 @@ class ChatRouteTests(unittest.TestCase):
     def test_ready_unknown_or_busy_fail_closed(self):
         good = {"slot_id": "slot1", "model_id": "test-llm",
                 "messages": [{"role": "user", "content": "Hi"}]}
-        with patch.object(live_manager, "_os_telemetry", side_effect=RuntimeError):
+        with patch.object(live_manager, "_chat_listener", side_effect=chat_runtime.ChatError("slot_process_unverified",409)):
             self.assertEqual(self.req(good)[0], 409)
         with patch.object(live_manager, "_local_api_json",
                           side_effect=lambda p, q: {"status": "ok"} if q == "/health"
                           else {"data": [{"id": "test-llm"}]}):
             self.assertEqual(self.req(good)[0], 409)
         self.assertEqual(len(FakeColibri.calls), 0)
+
+    def test_selected_chat_never_builds_the_full_overview_and_checks_instance(self):
+        body={"slot_id":"slot1","model_id":"test-llm","messages":[{"role":"user","content":"x"*5000}]}
+        with patch.object(live_manager,"live_snapshot",side_effect=AssertionError("overview on hot path")), \
+             patch.object(live_manager,"_os_telemetry",side_effect=AssertionError("RAM probe on hot path")):
+            self.assertEqual(self.req(body)[0],200)
+            self.assertEqual(self.req({**body,"instance_id":"legacy-wrong"})[0],409)
+        self.assertNotIn("max_tokens",FakeColibri.calls[-1])
+        self.assertNotIn("enable_thinking",FakeColibri.calls[-1])
 
 
 if __name__ == "__main__":

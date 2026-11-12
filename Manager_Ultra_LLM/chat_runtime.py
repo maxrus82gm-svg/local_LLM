@@ -11,6 +11,7 @@ import time
 import socket
 import threading
 from contextlib import contextmanager
+from chat_settings import policy as transport_policy, upstream_options, options as validate_options
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, ProxyHandler, build_opener, HTTPRedirectHandler
 
@@ -36,7 +37,7 @@ def response_guard(response, deadline, cancelled):
     sock = getattr(getattr(getattr(response, "fp", None), "raw", None), "_sock", None)
     def watch():
         while not finished.wait(0.05):
-            if cancelled.is_set() or time.monotonic() >= deadline:
+            if cancelled.is_set() or time.perf_counter() >= deadline:
                 if sock:
                     try:
                         sock.shutdown(socket.SHUT_RDWR)
@@ -56,8 +57,9 @@ def response_guard(response, deadline, cancelled):
         watcher.join(0.2)
 
 
-def validate_request(payload):
-    if not isinstance(payload, dict) or set(payload) != {"slot_id", "model_id", "messages"}:
+def validate_request(payload, *, policy=None):
+    policy = policy or transport_policy()
+    if not isinstance(payload, dict) or not {"slot_id", "model_id", "messages"} <= set(payload) or set(payload)-{"slot_id", "model_id", "messages", "instance_id", "options"}:
         raise ChatError("invalid_fields")
     slot_id, model_id, messages = (
         payload["slot_id"], payload["model_id"], payload["messages"])
@@ -65,19 +67,31 @@ def validate_request(payload):
         raise ChatError("invalid_slot_id")
     if not isinstance(model_id, str) or not MODEL_ID.fullmatch(model_id):
         raise ChatError("invalid_model_id")
-    if not isinstance(messages, list) or not 1 <= len(messages) <= 16:
+    if not isinstance(messages, list) or not 1 <= len(messages) <= policy["history_messages"]:
         raise ChatError("invalid_messages")
     total = 0
     for m in messages:
-        if not isinstance(m, dict) or set(m) != {"role", "content"}:
+        if not isinstance(m, dict) or not {"role", "content"} <= set(m) or set(m)-{"role", "content", "reasoning_content"}:
             raise ChatError("invalid_messages")
         if m["role"] not in ("user", "assistant"):
             raise ChatError("invalid_messages")
-        if not isinstance(m["content"], str) or not 1 <= len(m["content"]) <= 4000:
+        if not isinstance(m["content"], str) or len(m["content"]) > policy["message_chars"]:
             raise ChatError("invalid_messages")
-        total += len(m["content"])
-    if total > 24000 or messages[-1]["role"] != "user":
+        reasoning = m.get("reasoning_content", "")
+        if type(reasoning) is not str or len(reasoning) > policy["response_chars"] or (reasoning and m["role"] != "assistant"):
+            raise ChatError("invalid_messages")
+        if not m["content"] and (m["role"] != "assistant" or not reasoning):
+            raise ChatError("invalid_messages")
+        total += len(m["content"]) + len(reasoning)
+    if total > policy["history_chars"] or messages[-1]["role"] != "user":
         raise ChatError("invalid_messages")
+    try:
+        validate_options(payload.get("options"))
+    except ValueError as e:
+        raise ChatError(str(e)) from None
+    identity = payload.get("instance_id")
+    if identity is not None and (type(identity) is not str or not re.fullmatch(r"[a-f0-9]{32}|legacy-[A-Za-z0-9_.-]{1,96}", identity)):
+        raise ChatError("invalid_instance_id")
     return slot_id, model_id, messages
 
 
@@ -102,31 +116,38 @@ def select_backend(config, principal, snapshot, slot_id, model_id):
     return configured[0]["api_port"]
 
 
-def proxy_chat(port, model_id, messages, *, timeout=120):
+def proxy_chat(port, model_id, messages, *, timeout=300, options=None, policy=None):
+    policy = policy or transport_policy()
     """One actual non-streaming request; no fabricated output or retries."""
     body = json.dumps({
         "model": model_id, "messages": messages,
-        "max_tokens": 512, "stream": False, "enable_thinking": False,
+        "stream": False, **upstream_options(options),
     }, ensure_ascii=False).encode("utf-8")
     req = Request(
         f"http://127.0.0.1:{port}/v1/chat/completions", method="POST",
         headers={"Content-Type": "application/json", "Accept": "application/json"},
         data=body)
     try:
-        with build_opener(ProxyHandler({}), NoRedirect()).open(req, timeout=timeout) as response:
+        started=time.perf_counter()
+        with build_opener(ProxyHandler({}), NoRedirect()).open(req, timeout=timeout) as response, response_guard(response,started+timeout,threading.Event()):
             if response.status != 200:
                 raise ChatError("colibri_unavailable", 502)
-            raw = response.read(512 * 1024 + 1)
-        if len(raw) > 512 * 1024:
+            raw = response.read(policy["stream_bytes"] + 1)
+        if len(raw) > policy["stream_bytes"]:
             raise ChatError("colibri_response_too_large", 502)
         parsed = json.loads(raw)
         choice = parsed["choices"][0]
         content = choice["message"]["content"]
-        if not isinstance(content, str) or not content.strip() or len(content) > 65536:
+        reasoning = choice["message"].get("reasoning_content") or ""
+        content = "" if content is None else content
+        if (type(content) is not str or type(reasoning) is not str or
+                not (content.strip() or reasoning.strip()) or
+                max(len(content),len(reasoning)) > policy["response_chars"]):
             raise ValueError("Empty answer")
         usage = parsed.get("usage") or {}
         return {
             "reply": content,
+            "reasoning": reasoning,
             "finish_reason": str(choice.get("finish_reason") or "unknown")[:32],
             "usage": {k: usage[k] for k in ("prompt_tokens", "completion_tokens")
                       if isinstance(usage, dict) and type(usage.get(k)) is int
@@ -134,26 +155,33 @@ def proxy_chat(port, model_id, messages, *, timeout=120):
         }
     except ChatError:
         raise
+    except HTTPError as error:
+        error.close()
+        raise ChatError("colibri_request_rejected" if error.code==400 else "colibri_unavailable",error.code if error.code in (400,409,413,429) else 502) from None
     except (HTTPError, URLError, OSError, TimeoutError, ValueError,
             KeyError, IndexError, TypeError, json.JSONDecodeError):
         raise ChatError("colibri_inference_failed", 502) from None
 
 
-def proxy_stream(port, model_id, messages, *, timeout=120, cancelled=None):
+def proxy_stream(port, model_id, messages, *, timeout=300, cancelled=None, options=None, policy=None, timing=None):
     """Colibri SSE -> bounded semantic events. Never replay a full answer.
 
     EOF without [DONE] is an error. Separate reasoning deltas stay separate.
     Closing this iterator closes upstream; no retry or synthetic token counts.
     """
-    started = time.monotonic()
-    if type(timeout) not in (int, float) or not 0 < timeout <= 120:
+    policy = policy or transport_policy()
+    timing = {} if timing is None else timing
+    started = time.perf_counter()
+    timing["colibri_request_started_unix_ms"] = round(time.time()*1000, 3)
+    if type(timeout) not in (int, float) or not 0 < timeout <= 3600:
         raise ChatError("stream_deadline", 504)
     req = Request(f"http://127.0.0.1:{port}/v1/chat/completions", method="POST",
         headers={"Content-Type": "application/json", "Accept": "text/event-stream"},
         data=json.dumps({"model": model_id, "messages": messages, "stream": True,
-                         "max_tokens": 512, "enable_thinking": False}).encode("utf-8"))
+                         "stream_options": {"include_usage": True}, **upstream_options(options)}).encode("utf-8"))
     total = output = reasoning = 0
     first = None
+    sequence = 0
     usage = {}
     finish = "unknown"
     cancelled = cancelled or threading.Event()
@@ -166,15 +194,15 @@ def proxy_stream(port, model_id, messages, *, timeout=120, cancelled=None):
             while True:
                 if cancelled.is_set():
                     raise ChatError("stream_cancelled", 409)
-                if time.monotonic() - started > timeout:
+                if time.perf_counter() - started > timeout:
                     raise ChatError("stream_deadline", 504)
-                line = r.readline(65538)
+                line = r.readline(min(policy["stream_bytes"], 1048576)+2)
                 if cancelled.is_set():
                     raise ChatError("stream_cancelled", 409)
-                if time.monotonic() - started > timeout:
+                if time.perf_counter() - started > timeout:
                     raise ChatError("stream_deadline", 504)
                 total += len(line)
-                if len(line) > 65536 or total > 1024 * 1024:
+                if len(line) > min(policy["stream_bytes"], 1048576) or total > policy["stream_bytes"]:
                     raise ChatError("stream_too_large", 502)
                 if not line:
                     raise ChatError("stream_truncated", 502)
@@ -185,15 +213,23 @@ def proxy_stream(port, model_id, messages, *, timeout=120, cancelled=None):
                     data = "\n".join(data_lines)
                     data_lines = []
                     if data == "[DONE]":
-                        if not output:
+                        if not output and not reasoning:
                             raise ChatError("empty_stream", 502)
+                        elapsed = (time.perf_counter()-started)*1000
+                        throughput = ({"completion_tokens_per_second":round(usage["completion_tokens"]*1000/elapsed,3),
+                            "basis":"provider_completion_tokens / upstream_request_seconds_including_prefill",
+                            "window_ms":round(elapsed,3)} if "completion_tokens" in usage and elapsed>0 else {})
                         yield {"type": "done", "finish_reason": finish, "usage": usage,
+                               "throughput":throughput,
                                "timing": {"first_fragment_ms": first,
-                                          "total_ms": round((time.monotonic()-started)*1000, 2)}}
+                                          "total_ms": round(elapsed, 2),
+                                          "colibri_completed_unix_ms": round(time.time()*1000, 3), **timing}}
                         return
                     chunk = json.loads(data)
                     if not isinstance(chunk, dict) or not isinstance(chunk.get("choices", []), list):
                         raise ChatError("invalid_stream_event", 502)
+                    if chunk.get("model") is not None and chunk["model"] != model_id:
+                        raise ChatError("upstream_model_identity_mismatch", 502)
                     if chunk.get("error"):
                         raise ChatError("colibri_stream_error", 502)
                     raw_usage = chunk.get("usage")
@@ -206,8 +242,10 @@ def proxy_stream(port, model_id, messages, *, timeout=120, cancelled=None):
                         if choice.get("finish_reason"):
                             finish = str(choice["finish_reason"])[:32]
                         delta = choice.get("delta", {})
-                        for field, kind in (("content", "delta"), ("reasoning_content", "reasoning")):
-                            value = delta.get(field)
+                        for field, value in delta.items():
+                            if field not in ("content", "reasoning_content"):
+                                continue
+                            kind = "delta" if field == "content" else "reasoning"
                             if value is None or value == "":
                                 continue
                             if not isinstance(value, str):
@@ -216,13 +254,20 @@ def proxy_stream(port, model_id, messages, *, timeout=120, cancelled=None):
                                 output += len(value)
                             else:
                                 reasoning += len(value)
-                            if output > 65536 or reasoning > 65536:
+                            if output > policy["response_chars"] or reasoning > policy["response_chars"]:
                                 raise ChatError("stream_too_large", 502)
                             if first is None:
-                                first = round((time.monotonic()-started)*1000, 2)
-                            yield {"type": kind, "text": value}
+                                first = round((time.perf_counter()-started)*1000, 2)
+                                timing["colibri_first_fragment_unix_ms"] = round(time.time()*1000, 3)
+                                timing["_colibri_first_perf"] = time.perf_counter()
+                            sequence += 1
+                            yield {"type": kind, "text": value, "sequence": sequence,
+                                   "timing": {**timing, "upstream_elapsed_ms": round((time.perf_counter()-started)*1000, 3)}}
     except ChatError:
         raise
+    except HTTPError as error:
+        error.close()
+        raise ChatError("colibri_request_rejected" if error.code==400 else "colibri_unavailable",error.code if error.code in (400,409,413,429) else 502) from None
     except TimeoutError:
         if cancelled.is_set():
             raise ChatError("stream_cancelled", 409) from None
@@ -230,6 +275,6 @@ def proxy_stream(port, model_id, messages, *, timeout=120, cancelled=None):
     except (OSError, TimeoutError, ValueError, KeyError, IndexError, TypeError, AttributeError, URLError):
         if cancelled.is_set():
             raise ChatError("stream_cancelled", 409) from None
-        if time.monotonic()-started >= timeout:
+        if time.perf_counter()-started >= timeout:
             raise ChatError("stream_deadline", 504) from None
         raise ChatError("colibri_stream_failed", 502) from None
