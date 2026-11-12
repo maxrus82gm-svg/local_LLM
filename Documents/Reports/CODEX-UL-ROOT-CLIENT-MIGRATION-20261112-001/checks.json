@@ -1,6 +1,6 @@
 {
   "task_id": "CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001",
-  "status": "STAGED / OWNER GO REQUIRED",
+  "status": "LIVE PASS / CLIENT MIGRATION",
   "source_unit_tests": {
     "run": 49,
     "passed": 49,
@@ -26,36 +26,44 @@
   "backup_original_68": "PASS reverified",
   "backup_complete_R5_73": "PASS reverified",
   "isolated_R5_73": "PASS reverified",
-  "old_install_68_unchanged": "PASS",
-  "shortcut_unchanged": "PASS",
+  "old_install_68_unchanged": "PASS after migration",
+  "shortcut_unchanged": "Changed once as authorized; original preserved and verified",
   "only_remaining_client": [
     {
-      "pid": 29492,
-      "exe": "M:\\UltraLLM_Client\\UltraLLMClient.exe",
-      "creation_utc": "2026-11-12T12:49:36.6123520Z"
+      "pid": 2580,
+      "exe": "M:\\GitHub\\local_LLM\\Production\\Client\\UltraLLMClient.exe",
+      "creation_utc": "2026-11-12T19:38:19.9296760Z",
+      "owner_verified": true,
+      "listeners": [
+        {
+          "LocalAddress": "127.0.0.1",
+          "LocalPort": 50783
+        }
+      ]
     }
   ],
-  "production_created": false,
-  "owner_go_received": false,
-  "old_client_closed": false,
-  "shortcut_switched": false,
-  "private_history_or_secret_contents_read": false,
+  "production_created": true,
+  "owner_go_received": true,
+  "old_client_closed": true,
+  "shortcut_switched": true,
+  "private_history_or_secret_contents_read": "History metadata + opaque file hashes only; no content export",
   "archive_test_environment_used": false,
   "commit_push": "NOT RUN",
-  "next": "STOP before Stage D. Concrete owner approval scope and rollback limitations are in report.md; no switch authorized.",
+  "next": "Stop for independent acceptance. No Manager update or second LLM. Agree final commit branch/number before publication.",
   "server_runtime_commands_or_mutation": false,
   "stage_C": "PASS / corrected diagnostic harness",
   "initial_packaged_exit_code": "NOT CAPTURED by initial harness; not retrospectively assigned",
   "initial_harness_failure": "AssertionError: Packaged client exited before ready, line 45",
   "primary_error": "Get-Acl: CouldNotAutoloadMatchingModule in bundled Prepare-ClientPrivate.ps1:18, then PermissionError web_client.py:80",
   "root_cause": "Windows PowerShell 5.1 autoloads PowerShell 7 Microsoft.PowerShell.Security through inherited PSMODULEPATH",
-  "actual_manager_requests": 0,
-  "stage_D": "NOT RUN / OWNER GO ABSENT",
+  "actual_manager_requests": "Read-only real Manager GET through existing Client TLS transport; no model request",
+  "stage_D": "PASS / Client migration only",
   "browser_visual": "NOT RUN",
   "vbs_execution": "NOT RUN",
   "windows_event_log": "SKIP: cause established without inspecting unrelated logs",
   "zip_sha256_verified": true,
   "system_environment_changed": false,
   "client_source_changed": false,
-  "payload_changed": false
+  "payload_changed": false,
+  "stage_D_evidence": "stage_d_result.json; stage_d_transaction.json; stage_d_lifecycle.json; stage_d_rollback_rehearsal.json; stage_d_ui.json"
 }

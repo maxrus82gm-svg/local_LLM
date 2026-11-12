@@ -1,0 +1,65 @@
+{
+  "status": "PASS",
+  "scope": "Real Production Client / real Manager GET / separate test Chrome DOM",
+  "state": {
+    "url": "http://127.0.0.1:50783",
+    "title": "Ultra LLM — Web Client",
+    "managers": [
+      {
+        "id": "manager-server77",
+        "status": "online",
+        "slot_count": 3,
+        "inventory_count": 2,
+        "streaming": false,
+        "dynamic_slots": false
+      }
+    ],
+    "catalog_rows": 3,
+    "control_buttons": [
+      {
+        "label": "Старт CPU",
+        "disabled": true
+      },
+      {
+        "label": "Старт CUDA",
+        "disabled": true
+      },
+      {
+        "label": "Стоп",
+        "disabled": true
+      },
+      {
+        "label": "Старт CPU",
+        "disabled": true
+      },
+      {
+        "label": "Старт CUDA",
+        "disabled": true
+      },
+      {
+        "label": "Стоп",
+        "disabled": true
+      },
+      {
+        "label": "Старт CPU",
+        "disabled": true
+      },
+      {
+        "label": "Старт CUDA",
+        "disabled": true
+      },
+      {
+        "label": "Стоп",
+        "disabled": true
+      }
+    ],
+    "thinking_control": true,
+    "reasoning_control": true
+  },
+  "console_errors": [],
+  "history_content_read_or_exported": false,
+  "model_generation": false,
+  "model_control": false,
+  "manager_gate": "Existing Manager has no stream v2 or dynamic slots; no feature emulation",
+  "qa_chrome_profile": "M:\\GitHub\\local_LLM\\Test\\ClientMigration_20261112\\StageD\\live-chrome-0Jlc1A"
+}

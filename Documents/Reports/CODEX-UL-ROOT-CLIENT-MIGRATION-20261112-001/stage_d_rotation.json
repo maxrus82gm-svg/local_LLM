@@ -1,0 +1,16 @@
+{
+  "status": "SUBMITTED / REVIEW PENDING",
+  "block1": "FREE",
+  "block1_1": "Full original task + AMENDMENT 01 + explicit OWNER GO",
+  "original_task_source_sha": "312106680ae60b72243132bfc0710857127f3b72",
+  "previous_task_archive_sha": "bad9835e8753dad1498a568627a8f6b000e0d3f9",
+  "previous_task_archive_registered_in_05": true,
+  "original_task_sha256": "5f3f7b0578e25827f38bb374395d059ecb1f213ca3e6a679ea6f00fa2296173c",
+  "amendment_01_sha256": "b637cab9bce20438ababc0a3538cf89fe3afdf86c3dd7094093d92174351339e",
+  "owner_go_sha256": "1a29e4a0bd898059bdfb9f5fa235f08d6489ab6e7b269b91002bdcc2f349b8f9",
+  "block4_unchanged": true,
+  "block4_sha256": "12324821beb5d46af0ba091defe3155f9eda82e4257062a25942a458dbc954a0",
+  "document_before_sha256": "e5d1447de83a4520d291766c7a7969c280836b7cd63adfac3b6097eb8754c348",
+  "document_after_sha256": "8708e58abddd14ddc44de155425230c4039ae8db005774ffb11b1e2a73ae1e63",
+  "git_commit_push": "NOT RUN"
+}

@@ -1,0 +1,84 @@
+{
+  "task_id": "CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001",
+  "status": "PASS",
+  "started_at_utc": "2026-11-12T19:37:50.251976+00:00",
+  "initial_process": {
+    "pid": 25856,
+    "exe": "M:\\GitHub\\local_LLM\\Production\\Client\\UltraLLMClient.exe",
+    "creation_utc": "2026-11-12T19:33:46.2018730Z",
+    "owner_verified": true,
+    "listeners": [
+      {
+        "LocalAddress": "127.0.0.1",
+        "LocalPort": 55627
+      }
+    ]
+  },
+  "repeats": [
+    {
+      "iteration": 1,
+      "pid": 25856,
+      "same_identity_and_port": true,
+      "client_count": 1
+    },
+    {
+      "iteration": 2,
+      "pid": 25856,
+      "same_identity_and_port": true,
+      "client_count": 1
+    }
+  ],
+  "contents_exported": false,
+  "graceful_exit_code": 0,
+  "final_process": {
+    "pid": 2580,
+    "exe": "M:\\GitHub\\local_LLM\\Production\\Client\\UltraLLMClient.exe",
+    "creation_utc": "2026-11-12T19:38:19.9296760Z",
+    "owner_verified": true,
+    "listeners": [
+      {
+        "LocalAddress": "127.0.0.1",
+        "LocalPort": 50783
+      }
+    ]
+  },
+  "final_url": "http://127.0.0.1:50783",
+  "shortcut_sha256": "71d3d17a96a0afce724683ed6cc4cd148e25463c011ba927b65c56c282669e3d",
+  "shortcut_settings": {
+    "target": "C:\\Windows\\System32\\wscript.exe",
+    "arguments": "\"M:\\GitHub\\local_LLM\\Production\\Client\\Start_Ultra_LLM_Client.vbs\"",
+    "working_directory": "M:\\GitHub\\local_LLM\\Production\\Client",
+    "description": "Ultra LLM Web Client — стабильный ярлык",
+    "icon": "C:\\WINDOWS\\System32\\imageres.dll,14",
+    "hotkey": "",
+    "window_style": 1
+  },
+  "profile": {
+    "profile_file_count": 6,
+    "profile_secret_aggregate_sha256": "79cbff2ee1eff1ed4141aca2cfa24a5e974f3d550dcb2e29100fec86193bd630",
+    "history_messages": 34,
+    "history_min_id": 1,
+    "history_max_id": 34,
+    "history_sha256": "6e38fdfcbe1f17159ea3be2349557d2c06009d73b96d611a41e9f9266d3ea3aa",
+    "schema": 1,
+    "integrity": "ok",
+    "contents_exported": false
+  },
+  "profile_history_unchanged": true,
+  "managers": [
+    {
+      "manager_id": "manager-server77",
+      "status": "online",
+      "slots": 3,
+      "inventory_models": 2,
+      "streaming": false,
+      "dynamic_slots": false
+    }
+  ],
+  "old_files_unchanged": true,
+  "production_files_verified": 73,
+  "rollback_files_verified": 73,
+  "completed_at_utc": "2026-11-12T19:38:30.610773+00:00",
+  "actual_model_generation": false,
+  "model_control": false
+}

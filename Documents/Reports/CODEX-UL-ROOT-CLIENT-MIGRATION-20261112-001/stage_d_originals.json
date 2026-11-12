@@ -1,0 +1,24 @@
+{
+  "files": [
+    {
+      "original": "report.md",
+      "preserved_as": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/pre_stage_d/report_original.txt",
+      "sha256": "6c1c3364691892159d91ccb782bba44398ffe291b52f2a2092f0b90c96b346a2"
+    },
+    {
+      "original": "checks.json",
+      "preserved_as": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/pre_stage_d/checks.json",
+      "sha256": "4e9854c8620fa549810b59943c4ddb0859596720b304a5b8d0b76d089cd940dd"
+    },
+    {
+      "original": "checkpoint.json",
+      "preserved_as": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/pre_stage_d/checkpoint.json",
+      "sha256": "ce7c1a9933a803a43db6e5500b33d90a72b6ad2279b497cba1b47fb17b17e443"
+    },
+    {
+      "original": "manifest.json",
+      "preserved_as": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/pre_stage_d/manifest.json",
+      "sha256": "f21e3ce086d5dd43b29c3f173fd81b57aac0dcc250064fa7292b4ffcf661926b"
+    }
+  ]
+}

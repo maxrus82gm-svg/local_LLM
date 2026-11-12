@@ -1,0 +1,88 @@
+{
+  "task_id": "CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001",
+  "status": "LIVE PASS / CLIENT MIGRATION",
+  "independent_acceptance": "SUBMITTED / REVIEW PENDING",
+  "owner_go": true,
+  "scope": "Client only; Manager version gate remains",
+  "host": "DESKTOP-SC96D3U",
+  "completed_at_client_timezone": "2026-11-13T00:45:42.412493+05:00",
+  "old_process": {
+    "pid": 29492,
+    "exe": "M:\\UltraLLM_Client\\UltraLLMClient.exe",
+    "creation_utc": "2026-11-12T12:49:36.6123520Z",
+    "owner_verified": true,
+    "listeners": [
+      {
+        "LocalAddress": "127.0.0.1",
+        "LocalPort": 60720
+      }
+    ]
+  },
+  "final_process": {
+    "pid": 2580,
+    "exe": "M:\\GitHub\\local_LLM\\Production\\Client\\UltraLLMClient.exe",
+    "creation_utc": "2026-11-12T19:38:19.9296760Z",
+    "owner_verified": true,
+    "listeners": [
+      {
+        "LocalAddress": "127.0.0.1",
+        "LocalPort": 50783
+      }
+    ]
+  },
+  "final_url": "http://127.0.0.1:50783",
+  "installed_path": "M:\\GitHub\\local_LLM\\Production\\Client",
+  "installed_files_verified": 73,
+  "zip_sha256": "bc37f43f84263da8f42e006ab3e3833e85a3781bfb11858809882a51b34a9d8a",
+  "exe_sha256": "7614aecc6f97a5a8c1b126b745aa7d17e9dc8679774ba870ee68f18690c649df",
+  "backup_original_files_verified": 68,
+  "backup_complete_files_verified": 73,
+  "rollback_rehearsal": "PASS: same recovery function, QA shortcut and synthetic profile",
+  "backup_existing_profile_test_exit": 0,
+  "production_rollback_needed": false,
+  "original_shortcut_sha256": "658e88888c9bb28791c038c71ce56fcb1e14af35280d47a4f859321cc57ae070",
+  "new_shortcut_sha256": "71d3d17a96a0afce724683ed6cc4cd148e25463c011ba927b65c56c282669e3d",
+  "shortcut": {
+    "target": "C:\\Windows\\System32\\wscript.exe",
+    "arguments": "\"M:\\GitHub\\local_LLM\\Production\\Client\\Start_Ultra_LLM_Client.vbs\"",
+    "working_directory": "M:\\GitHub\\local_LLM\\Production\\Client",
+    "description": "Ultra LLM Web Client — стабильный ярлык",
+    "icon": "C:\\WINDOWS\\System32\\imageres.dll,14",
+    "hotkey": "",
+    "window_style": 1
+  },
+  "real_shortcut_switches": 1,
+  "repeat_launches": 2,
+  "duplicate_clients": 0,
+  "graceful_exit_code": 0,
+  "history_messages": 34,
+  "history_sha256_before": "6e38fdfcbe1f17159ea3be2349557d2c06009d73b96d611a41e9f9266d3ea3aa",
+  "history_sha256_after": "6e38fdfcbe1f17159ea3be2349557d2c06009d73b96d611a41e9f9266d3ea3aa",
+  "profile_and_secret_files_unchanged": true,
+  "history_contents_exported": false,
+  "manager": [
+    {
+      "manager_id": "manager-server77",
+      "status": "online",
+      "slots": 3,
+      "inventory_models": 2,
+      "streaming": false,
+      "dynamic_slots": false
+    }
+  ],
+  "console_errors": [],
+  "old_directory_preserved": true,
+  "backups_preserved": true,
+  "server_changes": false,
+  "model_start_stop": false,
+  "actual_generation": false,
+  "git_head_before": "d72bbb68be463f2410168d51cdea95bff988fe08",
+  "git_commit": "NOT RUN: publication order on current main not agreed",
+  "git_push": "NOT RUN",
+  "publication_plan": "One final numbered commit only after owner selects allowed branch/order; do not touch GPT_2_local or commit main without approval.",
+  "ordinary_chrome_after_restart_verified": true,
+  "additional_launcher_exit": 0,
+  "additional_launcher_repeat_kept_same_process": true,
+  "manifest_scope": "Current workspace byte hashes; original Markdown whitespace preserved",
+  "final_commit_pending_owner_publication_order": true
+}

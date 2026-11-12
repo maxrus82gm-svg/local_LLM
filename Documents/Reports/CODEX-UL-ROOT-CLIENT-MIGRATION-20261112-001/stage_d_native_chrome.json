@@ -1,0 +1,33 @@
+{
+  "scope": "Ordinary visible Chrome launched by production VBS shortcut",
+  "window": {
+    "app": "Chrome",
+    "id": 3280294,
+    "title": "Ultra LLM — Web Client - Google Chrome"
+  },
+  "observed_url": "http://127.0.0.1:55627/",
+  "production_process_pid": 25856,
+  "server_77_visible_in_accessibility": true,
+  "final_native_observation": {
+    "production_url": "http://127.0.0.1:50783/",
+    "matching_visible_windows": [],
+    "matched": false
+  },
+  "after_restart": {
+    "window": {
+      "app": "Chrome",
+      "id": 8062612,
+      "title": "Ultra LLM — Web Client - Google Chrome"
+    },
+    "observed_url": "http://127.0.0.1:50783/",
+    "url_observed": true,
+    "production_pid": 2580,
+    "ordinary_visible_chrome": true,
+    "server_77_visible": true
+  },
+  "additional_browser_launch": {
+    "automatic_review": "REJECTED: blocked by policy",
+    "bypass_attempted": false,
+    "existing_running_window_verified_instead": true
+  }
+}

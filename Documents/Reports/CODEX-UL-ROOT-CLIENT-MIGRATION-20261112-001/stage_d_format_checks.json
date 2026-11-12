@@ -1,0 +1,46 @@
+{
+  "note": "Raw Markdown findings are preserved spaces/Markdown hardbreaks inside exact owner task originals; no stripping of signed source text. Filter applies to one check only, not persistent Git settings.",
+  "checks": [
+    {
+      "name": "raw_markdown_diff",
+      "command": [
+        "git",
+        "diff",
+        "--check",
+        "--",
+        "Documents/07_Задачи Codex.md"
+      ],
+      "exit_code": 2,
+      "stdout": "Documents/07_Задачи Codex.md:52: trailing whitespace.\n+**Проект:** Ultra LLM  \nDocuments/07_Задачи Codex.md:53: trailing whitespace.\n+**Исполнитель:** Codex  \nDocuments/07_Задачи Codex.md:55: trailing whitespace.\n+**Статус:** ASSIGNED  \nDocuments/07_Задачи Codex.md:56: trailing whitespace.\n+**Приоритет:** P0  \nDocuments/07_Задачи Codex.md:109: trailing whitespace.\n+    \nDocuments/07_Задачи Codex.md:111: trailing whitespace.\n+    \nDocuments/07_Задачи Codex.md:149: trailing whitespace.\n+    \nDocuments/07_Задачи Codex.md:151: trailing whitespace.\n+    \nDocuments/07_Задачи Codex.md:153: trailing whitespace.\n+    \nDocuments/07_Задачи Codex.md:155: trailing whitespace.\n+    \nDocuments/07_Задачи Codex.md:323: trailing whitespace.\n+**TASK:** `CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001`  \nDocuments/07_Задачи Codex.md:324: trailing whitespace.\n+**Дата:** 12.11.2026  \n",
+      "stderr": "warning: in the working copy of 'Documents/07_Задачи Codex.md', LF will be replaced by CRLF the next time Git touches it\n"
+    },
+    {
+      "name": "report_diff",
+      "command": [
+        "git",
+        "diff",
+        "--check",
+        "--",
+        "Documents\\Reports\\CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "warning: in the working copy of 'Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/manifest.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/report.md', LF will be replaced by CRLF the next time Git touches it\n"
+    },
+    {
+      "name": "verbatim_markdown_allow_hardbreaks",
+      "command": [
+        "git",
+        "-c",
+        "core.whitespace=-blank-at-eol",
+        "diff",
+        "--check",
+        "--",
+        "Documents/07_Задачи Codex.md"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "warning: in the working copy of 'Documents/07_Задачи Codex.md', LF will be replaced by CRLF the next time Git touches it\n"
+    }
+  ]
+}

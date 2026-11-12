@@ -1,0 +1,19 @@
+{
+  "status": "PASS",
+  "production_file_hashes": 73,
+  "old_files_unchanged": 68,
+  "full_backup_file_hashes": 73,
+  "only_client_pid": 2580,
+  "history_messages": 34,
+  "history_and_profile_hashes_unchanged": true,
+  "shortcut_hash_verified": true,
+  "block4_bytes_unchanged": true,
+  "runtime_qa_backups_not_for_git": true,
+  "source_code_unchanged": true,
+  "no_project_root_outside_workspace_created": true,
+  "ordinary_chrome_current_page_verified": true,
+  "launcher_exit_code": 0,
+  "report_diff_check": "PASS",
+  "verbatim_task_markdown_check": "PASS with hardbreaks allowed",
+  "git_ref_changed": false
+}
