@@ -2,7 +2,7 @@
 
 **Назначение:** здесь Codex получает конкретную утверждённую TASK, узнаёт разрешённые границы и сдаёт подтверждаемый отчёт. Карточка — оперативный документ, не личный архив и не разрешение на весь сервер.
 
-**Редакция:** 2026-11-01. Указания другого проекта (Web Alarm Ultra) — только примеры, не правила или TASK этого проекта.
+**Редакция:** 2026-11-12; после сдачи БЛОК 1 освобождается независимо от приёмки. Указания другого проекта (Web Alarm Ultra) — только примеры, не правила или TASK этого проекта.
 
 [[07.00_История_задач_Codex|История задач Codex]]
 
@@ -17,7 +17,7 @@
 5. **Проверки:** выполнять оговорённые тесты в разрешённой среде, указывать команды/результаты и `PASS / FAIL / SKIP / NOT RUN`; для документации проверять содержимое, ссылки, отсутствие потерянных записей и граф Obsidian. Самопроверка Codex — доказательство исполнителя, **не** независимая приёмка.
 6. **Сдача:** сохранить полный отчёт и, когда согласовано, manifest/evidence в постоянном разрешённом месте. Ответ в чате содержит `DONE / CHANGED / DIFF / PROBLEMS / QUESTIONS`, фактический статус, тесты, риски, DOC IMPACT, адрес отчёта и предложенный NEXT. Не выдавать черновик за завершённый отчёт.
 7. **Приёмка и история:** ChatGPT-координатор отдельно проверяет результат, сохраняет полную исходную постановку и отчёты, заполняет персональную историю, общий реестр/хронологию и тактический контекст. Codex **не пишет себе independent PASS** и не изменяет личный архив.
-8. **Сохранность:** после сдачи БЛОК 1 не очищать и не заменять, пока координатор не подтвердил архив, все AMENDMENT и повторное чтение. БЛОК 1.1 пока **ручной защищённый резерв координатора**, автоматической ротации и скрипта нет. БЛОК 4 — только для независимой оценки координатора.
+8. **Ротация:** после отчёта/evidence Codex переносит дословную TASK из БЛОКА 1 в 1.1 со статусом SUBMITTED / REVIEW PENDING и освобождает БЛОК 1. Независимая приёмка не требуется для ротации. Перед заменой прежнего 1.1 его полный оригинал и AMENDMENT должны иметь проверенный постоянный адрес (Git SHA + №05/09); иначе ARCHIVE BLOCKED. БЛОК 4 и архивы меняет только координатор.
 
 ### Среда Codex/Desktop — обязательная проверка путей
 
@@ -40,6 +40,14 @@ Codex работает **на компьютере владельца**, поэ�
 **БЛОК 1** — действующая дословная постановка (её сюда помещает владелец); **БЛОК 1.1** — последняя сданная дословная постановка для проверки, только после сохранения предыдущих материалов; **БЛОК 2** — краткий фактический результат; **БЛОК 3** — реальные OPEN и предложения NEXT; **БЛОК 4** — отдельное заключение независимого координатора. Это **структура Markdown**, не автоматизированная система переключения слотов.
 
 ### БЛОК 1 — ТЕКУЩАЯ ЗАДАЧА
+
+**НЕТ НАЗНАЧЕННОЙ ЗАДАЧИ.** Новое поручение назначает только владелец, вставляя полный текст сюда. NEXT не является назначением.
+
+### БЛОК 1.1 — ПОСЛЕДНЯЯ СДАННАЯ ЗАДАЧА (ДОСЛОВНЫЙ ОРИГИНАЛ)
+
+**CODEX-UL-STREAM-SLOTS-20261112-001 — SUBMITTED / REVIEW PENDING.** 12.11.2026. Независимые P0/P1 SOURCE OFFLINE PASS (mock), PRODUCT LIVE NOT RUN. Полный оригинал ниже сохранён неизменным.
+
+
 
 # CODEX-UL-STREAM-SLOTS-20261112-001
 
@@ -414,41 +422,32 @@ START/STOP требуют действующего `control_models`, разре�
 Не присваивать себе независимый PASS. Не заменять исходную предыдущую задачу в архивах и не удалять evidence.
 
 **Ожидаемый результат:** завершённая офлайн-реализация, пригодная для независимой приёмки и последующего безопасного развёртывания. Не называть её установленной или работающей на LIVE до фактического подтверждения.
-### БЛОК 2 — ПОСЛЕДНИЙ ФАКТИЧЕСКИЙ РЕЗУЛЬТАТ
 
-**0D / 08.11.2026 / CHECKPOINT RESULT READY:** Codex подготовил read-only `--inspect-server` в `Colibri/manager_dev/server_runner.py`, новый `server_preflight.py` и тесты. Координатор независимо повторил **183/183 PASS на домашнем DESKTOP-SC96D3U**. Владелец выполнил на `DESKTOP-KT4G5SM` PowerShell `py -3.12 -B "C:\Server\Ultra_LLM\Colibri\manager_dev\server_runner.py" --inspect-server`; отчёт JSON `READ_ONLY_PREFLIGHT`, `server_execution_verified=true`, `launch_performed=false`, `stop_performed=false`. Colibri1 на 8000 health=ok / Qwen3.6, Colibri2 на 8001 отсутствует; свободно 35.284 GiB из 47.936 GiB. Реальный dual-live и LAN Manager **NOT RUN**. Контрольный статус этой стадии — №07 БЛОК 4, подробности №09 `EVID-UL-MGR-0D-PREFLIGHT-20261108-001`, текущие OPEN №05/13. **БЛОК 1 0D остаётся действующим и неизменным.**
+### БЛОК 2 — ПОСЛЕДНИЕ ПЯТЬ ЗАДАЧ (КОРОТКИЙ ИНДЕКС)
 
-### БЛОК 2 — ПОСЛЕДНИЙ ФАКТИЧЕСКИЙ РЕЗУЛЬТАТ
+- **CODEX-UL-STREAM-SLOTS-20261112-001 / 12.11:** SOURCE P0/P1, независимые Manager 302/302 (Windows), Client 49/49 (Windows + GitHub), P0 Chrome + P1 Chrome GitHub Actions PASS; LIVE NOT RUN. №09, отчёт STREAM_SLOTS_REPORT.txt, evidence STREAM_SLOTS_EVIDENCE.json; commit 9900ccd.
+- **CODEX-UL-CONTROL-01-STREAM-20261111-001 / 11.11:** SOURCE CONTROL-01, independent PARTIAL; полный текст: https://github.com/maxrus82gm-svg/local_LLM/blob/6c74edd7b961661f08969a11f0ea3a93e0cadce0/Documents/07_%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B8%20Codex.md ; №09.
+- **CODEX-UL-MGR-0D-SERVICE-CORE-001 / 08.11:** этапы offline, independent checkpoints PASS, SERVER LIVE NOT RUN; №09.
+- **CODEX-UL-MGR-0C-SERVER-RUNNER-001 / 08.11:** independent 133 tests PASS, server blocked; №09.
+- **CODEX-ULTRA-LLM-COLIBRI-START-001 / 01.11:** local author 28 PASS, formal real inference performance OPEN; №09.
 
-**2026-11-08 — `CODEX-UL-MGR-0C-SERVER-RUNNER-001` / RESULT PARTIAL:** Codex создал в серверной SMB `Colibri/manager_dev/` только `server_runner.py` и `test_server_runner.py`. Подготовлен read-only Windows preflight, dry-run Colibri2 CPU/порт 8001, раздельные пути, проверка условной идентичности PID/SID/port и контролируемая оценка RAM. Отчёт Codex: 133/133 offline PASS (предыдущие 78 + 55 новых), серверный исполнительный канал BLOCKED. На домашнем `DESKTOP-SC96D3U` координатор самостоятельно повторил `133/133 PASS, 0 FAIL` и отдельно проверил обычный CLI: `BLOCKED: Wrong execution host`. **Real server START/STOP/CPU-runtime/RAM measurement NOT RUN.** Независимый вердикт — БЛОК 4 ниже. Точная TASK владельца в БЛОКЕ 1 сохраняется без изменений; не ротировать до согласованного закрытия.
+Здесь только 5 последних ID. Полные исходники и архив — №09, immutable Git commit и №05 индекс.
 
+### БЛОК 3 — OPEN / NEXT
 
-
-**2026-11-01 — `CODEX-ULTRA-LLM-COLIBRI-START-001` (факт поступившего отчёта, приёмка не завершена):** Codex подготовил `Colibri/ULTRA-START.bat`, `ULTRA-STOP.bat`, `ULTRA-STATUS.bat`, `ULTRA-CONTROL.py`, `ULTRA-README.md`; локальные тесты **28/28 PASS** (авторские). Серверный `SERVER-STATUS.json` подтверждает Colibri `ready`, CUDA RTX 3070, Qwen3-Coder-30B-A3B; пользователь открыл чат вручную и получил ответы. **FORMAL REAL-GENERATION-TESTS / TOK/S NOT RUN**, конечный независимый verdict **REVIEW PENDING**. Исходный отчёт Codex не синхронизирован полностью с поздними серверными наблюдениями; полный контекст в `09_История_задач.md` → TASK ID. Report: `Documents/Reports/CODEX-ULTRA-LLM-COLIBRI-START-001/REPORT-CODEX-ULTRA-LLM-COLIBRI-START-001.md`. 
-
-### БЛОК 3 — ОТКРЫТЫЕ ВОПРОСЫ / NEXT
-
-**UL-MGR-0C OPEN 08.11:** авторизованное исполнение в ОС `DESKTOP-KT4G5SM` не подтверждено; доступны только SMB-файлы. Потребуются отдельный read-only server preflight, проверка CPU-runtime и точного RAM-пика уже запущенной Colibri, затем надёжные Windows ownership/mutex/durable lease/watchdog/same-handle stop до нового live START. `server_runner.py` сегодня **умышленно не может допустить новое размещение при UNKNOWN external LLM peak**. Ресурсный расчёт 20 ГиБ защищённых игр + 10 ГиБ остатка может отказать консервативнее необходимого, поскольку часть игровых процессов уже уменьшает фактическую free RAM; пересмотреть метод учёта перед live, а не ослаблять защиту без замеров. `CODEX-UL-MGR-0C-SERVER-RUNNER-001` = PARTIAL / BLOCKED SERVER ACCESS; новая TASK не назначена автоматически.
-
-
-
-**Текущие OPEN:** `CODEX-ULTRA-LLM-COLIBRI-START-001` — формальный двухходовый тест скорости и GPU/RAM, итоговый пакет Codex, независимая приёмка и подтверждение сохранности оригинальной TASK. Сопутствующие FOLLOWUP: `FOLLOWUP-ULTRA-COLIBRI-PERF-001`, `FOLLOWUP-ULTRA-COLIBRI-WEB-001`, `FOLLOWUP-ULTRA-COLIBRI-CONTEXT-001` (реестр №05). Следующий технический этап не назначать автоматически, БЛОК 1/1.1 не ротировать без closeout.
+- Реальная Colibri1/Qwen3.6 скорость direct vs установленный Client/Manager, streaming и reasoning — NOT RUN; установленный Client R4/Manager не обновлялись. LIVE требует отдельного OWNER GO, backup, rollback.
+- Независимый P1 браузерный прогон — PASS в GitHub Actions run 43173172619; real Colibri NOT RUN. SQLite durable claim fake cold ~973 ms, warm ~160 ms, реальные 20 секунд не объяснены.
+- GitHub Actions для SOURCE mock tests; полный Manager suite на hosted runner требует независимой фикстуры Colibri 2.1.0 вместо локального диска S:. Автоматическая доставка на сервер — только проектная идея.
 
 ### БЛОК 4 — НЕЗАВИСИМАЯ ПРОВЕРКА (ТОЛЬКО КООРДИНАТОР)
 
-**08.11.2026 / `CODEX-UL-MGR-0D-SERVICE-CORE-001` / STAGE B: OFFLINE 223/223 PASS; FULL TASK OPEN.** Координатор прочитал `colibri2_runner.py`, `windows_process.py`, маршрутизацию `server_runner.py` и тест запуска. Независимый полный прогон на домашнем DESKTOP-SC96D3U первоначально: 223 tests / 1 FAIL. Причина установлена диагностикой Windows Job Object: системный `conhost.exe` является третьим членом job, а тест неверно ожидал ровно два PID и мог принять `conhost.exe` за потомка Python. Исправлен только `manager_dev/test_colibri2_runner.py`: проверяет конкретного Python-потомка, его членство в job и завершение вместе с родителем. Два последующих независимых полных прогона: **223/223 PASS, 0 FAIL**. Production-код, slot1, Colibri и Valheim не изменялись. **Server PLAN/START/STOP, CPU inference и LAN NOT RUN**; следующая точка — owner-executed `--colibri2 plan` на DESKTOP-KT4G5SM, результат оценить до отдельного решения о START. БЛОК 1 0D остаётся действующим, ротация запрещена до приёмки всей задачи.
-
-**08.11.2026 / `CODEX-UL-MGR-0D-SERVICE-CORE-001` / STAGE A: PASS READ-ONLY CHECKPOINT; FULL TASK IN PROGRESS.** Координатор проверил существование и ключевое безопасное поведение `server_preflight.py`, изменённого `server_runner.py`, тестов и повторно запустил весь suite на домашнем ПК (`183 tests OK; 0 FAIL`). Владелец предоставил вывод исполнения на фактическом сервере DESKTOP-KT4G5SM; JSON показал верный host, 8000 health ok и отсутствие 8001, без START/STOP. Это доказательство диагностической стадии, **не** успешного запуска Colibri2, не performance/load test и не завершение 0D. В конфигурации Colibri1 найден `model_dir` Qwen3-Coder при реально работающей Qwen3.6 — не копировать setup.json. CPU runtime validation, live stop/rollback, durable lease и защищённый LAN Manager ещё OPEN. Следующий шаг — Codex готовит проверяемые отдельные START и rollback для исполнения владельцем на сервере; не создавать новую TASK, не стирать БЛОК 1. `EVID-UL-MGR-0D-PREFLIGHT-20261108-001` → №09.
-
-### БЛОК 4 — НЕЗАВИСИМАЯ ПРОВЕРКА (ТОЛЬКО КООРДИНАТОР)
-
-**2026-11-08 — независимый verdict для `CODEX-UL-MGR-0C-SERVER-RUNNER-001`: PARTIAL (DRY-RUN ACCEPTED / LIVE BLOCKED).** Координатор через SMB прочитал `server_runner.py` (426 строк), `test_server_runner.py` (463 строки), прежние `manager_core.py`/`resource_catalog.py`; на `DESKTOP-SC96D3U` повторно исполнил `py -3.12 -B -m unittest discover -s "\\\\192.168.0.77\\Server\\Ultra_LLM\\Colibri\\manager_dev" -p "test_*.py" -q`, результат **Ran 133 tests; OK / 0 FAIL**. Самостоятельный обычный вызов `server_runner.py` вернул `BLOCKED: Wrong execution host: DESKTOP-SC96D3U; required DESKTOP-KT4G5SM`, live start/stop недоступны в коде. Отчёт Codex о всех SHA-256 исходных файлов и сетевых пробах принимается как **исполнительский evidence, не подтверждён координатором побайтово/на сервере**. Замер внешнего RAM peak неизвестен, LocalWindowsReader намеренно блокирует дальнейший admission при уже запущенной Colibri; реальный CPU-runtime/WSMan/SSH/RDP/CIM и hardware host evidence координатор не перепроверял. Не объявлять 0C COMPLETE или серверный запуск успешным; **отдельный USER GO** для серверной диагностики и последующего live теста обязателен. БЛОК 1 сохранить.
+**CI UPDATE 12.11.2026:** Windows hosted GitHub Actions run 43173172619 SUCCESS; независимые P0+P1 Chrome SOURCE mocks PASS (включая two same-model CPU, two same-model CUDA, STOP one preserves other), Client 49/49 и JS/Python syntax PASS. С учетом ранее независимого Windows Manager 302/302: **P0/P1 SOURCE OFFLINE PASS**, но **PRODUCT LIVE NOT RUN**. Full Manager suite в hosted CI NOT RUN из-за S: fixture. https://github.com/maxrus82gm-svg/local_LLM/actions/runs/43173172619 . Не разрешает самовольную установку или runtime START/STOP.
 
 
 
-**2026-11-01 — REVIEW PENDING / ПРЕДВАРИТЕЛЬНАЯ ДОКУМЕНТНАЯ ПРОВЕРКА, НЕ ФИНАЛЬНАЯ ПРИЁМКА.** ChatGPT прочитал исходный отчёт Codex, авторские `LOCAL-TESTS.json`, серверный `SERVER-STATUS.json` и фрагменты `ULTRA-CONTROL.py`/BAT/README. Это подтверждает наличие реализации и достоверность указанных **документированных** свидетельств, но **не** независимый прогон 28/28 и **не** полноценная проверка всех ветвей runtime. Реальные формальные 2 ответа, tok/s, полный серверный STOP/START-cycle и компиляция UE5 — **NOT RUN**. `PASS / DONE / VERIFIED` не присвоен. Подробности — №09. БЛОК 1 не очищать; место точного оригинала TASK/AMENDMENT — `NOT VERIFIED`.
+**12.11.2026, CODEX-UL-STREAM-SLOTS-20261112-001: P0 SOURCE OFFLINE PASS / P1 SOURCE PARTIAL / LIVE NOT RUN.** Прочитаны SOURCE commit 9900ccd, отчёт и evidence. На DESKTOP-SC96D3U независимо из этого HEAD: Manager verify_offline.ps1 **302/302 PASS**; Client unittest **49/49 PASS**; Chrome test_browser_stream_source.mjs **PASS** (SOURCE Client → TLS Manager → fake Colibri, первый фрагмент до DONE, reasoning отдельно, сохранение); node --check client.js **PASS**, общий exit 0. Для P1 Chrome только авторские mock evidence. Реальный GPU/KAT/Colibri/START/STOP и LIVE latency НЕ проверены. Никакого PROD PASS/OWNER GO из этого вердикта не следует.
 
-**Дополнительная независимая запись 2026-11-01 (без закрытия TASK):** после первичного 28/28 пакета Codex реализовал DeepSeek profile + ULTRA-SELECT.bat, сдал REPORT-DEEPSEEK-CONNECT-001.md; его 42 unit/mock теста повторно запущены ChatGPT на ПК агента — 42/42 PASS. SHA-256 файлов контроллера/батников и проверенных upstream-файлов совпали с report manifest до последующей правки контекста и export_status. Пользовательский DeepSeek запуск состоялся, но работал крайне медленно и смешивал языки; владелец удалил модель. Появился WinError 5 из-за блокировки общего SERVER-STATUS.json; координатор исправил отчётную ветвь с резервным snapshot, локальный syntax/fallback/normal-write PASS, пользовательский повторный старт с WARNING прошёл. ЭТО НЕ итоговая приёмка CODEX-ULTRA-LLM-COLIBRI-START-001; формальные токены/сек, KAT и полный server regression OPEN. БЛОК 1 и БЛОК 1.1 не ротировать. Хроника: 09_История_задач.md → ULTRA-MANUAL-DEEPSEEK-TRIAL-001 и ULTRA-MODEL-KAT-DOWNLOAD-001.
+Исторические старые БЛОКИ 2–4 сохранены дословно в №09, чтобы не терять прежние независимые проверки.
 
 ## 4. Отчёт исполнителя — минимальная форма
 
