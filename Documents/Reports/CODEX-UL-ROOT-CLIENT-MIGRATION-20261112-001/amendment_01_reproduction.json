@@ -1,0 +1,76 @@
+{
+  "task_id": "CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001",
+  "mode": "inherited_reproduction",
+  "status": "REPRODUCED FAILURE",
+  "started_at_utc": "2026-11-12T18:49:44.981953+00:00",
+  "qa_run": "M:\\GitHub\\local_LLM\\Test\\ClientMigration_20261112\\Amendment01\\20261112_234943_62ce2044",
+  "synthetic_profile": "M:\\GitHub\\local_LLM\\Test\\ClientMigration_20261112\\Amendment01\\20261112_234943_62ce2044\\AppData\\UltraLLM\\Client",
+  "profile_initially_absent": true,
+  "payload_hashes_verified": 72,
+  "payload_total_files": 73,
+  "exe_sha256": "7614aecc6f97a5a8c1b126b745aa7d17e9dc8679774ba870ee68f18690c649df",
+  "helper_matches_source": true,
+  "environment_fix": "NONE",
+  "mutex_distinct": true,
+  "qa_mutex": "Local\\UltraLLM-Web-59330384fea00b9a3aa448bc4f69206f",
+  "before": {
+    "old_file_count": 68,
+    "old_files_digest": "1f2e122c7371c829bfe1750e404fb0631ff6a44ad3c3e1c94a3d79c3d27857c6",
+    "shortcut_sha256": "658e88888c9bb28791c038c71ce56fcb1e14af35280d47a4f859321cc57ae070",
+    "old_process": {
+      "pid": 29492,
+      "exe": "M:\\UltraLLM_Client\\UltraLLMClient.exe",
+      "creation_utc": "2026-11-12T12:49:36.6123520Z"
+    },
+    "production_exists": false
+  },
+  "processes": [
+    {
+      "label": "main_1",
+      "command": [
+        "M:\\GitHub\\local_LLM\\Test\\ClientMigration_20261112\\R5\\UltraLLMClient.exe",
+        "--no-browser"
+      ],
+      "started_at_utc": "2026-11-12T18:49:45.007554+00:00",
+      "returncode": 1,
+      "pid": 3536,
+      "exit_code_hex": "0x00000001",
+      "exit_observed_at_utc": "2026-11-12T18:51:05.451303+00:00",
+      "lifetime_ms": 80443.156,
+      "stdout_safe": "",
+      "stderr_safe": "Traceback (most recent call last):\n  File \"web_client.py\", line 689, in <module>\n  File \"web_client.py\", line 684, in main\n  File \"web_client.py\", line 642, in run_server\n  File \"web_client.py\", line 80, in ensure_private_dir\nPermissionError: Unable to create protected Client directory\n"
+    }
+  ],
+  "cycles": [],
+  "actual_manager_requests": 0,
+  "owner_go": false,
+  "stage_D": "NOT RUN",
+  "browser_visual": "NOT RUN",
+  "VBS_execution": "NOT RUN",
+  "error_type": "RuntimeError",
+  "error": "No HTTP-ready; actual process returncode=1",
+  "acl_inherited_environment": {
+    "returncode": 1,
+    "stdout": "{\"error_id\":\"CouldNotAutoloadMatchingModule\",\"exception_type\":\"System.Management.Automation.CommandNotFoundException\",\"message\":\"������� \\\"Get-Acl\\\" ������� � ���㫥 \\\"Microsoft.PowerShell.Security\\\", �� ����㧨�� ��� ����� �� 㤠����. ��� ����祭�� �������⥫��� ᢥ����� �믮���� ������� \\\"Import-Module Microsoft.PowerShell.Security\\\".\"}",
+    "stderr": ""
+  },
+  "acl_system_modules_environment": {
+    "returncode": 0,
+    "stdout": "{\"protected\":true,\"rule_count\":3,\"command_module\":\"C:\\\\WINDOWS\\\\system32\\\\WindowsPowerShell\\\\v1.0\\\\Modules\\\\Microsoft.PowerShell.Security\\\\Microsoft.PowerShell.Security.psd1\"}",
+    "stderr": ""
+  },
+  "synthetic_files": [],
+  "after": {
+    "old_file_count": 68,
+    "old_files_digest": "1f2e122c7371c829bfe1750e404fb0631ff6a44ad3c3e1c94a3d79c3d27857c6",
+    "shortcut_sha256": "658e88888c9bb28791c038c71ce56fcb1e14af35280d47a4f859321cc57ae070",
+    "old_process": {
+      "pid": 29492,
+      "exe": "M:\\UltraLLM_Client\\UltraLLMClient.exe",
+      "creation_utc": "2026-11-12T12:49:36.6123520Z"
+    },
+    "production_exists": false
+  },
+  "protected_state_unchanged": true,
+  "completed_at_utc": "2026-11-12T18:51:09.093571+00:00"
+}

@@ -1,0 +1,19 @@
+{
+  "completed": true,
+  "pid": 15596,
+  "exit_code": 0,
+  "production_client": {
+    "pid": 2580,
+    "exe": "M:\\GitHub\\local_LLM\\Production\\Client\\UltraLLMClient.exe",
+    "creation_utc": "2026-11-12T19:38:19.9296760Z",
+    "owner_verified": true,
+    "listeners": [
+      {
+        "LocalAddress": "127.0.0.1",
+        "LocalPort": 50783
+      }
+    ]
+  },
+  "shortcut_sha256": "71d3d17a96a0afce724683ed6cc4cd148e25463c011ba927b65c56c282669e3d",
+  "profile_unchanged": true
+}

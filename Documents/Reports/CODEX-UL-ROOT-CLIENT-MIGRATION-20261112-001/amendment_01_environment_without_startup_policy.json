@@ -1,0 +1,50 @@
+{
+  "scope": "Only synthetic QA helper/profile; only child PSMODULEPATH differs",
+  "helper_sha256": "d9ec208e39f380fe7ee41523d888de54afba2c029b2a1512e4c45efea6dae47a",
+  "runs": {
+    "inherited": {
+      "helper": {
+        "returncode": 1,
+        "stdout": "{\"error_id\":\"UnauthorizedAccess\",\"exception_type\":\"System.Management.Automation.PSSecurityException\",\"message\":\"Невозможно загрузить файл M:\\\\GitHub\\\\local_LLM\\\\Test\\\\ClientMigration_20261112\\\\R5\\\\_internal\\\\Prepare-ClientPrivate.ps1, так как выполнение сценариев отключено в этой системе. Для получения дополнительных сведений см. about_Execution_Policies по адресу https:/go.microsoft.com/fwlink/?LinkID=135170.\",\"line\":1,\"script\":\"\"}",
+        "stderr": ""
+      },
+      "acl": {
+        "returncode": 1,
+        "stdout": "{\"error_id\":\"CouldNotAutoloadMatchingModule\",\"exception_type\":\"System.Management.Automation.CommandNotFoundException\",\"message\":\"Команда \\\"Get-Acl\\\" найдена в модуле \\\"Microsoft.PowerShell.Security\\\", но загрузить этот модуль не удалось. Для получения дополнительных сведений выполните команду \\\"Import-Module Microsoft.PowerShell.Security\\\".\"}",
+        "stderr": ""
+      },
+      "module_candidates": {
+        "returncode": 0,
+        "stdout": "{\"host_version\":\"5.1.26100.9711\",\"candidates\":[{\"Name\":\"Microsoft.PowerShell.Security\",\"version\":\"7.0.0.0\",\"Path\":\"%USERPROFILE%\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\Modules\\\\Microsoft.PowerShell.Security\\\\Microsoft.PowerShell.Security.psd1\"},{\"Name\":\"Microsoft.PowerShell.Security\",\"version\":\"3.0.0.0\",\"Path\":\"C:\\\\WINDOWS\\\\system32\\\\WindowsPowerShell\\\\v1.0\\\\Modules\\\\Microsoft.PowerShell.Security\\\\Microsoft.PowerShell.Security.psd1\"}]}",
+        "stderr": ""
+      },
+      "module_import": {
+        "returncode": 1,
+        "stdout": "{\"error_id\":\"FormatXmlUpdateException,Microsoft.PowerShell.Commands.ImportModuleCommand\",\"exception_type\":\"System.Management.Automation.RuntimeException\",\"message\":\"При загрузке файла данных расширенного типа произошла следующая ошибка: , %USERPROFILE%\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\Modules\\\\Microsoft.PowerShell.Security\\\\Security.types.ps1xml: файл пропущен из-за следующего исключения при проверке: Ошибка при проверке AuthorizationManager..\\n\"}",
+        "stderr": ""
+      }
+    },
+    "system_default_modules": {
+      "helper": {
+        "returncode": 1,
+        "stdout": "{\"error_id\":\"UnauthorizedAccess\",\"exception_type\":\"System.Management.Automation.PSSecurityException\",\"message\":\"Невозможно загрузить файл M:\\\\GitHub\\\\local_LLM\\\\Test\\\\ClientMigration_20261112\\\\R5\\\\_internal\\\\Prepare-ClientPrivate.ps1, так как выполнение сценариев отключено в этой системе. Для получения дополнительных сведений см. about_Execution_Policies по адресу https:/go.microsoft.com/fwlink/?LinkID=135170.\",\"line\":1,\"script\":\"\"}",
+        "stderr": ""
+      },
+      "acl": {
+        "returncode": 0,
+        "stdout": "{\"protected\":true,\"rule_count\":3,\"command_module\":\"C:\\\\WINDOWS\\\\system32\\\\WindowsPowerShell\\\\v1.0\\\\Modules\\\\Microsoft.PowerShell.Security\\\\Microsoft.PowerShell.Security.psd1\"}",
+        "stderr": ""
+      },
+      "module_candidates": {
+        "returncode": 0,
+        "stdout": "{\"host_version\":\"5.1.26100.9711\",\"candidates\":[{\"Name\":\"Microsoft.PowerShell.Security\",\"version\":\"3.0.0.0\",\"Path\":\"C:\\\\WINDOWS\\\\system32\\\\WindowsPowerShell\\\\v1.0\\\\Modules\\\\Microsoft.PowerShell.Security\\\\Microsoft.PowerShell.Security.psd1\"}]}",
+        "stderr": ""
+      },
+      "module_import": {
+        "returncode": 0,
+        "stdout": "{\"module\":\"C:\\\\WINDOWS\\\\system32\\\\WindowsPowerShell\\\\v1.0\\\\Modules\\\\Microsoft.PowerShell.Security\\\\Microsoft.PowerShell.Security.psd1\"}",
+        "stderr": ""
+      }
+    }
+  }
+}

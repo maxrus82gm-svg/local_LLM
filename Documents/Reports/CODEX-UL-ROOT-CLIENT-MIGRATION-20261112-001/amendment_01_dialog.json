@@ -1,0 +1,12 @@
+{
+  "scope": "Only isolated QA EXE; no production window input",
+  "window": {
+    "app": "process:M:\\GitHub\\local_LLM\\Test\\ClientMigration_20261112\\R5\\UltraLLMClient.exe",
+    "id": 986582,
+    "title": "Unhandled exception in script"
+  },
+  "accessibility": {
+    "focused_element": "0 window (диалоговое окно) Unhandled exception in script Secondary Actions: Raise",
+    "tree": "Window: \"Unhandled exception in script\", App: UltraLLMClient.exe.\n\t0 window (диалоговое окно) Unhandled exception in script Secondary Actions: Raise\n\t\t1 image (рисунок)\n\t\t2 text (текстовый) Failed to execute script 'web_client' due to unhandled exception: Unable to create protected Client directory\n\t\t3 text field (поле) Failed to execute script 'web_client' due to unhandled exception: Unable to create protected Client directory Value: Traceback (most recent call last): File \"web_client.py\", line 689, in <module> File \"web_client.py\", line 684, in main File \"web_client.py\", line 642, in run_server File \"web_client.py\", line 80, in ensure_private_dir PermissionError: Unable to create protected Client directory\n\t\t\t4 scroll bar (полоса прокрутки) (disabled, settable, float) По вертикали Value: 0 ID: NonClientVerticalScrollBar\n\t\t\t\t5 button (кнопка) (disabled) Строка вверх ID: UpButton\n\t\t\t\t6 button (кнопка) (disabled) Строка вниз ID: DownButton\n\t\t\t7 scroll bar (полоса прокрутки) (disabled, settable, float) По горизонтали Value: 0 ID: NonClientHorizontalScrollBar\n\t\t\t\t8 button (кнопка) (disabled) Колонка влево ID: UpButton\n\t\t\t\t9 button (кнопка) (disabled) Колонка вправо ID: DownButton\n\t\t\t10 thumb (бегунок) (disabled)\n\t\t11 button (кнопка) Close ID: 1\n\t\t12 title bar (название) (settable, string) Value: Unhandled exception in script\n\t\t\t13 menu bar (строка меню) Система ID: MenuBar\n\t\t\t\t14 menu item (элемент меню) Система\n\t\t\t15 button (кнопка) Закрыть\n\nThe focused UI element is 0 window (диалоговое окно) Unhandled exception in script Secondary Actions: Raise."
+  }
+}

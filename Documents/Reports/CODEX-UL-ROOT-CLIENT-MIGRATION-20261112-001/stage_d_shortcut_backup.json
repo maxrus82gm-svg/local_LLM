@@ -1,0 +1,13 @@
+{
+  "path": "M:\\GitHub\\local_LLM\\Backups\\Client\\CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001\\StageD_20261113_003134_fe5953\\Original_Desktop.lnk",
+  "sha256": "658e88888c9bb28791c038c71ce56fcb1e14af35280d47a4f859321cc57ae070",
+  "settings": {
+    "target": "C:\\Windows\\System32\\wscript.exe",
+    "arguments": "\"M:\\UltraLLM_Client\\Start_Ultra_LLM_Client.vbs\"",
+    "working_directory": "M:\\UltraLLM_Client",
+    "description": "Ultra LLM Web Client — стабильный ярлык",
+    "icon": "C:\\WINDOWS\\System32\\imageres.dll,14",
+    "hotkey": "",
+    "window_style": 1
+  }
+}

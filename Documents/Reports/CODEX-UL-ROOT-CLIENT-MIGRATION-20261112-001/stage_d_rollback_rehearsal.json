@@ -1,0 +1,39 @@
+{
+  "status": "PASS",
+  "at_utc": "2026-11-12T19:32:14.986346+00:00",
+  "qa_directory": "M:\\GitHub\\local_LLM\\Test\\ClientMigration_20261112\\StageD\\20261113_003134_fe5953",
+  "qa_shortcut": "M:\\GitHub\\local_LLM\\Test\\ClientMigration_20261112\\StageD\\20261113_003134_fe5953\\Rollback_Test.lnk",
+  "simulated_process": {
+    "pid": 32140,
+    "exe": "M:\\GitHub\\local_LLM\\Test\\ClientMigration_20261112\\StageD\\20261113_003134_fe5953\\SandboxClient\\UltraLLMClient.exe",
+    "creation_utc": "2026-11-12T19:31:39.1430460Z",
+    "owner_verified": true,
+    "listeners": [
+      {
+        "LocalAddress": "127.0.0.1",
+        "LocalPort": 55768
+      }
+    ]
+  },
+  "recovered_process": {
+    "pid": 24956,
+    "exe": "M:\\GitHub\\local_LLM\\Backups\\Client\\CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001\\Rollback_R5_Complete\\UltraLLMClient.exe",
+    "creation_utc": "2026-11-12T19:31:57.0324430Z",
+    "owner_verified": true,
+    "listeners": [
+      {
+        "LocalAddress": "127.0.0.1",
+        "LocalPort": 59472
+      }
+    ]
+  },
+  "recovery_target": "M:\\GitHub\\local_LLM\\Backups\\Client\\CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001\\Rollback_R5_Complete",
+  "recovered_assets_verified": true,
+  "existing_profile_duplicate_exit": 0,
+  "desktop_shortcut_unchanged": true,
+  "old_client_unchanged": true,
+  "profile_unchanged": true,
+  "old_broken_VBS_used": false,
+  "staged_payload": "M:\\GitHub\\local_LLM\\Test\\ClientMigration_20261112\\StageD\\20261113_003134_fe5953\\ProductionPayload",
+  "staged_files": 73
+}

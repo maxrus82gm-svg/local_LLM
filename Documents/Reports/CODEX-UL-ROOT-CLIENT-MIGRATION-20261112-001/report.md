@@ -1,77 +1,129 @@
 # CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001
 
-12.11.2026. Codex. **BLOCKED / этап C: изолированный packaged Client завершился до HTTP-ready.** Миграция остановлена согласно §6 постановки. OWNER GO не получен и пока не запрашивается: контрольная точка A–C ещё не пройдена. Действующий Client не закрыт, ярлык не изменён, Production не создан. Самопроверка не является независимой приёмкой.
+13.11.2026, Asia/Yekaterinburg. **LIVE PASS — миграция Client R5 в единый workspace. Независимая приёмка: SUBMITTED / REVIEW PENDING.**
 
 ## DONE
 
-Подтверждён домашний компьютер `DESKTOP-SC96D3U`, пользователь `DESKTOP-SC96D3U\REX`. Единственный workspace — `M:\GitHub\local_LLM`. Сверены актуальные локальные №00/000/07/13, FOLLOWUP-UL-ROOT-MIGRATION-20261112-001 в №05, №18 §§18.26–18.27, прежняя R5 TASK в БЛОКЕ 1.1 и перенесённые REPORT/INSTALL/LIFECYCLE/PORTABILITY. Первоначально открытая по прежнему UNC-пути карточка была исторической, её БЛОК 1 WAITING; источником назначения использована актуальная локальная карточка. Серверные runtime не исследовались и не изменялись.
+Выполнен прямой OWNER GO на этап D. R5 установлена в `M:/GitHub/local_LLM/Production/Client`, все **73 файла** сверены с authoritative ZIP. Существующий ярлык переключён **однократно** на VBS новой папки. Client реально открыт через него в обычном видимом Chrome, а не только в headless QA.
 
-Git HEAD: `03d1cd961fd9ec8216d5281f36bd1b771c43f44b`, текущая ветка `main`. До начала уже изменены `Documents/07_Задачи Codex.md` (назначение владельца) и `Documents/.obsidian/workspace.json`; они не перезаписывались. Новые branch/worktree/clone не создавались. Коммит, push, merge не выполнялись. Задача не завершена; промежуточный коммит запрещён. Номер и место единственного итогового коммита необходимо согласовать с владельцем после успешного продолжения; чужая GPT_2_local не использовалась.
+Последний проверенный процесс — **PID 2580**, EXE `M:\GitHub\local_LLM\Production\Client\UltraLLMClient.exe`, creation UTC `2026-11-12T19:38:19.9296760Z`, listener **127.0.0.1:50783**. Программа оставлена работающей. Старый PID 29492 штатно завершён только после preflight и успешной функциональной репетиции rollback. Старый каталог `M:/UltraLLM_Client` и все backup сохранены.
+
+Реальный **manager-server77 ONLINE**, три слота, две записи инвентаризации моделей, три строки каталога в UI. Сохранены **34 сообщения**, min/max id 1/34, schema 1, integrity_check=ok. SHA файла истории и aggregate SHA шести файлов профиля/секретов совпали до/после. Текст сообщений, токены и конфигурация в evidence не экспортировались.
+
+Это LIVE PASS только домашнего Client deployment. **MANAGER VERSION GATE остаётся:** сервер не предоставляет stream v2/control.slots; реальные streaming/reasoning/dynamic slots/KAT/второй LLM не проверялись и не включались.
 
 ## CHANGED / DIFF
 
-Созданы новые материалы внутри workspace:
+- Создан полный runtime `Production/Client` из byte-exact проверенного R5; не пересборка и не loose-копия Git с CRLF-отличиями.
+- Исходный `.lnk` на Desktop изменён один раз: target `C:/Windows/System32/wscript.exe`, arguments `"M:\GitHub\local_LLM\Production\Client\Start_Ultra_LLM_Client.vbs"`, working directory `M:/GitHub/local_LLM/Production/Client`. Description/icon/hotkey/window style сохранены.
+- Исходная конфигурация и байты ярлыка сохранены ещё раз внутри Backups; старые резервные копии не удалялись.
+- В каталоге отчёта добавлены `stage_d.py`, `stage_d_lifecycle.py`, `stage_d_ui.mjs`, авторизация/metadata/evidence и screenshot. Предыдущий полный диагностический report/checks/checkpoint/manifest сохранён в `pre_stage_d`, SHA — `stage_d_originals.json`.
+- Обновлены существующие report.md, checks.json, checkpoint.json, manifest и предусмотренный checkpoint карточки при сдаче. Независимый БЛОК 4 сохраняется побайтово.
+- Client/Manager source и ZIP/backup не менялись; архивную .venv не использовали. Не создавались новые рабочие корни или ветки. Runtime/Test/Backups не должны попадать в Git.
 
-- `Backups/Client/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/Installed_Original_68_files` — точная копия фактического старого каталога, **68/68 SHA совпали**.
-- Там же `Rollback_R5_Complete` — полный проверенный R5 из ZIP, **73/73 файла с manifest совпали**; копии исходного `.lnk`, карточки №07 и manifest backup.
-- `Test/ClientMigration_20261112/R5` — изолированно распакованный ZIP, **73/73 SHA совпали**; отдельные synthetic AppData и Temp. Историческую опубликованную .venv не запускали.
-- Данный каталог отчёта: inventory/checks/checkpoint, скрипт воспроизведения изолированной проверки и stdout/stderr 49 тестов.
+## PREFLIGHT — ДО ЗАВЕРШЕНИЯ CLIENT
 
-В своей карточке №07 добавлен factual BLOCKED checkpoint в БЛОК 2; БЛОКИ 1/1.1/4 побайтово сохранены. Исходники Client/Manager, общие нормативные документы, старые установки и действующий ярлык не редактировались. Корневой `.gitignore` уже исключает новые `/Backups/`, `/Test/`, `/Production/`, `/Releases/`; изменения не потребовались. Это не исключает старые tracked артефакты из истории, их privacy cleanup здесь не выполнялся. Отчёт не содержит приватной переписки, Manager credentials или экспортов профиля.
+Подтверждены домашний **DESKTOP-SC96D3U** и единственный workspace `M:/GitHub/local_LLM`. Начальное Git-состояние чистое, ветка main, HEAD **d72bbb68be463f2410168d51cdea95bff988fe08**, коммит №44. Прежний 29492 подтверждён по owner, executable, creation `2026-11-12T12:49:36.6123520Z`, адресу/порту 127.0.0.1:60720. Нельзя подменять эту проверку kill по имени; глобального/принудительного kill не было.
 
-## Инвентаризация и SHA
+`Production/Client` отсутствовал: неизвестных пользовательских файлов не было. Перед cutover прочитана реальная сводка, scheduler active/queued=0. Основной профиль находился в прежнем защищённом каталоге LOCALAPPDATA; он не переносился в репозиторий. Проверен read-only metadata snapshot и SQLite integrity.
 
-Постоянная цель: `M:\GitHub\local_LLM\Production\Client` — **отсутствует / не установлено**.
+### SHA / резервные копии
 
-Работающий Client: PID **29492**, parent 27244, EXE `M:\UltraLLM_Client\UltraLLMClient.exe`, creation `2026-11-12T12:49:36.612352Z`, loopback-порт **60720**. После тестов остался только этот исходный Client с тем же PID/path/creation. Его завершение не запрашивалось. Миграция не переносит уже загруженный процесс простым копированием файлов.
+- ZIP: `Releases/Client/Imported_Packages_20261112/CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219/UltraLLM_Client_STREAM_SLOTS_R5_Win64.zip`.
+- **ZIP SHA-256: `bc37f43f84263da8f42e006ab3e3833e85a3781bfb11858809882a51b34a9d8a`**.
+- **EXE SHA-256: `7614aecc6f97a5a8c1b126b745aa7d17e9dc8679774ba870ee68f18690c649df`**.
+- 72 payload hashes + SHA256SUMS = **73/73** в QA, полном backup и Production.
+- `Backups/Client/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/Installed_Original_68_files`: **68/68** к фактическому исходному каталогу.
+- Там же `Rollback_R5_Complete`: **73/73**, полный запускаемый R5 с VBS. Исходная partial-установка имеет только 68 файлов и не содержит пяти root-файлов, включая VBS; она не объявляется рабочим rollback.
+- SHA исходного ярлыка **658e88888c9bb28791c038c71ce56fcb1e14af35280d47a4f859321cc57ae070**; SHA нового **71d3d17a96a0afce724683ed6cc4cd148e25463c011ba927b65c56c282669e3d**. Точный новый дополнительный backup `.lnk` — `stage_d_shortcut_backup.json`.
+- SHA истории до и после: **6e38fdfcbe1f17159ea3be2349557d2c06009d73b96d611a41e9f9266d3ea3aa**. Это opaque checksum, содержимое переписки не публикуется.
 
-Ярлык `C:\Users\REX\Desktop\Ultra LLM Client.lnk` указывает на `C:\Windows\System32\wscript.exe`, arguments `"M:\UltraLLM_Client\Start_Ultra_LLM_Client.vbs"`, working directory `M:\UltraLLM_Client`. Его SHA-256 **658e88888c9bb28791c038c71ce56fcb1e14af35280d47a4f859321cc57ae070**, до/после и в backup совпал.
+## ROLLBACK — ПОДГОТОВЛЕН И ФУНКЦИОНАЛЬНО ПРОВЕРЕН ДО CUTOVER
 
-**Расхождение:** старый каталог содержит лишь EXE + `_internal`, 68 файлов. Все имеющиеся файлы совпадают с оригинальным R5. Отсутствуют пять root-файлов: `Start_Ultra_LLM_Client.vbs`, `Install_Ultra_LLM_Client.vbs`, `PORTABLE_README.txt`, `PYTHON_LICENSE.txt`, `SHA256SUMS.txt`. Таким образом, действующий процесс продолжает работать, но повторный запуск по нынешнему ярлыку нельзя считать исправным: его VBS-target отсутствует. Не пытались нажимать ярлык или восстанавливать внешний каталог. `M:\UltraLLM_Builds` отсутствует. Это отличается от прежнего отчёта о полной установке.
+Один и тот же `recovery()` в stage_d.py используется для репетиции и аварийного возврата. На изолированном synthetic AppData и QA `.lnk` выполнено:
 
-R5 ZIP:
+1. Запуск sandbox Client из тестового ярлыка.
+2. Штатное закрытие только его подтверждённого PID 32140.
+3. Переназначение **тестового**, а не Desktop ярлыка на полный `Rollback_R5_Complete/Start_Ultra_LLM_Client.vbs`.
+4. Реальный запуск backup Client PID 24956 через QA ярлык; configured=false/managers=[], HTTP и точный JS hash PASS.
+5. Штатное закрытие QA backup. Старый PID 29492 и Desktop .lnk остались неизменны.
+6. Backup EXE с настоящим существующим профилем и `--no-browser`: exit **0**, корректное присоединение к уже работающему single-instance без остановки/смены его PID. Подтверждены profile/secret/history checksums до/после.
 
-`Releases/Client/Imported_Packages_20261112/CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219/UltraLLM_Client_STREAM_SLOTS_R5_Win64.zip`
+Репетиция завершилась **PASS до shutdown старого Client**; полный backup был повторно хеширован. Это проверка работоспособного возврата к полному R5 внутри workspace, не попытка запускать отсутствующий старый VBS. Полный runtime остаётся доступным для recovery.
 
-SHA-256: **bc37f43f84263da8f42e006ab3e3833e85a3781bfb11858809882a51b34a9d8a** — совпал с постановкой. Все **72 payload hashes** внутри ZIP проверены; с manifest всего 73 файла. Source SHA `132474781e760e463944c76efcd9d3ff192e8f18` взят из R5 deploy evidence, а не из вымышленной embedded FileVersion: у EXE такой версии нет.
+В рабочем cutover исключение автоматически вызывает только этот проверенный recovery: остановить только проверенный собственный новый Client, направить тот же Desktop .lnk на полный workspace backup и запустить с прежним профилем. Неизвестные/конкурирующие процессы не убиваются, файлы Production и личные данные не удаляются и не откатываются. Байт-в-байт восстановление старого `.lnk` сохранено для forensic, но не является функциональным путём возврата, поскольку старый VBS отсутствует.
 
-Отдельная распакованная копия выпуска в Releases имеет четыре raw SHA mismatch: PYTHON_LICENSE и три web-assets. Проверка показала равенство **только после CRLF→LF нормализации**. Первоначальная строгая проверка этой копии дала AssertionError; её отвергли как byte-exact источник. Копирование для QA/полного rollback выполнялось исключительно из исходного ZIP с правильным SHA, не из нормализованной Git-копии. Сама распакованная копия не исправлялась.
+**На рабочей установке rollback не потребовался и не выполнялся.** Нельзя выдавать QA-репетицию за реальный аварийный возврат с настоящим профилем. Он подготовлен и испытан в названных границах. Сбой диска/ОС или последующее стороннее удаление backup не могут гарантироваться программой; при потере verified backup recovery отказывает до рискованных действий.
 
-## TESTS / EVIDENCE
+## STAGE D / LIVE TESTS
 
-Команда: `py -3.12 -B -X utf8 Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/isolated_checks.py` из единственного workspace.
+| Проверка | Результат |
+|---|---|
+| Home host, PID/path/creation/owner/port | PASS |
+| ZIP, source QA, оба runtime backup, `.lnk` backup | PASS |
+| Target до установки | отсутствует, неизвестных файлов 0 |
+| Функциональная репетиция rollback | PASS |
+| Штатное завершение исходного 29492 | PASS, только локальный CSRF shutdown |
+| Production hash set | **73/73 PASS** |
+| Desktop `.lnk` | однократное переключение, конфигурация проверена |
+| Первый Production Client | PID 25856 / 127.0.0.1:55627, обычный Chrome |
+| Два повторных запуска `.lnk` | тот же PID/creation/port; Client count=1 |
+| Штатное завершение нового Client | **actual exit code 0** через retained process handle |
+| Повторный запуск через тот же `.lnk` | PID 2580 / 127.0.0.1:50783, один Client |
+| Manager и каталог | ONLINE, 3 слота, 2 disk entries, 3 DOM rows |
+| History/profile | **34 сообщения; полный DB SHA и 6-file aggregate совпали** |
+| Browser runtime | **0 JavaScript errors** в завершающей реальной DOM-проверке |
+| Старые файлы/backup | сохранены и повторно сверены |
+| Server mutation / LLM START/STOP / inference | **NOT RUN / 0 действий** |
+| Production rollback | NOT NEEDED / NOT RUN |
 
-1. **PASS:** текущая/backup установка 68 SHA; ZIP 72 payload; QA и полный rollback по 73 SHA; исходный ярлык/backup совпали. После проверки старые файлы повторно сверены и неизменны.
-2. **PASS:** все **49 Client unit tests**, 0 failures/errors, 16.819 s. `PYTHONDONTWRITEBYTECODE=1`; LOCALAPPDATA, TEMP, TMP, TMPDIR направлены в `Test/ClientMigration_20261112`. Логи `unittest.stdout.txt`, `unittest.stderr.txt`. Архивное окружение сборки не использовалось.
-3. **FAIL:** frozen EXE запущен с `--no-browser` из QA/R5 с отдельным LOCALAPPDATA, но завершился до HTTP-ready. Harness остановился на строке 45: `AssertionError: Packaged client exited before ready`. Точный exit code EXE первоначальный harness не сохранил; причина **UNRESOLVED**, не объявляется доказанным дефектом сборки или GUI. Повторный запуск, изменение ACL/окружения/сборки после отказа не проводились: соблюдён stop-on-error этапа C. Единственный QA EXE уже завершился, оставшихся QA Client нет.
-4. **NOT RUN / не достигнуты:** packaged HTTP/UI assets, два повтора EXE, shutdown/reopen, визуальный browser/VBS, установка в Production, изменение ярлыка, real Manager ONLINE/catalogue, подтверждение 34 сообщений по метаданным после миграции. Наличие 34 сообщений известно только из предыдущего отчёта и сейчас не проверялось. Содержимое настоящей истории/секретов не открывалось и не копировалось.
-5. **NOT RUN:** серверные START/STOP, Manager deploy, модели, streaming benchmark, firewall/TLS/службы/Valheim. Действующий Client оставлен работать с прежним профилем; глобальная неизменность сервера не объявляется независимо измеренной, агент серверных runtime-команд не выполнял.
+`stage_d_native_chrome.json` и computer-use наблюдение подтверждают обычный видимый Chrome, открытый VBS после запуска рабочего .lnk. `stage_d_ui.json` и `stage_d_live_overview.png` получены отдельным headless Chrome из **реального Production Client / настоящего Manager**, не из fake fixture. На screenshot только overview; чаты и личная история не открывались для экспорта. Метаданные истории читались напрямую SQLite в режиме read-only, без SELECT content.
 
-`inventory.json` содержит безопасные file hashes и карту путей. `checks.json` — итоговые проверки и только безопасные process metadata. `checkpoint.json` — точный статус продолжения. Manifest рядом фиксирует SHA отчётных файлов. Тестовые synthetic профили и бинарные backup в Git не добавлялись.
+Старая серверная версия распознана корректно: все реальные START CPU/CUDA/STOP disabled, stream v2 и dynamic slots false. Новые функции не имитировались. Проверенный TLS и прежние credentials сохранены, новых прав/токенов не создавали.
 
-## PROBLEMS / QUESTIONS
+## COMMANDS / EVIDENCE
 
-Блокер — неуспешный изолированный запуск того же verified ZIP. Требуется отдельная адресная диагностика раннего завершения с сохранением exit code/безопасных локальных QA diagnostics. Причина пока неизвестна; запуск исходников 49/49 не доказывает работоспособности frozen EXE в новом месте. Новая сборка без отдельного изменения scope не допускается.
+```text
+py -3.12 -X utf8 -B Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d.py --prepare
+py -3.12 -X utf8 -B Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d.py --execute
+py -3.12 -X utf8 -B Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_lifecycle.py
+node Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_ui.mjs
+```
 
-Второй риск — отсутствующий VBS старой установки. Rollback через простое восстановление исходного ярлыка недостаточен. За пределами workspace восстанавливать старый каталог запрещено; перед переключением необходимо утвердить проверенный rollback через **полный backup R5 внутри workspace**, с прежним защищённым пользовательским профилем. Его фактический запуск ещё не проверен, поэтому безопасный operational rollback пока **NOT VERIFIED**.
+Не повторять mutation-команды без нового scope: --execute требует всё ещё работающий исходный PID и не является updater для повторной установки. Реальный POST разрешён только для подтверждённого loopback Client `/api/shutdown`; Manager/model POST в этих скриптах отсутствует.
 
-## План после устранения блокера — пока НЕ ВЫПОЛНЯТЬ
+- `stage_d_result.json`: итог LIVE PASS, source/runtime paths, SHA, old/final identities, проверенные ограничения.
+- `stage_d_preflight.json`: snapshot до старого shutdown, file map 73, backup/meta/профиль.
+- `stage_d_rollback_rehearsal.json`: результаты функционального recovery QA.
+- `stage_d_transaction.json`: временные события cutover и единственное изменение Desktop .lnk.
+- `stage_d_lifecycle.json`: два повтора, exit 0, restart, проверка профиля/истории/Manager.
+- `stage_d_ui.json`, PNG и native Chrome metadata: реальный UI.
+- `stage_d_prepare_failures.json`, `stage_d_ui_attempts.json`: отрицательные результаты harness, сохранены без сокрытия.
+- `manifest.json`: хеши текущих и сохранённых evidence. Test/Backups/Production runtime не включаются в Git.
 
-Сначала добиться успешного отдельного QA startup/HTTP/UI/repeat/shutdown, подтвердить полный runtime и путь загрузки bundled Python. Затем представить владельцу новый checkpoint и точный OWNER GO. Только после него: перепроверить PID/path/creation/порт исходного Client, штатно закрыть именно его через защищённый loopback shutdown; установить byte-exact ZIP payload в Production; проверить 73 SHA; один раз сохранить изменение существующего ярлыка на относительный VBS в Production; проверить один процесс, Manager ONLINE/catalogue, метаданные истории и два повтора/закрытие/повторный запуск. Модели и сервер не переключать.
+## PROBLEMS / ОГРАНИЧЕНИЯ
 
-При разрешённом rollback: закрыть только подтверждённый новый Client; сохранить неуспешную Production-папку внутри workspace; по отдельно согласованному плану перенаправить существующий ярлык на VBS **проверенного полного backup** внутри workspace и проверить единственный процесс с прежним защищённым профилем. Не записывать ничего в старый `M:\UltraLLM_Client`, не удалять его и не заявлять заранее, что он самостоятельно восстанавливается.
+1. В первом **тестовом** ярлыке репетиции мной был неверно рассчитан путь WScript (`Windows/wscript.exe` вместо `Windows/System32/wscript.exe`). Start-Process отказал до запуска sandbox. Ошибка исправлена в harness, добавлена проверка существования системного файла. Desktop .lnk и исходный Client до успешного повтора не трогались; отрицательный результат сохранён.
+2. Первая headless UI-проба прочла `chatSnapshot` раньше загрузки JS и получила ReferenceError от самого диагностического выражения. Добавлен `typeof` guard; повторный итоговый DOM прогон PASS/0 errors. Это не исключение приложения и не повод выполнять rollback исправно работающего Client.
+3. Browser connector к Chrome отсутствует; обычное видимое окно подтверждено native Windows skill, отдельный DOM test использует существующий Chrome QA helper. Настройки браузера/безопасности не менялись.
+4. Из AMENDMENT 01 сохранён child-only сброс `PSMODULEPATH` в launch harness; это не изменение system/user env. Binary Client не менялся и не пересобирался.
+5. Actual server streaming/reasoning/slots/другая LLM по-прежнему **MANAGER VERSION GATE / NOT RUN**, вне этой задачи. Вторая физическая машина также NOT RUN.
+6. Independent verdict остаётся REVIEW PENDING. Сохранён полный предыдущий диагностический report и исходный FAIL exit=1, не заменён фиктивным PASS.
 
-## DOC IMPACT для координатора
+Дополнительная проверка launcher после lifecycle: существующий Desktop .lnk выполнен с ожиданием WScript, **exit 0**, тот же production PID 2580, профиль/ярлык неизменны (`stage_d_launcher_exit.json`). Старые вкладки после смены ephemeral порта могут сохранять прежний адрес 55627 и Failed to fetch; их не удаляли. В существующем обычном Chrome затем подтверждён текущий **50783** и ONLINE Server 77 (`stage_d_native_chrome.json`, after_restart).
 
-- №13: NOW — домашний ПК подтверждён, A/B завершены с расхождениями, C BLOCKED, старый PID/ярлык не изменены; причина frozen startup UNRESOLVED.
-- №05: FOLLOWUP-UL-ROOT-MIGRATION остаётся OPEN/BLOCKED, Production NOT DEPLOYED.
-- №09: сохранить этот TASK, hashes, 49 source PASS и packaged startup FAIL отдельно от предыдущего R5 LIVE evidence.
-- №06: нового решения владельца не было; потребуется запись, если изменится согласованный rollback или объём диагностики.
-- №18: добавить фактическое отсутствие пяти root-файлов старой установки, authoritative ZIP и расположение verified backup/QA; runtime нового пути ещё не подтверждён.
-- №00: постоянная установка ещё не изменена; не объявлять Production рабочим.
+Попытка дополнительного нового окна Chrome через CLI была отклонена автоматической проверкой: `blocked by policy`. Запуск не выполнялся, ограничение не обходилось; вместо этого проверено уже открытое окно браузера на правильном адресе. Это не отказ установленного Client и не повод откатывать успешную миграцию.
 
-Нормативные документы обновляет координатор после независимой проверки. БЛОК 4 не изменён; текущая TASK не ротирована и остаётся активной для продолжения. Итоговый commit отсутствует, промежуточных commit нет.
+Проверка diff: raw `git diff --check` отмечает исходные Markdown hardbreak/trailing spaces в дословно восстановленных TASK/AMENDMENT. Их не удаляли ради сохранения оригинала. Check кода/отчёта PASS; однократный Markdown-check с `-c core.whitespace=-blank-at-eol` PASS без изменения Git settings. Подробности `stage_d_format_checks.json`.
 
-## NEXT
+## GIT / QUESTIONS
 
-**BLOCKED.** Передать пакет независимой проверке и согласовать узкую диагностику раннего выхода packaged EXE в изолированном QA. До её PASS запрещены stop действующего Client, переключение ярлыка и объявление STAGED/OWNER-GO-ready. Все новые материалы остаются внутри `M:\GitHub\local_LLM`, backup сохранён.
+На старте main №44, других допустимых локальных веток нет: только запрещённая для этой работы GPT_2_local. Порядок публикации единственного итогового коммита **не согласован**. Поэтому промежуточных/итоговых commits, push/merge/rebase, новых веток и изменений refs main/GPT_2_local не выполнялось. Все безопасные изменения подготовлены в рабочем дереве для review. Следующий сквозной номер по текущему локальному журналу — 45, но он не присваивается без решения владельца и повторной сверки HEAD.
+
+Для единственного итогового коммита требуется определить разрешённую ветку/порядок. Это единственный организационный OPEN; он не превращает подтверждённый Client LIVE PASS в разрешение писать main. Ветка GPT_2_local не используется. Runtime/QA profiles/backup/ZIP/history/secrets не должны попасть в индекс.
+
+## DOC IMPACT / NEXT
+
+Ротация своей карточки №07 выполнена: БЛОК 1 свободен, 1.1 содержит полный оригинал Root TASK из Git 3121066, AMENDMENT 01 и дословный OWNER GO. Предыдущая полная CLIENT-DEPLOY TASK сверена с immutable bad9835e8753dad1498a568627a8f6b000e0d3f9, зарегистрированным в №05. БЛОК 2 — пять кратких ID, БЛОК 3 — действующие OPEN. Независимый БЛОК 4 побайтово не изменился. Доказательство — stage_d_rotation.json. Координатору обновить №00/05/09/13/18: постоянный Client теперь **Production/Client**, старый каталог сохранён; operational rollback — полный workspace R5 backup; новое состояние ярлыка и LIVE metadata подтверждены. Предыдущий Stage C blocker закрыт; server Manager gate остаётся OPEN.
+
+**Остановиться на независимой приёмке и согласовании одного финального коммита. Не обновлять Manager, не запускать вторую LLM.**

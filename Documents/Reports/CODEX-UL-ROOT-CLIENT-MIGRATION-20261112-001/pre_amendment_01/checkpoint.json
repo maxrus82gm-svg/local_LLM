@@ -1,0 +1,10 @@
+{
+  "task_id": "CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001",
+  "status": "BLOCKED / ISOLATED PACKAGED STARTUP FAILED",
+  "stage_A": "COMPLETE WITH INVENTORY DISCREPANCIES",
+  "stage_B": "VERIFIED BACKUP + ZIP STAGE COMPLETE",
+  "stage_C": "49 SOURCE PASS; PACKAGED STARTUP FAIL",
+  "stage_D": "NOT RUN / OWNER GO ABSENT",
+  "next": "Diagnose isolated packaged startup from safe QA diagnostics, without production switch, rebuild, live Client close or server operations",
+  "backup": "M:\\GitHub\\local_LLM\\Backups\\Client\\CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001"
+}

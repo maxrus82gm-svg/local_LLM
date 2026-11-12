@@ -1,0 +1,12 @@
+{
+  "attempts": [
+    {
+      "phase": "First synthetic-shortcut rehearsal",
+      "error": "Incorrect test-only WScript path C:\\Windows\\wscript.exe; Start-Process returned operation canceled",
+      "fix": "Use Windows/System32/wscript.exe and verify file before saving any shortcut",
+      "real_client_stopped": false,
+      "real_shortcut_modified": false,
+      "production_created": false
+    }
+  ]
+}

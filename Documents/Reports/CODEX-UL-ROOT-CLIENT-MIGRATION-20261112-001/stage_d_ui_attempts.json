@@ -1,0 +1,12 @@
+{
+  "attempts": [
+    {
+      "result": "TEST HARNESS ERROR",
+      "error": "ReferenceError: chatSnapshot is not defined",
+      "cause": "Readiness predicate evaluated before client.js loaded",
+      "fix": "Guard global with typeof before reading it",
+      "production_error": false,
+      "rollback_needed": false
+    }
+  ]
+}

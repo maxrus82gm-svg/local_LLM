@@ -1,0 +1,61 @@
+{
+  "task_id": "CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001",
+  "status": "STAGED / OWNER GO REQUIRED",
+  "source_unit_tests": {
+    "run": 49,
+    "passed": 49,
+    "failures": 0,
+    "errors": 0,
+    "elapsed_seconds": 17.092
+  },
+  "packaged_startup": "PASS with child-only removal of inherited PSMODULEPATH",
+  "packaged_exit_code": {
+    "controlled_failure_reproduction": 1,
+    "controlled_failure_hex": "0x00000001",
+    "corrected_stage_c": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "packaged_HTTP_UI_single_instance_shutdown": "PASS HTTP / exact web assets / two cycles / four duplicates / shutdown; visual browser and VBS NOT RUN",
+  "harness_failure": "RESOLVED in diagnostic harness; originals preserved",
+  "backup_original_68": "PASS reverified",
+  "backup_complete_R5_73": "PASS reverified",
+  "isolated_R5_73": "PASS reverified",
+  "old_install_68_unchanged": "PASS",
+  "shortcut_unchanged": "PASS",
+  "only_remaining_client": [
+    {
+      "pid": 29492,
+      "exe": "M:\\UltraLLM_Client\\UltraLLMClient.exe",
+      "creation_utc": "2026-11-12T12:49:36.6123520Z"
+    }
+  ],
+  "production_created": false,
+  "owner_go_received": false,
+  "old_client_closed": false,
+  "shortcut_switched": false,
+  "private_history_or_secret_contents_read": false,
+  "archive_test_environment_used": false,
+  "commit_push": "NOT RUN",
+  "next": "STOP before Stage D. Concrete owner approval scope and rollback limitations are in report.md; no switch authorized.",
+  "server_runtime_commands_or_mutation": false,
+  "stage_C": "PASS / corrected diagnostic harness",
+  "initial_packaged_exit_code": "NOT CAPTURED by initial harness; not retrospectively assigned",
+  "initial_harness_failure": "AssertionError: Packaged client exited before ready, line 45",
+  "primary_error": "Get-Acl: CouldNotAutoloadMatchingModule in bundled Prepare-ClientPrivate.ps1:18, then PermissionError web_client.py:80",
+  "root_cause": "Windows PowerShell 5.1 autoloads PowerShell 7 Microsoft.PowerShell.Security through inherited PSMODULEPATH",
+  "actual_manager_requests": 0,
+  "stage_D": "NOT RUN / OWNER GO ABSENT",
+  "browser_visual": "NOT RUN",
+  "vbs_execution": "NOT RUN",
+  "windows_event_log": "SKIP: cause established without inspecting unrelated logs",
+  "zip_sha256_verified": true,
+  "system_environment_changed": false,
+  "client_source_changed": false,
+  "payload_changed": false
+}

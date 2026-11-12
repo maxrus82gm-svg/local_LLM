@@ -1,0 +1,211 @@
+{
+  "task_id": "CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001",
+  "mode": "corrected_stage_C",
+  "status": "PASS",
+  "started_at_utc": "2026-11-12T18:54:14.530307+00:00",
+  "qa_run": "M:\\GitHub\\local_LLM\\Test\\ClientMigration_20261112\\Amendment01\\20261112_235413_3e06656e",
+  "synthetic_profile": "M:\\GitHub\\local_LLM\\Test\\ClientMigration_20261112\\Amendment01\\20261112_235413_3e06656e\\AppData\\UltraLLM\\Client",
+  "profile_initially_absent": true,
+  "payload_hashes_verified": 72,
+  "payload_total_files": 73,
+  "exe_sha256": "7614aecc6f97a5a8c1b126b745aa7d17e9dc8679774ba870ee68f18690c649df",
+  "helper_matches_source": true,
+  "environment_fix": "Child-only removal of inherited PSMODULEPATH",
+  "mutex_distinct": true,
+  "qa_mutex": "Local\\UltraLLM-Web-d33654492c65e4a4aa118abef4c35d71",
+  "before": {
+    "old_file_count": 68,
+    "old_files_digest": "1f2e122c7371c829bfe1750e404fb0631ff6a44ad3c3e1c94a3d79c3d27857c6",
+    "shortcut_sha256": "658e88888c9bb28791c038c71ce56fcb1e14af35280d47a4f859321cc57ae070",
+    "old_process": {
+      "pid": 29492,
+      "exe": "M:\\UltraLLM_Client\\UltraLLMClient.exe",
+      "creation_utc": "2026-11-12T12:49:36.6123520Z"
+    },
+    "production_exists": false
+  },
+  "processes": [
+    {
+      "label": "main_1",
+      "command": [
+        "M:\\GitHub\\local_LLM\\Test\\ClientMigration_20261112\\R5\\UltraLLMClient.exe",
+        "--no-browser"
+      ],
+      "started_at_utc": "2026-11-12T18:54:32.099272+00:00",
+      "returncode": 0,
+      "pid": 17664,
+      "url": "http://127.0.0.1:52207",
+      "http_ready_at_utc": "2026-11-12T18:54:34.930710+00:00",
+      "http_ready_ms": 2831.589,
+      "exit_code_hex": "0x00000000",
+      "exit_observed_at_utc": "2026-11-12T18:54:40.546868+00:00",
+      "lifetime_ms": 8447.294,
+      "stdout_safe": "ULTRA_WEB_CLIENT_READY http://127.0.0.1:52207/\n",
+      "stderr_safe": ""
+    },
+    {
+      "label": "duplicate_1_1",
+      "command": [
+        "M:\\GitHub\\local_LLM\\Test\\ClientMigration_20261112\\R5\\UltraLLMClient.exe",
+        "--no-browser"
+      ],
+      "started_at_utc": "2026-11-12T18:54:37.362355+00:00",
+      "returncode": 0,
+      "pid": 28308,
+      "exit_code_hex": "0x00000000",
+      "exit_observed_at_utc": "2026-11-12T18:54:38.841352+00:00",
+      "lifetime_ms": 1478.652,
+      "stdout_safe": "",
+      "stderr_safe": ""
+    },
+    {
+      "label": "duplicate_1_2",
+      "command": [
+        "M:\\GitHub\\local_LLM\\Test\\ClientMigration_20261112\\R5\\UltraLLMClient.exe",
+        "--no-browser"
+      ],
+      "started_at_utc": "2026-11-12T18:54:38.841352+00:00",
+      "returncode": 0,
+      "pid": 7360,
+      "exit_code_hex": "0x00000000",
+      "exit_observed_at_utc": "2026-11-12T18:54:40.271477+00:00",
+      "lifetime_ms": 1429.405,
+      "stdout_safe": "",
+      "stderr_safe": ""
+    },
+    {
+      "label": "main_2",
+      "command": [
+        "M:\\GitHub\\local_LLM\\Test\\ClientMigration_20261112\\R5\\UltraLLMClient.exe",
+        "--no-browser"
+      ],
+      "started_at_utc": "2026-11-12T18:54:40.554647+00:00",
+      "returncode": 0,
+      "pid": 17976,
+      "url": "http://127.0.0.1:51217",
+      "http_ready_at_utc": "2026-11-12T18:54:41.964189+00:00",
+      "http_ready_ms": 1409.281,
+      "exit_code_hex": "0x00000000",
+      "exit_observed_at_utc": "2026-11-12T18:54:47.153818+00:00",
+      "lifetime_ms": 6599.126,
+      "stdout_safe": "ULTRA_WEB_CLIENT_READY http://127.0.0.1:51217/\n",
+      "stderr_safe": ""
+    },
+    {
+      "label": "duplicate_2_1",
+      "command": [
+        "M:\\GitHub\\local_LLM\\Test\\ClientMigration_20261112\\R5\\UltraLLMClient.exe",
+        "--no-browser"
+      ],
+      "started_at_utc": "2026-11-12T18:54:43.984695+00:00",
+      "returncode": 0,
+      "pid": 27912,
+      "exit_code_hex": "0x00000000",
+      "exit_observed_at_utc": "2026-11-12T18:54:45.449961+00:00",
+      "lifetime_ms": 1465.609,
+      "stdout_safe": "",
+      "stderr_safe": ""
+    },
+    {
+      "label": "duplicate_2_2",
+      "command": [
+        "M:\\GitHub\\local_LLM\\Test\\ClientMigration_20261112\\R5\\UltraLLMClient.exe",
+        "--no-browser"
+      ],
+      "started_at_utc": "2026-11-12T18:54:45.450962+00:00",
+      "returncode": 0,
+      "pid": 27040,
+      "exit_code_hex": "0x00000000",
+      "exit_observed_at_utc": "2026-11-12T18:54:46.878859+00:00",
+      "lifetime_ms": 1428.217,
+      "stdout_safe": "",
+      "stderr_safe": ""
+    }
+  ],
+  "cycles": [
+    {
+      "cycle": 1,
+      "pid": 17664,
+      "port": 52207,
+      "native": {
+        "exe": "M:\\GitHub\\local_LLM\\Test\\ClientMigration_20261112\\R5\\UltraLLMClient.exe",
+        "python_dll": [
+          "M:\\GitHub\\local_LLM\\Test\\ClientMigration_20261112\\R5\\_internal\\python312.dll"
+        ],
+        "listeners": [
+          {
+            "LocalAddress": "127.0.0.1",
+            "LocalPort": 52207
+          }
+        ]
+      },
+      "asset_hashes_verified": 3,
+      "repeat_launches": 2
+    },
+    {
+      "cycle": 2,
+      "pid": 17976,
+      "port": 51217,
+      "native": {
+        "exe": "M:\\GitHub\\local_LLM\\Test\\ClientMigration_20261112\\R5\\UltraLLMClient.exe",
+        "python_dll": [
+          "M:\\GitHub\\local_LLM\\Test\\ClientMigration_20261112\\R5\\_internal\\python312.dll"
+        ],
+        "listeners": [
+          {
+            "LocalAddress": "127.0.0.1",
+            "LocalPort": 51217
+          }
+        ]
+      },
+      "asset_hashes_verified": 3,
+      "repeat_launches": 2
+    }
+  ],
+  "actual_manager_requests": 0,
+  "owner_go": false,
+  "stage_D": "NOT RUN",
+  "browser_visual": "NOT RUN",
+  "VBS_execution": "NOT RUN",
+  "source_unit_tests": {
+    "command": [
+      "C:\\Users\\REX\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "-X",
+      "utf8",
+      "-B",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "Client_Ultra_LLM",
+      "-p",
+      "test_*.py",
+      "-v"
+    ],
+    "returncode": 0
+  },
+  "acl_inherited_environment": {
+    "returncode": 1,
+    "stdout": "{\"error_id\":\"CouldNotAutoloadMatchingModule\",\"exception_type\":\"System.Management.Automation.CommandNotFoundException\",\"message\":\"Команда \\\"Get-Acl\\\" найдена в модуле \\\"Microsoft.PowerShell.Security\\\", но загрузить этот модуль не удалось. Для получения дополнительных сведений выполните команду \\\"Import-Module Microsoft.PowerShell.Security\\\".\"}",
+    "stderr": ""
+  },
+  "acl_system_modules_environment": {
+    "returncode": 0,
+    "stdout": "{\"protected\":true,\"rule_count\":3,\"command_module\":\"C:\\\\WINDOWS\\\\system32\\\\WindowsPowerShell\\\\v1.0\\\\Modules\\\\Microsoft.PowerShell.Security\\\\Microsoft.PowerShell.Security.psd1\"}",
+    "stderr": ""
+  },
+  "synthetic_files": [],
+  "after": {
+    "old_file_count": 68,
+    "old_files_digest": "1f2e122c7371c829bfe1750e404fb0631ff6a44ad3c3e1c94a3d79c3d27857c6",
+    "shortcut_sha256": "658e88888c9bb28791c038c71ce56fcb1e14af35280d47a4f859321cc57ae070",
+    "old_process": {
+      "pid": 29492,
+      "exe": "M:\\UltraLLM_Client\\UltraLLMClient.exe",
+      "creation_utc": "2026-11-12T12:49:36.6123520Z"
+    },
+    "production_exists": false
+  },
+  "protected_state_unchanged": true,
+  "completed_at_utc": "2026-11-12T18:54:50.448951+00:00"
+}

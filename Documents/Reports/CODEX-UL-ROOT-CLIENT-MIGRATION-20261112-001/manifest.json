@@ -1,58 +1,293 @@
 {
   "task_id": "CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001",
-  "status": "BLOCKED / ISOLATED PACKAGED STARTUP FAILED",
-  "owner_go": false,
-  "card_preserved_blocks": [
-    "1",
-    "1.1",
-    "4"
-  ],
-  "commit": "NOT RUN",
+  "status": "LIVE PASS / CLIENT MIGRATION",
+  "independent_acceptance": "REVIEW PENDING",
+  "owner_go": true,
+  "stage_D": "PASS",
+  "hash_scope": "Byte-exact current home workspace evidence; Git text checkout conversion may change text bytes",
+  "project_root": "M:\\GitHub\\local_LLM",
+  "git_head": "d72bbb68be463f2410168d51cdea95bff988fe08",
+  "git_commit": "Awaiting agreed publication order, no commit/push performed",
+  "production_exe": "M:\\GitHub\\local_LLM\\Production\\Client\\UltraLLMClient.exe",
+  "production_files_verified": 73,
+  "backup_original_verified": 68,
+  "backup_complete_verified": 73,
+  "shortcut_changed_once": true,
+  "block4_unchanged": true,
+  "server_mutations": false,
   "files": [
     {
-      "path": "Documents/07_Задачи Codex.md",
-      "sha256": "1a3f8ab579020f4a1095c81b320b40cc2734d5cfc24d5b628d6062121e837ea1",
-      "bytes": 48942
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/amendment_01_dialog.json",
+      "bytes": 2297,
+      "sha256": "1d970052706b789d464df64e4ac836792ba2f76ec955b967de57b1a1d2ff905e"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/amendment_01_environment.json",
+      "bytes": 4818,
+      "sha256": "bd80d597b14155c68706e51e899f02d9a2a0d25e92f0bc1e06dac9c13ea3544d"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/amendment_01_environment_without_startup_policy.json",
+      "bytes": 4494,
+      "sha256": "59af576c3c97498ce9a23158a39d871ead64f4325e2c3bfdb94d9fee40ea235e"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/amendment_01_originals.json",
+      "bytes": 1605,
+      "sha256": "5acc1bd48ad0c718b60713383fe438d1bdf48b1a331fcbf3452b6e5b700bce4a"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/amendment_01_reproduction.json",
+      "bytes": 3669,
+      "sha256": "3178c13b6d98b2b96e4520f1e4fca03f69ba8039479147ee073dadcc4633389a"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/amendment_01_unittest.stderr.txt",
+      "bytes": 7324,
+      "sha256": "0c93c0b18cf8fd3e723af1898e153152344dd8598f4124f4854f6df8997c2204"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/amendment_01_unittest.stdout.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
       "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/checkpoint.json",
-      "sha256": "215190af5e8415ad0f5d93715edc43d9e6838aff3a4f6c50805f82104e6f9187",
-      "bytes": 580
+      "bytes": 1611,
+      "sha256": "7b27116735b7cc42324d5865115bd216a36d2dbd2229ca1734c8dd29672c2441"
     },
     {
       "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/checks.json",
-      "sha256": "febe45fe423e4e97d661e3a018dbddf9cb8c055b2a899dfafa71b2c670149246",
-      "bytes": 1391
+      "bytes": 2998,
+      "sha256": "22bcfc4fb62375d8951f78b38b50347df08b4da794024b48c041299151f2ee30"
     },
     {
       "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/inventory.json",
-      "sha256": "a44297959885e6a79bc9bbf438c1636cee1fbeb1edad00a6b4c051a1e0ef8ed2",
-      "bytes": 17738
+      "bytes": 17738,
+      "sha256": "a44297959885e6a79bc9bbf438c1636cee1fbeb1edad00a6b4c051a1e0ef8ed2"
     },
     {
       "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/isolated_checks.py",
-      "sha256": "265719444bc8b260fd6e1881ea29ce0bb9714b099f10173e4327bc039ef42156",
-      "bytes": 4148
+      "bytes": 178,
+      "sha256": "50d0ddb435ca0795e395fddc7fca508500430ab7ea0f60214ebbe71e02a85ce7"
     },
     {
       "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/isolated_failure.txt",
-      "sha256": "afdcdeb05633136f271970b8184f8284b15864f0b012a8f1533694c2d1cfc8fc",
-      "bytes": 398
+      "bytes": 732,
+      "sha256": "9683df717c4c9512802f7632d18492157da77741d0948a1f69396f107d7cc606"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/isolated_result.json",
+      "bytes": 7321,
+      "sha256": "6cb0a26cb71079c56da299a92e692b70ec4ea86bc170aa0aaa9051f2665c2af0"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/pre_amendment_01/checkpoint.json",
+      "bytes": 580,
+      "sha256": "215190af5e8415ad0f5d93715edc43d9e6838aff3a4f6c50805f82104e6f9187"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/pre_amendment_01/checks.json",
+      "bytes": 1391,
+      "sha256": "febe45fe423e4e97d661e3a018dbddf9cb8c055b2a899dfafa71b2c670149246"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/pre_amendment_01/isolated_checks.py",
+      "bytes": 4148,
+      "sha256": "265719444bc8b260fd6e1881ea29ce0bb9714b099f10173e4327bc039ef42156"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/pre_amendment_01/isolated_failure.txt",
+      "bytes": 398,
+      "sha256": "afdcdeb05633136f271970b8184f8284b15864f0b012a8f1533694c2d1cfc8fc"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/pre_amendment_01/manifest.json",
+      "bytes": 2168,
+      "sha256": "d50ed9388aa28c4cec687d65a889a6e756edc3adb31818b4bd093510806966cf"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/pre_amendment_01/report_original.txt",
+      "bytes": 15550,
+      "sha256": "9bb465bf1453431e8718fc5c3d3720eb31502b6f5e53546d854684f7bbef30c4"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/pre_amendment_01/unittest.stderr.txt",
+      "bytes": 7324,
+      "sha256": "25c467b4c19ae9c1db17eebebf0217e9346d99108ff81a6792b973494ad42aee"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/pre_amendment_01/unittest.stdout.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/pre_stage_d/checkpoint.json",
+      "bytes": 1234,
+      "sha256": "ce7c1a9933a803a43db6e5500b33d90a72b6ad2279b497cba1b47fb17b17e443"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/pre_stage_d/checks.json",
+      "bytes": 2399,
+      "sha256": "4e9854c8620fa549810b59943c4ddb0859596720b304a5b8d0b76d089cd940dd"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/pre_stage_d/manifest.json",
+      "bytes": 6805,
+      "sha256": "f21e3ce086d5dd43b29c3f173fd81b57aac0dcc250064fa7292b4ffcf661926b"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/pre_stage_d/report_original.txt",
+      "bytes": 20157,
+      "sha256": "6c1c3364691892159d91ccb782bba44398ffe291b52f2a2092f0b90c96b346a2"
     },
     {
       "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/report.md",
-      "sha256": "9bb465bf1453431e8718fc5c3d3720eb31502b6f5e53546d854684f7bbef30c4",
-      "bytes": 15550
+      "bytes": 20036,
+      "sha256": "1086675541ce78b539c379aa7cb37d362a795bf68bb677499252acc17a9a9294"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d.py",
+      "bytes": 17232,
+      "sha256": "fa3385ea5d5b5d30a8ad1ff4303fd852d46f20aed59592260ae7c0d349ac94b8"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_authorization.txt",
+      "bytes": 1364,
+      "sha256": "476397dba7bfadfb197b0d707682d9395f5474db15520eb44d2397a6c5d23ed9"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_final_integrity.json",
+      "bytes": 615,
+      "sha256": "aa0ffc9d06f5644c3802ac73c6287a4467b5a0debdff9d19005acdcad17f578f"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_format_checks.json",
+      "bytes": 2701,
+      "sha256": "e05ca2baeaa0abdb65e90bcfe63ca8992c503e20a5383e910ceae2a18494ac02"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_launcher_exit.json",
+      "bytes": 484,
+      "sha256": "ab22e2654e1b0afc5319a1b54d71773a29c7e6d98483173bae6ac9b201fe1bef"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_lifecycle.json",
+      "bytes": 2462,
+      "sha256": "caf6bf7dccd9e1bf1e9b36f3f0457f4b604595624837e551cd6e6e8e03cc1ea2"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_lifecycle.py",
+      "bytes": 4527,
+      "sha256": "7d43c0cb376f38cef09cd4155dae998daf3874e0a51065ca940bfaded68abd3f"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_live_overview.png",
+      "bytes": 133371,
+      "sha256": "13484efd61efb69193a6534f57c9c07daa1a55263aa74908bbc65db77a9a1da2"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_native_chrome.json",
+      "bytes": 956,
+      "sha256": "7990a5ef283875ad541ef62318b0fcf7a6e7197eb5559fe69c5c3ca25d00b200"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_originals.json",
+      "bytes": 1020,
+      "sha256": "ddb42ddfb89eb35c0e20ef769bd27ee176cf255b8bbbc3dc24f272f55da8b7e3"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_owner_go_verbatim.txt",
+      "bytes": 3344,
+      "sha256": "270ce62e26ed5543b74c558be13813975caed13afa9339a0848762ff5b8e4068"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_preflight.json",
+      "bytes": 9895,
+      "sha256": "b64d07db42a83c8ce4e4edaea867b8a35544bb9248bc3cc589f506ed8e4d3ae7"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_prepare_failures.json",
+      "bytes": 419,
+      "sha256": "36cb1b91a47044eb2b1fa96e52f908879c39cfd90fddca29027d1cddfe902bfe"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_result.json",
+      "bytes": 3474,
+      "sha256": "236f984bc6e6e28e14ed9fa5e8b6fe35cf7e016e095a6c07be9a0f526f9bb308"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_rollback_rehearsal.json",
+      "bytes": 1532,
+      "sha256": "0268a108c220085358e0680f4203c404ee23d118e7caab7fda3e9148d9aabf72"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_rotation.json",
+      "bytes": 965,
+      "sha256": "db9dd65ea81f1de99672cdd1743a6f751ea19bf9e3fe8310a7f1e319cae578ba"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_shortcut_backup.json",
+      "bytes": 599,
+      "sha256": "fd0a295d7075c7bbcaee38bb14aa38d9b8717d02d854fce5e153744678719d9b"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_task_before.txt",
+      "bytes": 38928,
+      "sha256": "e5d1447de83a4520d291766c7a7969c280836b7cd63adfac3b6097eb8754c348"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_transaction.json",
+      "bytes": 13143,
+      "sha256": "45494ded3cf9a29770d4f8e41035c6083d78c68cfdc5df0e4eac40ff69d4043e"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_ui.json",
+      "bytes": 1537,
+      "sha256": "e61e05513b4a1b75f262bfc4cfb43a4d27290214b3b9872c42c138a8b576e960"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_ui.mjs",
+      "bytes": 2886,
+      "sha256": "c99b37a18ebe2ea80dcbb55b1727db94df3835a6c5bcee81c8487a5ad0d5473c"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_ui_attempts.json",
+      "bytes": 341,
+      "sha256": "113baff599133b10d5062ea82baf37cc3592c161a9652bbee5ac309db6f4b45e"
+    },
+    {
+      "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/startup_diagnostics.py",
+      "bytes": 12853,
+      "sha256": "8a5ec2049f9da486f17a76fba73c554b0ee726276d44b7a2d3a076561d5b0dd7"
     },
     {
       "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/unittest.stderr.txt",
-      "sha256": "25c467b4c19ae9c1db17eebebf0217e9346d99108ff81a6792b973494ad42aee",
-      "bytes": 7324
+      "bytes": 7324,
+      "sha256": "25c467b4c19ae9c1db17eebebf0217e9346d99108ff81a6792b973494ad42aee"
     },
     {
       "path": "Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/unittest.stdout.txt",
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "bytes": 0
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "Documents/07_Задачи Codex.md",
+      "bytes": 38261,
+      "sha256": "8708e58abddd14ddc44de155425230c4039ae8db005774ffb11b1e2a73ae1e63",
+      "scope": "authorized task rotation or read-only product source"
+    },
+    {
+      "path": "Client_Ultra_LLM/web_client.py",
+      "bytes": 34467,
+      "sha256": "5e0eab07649b494548f0cb7f08b681cc7270db2fcac2f52c7d3e939a8b31ebff",
+      "scope": "authorized task rotation or read-only product source"
+    },
+    {
+      "path": "Client_Ultra_LLM/Prepare-ClientPrivate.ps1",
+      "bytes": 1133,
+      "sha256": "d9ec208e39f380fe7ee41523d888de54afba2c029b2a1512e4c45efea6dae47a",
+      "scope": "authorized task rotation or read-only product source"
     }
   ]
 }
