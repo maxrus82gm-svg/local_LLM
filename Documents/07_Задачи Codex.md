@@ -45,7 +45,7 @@ Codex работает **на компьютере владельца**, поэ�
 
 ### БЛОК 1.1 — ПОСЛЕДНЯЯ СДАННАЯ ЗАДАЧА (ДОСЛОВНЫЙ ОРИГИНАЛ)
 
-**CODEX-UL-STREAM-SLOTS-20261112-001 — SUBMITTED / REVIEW PENDING.** 12.11.2026. Независимый P0 SOURCE OFFLINE PASS, P1 independent PARTIAL, LIVE NOT RUN. Полный оригинал ниже сохранён неизменным.
+**CODEX-UL-STREAM-SLOTS-20261112-001 — SUBMITTED / REVIEW PENDING.** 12.11.2026. Независимые P0/P1 SOURCE OFFLINE PASS (mock), PRODUCT LIVE NOT RUN. Полный оригинал ниже сохранён неизменным.
 
 
 
@@ -425,7 +425,7 @@ START/STOP требуют действующего `control_models`, разре�
 
 ### БЛОК 2 — ПОСЛЕДНИЕ ПЯТЬ ЗАДАЧ (КОРОТКИЙ ИНДЕКС)
 
-- **CODEX-UL-STREAM-SLOTS-20261112-001 / 12.11:** SOURCE P0/P1, независимые Manager 302/302, Client 49/49, P0 Chrome PASS; авторский P1 Chrome PASS, independent P1 NOT RUN, LIVE NOT RUN. №09, отчёт STREAM_SLOTS_REPORT.txt, evidence STREAM_SLOTS_EVIDENCE.json; commit 9900ccd.
+- **CODEX-UL-STREAM-SLOTS-20261112-001 / 12.11:** SOURCE P0/P1, независимые Manager 302/302 (Windows), Client 49/49 (Windows + GitHub), P0 Chrome + P1 Chrome GitHub Actions PASS; LIVE NOT RUN. №09, отчёт STREAM_SLOTS_REPORT.txt, evidence STREAM_SLOTS_EVIDENCE.json; commit 9900ccd.
 - **CODEX-UL-CONTROL-01-STREAM-20261111-001 / 11.11:** SOURCE CONTROL-01, independent PARTIAL; полный текст: https://github.com/maxrus82gm-svg/local_LLM/blob/6c74edd7b961661f08969a11f0ea3a93e0cadce0/Documents/07_%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B8%20Codex.md ; №09.
 - **CODEX-UL-MGR-0D-SERVICE-CORE-001 / 08.11:** этапы offline, independent checkpoints PASS, SERVER LIVE NOT RUN; №09.
 - **CODEX-UL-MGR-0C-SERVER-RUNNER-001 / 08.11:** independent 133 tests PASS, server blocked; №09.
@@ -436,10 +436,14 @@ START/STOP требуют действующего `control_models`, разре�
 ### БЛОК 3 — OPEN / NEXT
 
 - Реальная Colibri1/Qwen3.6 скорость direct vs установленный Client/Manager, streaming и reasoning — NOT RUN; установленный Client R4/Manager не обновлялись. LIVE требует отдельного OWNER GO, backup, rollback.
-- Независимый P1 браузерный прогон — NOT RUN; есть авторский evidence. SQLite durable claim fake cold ~973 ms, warm ~160 ms, реальные 20 секунд не объяснены.
+- Независимый P1 браузерный прогон — PASS в GitHub Actions run 43173172619; real Colibri NOT RUN. SQLite durable claim fake cold ~973 ms, warm ~160 ms, реальные 20 секунд не объяснены.
 - GitHub Actions для SOURCE mock tests; полный Manager suite на hosted runner требует независимой фикстуры Colibri 2.1.0 вместо локального диска S:. Автоматическая доставка на сервер — только проектная идея.
 
 ### БЛОК 4 — НЕЗАВИСИМАЯ ПРОВЕРКА (ТОЛЬКО КООРДИНАТОР)
+
+**CI UPDATE 12.11.2026:** Windows hosted GitHub Actions run 43173172619 SUCCESS; независимые P0+P1 Chrome SOURCE mocks PASS (включая two same-model CPU, two same-model CUDA, STOP one preserves other), Client 49/49 и JS/Python syntax PASS. С учетом ранее независимого Windows Manager 302/302: **P0/P1 SOURCE OFFLINE PASS**, но **PRODUCT LIVE NOT RUN**. Full Manager suite в hosted CI NOT RUN из-за S: fixture. https://github.com/maxrus82gm-svg/local_LLM/actions/runs/43173172619 . Не разрешает самовольную установку или runtime START/STOP.
+
+
 
 **12.11.2026, CODEX-UL-STREAM-SLOTS-20261112-001: P0 SOURCE OFFLINE PASS / P1 SOURCE PARTIAL / LIVE NOT RUN.** Прочитаны SOURCE commit 9900ccd, отчёт и evidence. На DESKTOP-SC96D3U независимо из этого HEAD: Manager verify_offline.ps1 **302/302 PASS**; Client unittest **49/49 PASS**; Chrome test_browser_stream_source.mjs **PASS** (SOURCE Client → TLS Manager → fake Colibri, первый фрагмент до DONE, reasoning отдельно, сохранение); node --check client.js **PASS**, общий exit 0. Для P1 Chrome только авторские mock evidence. Реальный GPU/KAT/Colibri/START/STOP и LIVE latency НЕ проверены. Никакого PROD PASS/OWNER GO из этого вердикта не следует.
 
