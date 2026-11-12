@@ -1,0 +1,465 @@
+TASK ID: CODEX-UL-STREAM-SLOTS-20261112-001
+RESULT: RESULT READY — офлайн SOURCE P0 и P1; полный LIVE результат остаётся PARTIAL.
+INDEPENDENT ACCEPTANCE: PENDING. Это отчёт исполнителя, независимый PASS не присвоен.
+BASE HEAD: 6c74edd7b961661f08969a11f0ea3a93e0cadce0
+WORKSPACE: M:\GitHub\local_LLM
+EVIDENCE: M:\GitHub\local_LLM\Manager_Ultra_LLM\STREAM_SLOTS_EVIDENCE.json
+
+DONE
+
+Сначала проверена база CONTROL-01, затем реализован P0. После успешной офлайн-точки
+P0 (289 Manager / 48 Client, настоящий Chrome через SOURCE Client и TLS Manager
+к фиктивному SSE upstream) выполнен P1. Итоговый прогон включает обе стадии.
+
+P0: фрагменты Colibri SSE передаются через Manager и Client в браузер до окончания
+генерации. Manager сохраняет счётчики, Client собирает текст для атомарного сохранения,
+но ни один из них не ждёт полного ответа перед передачей первого фрагмента.
+Сохранены обычный непотоковый режим и совместимость со старым Manager.
+
+P1: верхний каталог моделей, нижние рабочие слоты, три начальных слота при отсутствии
+явной конфигурации. Существующая конфигурация слотов сохраняется. «+» создаёт запись
+на сервере, а не только элемент DOM. Выбор модели и CPU/CUDA сохраняется в SQLite.
+Одинаковый model_key может иметь несколько независимых экземпляров.
+
+ПЕРЕИСПОЛЬЗОВАНО / ИЗМЕНЕНО
+
+Механизм CONTROL-01                         | Использование в этой задаче
+-------------------------------------------|--------------------------------------------
+chat_runtime.py, SSE → semantic NDJSON      | Поток расширен; отдельные reasoning, sequence,
+                                           | usage, опции, диагностические интервалы.
+live_manager.py, TLS и текущая авторизация  | Те же маршруты и роли; привязка instance_id;
+                                           | адресная проверка выбранного listener/API.
+chat_client.py, web_client.py               | Тот же локальный Client, проверенный TLS,
+                                           | CSRF, поток, cancel, обычный chat.
+chat_store.py, существующая история SQLite  | Атомарная миграция без потери старых сообщений;
+                                           | reasoning и UUID управляемого экземпляра.
+control_runtime.py, журнал и диспетчер      | Те же START/STOP; резервируется экземпляр
+                                           | и слот; удалён запрет model_already_managed.
+colibri2_runner.py, server_runner.py        | Существующий runner/CLI; отдельные session,
+                                           | runtime/state/log/temp и API model ID.
+windows_process.py                         | Native identity, mutex, Job Object, PID/SID,
+                                           | same-handle ownership, IPv4/IPv6 и watchdog.
+resource_catalog.py, server_preflight.py    | Доверенный каталог и проверки профилей/весов;
+                                           | новый каталог моделей не создан.
+launch_contract.py, initial_instances       | Начальные слоты из существующих определений.
+pairing_server/workflow                    | Существующие токены/роли/ACL; новые creator
+                                           | grants не выдают control_models.
+
+Новые chat_settings.py, resource_policy.py, slot_registry.py содержат соответственно
+политику транспорта, модельные оценки ресурсов и сохранённые определения слотов.
+Новый процессный supervisor, remote shell и отдельное хранилище секретов не создавались.
+server_runner.py, server_preflight.py, resource_catalog.py и pairing_workflow.py
+переиспользованы без изменения.
+
+P0 — КОНТРАКТ И ПОВЕДЕНИЕ
+
+Маршрут: browser /api/chat/stream → Client /v1/chat/stream по проверенному TLS →
+Manager /v1/chat/completions с stream=true → локальный Colibri SSE.
+Manager и Client отдают NDJSON немедленно с flush; для потоковых сокетов TCP_NODELAY.
+Hot path больше не собирает полную сводку RAM и всех слотов: проверяется выбранный
+listener, /health, /models и повторно его идентичность. Полная сводка остаётся в overview.
+
+События meta, reasoning, delta, done, error различаются явно. Для v2 reasoning и delta
+имеют общую возрастающую sequence. Внутри SSE delta сохраняется порядок полей JSON;
+между событиями — порядок upstream. Reasoning отображается в отдельной сворачиваемой
+панели и хранится в reasoning_content; текст ответа остаётся отдельно. Reasoning-only
+завершение допустимо, если его фактически выдал провайдер. Синтетического reasoning нет.
+
+Проверяются Manager/slot/model/instance, а при наличии model в SSE — и upstream model.
+Управляемому экземпляру необходим UUID; API model ID также содержит этот UUID, поэтому
+старый чат не перепривязывается к новому экземпляру с тем же именем модели.
+Legacy listener имеет хеш нативной идентичности процесса и сохраняет старый ключ истории.
+Legacy Colibri1 не получает права на STOP или автоматическое присвоение ownership.
+
+Отмена обрывает только сокет соответствующего запроса, включая ожидающее чтение Windows;
+сокет detach/close предотвращает последующее закрытие переиспользованного handle.
+Обрыв без [DONE], неверная последовательность/идентичность, deadline и ошибка не считаются
+успехом. Частичный обмен не записывается в историю, скрытого повторного запроса нет.
+Успешный request_id воспроизводит сохранённый результат без повторной генерации;
+конфликт того же ID с другим запросом отклоняется.
+
+Reasoning исследован по установленному исходному Colibri openai_server.py, без inference:
+поддерживаются enable_thinking, reasoning_effort, reasoning_content и include_usage.
+Для семейства Qwen3-Coder/OLMoE отдельный thinking не поддерживается; actual capability
+проверяется по движку, явно несовместимая настройка отклоняется. Это не утверждение
+о фактическом reasoning конкретной запущенной Qwen3.6 или KAT: такой тест NOT RUN.
+Auto не передаёт override; on/off и effort задаются пользователем. Возвращаемое
+assistant reasoning сохраняется в контексте — возможная польза для prefix reuse требует
+проверки на настоящем движке. Отдельный decode benchmark не выполнен.
+
+Пределы разделены:
+- Убраны навязанные max_tokens=512 и enable_thinking=False в Manager chat.
+- Для конфигурируемого Manager runner убраны универсальные --ctx 2048, --ngen 256,
+  --ram 10, --no-think и OMP_THREAD_LIMIT=2. Без явных review.launch действуют defaults
+  движка. Исторический отдельный owner-run --colibri2 trial сохранён совместимым;
+  его старые ограничители не являются политикой Manager.
+- review.launch: context_tokens, max_output_tokens, cache_ram_gib, threads, thinking,
+  load_timeout_seconds. Параметры валидируются; реальный max_tokens из /health не
+  подменяется молча: превышение явного запроса возвращает ошибку.
+- Manager chat.transport defaults: request_bytes=1048576, message_chars=131072,
+  history_messages=128, history_chars=240000, response_chars=1048576,
+  stream_bytes=8388608, timeout_seconds=300. Настраиваемые ceilings заданы отдельно
+  в chat_settings.py; лимит SSE строки — min(stream_bytes, 1 MiB).
+- Client: локальный запрос 1 MiB, новое сообщение 131072 символа, answer и reasoning
+  по 1 Mi символов, поток 64 MiB, NDJSON frame 2 MiB, ожидание 330 секунд.
+  Непотоковый ответ Client ограничен 8 MiB; control response — 256 KiB.
+  Действует наиболее строгий предел цепочки; увеличение одного Manager не отменяет
+  локальную защиту Client. Эти границы перечислены в UI и данном отчёте.
+- Пользовательский контекст: по умолчанию 100 сообщений/200000 символов; настраивается
+  до 1024/1048576. Это символы, не оценка токенов. Загружается максимум 1024 последних
+  сообщений; окно UI — 100. Метаданные контекста относятся к загруженному окну.
+  Сокращение наблюдаемо; история автоматически не удаляется. При слишком большом
+  контексте для политики Manager запрос отклоняется, а не молча обрезается.
+
+Измерения без приватного текста в логах: вход Manager, preflight, начало Colibri,
+первый Colibri fragment, первое forwarding Manager, первый receive Client,
+token-file read/TLS context/HTTP headers, Client profile/SQLite claim/history,
+DOM update, double requestAnimationFrame как возможность отрисовки, завершение,
+persist и total. Метка rAF не является измерением физических пикселей дисплея.
+Локальные интервалы используют perf_counter/performance.now. Разность epoch timestamps
+разных машин требует синхронизации часов и не выдаётся за one-way network latency.
+
+usage берётся только от провайдера. Rate = provider completion_tokens / измеренное
+окно upstream request, включая prefill; basis и window_ms опубликованы вместе с rate.
+Если счётчика нет, rate отсутствует. Это не чистая decode tok/s и не догадка по символам.
+
+P1 — СЛОТЫ, РЕСУРСЫ, ПРОЦЕССЫ
+
+Существующий /v1/control дополнен add_slot и select; check/start принимают slot_id.
+add_slot серверно назначает slotN и свободный порт в control.slot_port_range
+(default 8001..8999), исключая 8000, 8443, порт Manager, уже назначенные порты,
+слушателей IPv4 и IPv6. SQLite BEGIN IMMEDIATE и UNIQUE гарантируют отсутствие
+дублирующих резервирований при конкурентных запросах. Свободность повторно проверяется
+при START; создание слота само по себе порт не bind-ит и ресурс не резервирует.
+
+Данные slots, selection/revision, slot_requests, risk_checks, model_checks находятся
+в прежнем control.sqlite3. Namespace привязан к Manager/host/instance_root. Конфликт
+конфигурации и реестра отклоняется. select использует expected_revision и запрещён
+для активного/защищённого слота. Удаления слота или экземпляра через DOM/API нет.
+Создатель получает сохранённый grant на свой слот; это не control_models. Отзыв
+control_models/токена и ограничения моделей действуют отдельно. Совместное использование
+динамического слота можно явно предоставить прежним механизмом allowed_slots.
+
+Каждый instance имеет UUID, API model ID, runtime/session paths, state, logs, temp,
+job и stop-event. Lifecycle mutex остаётся общим для конкретного слота/порта,
+сериализуя конфликтующие запуски; это необходимо для безопасности. Веса общие read-only.
+Нет утверждения о совместном размещении весов в VRAM или ускорении нескольких CUDA.
+STOP требует владельца/роли/слота и проверенной process identity; чужой PID/Job,
+подмена session, listener и неподтверждённый stop не освобождают слот.
+Неоднозначные ошибки остаются в карантине ERROR; автоматического kill/adopt/retry нет.
+
+RAM/VRAM оценки и необязательный job_limit_gib задаются отдельно для модели/режима.
+10 GiB RAM — configurable warning; risk confirmation возможен только при серверном
+allow_risk_ack=true плюс действующие права. Check выдаёт токен на 60 секунд, связанный
+с owner/slot/model/mode; он одноразовый. Деградация RAM, изменение оценок или рост
+pending reservations требуют новой проверки. Cancel confirmation ничего не запускает.
+READY уже учтён в физической free memory; второй раз он не вычитается. STARTING и
+непроверенные claims резервируются консервативно. Неизвестная actual telemetry,
+несовместимый runtime/CUDA, недостаток VRAM, занятый порт и ownership не обходятся.
+GPU telemetry использует только уже установленный System32/nvidia-smi, GPU 0.
+Multi-GPU routing не реализован. KILL_ON_JOB_CLOSE и прочие OS ownership protections
+сохранены и при отсутствии произвольного общего memory cap.
+
+KAT-Coder V2.5 подготовлен через прежний доверенный профиль и structural/review
+проверки. Новый download/install не выполнялся. Настоящая загрузка 41-shard модели,
+проверка native runtime, peak memory и inference в этой задаче NOT RUN.
+
+SOURCE / INSTALLED / GAP — READ-ONLY АУДИТ
+
+Компонент          | SOURCE                           | INSTALLED / GAP
+-------------------|----------------------------------|------------------------------------
+Client API/JS      | stream default, reasoning, slots | M:\UltraLLM_Client: прежний JS,
+                   |                                  | /api/chat/stream отсутствует.
+Manager           | v2 streaming + control registry  | Manager_Live: stream implementation
+                   |                                  | отсутствует; обычный chat.
+Ярлык/VBS/EXE     | launcher не изменён              | wscript.exe → установленный VBS →
+                   |                                  | установленный EXE --no-browser.
+User data         | схема миграции проверена fixture | Реальные profile/token/history
+                   |                                  | не читались и не изменялись.
+
+Точная shortcut target/args, PID/port, SHA256 и 69/69 release manifest совпадений
+сохранены в JSON. Единственный установленный Client — PID 26304, порт 127.0.0.1:60828
+на момент аудита. Его static /client.js совпадает с release file. Другого установленного
+Client не обнаружено; тестовый SOURCE Client запускался отдельно с временным profile.
+EXE не имеет ProductVersion/FileVersion metadata; обозначение R4 взято из постановки,
+побайтовая идентичность дана хешами. VBS прочитан без запуска; fallback source branch
+не использовался, поскольку bundled EXE существует.
+
+DIFF
+
+Изменения находятся только в локальных Manager_Ultra_LLM и Client_Ultra_LLM.
+Полный перечень source files и SHA256 — далее и в JSON. diff доступен через git diff
+от указанного HEAD; новые файлы дополнительно перечислены git status. Commit/push,
+branch и worktree не создавались. Два исходных пользовательских изменения в
+Documents/07_Задачи Codex.md и Documents/.obsidian/workspace.json были до работы;
+исполнитель эти файлы и другие документы не редактировал. Предыдущие отчёты/архивы
+CONTROL-01 не изменены, блоки задач не ротированы, новые Markdown не создавались.
+
+TESTS / EVIDENCE
+
+Итоговый воспроизводимый entrypoint:
+  py -3.12 -X utf8 -B Manager_Ultra_LLM/verify_stream_slots.py --audit-installed
+Для независимого повторения с сохранением evidence исполнителя:
+  py -3.12 -X utf8 -B Manager_Ultra_LLM/verify_stream_slots.py --audit-installed --evidence Manager_Ultra_LLM/STREAM_SLOTS_REVIEW.json
+
+Зависимости уже установлены: Windows/Python 3.12/Node/Chrome/Git OpenSSL.
+verify_offline.ps1 временно читает coli/version.py из S:\Ultra_LLM\Engine\Colibri\c
+для прежних baseline tests; это read-only source fixture, без удалённого исполнения.
+Браузерные сценарии используют SOURCE Client, настоящий SOURCE TLS Manager, временный
+сертификат с проверкой доверия, реальные loopback sockets/SQLite и фиктивный Colibri.
+Никаких изменений certificate store, firewall, network exposure или dependency install.
+
+Manager 302/302 PASS; Client 49/49 PASS; Python и JavaScript syntax PASS;
+legacy Chrome 5/5 scenarios PASS; P0 SOURCE TLS Chrome PASS; P1 SOURCE TLS Chrome PASS;
+git diff --check PASS. Команды, stdout/stderr, длительности и source hashes в JSON.
+Фиктивные Chrome model names CPU/CUDA не доказывают native inference или работу GPU.
+Дополнительно реальные локальные Windows Job Objects проверены на dummy Python:
+две одинаковые программы изолированы; остановка первой оставляет вторую работающей.
+
+P0 browser проверяет gated upstream: reasoning и answer видны, когда fake upstream
+ещё не получил разрешение завершиться; UTF-8/JSON разбиты по 7 bytes. Проверяются
+show/hide reasoning, thinking/max tokens, сохранённый отдельный reasoning, exact
+совпадение upstream payload direct/routed с одинаковой сохранённой историей.
+
+P1 browser проверяет 3→5 реальных серверных слотов; два одинаковых KAT CPU и два
+одинаковых Qwen CUDA в fake backend; уникальные instance/API IDs/ports; пропуск занятого
+IPv6 порта; два одновременно обрабатываемых независимых обычных чата; STOP одного
+не затрагивает другой; reload контроллера из SQLite и reload браузера сохраняют выбор
+и историю; отмена и разрешённое подтверждение RAM risk. Ошибок browser Runtime нет.
+
+PROBLEMS / OPEN
+
+1. Полный критерий P0 с настоящей Colibri после OWNER GO ещё не выполнен.
+   Субъективные 4 против 20 секунд не воспроизведены. Подтверждён source/installed gap;
+   причиной всей заявленной разницы он пока не доказан. Ускорение LIVE не заявляется.
+2. На M: заметны и переменчивы SQLite durable claim/persist задержки. Они измерены
+   отдельно; durability/idempotency не отключены ради benchmark. Дальнейшая оптимизация
+   требует реального дискового профиля. HTTP connection pool не добавлен: расходы
+   текущего TLS измеримы отдельно, корректность transport сохранена.
+3. Первоначальный общий прогон этой задачи имел 1 Client ERROR в
+   test_mutating_calls_require_exact_origin_and_csrf: WinError 10053. Исправлено
+   ограниченным drain отклонённого POST: до 1 MiB, абсолютный deadline 200 ms,
+   без разбора неавторизованного JSON. Новый тест покрывает позднее тело и slow sender.
+   Последующие полные прогоны — 49/49 PASS; исходная ошибка не скрывается retry теста.
+4. Все реальные server START/STOP, GPU, KAT inference, LAN performance, Chrome
+   установленного R4 и deployment — NOT RUN. Native библиотеки и memory peaks
+   должны пройти отдельный server review, существующие source_hashes не угадываются.
+5. START CPU/CUDA доступен только для доверенных профилей каталога, разрешённых роли
+   и прошедших runtime/resource review. Произвольный filesystem path из UI недопустим.
+6. Ограничения транспорта/окон истории/GPU 0 перечислены выше. Создание слота не
+   гарантирует последующий launch. Неоднозначные instances требуют owner диагностики,
+   автоматического удаления карантина нет. Старый standalone trial остаётся отдельным.
+7. Статистический benchmark (серии cold/warm, median/p95) настоящей LLM не выполнен.
+   Fake direct/routed — проверка равенства payload и инструментария, не SLA.
+
+QUESTIONS
+
+Блокирующих вопросов для офлайн-объёма нет. Внешнее согласование не запрашивалось.
+Переход к реальным действиям возможен только после отдельного OWNER GO, как указал
+владелец; данный отчёт сам по себе разрешением не является.
+
+ПЛАН ПОСЛЕ ОТДЕЛЬНОГО OWNER GO — НЕ ВЫПОЛНЕН
+
+1. Зафиксировать одобренный scope и независимый review исходников/хешей. На сервере
+   read-only проверить host, Colibri version, процессы/ports, CPU/CUDA runtime, RAM/VRAM,
+   Valheim и Colibri1 health; сравнить действующие release/config с snapshot.
+2. В согласованное окно сохранить копии Client release и Manager release/config,
+   control.sqlite3 через SQLite backup API; отдельно защищённый backup credentials,
+   cert/key и Client chat_history.sqlite3. Не класть private backups в Git/evidence.
+   Для Client требуется согласованное завершение только Client перед заменой release;
+   shortcut target/root сохранить. Историю/секреты при обновлении не перезаписывать.
+3. Подготовить release с проверенным manifest, config migration и control owner_go=false.
+   Проверить config без bind, затем согласованно обновить только Manager/Client.
+   Colibri1/Valheim не перезапускать; firewall/TLS permissions не расширять.
+4. Проверить обычный chat, streaming/cancel/truncation и сохранение истории установленного
+   Client через Chrome. Зафиксировать точный payload без публикации private prompt;
+   direct и routed использовать с одинаковыми model/history/options/thinking/cache.
+   Провести отдельно cold/warm серии, median/p95, локальные интервалы и provider usage.
+5. Только отдельным scope GO разрешить control_models нужному client/slot, подтвердить
+   runtime hashes и model-specific RAM/VRAM estimates. Начать с одного KAT CPU в slot2;
+   приоритет низкий, собственный Job; /health, /models, реальный двухходовый inference,
+   peaks, влияние на Colibri1/Valheim и проверенный owned STOP. Новый START после
+   подтверждённого cleanup. При неизвестном ownership остановиться, не kill по имени.
+6. Только после успешного одиночного теста и явного ресурсного допуска проверить второй
+   такой же instance и разрешённый CUDA. Проверить distinct IDs/paths/jobs/ports,
+   параллельные чаты, STOP одного, восстановление. Не запускать несколько GPU trial
+   только потому, что fake тесты прошли. RAM warning подтверждать отдельным risk token.
+7. Rollback trigger: identity/ownership drift, потеря history, runtime mismatch,
+   неприемлемый RAM/VRAM/latency или деградация Colibri1/Valheim. Сначала запретить
+   новые control actions. Остановить только собственные новые подтверждённые jobs.
+   Сохранить текущие DB для расследования. Вернуть согласованные release/config;
+   backup SQLite восстанавливать только при отсутствии активных jobs и по подтверждённой
+   необходимости, иначе это уничтожит новые записи/ownership. Перед запуском старого
+   Manager убедиться, что нет несовместимых активных managed sessions. Старый Client
+   может читать прежние колонки: additive migration; проверить сохранность новых данных.
+   Shortcut, исходные user data, Colibri1 и Valheim сохраняются. Результат health/inference
+   после rollback фиксируется отдельно. Не сигнализировать чужим PID при неопределённости.
+
+DOC IMPACT ДЛЯ КООРДИНАТОРА
+
+После независимой проверки обновить существующие 03_Архитектура.md (slot registry,
+instance binding, resources), 18_Техническая_документация.md (API/stream v2/options,
+limits/schema/backup/OWNER GO), 13_Тактический_контекст.md (SOURCE ready, LIVE NOT RUN),
+04_Дорожная_карта.md, 05_Реестр_задач.md и 06_Журнал_решений.md (границы контрольных
+точек и принятые решения). №07 БЛОКИ 2/3 — фактический результат и OPEN только после
+review; БЛОК 4 принадлежит независимому координатору. БЛОК 1 и архивы не стирать.
+
+NEXT: независимая офлайн-приёмка текущего SOURCE и evidence; затем только отдельное
+решение владельца о LIVE. Новая задача или OWNER GO этим отчётом не назначаются.
+
+=== АВТОМАТИЧЕСКОЕ ПРИЛОЖЕНИЕ ИЗ ФИНАЛЬНОГО EVIDENCE ===
+UTC START: 2026-11-12T05:47:00.851080+00:00
+UTC END: 2026-11-12T05:48:19.502261+00:00
+RESULT: PASS
+SOURCE MANIFEST SHA256: 46b7c3c09936ed8bd85efa5d1f8c4432135b6beb54f37a0f9737b95669605345
+EVIDENCE SHA256: 9d624c5c8b1f64be20ec32c33309dd54aa4842d1085da549c429043658cee4d3
+SOURCE FILES: 28
+FIXTURE CLEANUP: True
+
+AUTHOR TEST RUN (command / result / elapsed seconds):
+manager_suite: PASS, exit=0, seconds=19.093
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File M:\GitHub\local_LLM\Manager_Ultra_LLM\verify_offline.ps1
+  Ran 302 tests in 17.745s; OK
+python_syntax: PASS, exit=0, seconds=0.157
+  C:\Users\REX\AppData\Local\Programs\Python\Python312\python.exe -X utf8 -B -c "from pathlib import Path;[compile(p.read_text(encoding='utf-8-sig'),str(p),'exec') for d in ('Manager_Ultra_LLM','Client_Ultra_LLM') for p in Path(d).glob('*.py')];print('SYNTAX PASS')"
+client_suite: PASS, exit=0, seconds=12.961
+  C:\Users\REX\AppData\Local\Programs\Python\Python312\python.exe -X utf8 -B -m unittest discover -s M:\GitHub\local_LLM\Client_Ultra_LLM -q
+  Ran 49 tests in 12.643s; OK
+js_syntax: PASS, exit=0, seconds=0.041
+  node --check M:\GitHub\local_LLM\Client_Ultra_LLM\web_assets\client.js
+legacy_browser: PASS, exit=0, seconds=5.755
+  node M:\GitHub\local_LLM\Client_Ultra_LLM\test_browser_control_stream.mjs
+p0_source_tls_browser: PASS, exit=0, seconds=8.59
+  node M:\GitHub\local_LLM\Client_Ultra_LLM\test_browser_stream_source.mjs
+p1_source_tls_browser: PASS, exit=0, seconds=29.37
+  node M:\GitHub\local_LLM\Client_Ultra_LLM\test_browser_slots_source.mjs
+diff_check: PASS, exit=0, seconds=0.036
+  git diff --check -- Manager_Ultra_LLM Client_Ultra_LLM
+
+FAKE MODEL ONLY — NOT AN LLM BENCHMARK:
+path | first DOM/fragment ms | total ms
+cold SOURCE browser | 1061.200 | 1222.900
+direct fake SSE, identical comparison payload | 43.581 | 125.548
+SOURCE browser with history, same comparison payload | 313.200 | 659.500
+
+STAGE | cold / subsequent-with-history milliseconds
+Client durable claim | 972.743 / 159.663
+Client profile | 0.777 / 0.669
+Client history | 1.683 / 1.492
+Client prepare | 975.305 / 161.852
+Manager preflight | 52.705 / 57.664
+First Colibri event from upstream request | 24.140 / 86.390
+Manager first forward delay | 0.348 / 0.329
+Client TLS context | 1.092 / 1.176
+Client HTTP headers, includes Manager/upstream wait | 79.648 / 147.097
+Client first fragment since Manager transport began | 81.309 / 148.838
+Colibri request window | 92.570 / 168.120
+Client persist | 95.886 / 265.321
+Client total | 1220.587 / 657.275
+
+Measured fake overhead includes separate SQLite durability, preflight, HTTP, scheduling and browser work.
+The first gated trial and subsequent identical-payload comparison are separate requests.
+Actual cold/warm LLM cache equivalence and real token speed remain NOT RUN.
+
+P1 BROWSER ASSERTIONS:
+{
+  "status": "PASS",
+  "scope": "SOURCE API + SQLite + TLS + Chrome; fake engines/resources",
+  "default_slots": 3,
+  "persisted_slots": 5,
+  "simultaneous_same_model_cpu": 2,
+  "simultaneous_same_model_cuda": 2,
+  "unique_instance_ids": true,
+  "ipv6_listener_skipped": true,
+  "concurrent_chats_isolated": true,
+  "stop_one_preserves_other": true,
+  "controller_and_browser_reload": true,
+  "history_preserved": true,
+  "risk_cancel_and_confirm": true,
+  "console_errors": []
+}
+
+INSTALLED READ-ONLY AUDIT:
+{
+  "scope": "READ_ONLY; no private profile/history/token files",
+  "root": "M:\\UltraLLM_Client",
+  "manifest_files": 69,
+  "manifest_matches": 69,
+  "UltraLLMClient.exe": {
+    "sha256": "97133ba39690dd057d83993925c7e17d89a8a8e47a3fc295eaaed8ff496f2b1d",
+    "bytes": 2311413
+  },
+  "Start_Ultra_LLM_Client.vbs": {
+    "sha256": "35e0a10b231805ea3cd0fdc7ddb39b19bba7ec5153da0348bd74c2004f1253cb",
+    "bytes": 3700
+  },
+  "_internal/web_assets/client.js": {
+    "sha256": "29f1ee3c5d740c64dc581ff8af7c952a16e6f7af957da8ade63466a10de5707a",
+    "bytes": 28667
+  },
+  "installed_has_stream_route": false,
+  "startup": {
+    "shortcut": {
+      "target": "C:\\Windows\\System32\\wscript.exe",
+      "arguments": "\"M:\\UltraLLM_Client\\Start_Ultra_LLM_Client.vbs\"",
+      "working_directory": "M:\\UltraLLM_Client"
+    },
+    "processes": [
+      {
+        "ProcessId": 26304,
+        "ParentProcessId": 27644,
+        "ExecutablePath": "M:\\UltraLLM_Client\\UltraLLMClient.exe"
+      }
+    ],
+    "listeners": [
+      {
+        "LocalAddress": "127.0.0.1",
+        "LocalPort": 60828,
+        "OwningProcess": 26304
+      }
+    ]
+  },
+  "matching_client_processes": 1,
+  "running_static_js_matches_release": true,
+  "server_live_manager.py": {
+    "sha256": "e15ef6ccea34fc4a6d7ba2afc2a4a37d6739d9b48884dcd99d0a9baa4584da51",
+    "stream_present": false
+  },
+  "server_chat_runtime.py": {
+    "sha256": "fc69896cc40a64237ff3125299d21d8e4a49ec0b5f0ae6ec64c1d905b9755466",
+    "stream_present": false
+  }
+}
+
+CHANGED / NEW SOURCE SHA256 (git-tracked and untracked files):
+5e6757ebe12b28341b2e80f4f27881b26a63ce1004a55c5d1a0f48fcfe4639e8  Client_Ultra_LLM/browser_qa_helpers.mjs
+bfa672e6c30d63e09041a809df309d7af70c8882fde00e2e0a9f4654fa83af81  Client_Ultra_LLM/chat_client.py
+ac0fcdb63f414995655feb08cf0db69507dea5043035d1caa1d03670c1900455  Client_Ultra_LLM/chat_store.py
+60cbd392cd50c927fd065f0b601295231260adbf80187850b0cc0c6eeb69f285  Client_Ultra_LLM/offline_stream_host.py
+3eae15842033d596109e397363367a780ef60c14869c204ee889ac181e90f439  Client_Ultra_LLM/test_browser_control_stream.mjs
+2463a82f1fbea42e393ff0904f66ed9af91be951348241eed0469f4a97665440  Client_Ultra_LLM/test_browser_slots_source.mjs
+26702884f44a2555c777e30a494811f093326fcdf0abbb7895735987e0aacaac  Client_Ultra_LLM/test_browser_stream_source.mjs
+2cad90db61ef969a6a8bb0a02b44d6c6bc3074dc0780dcec4e31aa4199a1446f  Client_Ultra_LLM/test_chat_client.py
+bf546fa919bf14ab00cac5e9a41bf394c8aa14c133b3d21b737eaa47a2f4d56e  Client_Ultra_LLM/test_streaming.py
+48a88e66a19a9fed9fa732f18c855dbb3d565a8b0baba604e090a1bdc640a1ae  Client_Ultra_LLM/test_web_client.py
+b57db640f0987185ead7525446106436fa6d7ac47bbed2dc8eb81d2c1a7d0f13  Client_Ultra_LLM/web_assets/client.css
+193b21ddca48d39d3b0af4cf1ce0c95831a25757db8c1985476fb313af17f3b7  Client_Ultra_LLM/web_assets/client.js
+f2e31264e224ec14bfa4774483f595844904a88f5a68a8313e4ea9bc3c85ec0e  Client_Ultra_LLM/web_assets/index.html
+5e0eab07649b494548f0cb7f08b681cc7270db2fcac2f52c7d3e939a8b31ebff  Client_Ultra_LLM/web_client.py
+17d65c18fb213c642e566eb523d58caf1ab242e3a087f2469a44ea2ea2bbebf8  Manager_Ultra_LLM/chat_runtime.py
+63886f6ef58d37636da799f9240fb74f06e97dee95edbcace9b70964de769473  Manager_Ultra_LLM/chat_settings.py
+43a228abf1634575179c7d73b710f50d7609ff59d627428a07582aaa494b8b09  Manager_Ultra_LLM/colibri2_runner.py
+0f24c5a411846f407f11f49aac20caf90bd41dfe4aae49c1dd24529a75996b5f  Manager_Ultra_LLM/control_runtime.py
+7dee682ad4fa5cf692a637d3b3a334b74a67dd5707273f9183a095a58e5a406e  Manager_Ultra_LLM/live_manager.py
+318f15cc16a776c0e4546ea0ebe47bb93e0e84a4a81238d8e4a736c7f0622782  Manager_Ultra_LLM/resource_policy.py
+056efcae2d75a9572a279151bef5a38bc0fef89840d337f4794b1e98505f9e3a  Manager_Ultra_LLM/slot_registry.py
+487767d982179535d6ad368666408d05ba08277965238fd4df9a7901acb39ed9  Manager_Ultra_LLM/test_chat_runtime.py
+0b35d558fc4ef76d34fdb92bb55ed1576b30a5909c3b04ce032fc841cdeb7033  Manager_Ultra_LLM/test_colibri2_runner.py
+b98063b4533bbe5910884685489bc40fc7e6625bd9d495952497f431de88bd3e  Manager_Ultra_LLM/test_control_runtime.py
+a8d251bbbd6052b394bffe134a935bb750bde3e0a85fac0b8d12f40bee376951  Manager_Ultra_LLM/test_pairing_server.py
+24006943b3596ba37164adfc3e5d1da8476b39527f7cde1fa1ffe05edb9eeaf9  Manager_Ultra_LLM/test_streaming.py
+a7e553423fa8b8b477f291fe67a2638dd1720d339a05df35b49db948d9996038  Manager_Ultra_LLM/verify_stream_slots.py
+aeebedc4bbd3902ef87dc20052cf9399579a879decc97ed0cce1d4569dd0e77d  Manager_Ultra_LLM/windows_process.py
+
+BROWSER SCREENSHOT: M:\GitHub\local_LLM\Client_Ultra_LLM\stream_slots_browser.png
+SCREENSHOT SHA256: 1e6c28dc3d6c84d3c75ed2df5780a3de2322460bbb1537f72057ccf511ff85ef

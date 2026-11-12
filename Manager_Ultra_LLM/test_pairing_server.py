@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 from live_manager import load_config
-from pairing_server import create, grant, revoke, set_pairing_admin
+from pairing_server import create, grant, revoke, set_pairing_admin, set_control_models
 
 
 def digest(text):
@@ -16,6 +16,30 @@ def digest(text):
 
 
 class PairingServerTests(unittest.TestCase):
+    def test_three_default_slots_are_configuration_defaults_not_a_maximum(self):
+        import json
+        create(self.args)
+        config=load_config(self.config);config.pop("slots")
+        self.config.write_text(json.dumps(config),encoding="utf-8")
+        slots=load_config(self.config)["slots"]
+        self.assertEqual([s["slot_id"] for s in slots],["slot1","slot2","slot3"])
+        self.assertTrue(slots[0]["protected"])
+    def test_dynamic_server_slot_can_be_explicitly_shared_by_existing_pairing(self):
+        import json,socket,time
+        from control_runtime import ModelControl
+        create(self.args)
+        record=load_config(self.config)
+        record["control"]={"owner_go":True,"host":socket.gethostname(),"state_dir":str(self.config.parent),"instance_root":str(self.config.parent/"instances")}
+        self.config.write_text(json.dumps(record),encoding="utf-8")
+        class Backend:
+            def telemetry(self):return {"verified":True,"ports":[8000],"sampled":time.monotonic()}
+        core=ModelControl(record,backend=Backend())
+        slot=core.handle({"client_id":"client-a","control_models":True,"allowed_slots":["slot1"]},
+                        {"op":"add_slot","request_id":"f"*32})["slot_id"]
+        grant(Args(config=self.config,client_id="shared",token_sha256=digest("QA-SHARED"*8),grant_slot=[slot]))
+        shared=next(c for c in load_config(self.config)["clients"] if c["client_id"]=="shared")
+        self.assertIn(slot,shared["allowed_slots"])
+        self.assertFalse(shared.get("control_models",False))
     def setUp(self):
         # Isolated temp directories are deliberately not production ACL-secured.
         # The ACL gate is checked separately on the actual protected server path.
@@ -75,6 +99,18 @@ class PairingServerTests(unittest.TestCase):
         self.assertFalse(load_config(self.config)["clients"][0]["pairing_admin"])
         with self.assertRaises(ValueError):
             set_pairing_admin(Args(config=self.config,client_id="unknown",enabled=True))
+
+    def test_model_control_grant_is_separate_and_revocable(self):
+        create(self.args)
+        self.assertFalse(load_config(self.config)["clients"][0].get("control_models",False))
+        set_pairing_admin(Args(config=self.config,client_id="client-a",enabled=True))
+        self.assertFalse(load_config(self.config)["clients"][0].get("control_models",False))
+        set_control_models(Args(config=self.config,client_id="client-a",enabled=True))
+        self.assertTrue(load_config(self.config)["clients"][0]["control_models"])
+        set_control_models(Args(config=self.config,client_id="client-a",enabled=False))
+        client=load_config(self.config)["clients"][0]
+        self.assertFalse(client["control_models"])
+        self.assertTrue(client["pairing_admin"])
 
     def test_two_admin_grants_do_not_overwrite_each_other(self):
         create(self.args)

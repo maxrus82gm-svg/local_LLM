@@ -2,10 +2,12 @@
 from contextlib import redirect_stdout
 from http.server import ThreadingHTTPServer
 import io
+import http.client
 import json
 from pathlib import Path
 import tempfile
 import threading
+import time
 import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError
@@ -81,6 +83,29 @@ class WebClientP1Tests(unittest.TestCase):
                 "/api/enroll", method="POST", origin=origin,
                 csrf=csrf, body={"some": "request"})
             self.assertEqual(status, 403)
+
+    def test_rejected_post_drains_late_body_and_bounds_slow_sender(self):
+        connection = http.client.HTTPConnection("127.0.0.1", self.port, timeout=2)
+        self.addCleanup(connection.close)
+        connection.putrequest("POST", "/api/enroll")
+        connection.putheader("Content-Length", "2")
+        connection.endheaders()
+        time.sleep(0.02)
+        connection.send(b"{}")
+        response = connection.getresponse()
+        self.assertEqual(response.status, 403)
+        self.assertEqual(json.loads(response.read())["error"], "request_not_authorised")
+        connection.close()
+        connection = http.client.HTTPConnection("127.0.0.1", self.port, timeout=2)
+        self.addCleanup(connection.close)
+        connection.putrequest("POST", "/api/enroll")
+        connection.putheader("Content-Length", "1000000")
+        began = time.perf_counter()
+        connection.endheaders()
+        response = connection.getresponse()
+        self.assertEqual(response.status, 403)
+        self.assertEqual(json.loads(response.read())["error"], "request_not_authorised")
+        self.assertLess(time.perf_counter()-began, 1.0)
 
     def test_invalid_web_enrollment_is_rejected_without_files(self):
         bad = {"manager_id": "manager-a", "client_id": "client-a",

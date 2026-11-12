@@ -20,6 +20,22 @@ def machine_row(**changes):
 
 
 class InspectionTests(TestCase):
+    def test_kat_structural_check_rejects_missing_and_truncated_shards(self):
+        import tempfile
+        import struct
+        with tempfile.TemporaryDirectory() as directory:
+            folder=Path(directory)
+            (folder/'config.json').write_text(json.dumps({'model_type':'qwen3_5_moe_text'}))
+            (folder/'qwen36_meta.json').write_text(json.dumps({'expert_gs':64,'ebits':4,'n_layers':40}))
+            raw=json.dumps({'weight':{'dtype':'F32','shape':[1],'data_offsets':[0,4]}}).encode()
+            for name in [f'model-{i:05d}.safetensors' for i in range(40)]+['model-globals.safetensors']:
+                (folder/name).write_bytes(struct.pack('<Q',len(raw))+raw+b'1234')
+            self.assertTrue(preflight.inspect_kat(folder)['structural_integrity'])
+            (folder/'model-00000.safetensors').write_bytes(struct.pack('<Q',len(raw))+raw+b'12')
+            self.assertFalse(preflight.inspect_kat(folder)['structural_integrity'])
+            (folder/'model-00000.safetensors').unlink()
+            self.assertFalse(preflight.inspect_kat(folder)['structural_integrity'])
+
     def test_home_host_refused_before_process_config_or_http_calls(self):
         with patch.object(preflight.socket, "gethostname", return_value="DESKTOP-SC96D3U"), \
              patch.object(preflight.subprocess, "run") as query, \

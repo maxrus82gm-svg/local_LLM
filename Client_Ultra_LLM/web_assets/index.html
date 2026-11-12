@@ -23,14 +23,14 @@
   <div class="hero-actions"><button class="btn secondary" type="button" id="refresh">↻ Обновить</button><button class="btn primary" type="button" id="add">＋ Подключить сервер</button></div></header>
   <section class="metrics" aria-label="Сводка">
     <article class="metric"><small>МЕНЕДЖЕРЫ</small><strong id="metric-manager">—</strong><p id="online-note">Проверяем подключения</p><span class="metric-icon">▤</span></article>
-    <article class="metric"><small>РАБОТАЮЩИЕ МОДЕЛИ</small><strong id="metric-models">—</strong><p>Подтверждены через API</p><span class="metric-icon">◈</span></article>
+    <article class="metric"><small>РАБОТАЮЩИЕ ЭКЗЕМПЛЯРЫ</small><strong id="metric-models">—</strong><p>Подтверждены через API</p><span class="metric-icon">◈</span></article>
     <article class="metric"><small>ДОСТУПНЫЕ СЛОТЫ</small><strong id="metric-ready">—</strong><p>Без гарантии резервирования</p><span class="metric-icon">⌁</span></article>
   </section>
   <section class="section"><div class="section-head"><div><div class="eyebrow">ПОДКЛЮЧЁННЫЕ УЗЛЫ</div><h2>Менеджеры и модели</h2></div><span class="counter" id="server-count">0 серверов</span></div>
     <div id="notice" role="status" class="notice hidden"></div>
     <div class="manager-grid" id="managers"><div class="placeholder">Получаем данные с серверов…</div></div>
   </section>
-<footer>Ultra LLM Web Client · Только реальные данные по HTTPS · Управление START / STOP находится в разработке</footer>
+<footer>Ultra LLM Web Client · Данные по HTTPS · Управление моделями требует разрешения Manager</footer>
 </main>
 <main class="main hidden" id="chat-view">
   <div class="top-line"><span>Рабочая область <i>/</i> Чаты LLM</span><span class="live-pill">● РЕАЛЬНЫЕ МОДЕЛИ</span></div>
@@ -49,13 +49,25 @@
         <button class="btn secondary small" type="button" id="chat-popout" disabled>↗ Открепить окно</button></div>
       <div id="chat-messages" class="chat-messages" aria-live="polite"><div class="chat-empty">Выберите слот для переписки.</div></div>
       <div id="chat-state" class="chat-state" role="status"></div>
+      <div class="chat-stream-options"><label><input type="checkbox" id="chat-stream" checked> Потоковый ответ</label> <button type="button" id="chat-cancel" class="btn secondary small" disabled>Отменить поток</button></div>
+          <details class="chat-settings"><summary>Параметры генерации и истории</summary>
+        <label>Thinking <select id="chat-thinking"><option value="auto">Как настроено в Colibri</option><option value="on">Включить, если модель поддерживает</option><option value="off">Выключить</option></select></label>
+        <label>Глубина <select id="chat-effort"><option value="auto">По умолчанию движка</option><option>low</option><option>medium</option><option>high</option><option>xhigh</option></select></label>
+        <label>Максимум выходных токенов <input id="chat-max-tokens" type="number" min="1" placeholder="Лимит движка"></label>
+        <label>Сообщений истории <input id="chat-history-messages" type="number" min="0" max="1024" value="100"></label>
+        <label>Символов истории (это не токены) <input id="chat-history-chars" type="number" min="0" max="1048576" value="200000"></label>
+        <label><input id="chat-show-reasoning" type="checkbox" checked> Показывать отдельный поток рассуждений</label>
+        <p>Auto сохраняет настройки Colibri. Возможности thinking зависят от модели. Сокращение истории будет показано перед ответом.</p>
+        <p>Защита локального Client: запрос до 1 MiB, сообщение до 131072 символов, ответ и reasoning по 1 Mi символов, поток до 64 MiB, кадр до 2 MiB, ожидание до 330 с. Политика Manager и реальные лимиты движка показаны в измерениях; действует наиболее строгий предел. История хранится полностью; окно просмотра — последние 100 сообщений.</p>
+      </details>
+      <details class="chat-settings"><summary>Измерения текущего запроса</summary><p>Интервалы измеряются локальными точными таймерами. Метки времени разных компьютеров требуют синхронизации часов и сами по себе не означают сетевую задержку.</p><pre id="chat-metrics">Ещё нет измерений</pre></details>
       <form id="chat-form" class="chat-form">
-        <textarea id="chat-input" maxlength="4000" rows="3" placeholder="Сообщение выбранной LLM…" aria-label="Сообщение" disabled></textarea>
+        <textarea id="chat-input" maxlength="131072" rows="3" placeholder="Сообщение выбранной LLM…" aria-label="Сообщение" disabled></textarea>
         <button type="submit" class="btn primary" id="chat-send" disabled>Отправить</button>
       </form>
     </section>
   </div>
-  <footer>CHAT-01 · Инференс выполняется на сервере · START/STOP пока недоступны</footer>
+  <footer>Инференс и управление моделями выполняет авторизованный Manager</footer>
 </main></div>
 <dialog id="setup" aria-labelledby="setup-title">
   <div class="dialog-content">

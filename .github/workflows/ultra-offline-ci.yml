@@ -1,0 +1,55 @@
+name: Ultra LLM offline source QA
+
+on:
+  push:
+    branches: [GPT, main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-windows:
+    name: Windows Client + TLS Chrome mock P0/P1
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Python syntax and JavaScript syntax
+        shell: pwsh
+        run: |
+          python -c "from pathlib import Path; [compile(p.read_text(encoding='utf-8-sig'), str(p), 'exec') for folder in ('Manager_Ultra_LLM','Client_Ultra_LLM') for p in Path(folder).glob('*.py')]; print('Python syntax PASS')"
+          node --check Client_Ultra_LLM/web_assets/client.js
+      - name: Client unit tests
+        shell: pwsh
+        run: python -B -m unittest discover -s Client_Ultra_LLM -p 'test_*.py' -q
+      - name: Chrome legacy compatibility
+        shell: pwsh
+        run: node Client_Ultra_LLM/test_browser_control_stream.mjs
+      - name: Chrome streaming P0 SOURCE and fake Colibri
+        shell: pwsh
+        run: node Client_Ultra_LLM/test_browser_stream_source.mjs
+      - name: Chrome multi-instance P1 SOURCE and fake engines
+        shell: pwsh
+        run: node Client_Ultra_LLM/test_browser_slots_source.mjs
+      - name: Document hosted-runner scope
+        shell: pwsh
+        run: |
+          "Full Manager 302 tests: NOT RUN here (missing approved Colibri c/coli and c/version.py fixture from local S: drive)." | Out-File -Append $env:GITHUB_STEP_SUMMARY
+          "Real Colibri, GPU, installed Client and production LIVE: NOT RUN." | Out-File -Append $env:GITHUB_STEP_SUMMARY
+      - name: Upload browser screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-qa
+          path: Client_Ultra_LLM/stream_slots_browser.png
+          if-no-files-found: ignore
+          retention-days: 7

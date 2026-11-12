@@ -219,6 +219,18 @@ def set_pairing_admin(args):
     print("PAIRING_ADMIN_PERMISSION_UPDATED: scoped to client ID")
 
 
+def set_control_models(args):
+    """Explicit local owner grant, separate from chat and pairing administration."""
+    with manager_config_lock(args.config):
+        record = load_config(_trusted_parent(args.config))
+        matches = [x for x in record["clients"] if x["client_id"] == args.client_id]
+        if len(matches) != 1 or type(args.enabled) is not bool:
+            raise ValueError("Registered client and explicit Boolean permission required")
+        matches[0]["control_models"] = args.enabled
+        _write_config(args.config, record, new=False)
+    print("CONTROL_MODELS_PERMISSION_UPDATED: scoped to client ID")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, required=True)
@@ -252,6 +264,12 @@ def main():
     choice.add_argument("--enable", dest="enabled", action="store_true")
     choice.add_argument("--disable", dest="enabled", action="store_false")
     admin.set_defaults(func=set_pairing_admin)
+    control = sub.add_parser("set-control-models", help="Explicit model lifecycle permission")
+    control.add_argument("--client-id", required=True)
+    choice = control.add_mutually_exclusive_group(required=True)
+    choice.add_argument("--enable", dest="enabled", action="store_true")
+    choice.add_argument("--disable", dest="enabled", action="store_false")
+    control.set_defaults(func=set_control_models)
     args = parser.parse_args()
     args.func(args)
 

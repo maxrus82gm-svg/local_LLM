@@ -149,25 +149,27 @@ class NativeWindows:
         return {"total_gib": info.total / 2**30, "free_gib": info.available / 2**30}
 
     def listeners(self):
-        """IPv4 listening PID table; never bind or connect to a LAN endpoint."""
+        """IPv4 + IPv6 listening PID tables, including wildcard listeners."""
         dll = c.WinDLL("iphlpapi", use_last_error=True)
         query = dll.GetExtendedTcpTable
         query.argtypes = [c.c_void_p, c.POINTER(w.DWORD), w.BOOL, w.ULONG, c.c_int, w.ULONG]
         query.restype = w.DWORD
-        size = w.DWORD()
-        result = query(None, c.byref(size), False, 2, 3, 0)
-        if result != 122 or not size.value:
-            raise WindowsError("TCP listener inventory unknown")
-        buf = c.create_string_buffer(size.value)
-        if query(buf, c.byref(size), False, 2, 3, 0) != 0:
-            raise WindowsError("TCP listener inventory changed/unavailable")
-        count = c.cast(buf, c.POINTER(w.DWORD))[0]
-        if 4 + count * 24 > size.value:
-            raise WindowsError("Invalid listener inventory")
         rows = []
-        for i in range(count):
-            row = (w.DWORD * 6).from_buffer(buf, 4 + i * 24)
-            rows.append({"port": socket.ntohs(row[2] & 0xffff), "pid": int(row[5])})
+        for family, words, port_index, pid_index in ((2, 6, 2, 5), (23, 14, 5, 13)):
+            size = w.DWORD()
+            result = query(None, c.byref(size), False, family, 3, 0)
+            if result != 122 or not size.value:
+                raise WindowsError("TCP listener inventory unknown")
+            buf = c.create_string_buffer(size.value)
+            if query(buf, c.byref(size), False, family, 3, 0) != 0:
+                raise WindowsError("TCP listener inventory changed/unavailable")
+            count = c.cast(buf, c.POINTER(w.DWORD))[0]
+            stride = words * 4
+            if 4 + count * stride > size.value:
+                raise WindowsError("Invalid listener inventory")
+            for i in range(count):
+                row = (w.DWORD * words).from_buffer(buf, 4 + i * stride)
+                rows.append({"port": socket.ntohs(row[port_index] & 0xffff), "pid": int(row[pid_index])})
         return rows
 
     def job_pids(self, job):
@@ -215,9 +217,14 @@ class NativeWindows:
             raise WindowsError("Session job already exists")
         limits = ExtendedLimit()
         # KILL_ON_JOB_CLOSE | JOB_MEMORY | PRIORITY_CLASS; no breakaway allowed.
-        limits.Basic.LimitFlags = 0x2000 | 0x200 | 0x20
+        limits.Basic.LimitFlags = 0x2000 | 0x20
         limits.Basic.PriorityClass = 0x4000  # BELOW_NORMAL_PRIORITY_CLASS
-        limits.JobMemoryLimit = int(private_limit_gib * 2**30)
+        if private_limit_gib is not None:
+            if type(private_limit_gib) not in (int,float) or not 0<private_limit_gib<float('inf'):
+                self.close(handle)
+                raise WindowsError("Invalid configured job memory limit")
+            limits.Basic.LimitFlags |= 0x200
+            limits.JobMemoryLimit = int(private_limit_gib * 2**30)
         if not self.k.SetInformationJobObject(handle, 9, c.byref(limits), c.sizeof(limits)):
             self.close(handle)
             raise WindowsError("Cannot apply job limits; no child started")

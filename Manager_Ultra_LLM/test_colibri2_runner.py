@@ -342,6 +342,30 @@ class StopTests(unittest.TestCase):
 
 @unittest.skipUnless(os.name == "nt", "Windows native integration only")
 class NativeIntegrationTests(unittest.TestCase):
+    def test_two_identical_dummy_programs_have_separate_jobs_and_partial_stop(self):
+        native=NativeWindows()
+        jobs=[];handles=[]
+        try:
+            with tempfile.TemporaryFile(dir=HERE,mode="w+b") as stdout, tempfile.TemporaryFile(dir=HERE,mode="w+b") as stderr:
+                for cap in (0.25,None):
+                    job=native.job(rf"Local\UltraLLM-twins-{uuid.uuid4().hex}",cap);jobs.append(job)
+                    handle,record=native.spawn_contained([sys.executable,"-B","-c","import time;time.sleep(30)"],
+                        dict(os.environ),str(HERE),stdout,stderr,job)
+                    handles.append(handle)
+                self.assertNotEqual(native.identity(handles[0])["pid"],native.identity(handles[1])["pid"])
+                self.assertTrue(native.member(handles[0],jobs[0]))
+                self.assertFalse(native.member(handles[1],jobs[0]))
+                limits=ExtendedLimit()
+                native.checked(native.k.QueryInformationJobObject(jobs[1],9,ctypes.byref(limits),ctypes.sizeof(limits),None),"query test job")
+                self.assertTrue(limits.Basic.LimitFlags & 0x2000)
+                self.assertFalse(limits.Basic.LimitFlags & 0x200)
+                native.close(jobs[0]);jobs[0]=None
+                self.assertEqual(native.k.WaitForSingleObject(handles[0],5000),0)
+                self.assertTrue(native.alive(handles[1]))
+        finally:
+            for job in jobs:native.close(job)
+            for handle in handles:
+                native.k.WaitForSingleObject(handle,5000);native.close(handle)
     def test_structure_sizes_match_windows_x64_abi(self):
         if ctypes.sizeof(ctypes.c_void_p) == 8:
             self.assertEqual(ctypes.sizeof(BasicLimit), 64)
@@ -356,6 +380,16 @@ class NativeIntegrationTests(unittest.TestCase):
             self.assertTrue(identity["owner_sid"].startswith("S-1-"))
         self.assertGreater(native.memory()["total_gib"], 0)
         self.assertIsInstance(native.listeners(), list)
+
+    def test_ipv6_listener_is_not_mistaken_for_a_free_port(self):
+        import socket
+        native = NativeWindows()
+        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as listener:
+            listener.bind(("::1", 0))
+            listener.listen(1)
+            port = listener.getsockname()[1]
+            self.assertTrue(any(row["port"] == port and row["pid"] == os.getpid()
+                                for row in native.listeners()))
 
     def test_mutex_denies_another_owner_and_session_event_is_exact(self):
         native = NativeWindows()
