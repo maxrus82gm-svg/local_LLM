@@ -1,5 +1,271 @@
 # Ultra LLM Manager — исходный снимок и офлайн-проверка
 
+## CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001 — сдача 13.11.2026
+
+**RESULT: RELEASE CANDIDATE READY / LIVE DEPLOY NOT RUN; SUBMITTED / REVIEW PENDING.**
+Это отчёт исполнителя, не независимая приёмка. Работа выполнена на домашнем
+`DESKTOP-SC96D3U`, внутри `M:\GitHub\local_LLM`. Работающий Manager, модели,
+службы, Client, ярлык, firewall и TLS не изменялись. Все приведённые ниже команды
+серверного переключения — план следующего этапа, **НЕ выполненные действия**.
+
+### DONE
+
+Подготовлен переносимый **source bundle** `R5-compat-20261113.1`: 19 разрешённых
+файлов runtime/проверки + `RELEASE.json` + `SHA256SUMS.txt` = **21 файл**.
+Требуется уже установленный Windows x64 / CPython 3.12 x64; Python не включён,
+новые pip-зависимости не нужны. Это не отдельный EXE и не установщик службы.
+Сохраняются готовые CONTROL-01/P0/P1: SSE→NDJSON, reasoning, cancel, привязка
+instance_id, каталог, сохраняемые слоты, изолированные экземпляры, scoped STOP.
+Производственные механизмы управления моделями не переписывались.
+
+Локальные refs до работы: `main` №45
+`71462bde1f245f96180bec351e0f1ea7ecdd8b50`; `GPT_2_local` №44
+`73dec62a1e0eda4a7846fa7a67bfb0e29ab39615`, расхождение 2/2.
+Удалённые refs не сверялись, fetch/pull не выполнялись.
+**AMENDMENT владельца в чате 13.11: коммитить не надо, только локальная работа.**
+Поэтому ветки не переключались, commit/push/pull не выполнены, номер/SHA нового
+коммита **N/A**. Base HEAD указан для происхождения; сам кандидат закреплён SHA
+каждого файла, а не выдан за immutable task commit.
+
+### CHANGED / DIFF
+
+- `manager_release.py`: allowlist, проверка зависимости только от stdlib,
+  воспроизводимый ZIP, manifest, проверка целостности, staging в новую папку.
+  Не принимает неизвестные/повторные ZIP entries, traversal, symlink/junction,
+  приватную конфигурацию в пакете и существующую целевую папку.
+- `test_manager_release.py`: проверка подмены/небезопасных архивов, переносимости
+  импортов и детерминизма, сохранности legacy config/auth и закрытых owner gates.
+- `test_colibri2_runner.py`: явно синтетический AST-контракт и отрицательные
+  проверки; отдельный optional installed-source audit, без исполнения Colibri.
+- `verify_offline.ps1`: больше не требует S: и не создаёт `../c`.
+  `-ColibriSource` добровольно включает read-only проверку реального исходника.
+- `.github/workflows/ultra-offline-ci.yml`: добавлен полный Manager suite в
+  существующий Windows job. Публикация и hosted-run в этой задаче **NOT RUN**.
+- Этот существующий README содержит полный отчёт/план; новая Markdown-
+  документация не создана. №07 дополнен сдачей и ограничением ротации.
+- Скрипты и JSON evidence:
+  `Documents/Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001`.
+
+Изменения пользователя в `Documents/.obsidian/appearance.json` и `workspace.json`
+не относятся к задаче; не редактировались. SOURCE Client и installed Client
+сохранены. Проверяемый локальный diff: `git diff -- .github/workflows/ultra-offline-ci.yml
+Manager_Ultra_LLM Documents/07_Задачи Codex.md`; новые файлы/evidence отдельно
+видны в `git status --short`. Index не использовался.
+
+### Матрица совместимости
+
+Для колонки установленного Manager проверены **публичные файлы по SMB**, а не
+живые HTTP-ответы или provenance процесса. В новом кандидате ниже — SOURCE/QA.
+
+| Контракт Client R5 | Установленный Manager | Кандидат R5 / условия |
+| --- | --- | --- |
+| TLS, bearer SHA, IP allowlist, allowed_slots | Реализованы в старом коде | Сохранены; pairing_admin не даёт control_models; отказ без прав проверен |
+| GET `/v1/snapshot` | Старый snapshot | Совместим, additive chat/control capabilities; изоляция слотов |
+| POST `/v1/chat` | Есть, ordinary | Сохранён; ordinary и streaming независимы, параметры явные |
+| POST `/v1/chat/stream` | Нет в установленном коде | Настоящий incremental SSE→NDJSON v2, sequence/meta/delta/reasoning/done/error; TLS Chrome PASS с fake Colibri |
+| POST `/v1/chat/cancel` | Нет в установленном коде | Scope request/client/slot, разрыв чтения upstream; отмена и чужой cancel проверены unit-тестами |
+| GET `/v1/control/catalog` | Нет в установленном коде | Есть каталог, статусы/причины недоступности, слоты/экземпляры; доступ через существующую авторизацию |
+| POST `/v1/control` | Нет в установленном коде | CONTROL-01 check/select/add_slot/start/stop; реальные START/STOP здесь не выполнялись |
+| Динамические слоты / «+» | Старые фиксированные слоты | 3 по умолчанию; QA 3→5, уникальные порты, durable SQLite; мутации требуют owner_go + control_models |
+| Несколько экземпляров одинаковой LLM | Нет нового контракта | QA 2 CPU + 2 CUDA **fake**; разные UUID/порты/сессии, stop-one сохраняет второй |
+| Чаты и reasoning | Legacy история | instance binding, durable история/reasoning; QA reload/recovery PASS; реальная история не читалась |
+| Существующая конфигурация | Legacy config | При отсутствии control нет DB/init моделей; файл config/auth не переписывается; 3 fallback слота |
+| Контроль выключен / нет прав | Legacy запреты | owner_go по умолчанию false; одних client rights недостаточно; 503/403 по существующему контракту |
+| Каталог любых будущих моделей | Текущая инвентаризация | Используется существующий curated catalogue/profiles; неизвестная архитектура не становится разрешённой автоматически |
+
+Замена кода **не** выдаёт control_models, не включает owner_go, не назначает RAM/
+VRAM reviews и не начинает inference. Динамическая мутация и запуск останутся
+закрытыми при legacy config. Включение control — отдельное владельческое решение.
+История Client и pairing/TLS миграции не требуют. При включении control готовая
+реализация создаёт/additively расширяет серверный SQLite registry, не принимает
+от Client произвольный path/port и не усыновляет legacy slot1.
+
+### TESTS / QA
+
+Воспроизводимый запуск из workspace:
+
+```powershell
+py -3.12 -X utf8 -B Documents/Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/run_qa.py --output qa_repeat.json
+```
+
+Нужен **новый** путь evidence; предыдущие результаты не затираются. Runner
+копирует исходники в `Test`, направляет TEMP/TMP/LOCALAPPDATA туда же; Chrome
+использует отдельный профиль. Для дочернего Windows PowerShell удаляется только
+унаследованный PSModulePath, чтобы не подхватить несовместимый модуль PowerShell7.
+Настройки системы/пользователя при этом не меняются.
+
+Финальные результаты: **Manager 310 PASS + 1 SKIP (311 total)**,
+**Client 49 PASS**, Python/JS syntax PASS, Chrome legacy/P0/P1 PASS.
+SKIP — явно optional аудит реального исходника Colibri, не синтетическая замена
+доказательства установленного движка. Полный PowerShell entrypoint также проверен.
+Все exit codes, команды и stderr/stdout сохранены в `qa.json` и
+`qa_regression.json`. Первоначальные FAIL в `qa.json` относятся к подготовке QA:
+ошибка имени поля синтетического config (`token_sha256` вместо `sha256`) и
+пропущенный VBS при копировании Client. Исправлены; повторены затронутые suites.
+Успешные browser results сохранены без повторного бессмысленного прогона.
+
+P0: первый DOM до DONE, UTF-8/JSON fragmentation, thinking controls, reasoning
+отдельно и сохранён, identical direct/routed upstream payload. В этом **fake**
+прогоне Manager first-forward delay 0.382 ms (warm 0.365), preflight 52.980 ms
+(warm 48.587); browser first fragment 1364 ms cold / 435 ms warm. Client durable
+SQLite claim 1273.868 / 284.264 ms — заметная часть задержки, это измеренный
+локальный overhead, а не время генерации реальной LLM. Числа одного QA прогона
+не являются SLA, TPS Qwen или замером серверной CUDA.
+
+P1: 3→5 persisted slots, concurrent chats isolated, 2 одинаковых CPU и 2 CUDA
+fake, stop-one, перезапуск controller/browser, история и риск cancel/confirm PASS.
+Manager regression покрывает auth/owner_go, cancel, ошибки и quarantine recovery,
+native job/identity/cleanup только на принадлежащих тесту dummy Python процессах.
+
+Release QA: deterministic ZIP, relocated imports, tampering, traversal/duplicates/
+link/junction/private-extra/existing target rejection PASS. Rollback QA: **66**
+decision cases и **2** filesystem сценария PASS, старые runtime импорты exit 0;
+восстановлены точные hashes, неизвестный sentinel и синтетические private bytes.
+Никакого service restart или гарантии серверных file-locks из этого не следует.
+
+### Релиз и rollback материалы
+
+- ZIP: `Releases/Manager/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/UltraLLM_Manager_R5_compat_Win64.zip`.
+- ZIP SHA-256: `ba4ebf65af7a0693cf4dce045eb08254434a4475fd4f79e031424c905d661ce2`.
+- Распакованная папка рядом с ZIP, внутри полный `SHA256SUMS.txt` и `RELEASE.json`.
+- Безопасная локальная копия **5 публичных runtime-файлов** старого сервера:
+  `Backups/Manager/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/public_code`.
+  Это **не** полный production backup: private config/auth/TLS/DB/task не копировались.
+- `baseline.json` — исходные refs, файлы сервера, Client EXE SHA, пути, BLOCK4 hash.
+- `rollback_qa.py`, `rollback_qa.json` — guard и репетиция; ничего не исполняют на LIVE.
+- `release.json`, `qa.json`, `qa_regression.json`, `acceptance.json` — evidence.
+
+Повторная сборка в **новое** имя, проверка и staging (на домашнем ПК только Test):
+
+```powershell
+py -3.12 -B Manager_Ultra_LLM/manager_release.py build --output M:\GitHub\local_LLM\Releases\Manager\NEW_BUILD --base-head 71462bde1f245f96180bec351e0f1ea7ecdd8b50
+py -3.12 -B Manager_Ultra_LLM/manager_release.py verify M:\GitHub\local_LLM\Releases\Manager\CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001\UltraLLM_Manager_R5_compat_Win64.zip
+py -3.12 -B Manager_Ultra_LLM/manager_release.py stage M:\GitHub\local_LLM\Releases\Manager\CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001\UltraLLM_Manager_R5_compat_Win64.zip --target M:\GitHub\local_LLM\Test\NEW_STAGE
+```
+
+ZIP/manifest дают целостность при сравнении с **внешним известным SHA выше**;
+это не цифровая подпись. Имя staging должно отсутствовать. Прерванные папки
+сохраняются для диагностики, никакого автоматического удаления/перезаписи.
+`Manage-ManagerTask.ps1 Install/Remove` не используется для upgrade: он меняет
+task/firewall и не является безопасным заменителем переключения существующей службы.
+
+### План OWNER GO: preflight, установка и откат (НЕ ИСПОЛНЕН)
+
+1. На **сервере DESKTOP-KT4G5SM**, отдельным явно разрешённым этапом, снять свежий
+   PID/creation-time/exe/owner/command line Manager и listener HTTPS8443, XML и
+   action/principal/restart policy `UltraLLM_Manager_LIVE`. Подтвердить совпадение
+   действующего action с `C:\Server\Ultra_LLM\Manager_Live\live_manager.py`.
+   Зафиксировать Qwen gateway/engine identities + health/models на 8000 и identity
+   Valheim. Ничего не выводить из bearer/config/TLS key. Неизвестная identity,
+   неоднозначный PID/порт/путь, активный upgrade или stale baseline → BLOCKED.
+2. До остановки проверить hashes всех старых файлов относительно **свежего**
+   snapshot, свободное место, ACL, runtime Python x64/3.12 и отсутствие зависимых
+   процессов, использующих папку Manager как своё исполняемое место. Текущие SMB
+   SHA не заменяют повторную серверную проверку. Если owner_go уже включён или
+   есть незавершённые owned instances, не останавливать их и не продолжать upgrade:
+   отдельное разрешение/план безопасного состояния обязательны.
+3. Создать уникальный полный backup **всей** старой папки Manager (с неизвестными
+   файлами) и protected backup исходного task XML, private config/auth/TLS и
+   control SQLite, если существует. Сохранить ACL/owner и SHA, проверить readback.
+   Для живой SQLite нужен согласованный SQLite backup API, не копия одного DB
+   без WAL. Private backup остаётся на сервере под исходными private ACL, не в
+   Git, не в LAN-readable staging. Непроверенный backup/restore → BLOCKED.
+4. Проверить SHA ZIP, доставить **только** публичный пакет в новую sibling staging
+   папку на том же server volume, сравнить все 21 файла и проверить imports `-B`.
+   `PythonExe staged\live_manager.py --config ExistingPrivateConfig --check-config`
+   выполнить под **тем же пользователем task** без `--log-dir`: это не создаёт
+   listener и не выполняет run/ModelControl. Config/TLS/права не менять.
+   Не включать owner_go для прохождения проверки. Проверка private ACL/ключа и
+   реальной TLS загрузки дополнительно нужна перед переключением; --check-config
+   сам по себе проверяет наличие, а не полный TLS handshake.
+5. Только после отдельного OWNER GO на **Manager-only switch + rollback**:
+   штатно `Stop-ScheduledTask -TaskName UltraLLM_Manager_LIVE`. Дождаться выхода
+   именно подтверждённого Manager и освобождения его listener (до 30 s), снова
+   сверить Qwen/Valheim identities/health. Не применять taskkill/Stop-Process по
+   имени, не останавливать Python/Colibri/Valheim, не менять task/firewall.
+   Проверить, что restart policy не подняла Manager повторно; иначе BLOCKED и
+   отдельное согласование authority, а не самовольное изменение task settings.
+6. Переименовать весь `Manager_Live` в уникальную retained rollback папку,
+   затем staging в `Manager_Live` (две операции, **не** единая атомарная операция).
+   При сбое второй операции немедленно вернуть прежнее имя первой папке.
+   Обе операции исполнять native PowerShell `Move-Item -LiteralPath` с заранее
+   проверенными абсолютными путями на server volume. Не удалять неизвестные
+   файлы, старые каталоги, backups; private пути остаются прежними.
+   `Start-ScheduledTask -TaskName UltraLLM_Manager_LIVE` сохраняет прежний action.
+7. За bounded окно 30 s подтвердить один правильный Manager PID/listener, TLS pin,
+   authenticated snapshot, capabilities streaming и GET catalogue, Client ONLINE,
+   неизменность config/auth/TLS hashes и task settings, прежний Qwen health/identity,
+   неизменный Valheim, отсутствие новых моделей/owned instances. Не выполнять
+   POST chat/control/cancel против реальной модели без отдельного разрешения.
+   Самопроверка новых API здесь — advertised capabilities + разрешённые GET;
+   inference/reasoning/cancel/CPU/CUDA/stop-one требуют дальнейшего OWNER GO.
+8. Любой недостоверный/отсутствующий результат, deadline, ошибка Manager/TLS/auth/
+   catalogue/Client, изменение защищённых identities или config/task →
+   **ROLLBACK_REQUIRED**, без ожидания "само восстановится". Перечень полей guard
+   в `rollback_qa.py REQUIRED`; JSON с подтверждёнными свежими observations
+   проверяется `py -3.12 -B .../rollback_qa.py --observations Observations.json`.
+   Это evaluator, **не** установленный автоматический watchdog/remote executor.
+9. В рамках того же отдельно согласованного Manager-only rollback: остановить
+   только новый подтверждённый Manager, проверить освобождение его listener и
+   отсутствие owned instances. При невозможности подтвердить эти условия —
+   BLOCKED, не угадывать PID/не расширять STOP. Сохранить failed candidate целиком
+   под новым именем; вернуть прежнюю retained папку в Manager_Live. Config/auth/
+   TLS при неизменных SHA не трогать. Если state мог измениться, не откатывать
+   живую SQLite вслепую: только согласованная consistent backup/restore при
+   отсутствии owned jobs; несовпадение конфигурации/прав требует владельца.
+10. Запустить прежний task, проверить прежние hashes, PID/listener/TLS/snapshot,
+    Qwen и Valheim, доступ Client, config/task hashes. Не переустанавливать
+    службу и не создавать новые модели для проверки. Backup/candidate/evidence
+    сохранить. Если старый Manager не восстановлен — BLOCKED и остановка этапа,
+    никакого самостоятельного ремонта системных настроек.
+
+### Реальный сервер / QA / OWNER GO
+
+**На реальном сервере только SMB read-only:** список верхнего уровня и SHA пяти
+публичных runtime-файлов. `live_manager.py`:
+`e15ef6ccea34fc4a6d7ba2afc2a4a37d6739d9b48884dcd99d0a9baa4584da51`;
+`chat_runtime.py`:
+`fc69896cc40a64237ff3125299d21d8e4a49ec0b5f0ae6ec64c1d905b9755466`.
+Installed Client EXE read-only SHA:
+`7614aecc6f97a5a8c1b126b745aa7d17e9dc8679774ba870ee68f18690c649df`.
+При инвентаризации процесс Client отсутствовал; он не запускался. Поэтому real
+Manager ONLINE/HTTP API/TLS/PID, Qwen health, Valheim identity и история в этой
+задаче **NOT RUN**. Старый отчёт LIVE PASS не переносится на новый момент времени.
+
+**Только QA:** полный регрессионный suite, TLS Chrome mock streaming/reasoning,
+слоты, cancel, CPU/CUDA mock, dummy Windows jobs, package и rollback rehearsal.
+**OWNER GO нужен:** реальная серверная диагностика процессов/закрытого task,
+protected full backup, доставка/staging на сервер, Manager-only switch/restart/
+rollback; отдельно control configuration/grants и любые реальные LLM запросы,
+START CPU/CUDA/STOP. Текущая задача их не разрешает.
+
+### PROBLEMS / QUESTIONS / DOC IMPACT / NEXT
+
+**PROBLEMS:** §18.29 отсутствует в текущем №18 (`SOURCE UNAVAILABLE`); №13 и часть
+реестра содержат устаревший migration NOW. Новые docs/историю самостоятельно не
+создавал. Ротация №07 **ARCHIVE BLOCKED**: прежний БЛОК1.1 с ROOT migration и
+AMENDMENT/OWNER GO сохранён в immutable main №45, но отсутствует требуемая точная
+индексная запись этой TASK в №05/09. Прежний 1.1 не вытеснен, текущий оригинал
+оставлен в БЛОК1 со статусом сдачи; БЛОК4 сохранён дословно. Это не препятствует
+подготовленному кандидату, но ротацию нельзя назвать завершённой.
+Проверка `git diff --check` исходников PASS; для №07 она сообщает о trailing
+whitespace в дословной пользовательской постановке, уже присутствовавшей при
+входе. Эти строки не нормализовались ради сохранения оригинала; точные номера
+сохранены в `acceptance.json`. Других whitespace-ошибок задачи нет.
+
+**QUESTIONS:** блокирующих инженерных вопросов для офлайн-кандидата нет.
+Не запрашивается разрешение на LIVE. Координатору требуется проиндексировать
+прежнюю TASK/AMENDMENT, затем безопасно завершить ротацию; commit отменён владельцем.
+
+**DOC IMPACT:** координатору синхронизировать №05/09/13 и §18.25, решить отсутствие
+§18.29; независимый verdict БЛОКА4 остаётся его ответственностью. Старые отчёты,
+архивы и пользовательские Obsidian изменения сохранены.
+
+**NEXT:** независимая приёмка этого локального diff, manifest и evidence. После
+приёмки отдельная задача/OWNER GO на серверный preflight и Manager-only rollout
+с protected backup/rollback; затем отдельные разрешённые реальные P0/P1 тесты.
+На этой границе исполнитель остановился.
+
 ## UI-01 — read-only аппаратные поля для карточек Manager (SOURCE, 11.11.2026)
 
 К `memory` live snapshot добавлены *необязательные* `ddr_generation` (DDR3/DDR4/DDR5 только при однозначной системной информации) и `installed_gib` (сумма ёмкостей Win32_PhysicalMemory). Существующие `total_gib` и `free_gib` сохранены. Если BIOS/CIM не дают достоверных сведений, поля опускаются; Client отображает «не определён». Чтение аппаратного типа выполняется только при первом обращении и кэшируется на срок работы Manager, чтобы не ухудшать каждый последующий запрос. Сервер Server77 read-only вручную подтвердил DDR4/48 GiB (модули 8+16+8+16), это **не** зашито в код.

@@ -1,0 +1,41 @@
+{
+  "status": "PASS",
+  "scope": "QA filesystem, copied old public source, synthetic private bytes; no task restart",
+  "root": "M:\\GitHub\\local_LLM\\Test\\CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001\\rollback_20261113_133206",
+  "scenarios": [
+    {
+      "scenario": "failed_health",
+      "status": "PASS",
+      "restored_files": {
+        "chat_runtime.py": "fc69896cc40a64237ff3125299d21d8e4a49ec0b5f0ae6ec64c1d905b9755466",
+        "live_manager.py": "e15ef6ccea34fc4a6d7ba2afc2a4a37d6739d9b48884dcd99d0a9baa4584da51",
+        "pairing_inbox.py": "a963c4dedef64a10109664903010d99057dc777fd26a3ec399a4e44d32543f18",
+        "pairing_server.py": "09117e3ecf338708f186e78ac83029a50f504565b060e9a1436ff2b67009cb99",
+        "pairing_workflow.py": "51c33d9e7e64554059f7b36c22049d1caff53317c2cb535f09fbd6ed9d8a33aa",
+        "unknown-user-file.bin": "f050749050b4d95060ed8ae22faa5dd294720a0491b7e9306d49644a5b549c0d"
+      },
+      "private_bytes_unchanged": true,
+      "unknown_file_preserved": true,
+      "restored_runtime_import_exit_code": 0,
+      "retained_candidate": "M:\\GitHub\\local_LLM\\Test\\CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001\\rollback_20261113_133206\\failed_health\\failed_retained"
+    },
+    {
+      "scenario": "failed_second_rename",
+      "status": "PASS",
+      "restored_files": {
+        "chat_runtime.py": "fc69896cc40a64237ff3125299d21d8e4a49ec0b5f0ae6ec64c1d905b9755466",
+        "live_manager.py": "e15ef6ccea34fc4a6d7ba2afc2a4a37d6739d9b48884dcd99d0a9baa4584da51",
+        "pairing_inbox.py": "a963c4dedef64a10109664903010d99057dc777fd26a3ec399a4e44d32543f18",
+        "pairing_server.py": "09117e3ecf338708f186e78ac83029a50f504565b060e9a1436ff2b67009cb99",
+        "pairing_workflow.py": "51c33d9e7e64554059f7b36c22049d1caff53317c2cb535f09fbd6ed9d8a33aa",
+        "unknown-user-file.bin": "f050749050b4d95060ed8ae22faa5dd294720a0491b7e9306d49644a5b549c0d"
+      },
+      "private_bytes_unchanged": true,
+      "unknown_file_preserved": true,
+      "restored_runtime_import_exit_code": 0,
+      "retained_candidate": "M:\\GitHub\\local_LLM\\Test\\CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001\\rollback_20261113_133206\\failed_second_rename\\staged"
+    }
+  ],
+  "decision_cases": 66,
+  "live_rollback": "NOT RUN; protected private snapshot and actual process/task authority require OWNER GO"
+}

@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   source-windows:
-    name: Windows Client + TLS Chrome mock P0/P1
+    name: Windows Manager + Client + TLS Chrome mock P0/P1
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
@@ -28,6 +28,9 @@ jobs:
         run: |
           python -c "from pathlib import Path; [compile(p.read_text(encoding='utf-8-sig'), str(p), 'exec') for folder in ('Manager_Ultra_LLM','Client_Ultra_LLM') for p in Path(folder).glob('*.py')]; print('Python syntax PASS')"
           node --check Client_Ultra_LLM/web_assets/client.js
+      - name: Manager unit tests (self-contained synthetic CLI contract)
+        shell: pwsh
+        run: python -B -m unittest discover -s Manager_Ultra_LLM -p 'test_*.py' -q
       - name: Client unit tests
         shell: pwsh
         run: python -B -m unittest discover -s Client_Ultra_LLM -p 'test_*.py' -q
@@ -43,7 +46,7 @@ jobs:
       - name: Document hosted-runner scope
         shell: pwsh
         run: |
-          "Full Manager 302 tests: NOT RUN here (missing approved Colibri c/coli and c/version.py fixture from local S: drive)." | Out-File -Append $env:GITHUB_STEP_SUMMARY
+          "Manager tests use a labelled synthetic CLI contract; installed Colibri source drift audit NOT RUN here." | Out-File -Append $env:GITHUB_STEP_SUMMARY
           "Real Colibri, GPU, installed Client and production LIVE: NOT RUN." | Out-File -Append $env:GITHUB_STEP_SUMMARY
       - name: Upload browser screenshot
         if: always()

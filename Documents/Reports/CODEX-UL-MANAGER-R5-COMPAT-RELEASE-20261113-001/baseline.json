@@ -1,0 +1,95 @@
+{
+  "task": "CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001",
+  "host": "DESKTOP-SC96D3U",
+  "utc": "2026-11-13T08:26:52.539921+00:00",
+  "scope": "READ ONLY remote/public code; GET via existing Client; no secret/history export",
+  "branches": {
+    "main": "71462bde1f245f96180bec351e0f1ea7ecdd8b50 45",
+    "GPT_2_local": "73dec62a1e0eda4a7846fa7a67bfb0e29ab39615 44 — DOC-UL-CLIENT-MIGRATION-BLOCKED: независимый разбор Stage C и синхронизация отчёта №43"
+  },
+  "active_branch": "main",
+  "owner_git_amendment": "NO COMMIT/PUSH/PULL, local diff only",
+  "client": {
+    "processes": [],
+    "listeners": [],
+    "exe_sha256": "7614aecc6f97a5a8c1b126b745aa7d17e9dc8679774ba870ee68f18690c649df"
+  },
+  "server_public_root": "\\\\192.168.0.77\\Server\\Ultra_LLM\\Manager_Live",
+  "server_top_level": [
+    {
+      "name": ".rollback_CHAT01_20261111_018",
+      "kind": "directory"
+    },
+    {
+      "name": ".rollback_WEB03_20261111_015",
+      "kind": "directory"
+    },
+    {
+      "name": ".staging_CHAT01_20261111_018",
+      "kind": "directory"
+    },
+    {
+      "name": ".staging_WEB03_20261111_015",
+      "kind": "directory"
+    },
+    {
+      "name": "chat_runtime.py",
+      "kind": "file"
+    },
+    {
+      "name": "live_manager.py",
+      "kind": "file"
+    },
+    {
+      "name": "live_manager.py.before_TASK004",
+      "kind": "file"
+    },
+    {
+      "name": "live_manager.py.before_TASK007",
+      "kind": "file"
+    },
+    {
+      "name": "live_tls_smoke.py",
+      "kind": "file"
+    },
+    {
+      "name": "Manage-ManagerTask.ps1",
+      "kind": "file"
+    },
+    {
+      "name": "pairing_inbox.py",
+      "kind": "file"
+    },
+    {
+      "name": "pairing_server.py",
+      "kind": "file"
+    },
+    {
+      "name": "pairing_workflow.py",
+      "kind": "file"
+    },
+    {
+      "name": "__pycache__",
+      "kind": "directory"
+    }
+  ],
+  "server_public_files": {
+    "chat_runtime.py": "fc69896cc40a64237ff3125299d21d8e4a49ec0b5f0ae6ec64c1d905b9755466",
+    "live_manager.py": "e15ef6ccea34fc4a6d7ba2afc2a4a37d6739d9b48884dcd99d0a9baa4584da51",
+    "pairing_inbox.py": "a963c4dedef64a10109664903010d99057dc777fd26a3ec399a4e44d32543f18",
+    "pairing_server.py": "09117e3ecf338708f186e78ac83029a50f504565b060e9a1436ff2b67009cb99",
+    "pairing_workflow.py": "51c33d9e7e64554059f7b36c22049d1caff53317c2cb535f09fbd6ed9d8a33aa"
+  },
+  "backup": "M:\\GitHub\\local_LLM\\Backups\\Manager\\CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001\\public_code",
+  "server_source_routes": {
+    "/v1/control": false,
+    "/v1/control/catalog": false,
+    "/v1/chat": true,
+    "/v1/chat/stream": false,
+    "/v1/chat/cancel": false
+  },
+  "live_process_identity": "NOT VERIFIED remotely: SMB file hash is not running-process provenance",
+  "card_before_sha256": "c26ceaabcbd8058a4c2212a9b0bf361d313def21b8c1e043a0a37b236b14a3ad",
+  "block4_sha256": "12324821beb5d46af0ba091defe3155f9eda82e4257062a25942a458dbc954a0",
+  "appearance_sha256": "cdddd1dc7bd972e6fb1f26d5f70f56af8047b110bd6c755d7458fd3eb7e23fb1"
+}

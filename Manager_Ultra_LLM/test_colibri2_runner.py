@@ -24,6 +24,24 @@ from server_runner import main as cli
 from windows_process import BasicLimit, ExtendedLimit, NativeWindows, WindowsError
 
 HERE = Path(__file__).parent
+# Synthetic AST contract, never imported/executed as an engine. The optional
+# installed-source check remains separate; CI cannot attest server drift.
+CLI_CONTRACT_SOURCE = "\n".join(
+    f"common.add_argument({flag!r})" for flag in (
+        "--model", "--ram", "--ctx", "--gpu", "--cap", "--ngen",
+        "--no-tune-profile", "--no-think", "--host", "--port", "--model-id",
+        "--kv-slots", "--max-queue", "--queue-timeout")) + "\n" + "\n".join(
+    f"def {name}(): pass" for name in
+    ("serve_pidfile", "serve_stopfile", "_watch_stop_file"))
+
+
+def contract_launcher():
+    launcher = MagicMock()
+    launcher.read_text.return_value = CLI_CONTRACT_SOURCE
+    launcher.with_name.return_value.read_text.return_value = "__version__ = '2.1.0'"
+    return launcher
+
+
 REC = {"pid": 333, "created_filetime": 100, "exe": r"C:\Python\python.exe", "owner_sid": "S-1-5-21-1"}
 
 
@@ -54,9 +72,20 @@ def fake_native():
 
 
 class PlanTests(unittest.TestCase):
-    def test_cli_flags_are_present_in_actual_server_colibri_210_source(self):
-        source = HERE.parent / "c" / "coli"
-        runner.verified_cli(source)  # AST inspection only, no import/execution
+    def test_synthetic_cli_contract_is_accepted(self):
+        runner.verified_cli(contract_launcher())
+
+    @unittest.skipUnless(os.environ.get("UL_COLIBRI_SOURCE"),
+                         "Installed Colibri AST audit NOT RUN; set UL_COLIBRI_SOURCE explicitly")
+    def test_optional_installed_colibri_210_source(self):
+        runner.verified_cli(Path(os.environ["UL_COLIBRI_SOURCE"]) / "coli")
+
+    def test_missing_required_flag_refused(self):
+        launcher = contract_launcher()
+        launcher.read_text.return_value = CLI_CONTRACT_SOURCE.replace(
+            "common.add_argument('--gpu')", "")
+        with self.assertRaises(runner.StartDenied):
+            runner.verified_cli(launcher)
 
     def test_cli_drift_refuses_instead_of_guessing(self):
         launcher = MagicMock()
@@ -65,9 +94,7 @@ class PlanTests(unittest.TestCase):
             runner.verified_cli(launcher)
 
     def test_version_drift_refused(self):
-        source = (HERE.parent / "c" / "coli").read_text(encoding="utf-8-sig")
-        launcher = MagicMock()
-        launcher.read_text.return_value = source
+        launcher = contract_launcher()
         launcher.with_name.return_value.read_text.return_value = "__version__ = '9.9.9'"
         with self.assertRaisesRegex(runner.StartDenied, "2.1.0"):
             runner.verified_cli(launcher)

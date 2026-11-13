@@ -1,0 +1,23 @@
+{
+  "RELEASE.json": "c2b94d85910d5cf4b24355aa4fdf2dfbb6cb93630cdada1fe6f9b0de72a5361e",
+  "SHA256SUMS.txt": "018732a6580889b69a6cc23a4bdb915a1678c2ba24cd82eb245779a94bd7fa6f",
+  "chat_runtime.py": "17d65c18fb213c642e566eb523d58caf1ab242e3a087f2469a44ea2ea2bbebf8",
+  "chat_settings.py": "63886f6ef58d37636da799f9240fb74f06e97dee95edbcace9b70964de769473",
+  "colibri2_runner.py": "43a228abf1634575179c7d73b710f50d7609ff59d627428a07582aaa494b8b09",
+  "control_runtime.py": "0f24c5a411846f407f11f49aac20caf90bd41dfe4aae49c1dd24529a75996b5f",
+  "index.html": "47f32f75e7bed85f8d06f70ae0f2d8498962451178be2ba9d036ed48c1c6d706",
+  "launch_contract.py": "a255c3242435291df3ae10efcd1afe78130c907c8c140a02bcf2dda7daddc86f",
+  "live_manager.py": "7dee682ad4fa5cf692a637d3b3a334b74a67dd5707273f9183a095a58e5a406e",
+  "manager_core.py": "21473cb2babd8719a6223fd609c3e6f7b65b12ebecdd8741dbf0b9d296b42cd4",
+  "manager_release.py": "0e36c6251f56f008d8eae04e67a8675b2078fd96cf36f6272ff1d00a59cf97fe",
+  "pairing_inbox.py": "a963c4dedef64a10109664903010d99057dc777fd26a3ec399a4e44d32543f18",
+  "pairing_server.py": "0e1c390d455a52edba0e9eb538eae01c2e7db1953c7e9f5a9b9e811b5ca60943",
+  "pairing_workflow.py": "51c33d9e7e64554059f7b36c22049d1caff53317c2cb535f09fbd6ed9d8a33aa",
+  "resource_catalog.py": "3bc5e52f13af01c518e376fb450bc695ee6de2422eacd0475e78eb3636c3ab2b",
+  "resource_policy.py": "318f15cc16a776c0e4546ea0ebe47bb93e0e84a4a81238d8e4a736c7f0622782",
+  "server_preflight.py": "36083ae3671ac887efd744f64932e8903e18ba9e1931387c1b1e93820a49c548",
+  "server_runner.py": "983bf6c46f0bf87230ca0b79c4118df366f7d239953a163c5bb43545afe0dbd1",
+  "service_core.py": "7a2840d9eac3f0bd6f3fc97f1b851f755affad61a837367f3a08f1ecbe4319be",
+  "slot_registry.py": "056efcae2d75a9572a279151bef5a38bc0fef89840d337f4794b1e98505f9e3a",
+  "windows_process.py": "aeebedc4bbd3902ef87dc20052cf9399579a879decc97ed0cce1d4569dd0e77d"
+}

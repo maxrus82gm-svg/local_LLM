@@ -1,0 +1,1403 @@
+--- a/.github/workflows/ultra-offline-ci.yml
++++ b/.github/workflows/ultra-offline-ci.yml
+@@ -12,7 +12,7 @@
+ 
+ jobs:
+   source-windows:
+-    name: Windows Client + TLS Chrome mock P0/P1
++    name: Windows Manager + Client + TLS Chrome mock P0/P1
+     runs-on: windows-latest
+     timeout-minutes: 20
+     steps:
+@@ -28,6 +28,9 @@
+         run: |
+           python -c "from pathlib import Path; [compile(p.read_text(encoding='utf-8-sig'), str(p), 'exec') for folder in ('Manager_Ultra_LLM','Client_Ultra_LLM') for p in Path(folder).glob('*.py')]; print('Python syntax PASS')"
+           node --check Client_Ultra_LLM/web_assets/client.js
++      - name: Manager unit tests (self-contained synthetic CLI contract)
++        shell: pwsh
++        run: python -B -m unittest discover -s Manager_Ultra_LLM -p 'test_*.py' -q
+       - name: Client unit tests
+         shell: pwsh
+         run: python -B -m unittest discover -s Client_Ultra_LLM -p 'test_*.py' -q
+@@ -43,7 +46,7 @@
+       - name: Document hosted-runner scope
+         shell: pwsh
+         run: |
+-          "Full Manager 302 tests: NOT RUN here (missing approved Colibri c/coli and c/version.py fixture from local S: drive)." | Out-File -Append $env:GITHUB_STEP_SUMMARY
++          "Manager tests use a labelled synthetic CLI contract; installed Colibri source drift audit NOT RUN here." | Out-File -Append $env:GITHUB_STEP_SUMMARY
+           "Real Colibri, GPU, installed Client and production LIVE: NOT RUN." | Out-File -Append $env:GITHUB_STEP_SUMMARY
+       - name: Upload browser screenshot
+         if: always()
+--- a/Manager_Ultra_LLM/README.md
++++ b/Manager_Ultra_LLM/README.md
+@@ -1,4 +1,270 @@
+ # Ultra LLM Manager — исходный снимок и офлайн-проверка
++
++## CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001 — сдача 13.11.2026
++
++**RESULT: RELEASE CANDIDATE READY / LIVE DEPLOY NOT RUN; SUBMITTED / REVIEW PENDING.**
++Это отчёт исполнителя, не независимая приёмка. Работа выполнена на домашнем
++`DESKTOP-SC96D3U`, внутри `M:\GitHub\local_LLM`. Работающий Manager, модели,
++службы, Client, ярлык, firewall и TLS не изменялись. Все приведённые ниже команды
++серверного переключения — план следующего этапа, **НЕ выполненные действия**.
++
++### DONE
++
++Подготовлен переносимый **source bundle** `R5-compat-20261113.1`: 19 разрешённых
++файлов runtime/проверки + `RELEASE.json` + `SHA256SUMS.txt` = **21 файл**.
++Требуется уже установленный Windows x64 / CPython 3.12 x64; Python не включён,
++новые pip-зависимости не нужны. Это не отдельный EXE и не установщик службы.
++Сохраняются готовые CONTROL-01/P0/P1: SSE→NDJSON, reasoning, cancel, привязка
++instance_id, каталог, сохраняемые слоты, изолированные экземпляры, scoped STOP.
++Производственные механизмы управления моделями не переписывались.
++
++Локальные refs до работы: `main` №45
++`71462bde1f245f96180bec351e0f1ea7ecdd8b50`; `GPT_2_local` №44
++`73dec62a1e0eda4a7846fa7a67bfb0e29ab39615`, расхождение 2/2.
++Удалённые refs не сверялись, fetch/pull не выполнялись.
++**AMENDMENT владельца в чате 13.11: коммитить не надо, только локальная работа.**
++Поэтому ветки не переключались, commit/push/pull не выполнены, номер/SHA нового
++коммита **N/A**. Base HEAD указан для происхождения; сам кандидат закреплён SHA
++каждого файла, а не выдан за immutable task commit.
++
++### CHANGED / DIFF
++
++- `manager_release.py`: allowlist, проверка зависимости только от stdlib,
++  воспроизводимый ZIP, manifest, проверка целостности, staging в новую папку.
++  Не принимает неизвестные/повторные ZIP entries, traversal, symlink/junction,
++  приватную конфигурацию в пакете и существующую целевую папку.
++- `test_manager_release.py`: проверка подмены/небезопасных архивов, переносимости
++  импортов и детерминизма, сохранности legacy config/auth и закрытых owner gates.
++- `test_colibri2_runner.py`: явно синтетический AST-контракт и отрицательные
++  проверки; отдельный optional installed-source audit, без исполнения Colibri.
++- `verify_offline.ps1`: больше не требует S: и не создаёт `../c`.
++  `-ColibriSource` добровольно включает read-only проверку реального исходника.
++- `.github/workflows/ultra-offline-ci.yml`: добавлен полный Manager suite в
++  существующий Windows job. Публикация и hosted-run в этой задаче **NOT RUN**.
++- Этот существующий README содержит полный отчёт/план; новая Markdown-
++  документация не создана. №07 дополнен сдачей и ограничением ротации.
++- Скрипты и JSON evidence:
++  `Documents/Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001`.
++
++Изменения пользователя в `Documents/.obsidian/appearance.json` и `workspace.json`
++не относятся к задаче; не редактировались. SOURCE Client и installed Client
++сохранены. Проверяемый локальный diff: `git diff -- .github/workflows/ultra-offline-ci.yml
++Manager_Ultra_LLM Documents/07_Задачи Codex.md`; новые файлы/evidence отдельно
++видны в `git status --short`. Index не использовался.
++
++### Матрица совместимости
++
++Для колонки установленного Manager проверены **публичные файлы по SMB**, а не
++живые HTTP-ответы или provenance процесса. В новом кандидате ниже — SOURCE/QA.
++
++| Контракт Client R5 | Установленный Manager | Кандидат R5 / условия |
++| --- | --- | --- |
++| TLS, bearer SHA, IP allowlist, allowed_slots | Реализованы в старом коде | Сохранены; pairing_admin не даёт control_models; отказ без прав проверен |
++| GET `/v1/snapshot` | Старый snapshot | Совместим, additive chat/control capabilities; изоляция слотов |
++| POST `/v1/chat` | Есть, ordinary | Сохранён; ordinary и streaming независимы, параметры явные |
++| POST `/v1/chat/stream` | Нет в установленном коде | Настоящий incremental SSE→NDJSON v2, sequence/meta/delta/reasoning/done/error; TLS Chrome PASS с fake Colibri |
++| POST `/v1/chat/cancel` | Нет в установленном коде | Scope request/client/slot, разрыв чтения upstream; отмена и чужой cancel проверены unit-тестами |
++| GET `/v1/control/catalog` | Нет в установленном коде | Есть каталог, статусы/причины недоступности, слоты/экземпляры; доступ через существующую авторизацию |
++| POST `/v1/control` | Нет в установленном коде | CONTROL-01 check/select/add_slot/start/stop; реальные START/STOP здесь не выполнялись |
++| Динамические слоты / «+» | Старые фиксированные слоты | 3 по умолчанию; QA 3→5, уникальные порты, durable SQLite; мутации требуют owner_go + control_models |
++| Несколько экземпляров одинаковой LLM | Нет нового контракта | QA 2 CPU + 2 CUDA **fake**; разные UUID/порты/сессии, stop-one сохраняет второй |
++| Чаты и reasoning | Legacy история | instance binding, durable история/reasoning; QA reload/recovery PASS; реальная история не читалась |
++| Существующая конфигурация | Legacy config | При отсутствии control нет DB/init моделей; файл config/auth не переписывается; 3 fallback слота |
++| Контроль выключен / нет прав | Legacy запреты | owner_go по умолчанию false; одних client rights недостаточно; 503/403 по существующему контракту |
++| Каталог любых будущих моделей | Текущая инвентаризация | Используется существующий curated catalogue/profiles; неизвестная архитектура не становится разрешённой автоматически |
++
++Замена кода **не** выдаёт control_models, не включает owner_go, не назначает RAM/
++VRAM reviews и не начинает inference. Динамическая мутация и запуск останутся
++закрытыми при legacy config. Включение control — отдельное владельческое решение.
++История Client и pairing/TLS миграции не требуют. При включении control готовая
++реализация создаёт/additively расширяет серверный SQLite registry, не принимает
++от Client произвольный path/port и не усыновляет legacy slot1.
++
++### TESTS / QA
++
++Воспроизводимый запуск из workspace:
++
++```powershell
++py -3.12 -X utf8 -B Documents/Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/run_qa.py --output qa_repeat.json
++```
++
++Нужен **новый** путь evidence; предыдущие результаты не затираются. Runner
++копирует исходники в `Test`, направляет TEMP/TMP/LOCALAPPDATA туда же; Chrome
++использует отдельный профиль. Для дочернего Windows PowerShell удаляется только
++унаследованный PSModulePath, чтобы не подхватить несовместимый модуль PowerShell7.
++Настройки системы/пользователя при этом не меняются.
++
++Финальные результаты: **Manager 310 PASS + 1 SKIP (311 total)**,
++**Client 49 PASS**, Python/JS syntax PASS, Chrome legacy/P0/P1 PASS.
++SKIP — явно optional аудит реального исходника Colibri, не синтетическая замена
++доказательства установленного движка. Полный PowerShell entrypoint также проверен.
++Все exit codes, команды и stderr/stdout сохранены в `qa.json` и
++`qa_regression.json`. Первоначальные FAIL в `qa.json` относятся к подготовке QA:
++ошибка имени поля синтетического config (`token_sha256` вместо `sha256`) и
++пропущенный VBS при копировании Client. Исправлены; повторены затронутые suites.
++Успешные browser results сохранены без повторного бессмысленного прогона.
++
++P0: первый DOM до DONE, UTF-8/JSON fragmentation, thinking controls, reasoning
++отдельно и сохранён, identical direct/routed upstream payload. В этом **fake**
++прогоне Manager first-forward delay 0.382 ms (warm 0.365), preflight 52.980 ms
++(warm 48.587); browser first fragment 1364 ms cold / 435 ms warm. Client durable
++SQLite claim 1273.868 / 284.264 ms — заметная часть задержки, это измеренный
++локальный overhead, а не время генерации реальной LLM. Числа одного QA прогона
++не являются SLA, TPS Qwen или замером серверной CUDA.
++
++P1: 3→5 persisted slots, concurrent chats isolated, 2 одинаковых CPU и 2 CUDA
++fake, stop-one, перезапуск controller/browser, история и риск cancel/confirm PASS.
++Manager regression покрывает auth/owner_go, cancel, ошибки и quarantine recovery,
++native job/identity/cleanup только на принадлежащих тесту dummy Python процессах.
++
++Release QA: deterministic ZIP, relocated imports, tampering, traversal/duplicates/
++link/junction/private-extra/existing target rejection PASS. Rollback QA: **66**
++decision cases и **2** filesystem сценария PASS, старые runtime импорты exit 0;
++восстановлены точные hashes, неизвестный sentinel и синтетические private bytes.
++Никакого service restart или гарантии серверных file-locks из этого не следует.
++
++### Релиз и rollback материалы
++
++- ZIP: `Releases/Manager/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/UltraLLM_Manager_R5_compat_Win64.zip`.
++- ZIP SHA-256: `ba4ebf65af7a0693cf4dce045eb08254434a4475fd4f79e031424c905d661ce2`.
++- Распакованная папка рядом с ZIP, внутри полный `SHA256SUMS.txt` и `RELEASE.json`.
++- Безопасная локальная копия **5 публичных runtime-файлов** старого сервера:
++  `Backups/Manager/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/public_code`.
++  Это **не** полный production backup: private config/auth/TLS/DB/task не копировались.
++- `baseline.json` — исходные refs, файлы сервера, Client EXE SHA, пути, BLOCK4 hash.
++- `rollback_qa.py`, `rollback_qa.json` — guard и репетиция; ничего не исполняют на LIVE.
++- `release.json`, `qa.json`, `qa_regression.json`, `acceptance.json` — evidence.
++
++Повторная сборка в **новое** имя, проверка и staging (на домашнем ПК только Test):
++
++```powershell
++py -3.12 -B Manager_Ultra_LLM/manager_release.py build --output M:\GitHub\local_LLM\Releases\Manager\NEW_BUILD --base-head 71462bde1f245f96180bec351e0f1ea7ecdd8b50
++py -3.12 -B Manager_Ultra_LLM/manager_release.py verify M:\GitHub\local_LLM\Releases\Manager\CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001\UltraLLM_Manager_R5_compat_Win64.zip
++py -3.12 -B Manager_Ultra_LLM/manager_release.py stage M:\GitHub\local_LLM\Releases\Manager\CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001\UltraLLM_Manager_R5_compat_Win64.zip --target M:\GitHub\local_LLM\Test\NEW_STAGE
++```
++
++ZIP/manifest дают целостность при сравнении с **внешним известным SHA выше**;
++это не цифровая подпись. Имя staging должно отсутствовать. Прерванные папки
++сохраняются для диагностики, никакого автоматического удаления/перезаписи.
++`Manage-ManagerTask.ps1 Install/Remove` не используется для upgrade: он меняет
++task/firewall и не является безопасным заменителем переключения существующей службы.
++
++### План OWNER GO: preflight, установка и откат (НЕ ИСПОЛНЕН)
++
++1. На **сервере DESKTOP-KT4G5SM**, отдельным явно разрешённым этапом, снять свежий
++   PID/creation-time/exe/owner/command line Manager и listener HTTPS8443, XML и
++   action/principal/restart policy `UltraLLM_Manager_LIVE`. Подтвердить совпадение
++   действующего action с `C:\Server\Ultra_LLM\Manager_Live\live_manager.py`.
++   Зафиксировать Qwen gateway/engine identities + health/models на 8000 и identity
++   Valheim. Ничего не выводить из bearer/config/TLS key. Неизвестная identity,
++   неоднозначный PID/порт/путь, активный upgrade или stale baseline → BLOCKED.
++2. До остановки проверить hashes всех старых файлов относительно **свежего**
++   snapshot, свободное место, ACL, runtime Python x64/3.12 и отсутствие зависимых
++   процессов, использующих папку Manager как своё исполняемое место. Текущие SMB
++   SHA не заменяют повторную серверную проверку. Если owner_go уже включён или
++   есть незавершённые owned instances, не останавливать их и не продолжать upgrade:
++   отдельное разрешение/план безопасного состояния обязательны.
++3. Создать уникальный полный backup **всей** старой папки Manager (с неизвестными
++   файлами) и protected backup исходного task XML, private config/auth/TLS и
++   control SQLite, если существует. Сохранить ACL/owner и SHA, проверить readback.
++   Для живой SQLite нужен согласованный SQLite backup API, не копия одного DB
++   без WAL. Private backup остаётся на сервере под исходными private ACL, не в
++   Git, не в LAN-readable staging. Непроверенный backup/restore → BLOCKED.
++4. Проверить SHA ZIP, доставить **только** публичный пакет в новую sibling staging
++   папку на том же server volume, сравнить все 21 файла и проверить imports `-B`.
++   `PythonExe staged\live_manager.py --config ExistingPrivateConfig --check-config`
++   выполнить под **тем же пользователем task** без `--log-dir`: это не создаёт
++   listener и не выполняет run/ModelControl. Config/TLS/права не менять.
++   Не включать owner_go для прохождения проверки. Проверка private ACL/ключа и
++   реальной TLS загрузки дополнительно нужна перед переключением; --check-config
++   сам по себе проверяет наличие, а не полный TLS handshake.
++5. Только после отдельного OWNER GO на **Manager-only switch + rollback**:
++   штатно `Stop-ScheduledTask -TaskName UltraLLM_Manager_LIVE`. Дождаться выхода
++   именно подтверждённого Manager и освобождения его listener (до 30 s), снова
++   сверить Qwen/Valheim identities/health. Не применять taskkill/Stop-Process по
++   имени, не останавливать Python/Colibri/Valheim, не менять task/firewall.
++   Проверить, что restart policy не подняла Manager повторно; иначе BLOCKED и
++   отдельное согласование authority, а не самовольное изменение task settings.
++6. Переименовать весь `Manager_Live` в уникальную retained rollback папку,
++   затем staging в `Manager_Live` (две операции, **не** единая атомарная операция).
++   При сбое второй операции немедленно вернуть прежнее имя первой папке.
++   Обе операции исполнять native PowerShell `Move-Item -LiteralPath` с заранее
++   проверенными абсолютными путями на server volume. Не удалять неизвестные
++   файлы, старые каталоги, backups; private пути остаются прежними.
++   `Start-ScheduledTask -TaskName UltraLLM_Manager_LIVE` сохраняет прежний action.
++7. За bounded окно 30 s подтвердить один правильный Manager PID/listener, TLS pin,
++   authenticated snapshot, capabilities streaming и GET catalogue, Client ONLINE,
++   неизменность config/auth/TLS hashes и task settings, прежний Qwen health/identity,
++   неизменный Valheim, отсутствие новых моделей/owned instances. Не выполнять
++   POST chat/control/cancel против реальной модели без отдельного разрешения.
++   Самопроверка новых API здесь — advertised capabilities + разрешённые GET;
++   inference/reasoning/cancel/CPU/CUDA/stop-one требуют дальнейшего OWNER GO.
++8. Любой недостоверный/отсутствующий результат, deadline, ошибка Manager/TLS/auth/
++   catalogue/Client, изменение защищённых identities или config/task →
++   **ROLLBACK_REQUIRED**, без ожидания "само восстановится". Перечень полей guard
++   в `rollback_qa.py REQUIRED`; JSON с подтверждёнными свежими observations
++   проверяется `py -3.12 -B .../rollback_qa.py --observations Observations.json`.
++   Это evaluator, **не** установленный автоматический watchdog/remote executor.
++9. В рамках того же отдельно согласованного Manager-only rollback: остановить
++   только новый подтверждённый Manager, проверить освобождение его listener и
++   отсутствие owned instances. При невозможности подтвердить эти условия —
++   BLOCKED, не угадывать PID/не расширять STOP. Сохранить failed candidate целиком
++   под новым именем; вернуть прежнюю retained папку в Manager_Live. Config/auth/
++   TLS при неизменных SHA не трогать. Если state мог измениться, не откатывать
++   живую SQLite вслепую: только согласованная consistent backup/restore при
++   отсутствии owned jobs; несовпадение конфигурации/прав требует владельца.
++10. Запустить прежний task, проверить прежние hashes, PID/listener/TLS/snapshot,
++    Qwen и Valheim, доступ Client, config/task hashes. Не переустанавливать
++    службу и не создавать новые модели для проверки. Backup/candidate/evidence
++    сохранить. Если старый Manager не восстановлен — BLOCKED и остановка этапа,
++    никакого самостоятельного ремонта системных настроек.
++
++### Реальный сервер / QA / OWNER GO
++
++**На реальном сервере только SMB read-only:** список верхнего уровня и SHA пяти
++публичных runtime-файлов. `live_manager.py`:
++`e15ef6ccea34fc4a6d7ba2afc2a4a37d6739d9b48884dcd99d0a9baa4584da51`;
++`chat_runtime.py`:
++`fc69896cc40a64237ff3125299d21d8e4a49ec0b5f0ae6ec64c1d905b9755466`.
++Installed Client EXE read-only SHA:
++`7614aecc6f97a5a8c1b126b745aa7d17e9dc8679774ba870ee68f18690c649df`.
++При инвентаризации процесс Client отсутствовал; он не запускался. Поэтому real
++Manager ONLINE/HTTP API/TLS/PID, Qwen health, Valheim identity и история в этой
++задаче **NOT RUN**. Старый отчёт LIVE PASS не переносится на новый момент времени.
++
++**Только QA:** полный регрессионный suite, TLS Chrome mock streaming/reasoning,
++слоты, cancel, CPU/CUDA mock, dummy Windows jobs, package и rollback rehearsal.
++**OWNER GO нужен:** реальная серверная диагностика процессов/закрытого task,
++protected full backup, доставка/staging на сервер, Manager-only switch/restart/
++rollback; отдельно control configuration/grants и любые реальные LLM запросы,
++START CPU/CUDA/STOP. Текущая задача их не разрешает.
++
++### PROBLEMS / QUESTIONS / DOC IMPACT / NEXT
++
++**PROBLEMS:** §18.29 отсутствует в текущем №18 (`SOURCE UNAVAILABLE`); №13 и часть
++реестра содержат устаревший migration NOW. Новые docs/историю самостоятельно не
++создавал. Ротация №07 **ARCHIVE BLOCKED**: прежний БЛОК1.1 с ROOT migration и
++AMENDMENT/OWNER GO сохранён в immutable main №45, но отсутствует требуемая точная
++индексная запись этой TASK в №05/09. Прежний 1.1 не вытеснен, текущий оригинал
++оставлен в БЛОК1 со статусом сдачи; БЛОК4 сохранён дословно. Это не препятствует
++подготовленному кандидату, но ротацию нельзя назвать завершённой.
++Проверка `git diff --check` исходников PASS; для №07 она сообщает о trailing
++whitespace в дословной пользовательской постановке, уже присутствовавшей при
++входе. Эти строки не нормализовались ради сохранения оригинала; точные номера
++сохранены в `acceptance.json`. Других whitespace-ошибок задачи нет.
++
++**QUESTIONS:** блокирующих инженерных вопросов для офлайн-кандидата нет.
++Не запрашивается разрешение на LIVE. Координатору требуется проиндексировать
++прежнюю TASK/AMENDMENT, затем безопасно завершить ротацию; commit отменён владельцем.
++
++**DOC IMPACT:** координатору синхронизировать №05/09/13 и §18.25, решить отсутствие
++§18.29; независимый verdict БЛОКА4 остаётся его ответственностью. Старые отчёты,
++архивы и пользовательские Obsidian изменения сохранены.
++
++**NEXT:** независимая приёмка этого локального diff, manifest и evidence. После
++приёмки отдельная задача/OWNER GO на серверный preflight и Manager-only rollout
++с protected backup/rollback; затем отдельные разрешённые реальные P0/P1 тесты.
++На этой границе исполнитель остановился.
+ 
+ ## UI-01 — read-only аппаратные поля для карточек Manager (SOURCE, 11.11.2026)
+ 
+--- /dev/null
++++ b/Manager_Ultra_LLM/manager_release.py
+@@ -0,0 +1,166 @@
++"""Offline Manager R5 source release. Never manages tasks, processes or models.
++
++Python 3.12 x64 + Windows are supplied by the destination; no pip dependencies.
++Build/verify/stage affect only explicitly named new directories. A stage is NOT
++an installation. No config, credential, TLS, state DB or model is packaged.
++"""
++import argparse
++import ast
++import hashlib
++import json
++from pathlib import Path
++import stat
++import zipfile
++
++VERSION = "R5-compat-20261113.1"
++TASK = "CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001"
++RUNTIME = tuple(sorted((
++    "live_manager.py", "chat_runtime.py", "chat_settings.py", "control_runtime.py",
++    "slot_registry.py", "resource_policy.py", "colibri2_runner.py", "windows_process.py",
++    "manager_core.py", "launch_contract.py", "resource_catalog.py", "server_preflight.py",
++    "server_runner.py", "pairing_server.py", "pairing_inbox.py", "pairing_workflow.py",
++    "service_core.py", "index.html", "manager_release.py")))
++MEMBERS = frozenset((*RUNTIME, "RELEASE.json", "SHA256SUMS.txt"))
++MAX_FILE = 8 * 1024 * 1024
++
++
++def sha(data):
++    return hashlib.sha256(data).hexdigest()
++
++
++def canonical(data):
++    return (json.dumps(data, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8")
++
++
++def no_links(path):
++    path = Path(path).absolute()
++    for node in (path, *path.parents):
++        if node.is_symlink() or node.is_junction():
++            raise ValueError("Link/reparse path refused")
++    return path
++
++
++def dependency_check(payload):
++    """Reject omitted sibling Python modules, including lazy imports."""
++    names = {Path(name).stem for name in RUNTIME if name.endswith(".py")}
++    # All Manager modules are stdlib-only. Explicitly check local import closure.
++    stdlib = __import__("sys").stdlib_module_names
++    for name in names:
++        tree = ast.parse(payload[name + ".py"].decode("utf-8-sig"))
++        for node in ast.walk(tree):
++            imported = ([alias.name.split(".")[0] for alias in node.names]
++                        if isinstance(node, ast.Import) else
++                        [node.module.split(".")[0]] if isinstance(node, ast.ImportFrom) and node.module else [])
++            if set(imported) - names - stdlib - {"__future__"}:
++                raise ValueError("Unpackaged/non-stdlib dependency in " + name)
++
++
++def validate(payload):
++    if set(payload) != MEMBERS or any(len(v) > MAX_FILE for v in payload.values()):
++        raise ValueError("Release member set/size mismatch")
++    meta = json.loads(payload["RELEASE.json"])
++    if meta.get("version") != VERSION or meta.get("task") != TASK:
++        raise ValueError("Release identity mismatch")
++    expected = {name: sha(payload[name]) for name in RUNTIME}
++    if meta.get("files") != expected:
++        raise ValueError("Release payload hash mismatch")
++    sums = "".join(f"{sha(payload[name])}  {name}\n" for name in sorted((*RUNTIME, "RELEASE.json")))
++    if payload["SHA256SUMS.txt"] != sums.encode("ascii"):
++        raise ValueError("SHA256 manifest mismatch")
++    dependency_check(payload)
++    return meta
++
++
++def read_package(path):
++    path = no_links(path)
++    if path.is_dir():
++        found = list(path.iterdir())
++        if {p.name for p in found} != MEMBERS or any(
++                no_links(p).is_dir() or p.stat().st_size > MAX_FILE for p in found):
++            raise ValueError("Unexpected directory member")
++        payload = {p.name: p.read_bytes() for p in found}
++    else:
++        if path.stat().st_size > MAX_FILE * 4:
++            raise ValueError("Oversized archive")
++        with zipfile.ZipFile(path) as archive:
++            entries = archive.infolist()
++            if (len(entries) != len(MEMBERS) or {e.filename for e in entries} != MEMBERS
++                    or any(e.file_size > MAX_FILE or e.flag_bits & 1
++                           or stat.S_IFMT(e.external_attr >> 16) == stat.S_IFLNK for e in entries)):
++                raise ValueError("Unsafe archive members")
++            payload = {e.filename: archive.read(e) for e in entries}
++    validate(payload)
++    return payload
++
++
++def write_new(payload, target):
++    target = no_links(target)
++    if target.exists() or not target.parent.is_dir():
++        raise ValueError("Destination must be a NEW directory with existing parent")
++    target.mkdir()
++    for name, data in sorted(payload.items()):
++        with (target / name).open("xb") as stream:
++            stream.write(data)
++    return target
++
++
++def build(source, output, base_head):
++    source, output = no_links(source), no_links(output)
++    payload = {name: no_links(source / name).read_bytes() for name in RUNTIME}
++    dependency_check(payload)
++    metadata = {"task": TASK, "version": VERSION, "base_head": base_head,
++                "provenance": "Local working tree; files pinned by SHA256, NOT an immutable task commit",
++                "runtime": "Windows x64, existing CPython 3.12 x64, stdlib only",
++                "configuration": "External existing private config/auth/TLS/state; never overwritten",
++                "control": "No model autostart. Missing owner_go/control_models stay disabled",
++                "files": {name: sha(data) for name, data in sorted(payload.items())}}
++    payload["RELEASE.json"] = canonical(metadata)
++    payload["SHA256SUMS.txt"] = "".join(
++        f"{sha(payload[name])}  {name}\n" for name in sorted(payload)).encode("ascii")
++    validate(payload)
++    write_new(payload, output)
++    archive_path = output.with_suffix(".zip")
++    # Refuse replacement; byte-for-byte reproducible regardless of file mtimes.
++    with archive_path.open("xb") as stream, zipfile.ZipFile(stream, "w", zipfile.ZIP_DEFLATED) as archive:
++        for name, data in sorted(payload.items()):
++            item = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
++            item.compress_type = zipfile.ZIP_DEFLATED
++            item.external_attr = (stat.S_IFREG | 0o644) << 16
++            archive.writestr(item, data)
++    read_package(archive_path)
++    return {"directory": str(output), "zip": str(archive_path),
++            "zip_sha256": sha(archive_path.read_bytes()), "files": len(payload), "version": VERSION}
++
++
++def stage(package, target):
++    payload = read_package(package)  # Entire archive verified BEFORE first write.
++    output = write_new(payload, target)
++    read_package(output)
++    return {"status": "STAGED_ONLY", "directory": str(output), "files": len(payload),
++            "services_changed": False, "models_started": False}
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    commands = parser.add_subparsers(dest="action", required=True)
++    build_cmd = commands.add_parser("build")
++    build_cmd.add_argument("--source", type=Path, default=Path(__file__).parent)
++    build_cmd.add_argument("--output", type=Path, required=True)
++    build_cmd.add_argument("--base-head", required=True)
++    verify_cmd = commands.add_parser("verify")
++    verify_cmd.add_argument("package", type=Path)
++    stage_cmd = commands.add_parser("stage")
++    stage_cmd.add_argument("package", type=Path)
++    stage_cmd.add_argument("--target", type=Path, required=True)
++    args = parser.parse_args()
++    if args.action == "build":
++        result = build(args.source, args.output, args.base_head)
++    elif args.action == "stage":
++        result = stage(args.package, args.target)
++    else:
++        result = {"status": "VERIFIED", "release": validate(read_package(args.package))}
++    print(json.dumps(result, ensure_ascii=False, indent=2))
++
++
++if __name__ == "__main__":
++    main()
+--- /dev/null
++++ b/Manager_Ultra_LLM/test_manager_release.py
+@@ -0,0 +1,124 @@
++"""Release isolation, legacy configuration and hostile package tests; no LIVE."""
++import json
++import os
++from pathlib import Path
++import tempfile
++import unittest
++from unittest.mock import patch
++import zipfile
++
++import manager_release as release
++from live_manager import load_config
++from control_runtime import ModelControl, ControlError
++
++
++class ReleaseTests(unittest.TestCase):
++    def setUp(self):
++        self.temp = tempfile.TemporaryDirectory()
++        self.addCleanup(self.temp.cleanup)
++        self.root = Path(self.temp.name)
++        self.result = release.build(Path(release.__file__).parent, self.root / "bundle", "QA-base")
++        self.archive = Path(self.result["zip"])
++
++    def test_deterministic_archive_and_relocated_imports(self):
++        second = release.build(Path(release.__file__).parent, self.root / "other", "QA-base")
++        self.assertEqual(self.result["zip_sha256"], second["zip_sha256"])
++        stage = self.root / "staged path with spaces"
++        release.stage(self.archive, stage)
++        import subprocess, sys
++        result = subprocess.run([sys.executable, "-B", "-I", "-c",
++            "import sys;sys.path.insert(0,sys.argv[1]);import live_manager,pairing_workflow,control_runtime;print('IMPORT_OK')",
++            str(stage)], capture_output=True, timeout=20, check=True)
++        self.assertIn(b"IMPORT_OK", result.stdout)
++
++    def test_modified_payload_is_refused_before_staging(self):
++        (self.root / "bundle/live_manager.py").write_text("# altered", encoding="utf-8")
++        with self.assertRaises(ValueError):
++            release.stage(self.root / "bundle", self.root / "should not exist")
++        self.assertFalse((self.root / "should not exist").exists())
++
++    def test_unknown_file_including_private_config_is_refused(self):
++        (self.root / "bundle/manager.json").write_text("{}", encoding="utf-8")
++        with self.assertRaises(ValueError):
++            release.read_package(self.root / "bundle")
++
++    def test_existing_destination_is_untouched(self):
++        target = self.root / "existing"
++        target.mkdir()
++        sentinel = target / "user data"
++        sentinel.write_bytes(b"retain")
++        with self.assertRaises(ValueError):
++            release.stage(self.archive, target)
++        self.assertEqual(sentinel.read_bytes(), b"retain")
++
++    def test_traversal_duplicate_and_link_archive_refused(self):
++        for mode in ("traversal", "duplicate", "link"):
++            payload = release.read_package(self.archive)
++            bad = self.root / (mode + ".zip")
++            with zipfile.ZipFile(bad, "w") as archive:
++                for name, data in payload.items():
++                    item = zipfile.ZipInfo(name)
++                    if mode == "link" and name == "live_manager.py":
++                        item.external_attr = 0o120777 << 16
++                    archive.writestr(item, data)
++                if mode == "traversal":
++                    archive.writestr("../escape", b"bad")
++                elif mode == "duplicate":
++                    import warnings
++                    with warnings.catch_warnings():
++                        warnings.simplefilter("ignore", UserWarning)
++                        archive.writestr("live_manager.py", b"bad")
++            with self.subTest(mode=mode), self.assertRaises(ValueError):
++                release.stage(bad, self.root / (mode + "-target"))
++            self.assertFalse((self.root / (mode + "-target")).exists())
++
++    def test_junction_destination_ancestor_refused(self):
++        if os.name != "nt":
++            self.skipTest("Windows junction gate")
++        import subprocess
++        real, link = self.root / "real", self.root / "junction"
++        real.mkdir()
++        subprocess.run(["cmd.exe", "/c", "mklink", "/J", str(link), str(real)],
++                       check=True, capture_output=True, timeout=5)
++        try:
++            with self.assertRaises(ValueError):
++                release.stage(self.archive, link / "child")
++            self.assertFalse((real / "child").exists())
++        finally:
++            # Remove only this known junction itself, never its target recursively.
++            link.rmdir()
++
++
++class LegacyConfigurationTests(unittest.TestCase):
++    def test_legacy_config_bytes_auth_and_disabled_control_are_preserved(self):
++        with tempfile.TemporaryDirectory() as directory:
++            root = Path(directory)
++            old = {"manager_id": "legacy", "display_name": "Legacy Manager",
++                   "colibri_root": str(root / "Colibri"), "models_root": str(root / "Models"),
++                   "cert_file": str(root / "cert.pem"), "key_file": str(root / "key.pem"),
++                   "bind_host": "127.0.0.1", "listen_port": 18443,
++                   "allowed_client_ips": ["127.0.0.1"],
++                   "clients": [{"client_id": "existing", "sha256": "a" * 64,
++                                "allowed_slots": ["slot1"], "pairing_admin": False}]}
++            config_file = root / "legacy.json"
++            original = json.dumps(old).encode("utf-8")
++            config_file.write_bytes(original)
++            with patch("subprocess.run", side_effect=AssertionError("no process/telemetry")):
++                loaded = load_config(config_file)
++                controller = ModelControl(loaded)
++                principal = loaded["clients"][0]
++                self.assertFalse(controller.catalog(principal)["enabled"])
++                self.assertIsNone(controller.db_path)
++                with self.assertRaisesRegex(ControlError, "control_models_required"):
++                    controller.handle(principal, {"op": "check"})
++                # Adding client rights alone must still NOT bypass owner's gate.
++                with self.assertRaisesRegex(ControlError, "owner_go_required"):
++                    controller.handle({**principal, "control_models": True}, {"op": "check"})
++            self.assertEqual(config_file.read_bytes(), original)
++            self.assertEqual(loaded["clients"], old["clients"])
++            self.assertEqual([s["slot_id"] for s in loaded["slots"]], ["slot1", "slot2", "slot3"])
++            self.assertEqual(list(root.iterdir()), [config_file])
++
++
++if __name__ == "__main__":
++    unittest.main()
+--- a/Manager_Ultra_LLM/test_colibri2_runner.py
++++ b/Manager_Ultra_LLM/test_colibri2_runner.py
+@@ -24,6 +24,24 @@
+ from windows_process import BasicLimit, ExtendedLimit, NativeWindows, WindowsError
+ 
+ HERE = Path(__file__).parent
++# Synthetic AST contract, never imported/executed as an engine. The optional
++# installed-source check remains separate; CI cannot attest server drift.
++CLI_CONTRACT_SOURCE = "\n".join(
++    f"common.add_argument({flag!r})" for flag in (
++        "--model", "--ram", "--ctx", "--gpu", "--cap", "--ngen",
++        "--no-tune-profile", "--no-think", "--host", "--port", "--model-id",
++        "--kv-slots", "--max-queue", "--queue-timeout")) + "\n" + "\n".join(
++    f"def {name}(): pass" for name in
++    ("serve_pidfile", "serve_stopfile", "_watch_stop_file"))
++
++
++def contract_launcher():
++    launcher = MagicMock()
++    launcher.read_text.return_value = CLI_CONTRACT_SOURCE
++    launcher.with_name.return_value.read_text.return_value = "__version__ = '2.1.0'"
++    return launcher
++
++
+ REC = {"pid": 333, "created_filetime": 100, "exe": r"C:\Python\python.exe", "owner_sid": "S-1-5-21-1"}
+ 
+ 
+@@ -54,9 +72,20 @@
+ 
+ 
+ class PlanTests(unittest.TestCase):
+-    def test_cli_flags_are_present_in_actual_server_colibri_210_source(self):
+-        source = HERE.parent / "c" / "coli"
+-        runner.verified_cli(source)  # AST inspection only, no import/execution
++    def test_synthetic_cli_contract_is_accepted(self):
++        runner.verified_cli(contract_launcher())
++
++    @unittest.skipUnless(os.environ.get("UL_COLIBRI_SOURCE"),
++                         "Installed Colibri AST audit NOT RUN; set UL_COLIBRI_SOURCE explicitly")
++    def test_optional_installed_colibri_210_source(self):
++        runner.verified_cli(Path(os.environ["UL_COLIBRI_SOURCE"]) / "coli")
++
++    def test_missing_required_flag_refused(self):
++        launcher = contract_launcher()
++        launcher.read_text.return_value = CLI_CONTRACT_SOURCE.replace(
++            "common.add_argument('--gpu')", "")
++        with self.assertRaises(runner.StartDenied):
++            runner.verified_cli(launcher)
+ 
+     def test_cli_drift_refuses_instead_of_guessing(self):
+         launcher = MagicMock()
+@@ -65,9 +94,7 @@
+             runner.verified_cli(launcher)
+ 
+     def test_version_drift_refused(self):
+-        source = (HERE.parent / "c" / "coli").read_text(encoding="utf-8-sig")
+-        launcher = MagicMock()
+-        launcher.read_text.return_value = source
++        launcher = contract_launcher()
+         launcher.with_name.return_value.read_text.return_value = "__version__ = '9.9.9'"
+         with self.assertRaisesRegex(runner.StartDenied, "2.1.0"):
+             runner.verified_cli(launcher)
+--- a/Manager_Ultra_LLM/verify_offline.ps1
++++ b/Manager_Ultra_LLM/verify_offline.ps1
+@@ -1,40 +1,19 @@
+-# Offline-only regression for the unchanged manager_dev baseline.
+-# The original tests expect ../c/coli and ../c/version.py as read-only Colibri 2.1.0 sources.
+-# Copies of those files are temporary and must never be committed to GitHub.
+-param(
+-    [string]$ColibriSource = 'S:\Ultra_LLM\Engine\Colibri\c'
+-)
++# Self-contained synthetic contract regression; no source copy/import/LLM launch.
++# Optional -ColibriSource adds a read-only installed-source AST drift audit.
++param([string]$ColibriSource = '')
+ $ErrorActionPreference = 'Stop'
+-$projectRoot = Split-Path -Parent $PSScriptRoot
+-$fixture = Join-Path $projectRoot 'c'
+-if (Test-Path -LiteralPath $fixture) {
+-    throw "Cannot safely create temporary fixture: path already exists: $fixture"
+-}
+-foreach ($file in @('coli','version.py')) {
+-    if (-not (Test-Path -LiteralPath (Join-Path $ColibriSource $file))) {
+-        throw "Required Colibri 2.1.0 source missing: $file in $ColibriSource"
+-    }
+-}
+-$created = $false
++$previous = $env:UL_COLIBRI_SOURCE
+ try {
+-    New-Item -ItemType Directory -Path $fixture -ErrorAction Stop | Out-Null
+-    $created = $true
+-    foreach ($file in @('coli','version.py')) {
+-        Copy-Item -LiteralPath (Join-Path $ColibriSource $file) -Destination (Join-Path $fixture $file) -ErrorAction Stop
++    $env:UL_COLIBRI_SOURCE = $ColibriSource
++    if ($ColibriSource) {
++        foreach ($file in @('coli','version.py')) {
++            if (-not (Test-Path -LiteralPath (Join-Path $ColibriSource $file) -PathType Leaf)) {
++                throw "Optional installed source absent: $file"
++            }
++        }
+     }
+     & py -3.12 -B -m unittest discover -s $PSScriptRoot -p 'test_*.py' -q
+-    if ($LASTEXITCODE -ne 0) {
+-        throw "Offline regression failed with exit code $LASTEXITCODE"
+-    }
++    if ($LASTEXITCODE -ne 0) { throw "Offline regression failed: $LASTEXITCODE" }
++} finally {
++    $env:UL_COLIBRI_SOURCE = $previous
+ }
+-finally {
+-    if ($created) {
+-        foreach ($file in @('coli','version.py')) {
+-            $path = Join-Path $fixture $file
+-            if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Force }
+-        }
+-        if (@(Get-ChildItem -LiteralPath $fixture -Force).Count -eq 0) {
+-            Remove-Item -LiteralPath $fixture -Force
+-        }
+-    }
+-}
+--- a/Documents/07_Задачи Codex.md
++++ b/Documents/07_Задачи Codex.md
+@@ -41,7 +41,217 @@
+ 
+ ### БЛОК 1 — ТЕКУЩАЯ ЗАДАЧА
+ 
+-Свободен. CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001 сдан; полный оригинал, AMENDMENT 01 и OWNER GO — БЛОК 1.1. Независимая приёмка ожидается.
++**SUBMITTED / REVIEW PENDING — 13.11.2026. RELEASE CANDIDATE READY / LIVE DEPLOY NOT RUN.**
++Полный отчёт: `Manager_Ultra_LLM/README.md` → эта TASK; evidence: `Documents/Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/acceptance.json`.
++**ARCHIVE BLOCKED — CODEX-UL-MANAGER-R5:** предыдущий БЛОК 1.1 подтверждён дословно в main №45 `71462bde1f245f96180bec351e0f1ea7ecdd8b50`, но точной записи ROOT migration с TASK/AMENDMENT/OWNER GO нет в №05/09. До индексирования координатором прежний 1.1 не вытесняется, текущая TASK сохраняется здесь.
++**AMENDMENT 01 владельца, 13.11.2026 (чат):** «коммитить не надо»; работа локально, без commit/push/pull. Номер/SHA нового коммита N/A. Отменяет требование коммита ниже, исходный текст сохранён.
++
++# CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001
++
++**Проект:** Ultra LLM / local_LLM  
++**Исполнитель:** Codex  
++**Приоритет:** P0  
++**Тип:** совместимость Manager с Client R5, подготовка безопасного серверного обновления  
++**Статус:** PROPOSED — назначается владельцем
++
++## 1. Цель
++
++Подготовить проверенный релиз Server Manager, совместимый с установленным Ultra LLM Client R5.
++
++Результат должен позволить провести последующее контролируемое обновление сервера и реальные испытания streaming, reasoning, динамических слотов и управления моделями.
++
++**Эта задача не разрешает обновление действующего Manager, запуск моделей или остановку работающих сервисов.**
++
++## 2. Обязательные источники
++
++Прочитать актуальные версии:
++
++- `Documents/00_Старт.md`
++    
++- `Documents/000_Задачи для агента.md`
++    
++- `Documents/05_Реестр_задач.md`
++    
++- `Documents/07_Задачи Codex.md`
++    
++- `Documents/09_История_задач.md` — последние относящиеся события
++    
++- `Documents/13_Тактический_контекст.md` — актуальный NOW
++    
++- `Documents/18_Техническая_документация.md` — §§18.25, 18.29 и серверные разделы
++    
++
++Проверить текущие версии `main` и `GPT_2_local` до начала работы.
++
++Изучить существующие исходники `Manager_Ultra_LLM`, `Client_Ultra_LLM`, тесты и безопасные доказательства P0/P1.
++
++Не создавать новые рабочие корни.
++
++## 3. Этап A — инвентаризация и совместимость
++
++1. Определить фактическую версию установленного Manager через разрешённую read-only диагностику.
++    
++2. Сопоставить её с исходниками действующего Client R5.
++    
++3. Проверить API:
++    
++    - `/v1/control`
++        
++    - `/v1/control/catalog`
++        
++    - `/v1/chat`
++        
++    - `/v1/chat/stream`
++        
++    - `/v1/chat/cancel`
++        
++4. Проверить каталог моделей, динамические слоты, независимые экземпляры и привязку чатов.
++    
++5. Проверить правила авторизации, `owner_go`, `control_models`, TLS, pairing и изоляцию пользовательских данных.
++    
++6. Отдельно определить недостающие функции, несовместимости и возможные миграции состояния.
++    
++
++Если настоящий сервер недоступен, зафиксировать `LIVE PREFLIGHT NOT RUN`, не заменяя его результатами mock-тестов.
++
++## 4. Этап B — подготовка релиза
++
++Использовать имеющуюся реализацию. Не переписывать готовые функции без выявленной причины.
++
++Подготовить совместимую серверную сборку в пределах:
++
++`M:\GitHub\local_LLM`
++
++Обеспечить:
++
++- версионирование и SHA-256 manifest;
++    
++- переносимость без машинных секретов;
++    
++- совместимость действующих конфигураций;
++    
++- сохранение авторизаций и настроек;
++    
++- отсутствие скрытого автозапуска моделей;
++    
++- изолированную подготовку установки;
++    
++- воспроизводимые команды диагностики и установки;
++    
++- безопасный план отката.
++    
++
++Никакие реальные токены, TLS-ключи, личные базы SQLite, веса LLM и приватные логи в Git не добавлять.
++
++## 5. Этап C — офлайн-проверка
++
++Выполнить доступные тесты Manager и Client, включая:
++
++- регрессию существующих API;
++    
++- streaming и reasoning;
++    
++- корректную отмену генерации;
++    
++- независимые экземпляры одной модели;
++    
++- сохранение слотов;
++    
++- STOP одного экземпляра без воздействия на другие;
++    
++- отказ при отсутствии прав;
++    
++- отказ при отсутствии `owner_go`;
++    
++- моделирование ошибок и восстановления;
++    
++- совместимость с Client R5;
++    
++- отсутствие обязательной недоступной внешней тестовой fixture.
++    
++
++Предпочтительно использовать существующие Windows CI и Python/Chrome QA.
++
++**Mock PASS не считать реальным запуском LLM.**
++
++## 6. Этап D — серверный preflight и rollback
++
++Подготовить подробный план следующего этапа:
++
++1. Снимок работающего Manager и версии файлов.
++    
++2. Резервирование текущего установленного Manager.
++    
++3. Контроль контрольных сумм и конфигурации.
++    
++4. Отдельная staging-проверка.
++    
++5. Обновление только разрешённого Manager.
++    
++6. Проверка Qwen3.6 и доступности Client.
++    
++7. Проверка отсутствия воздействия на Valheim.
++    
++8. Проверка новых API и health.
++    
++9. Автоматически определяемые критерии для немедленного rollback.
++    
++10. Восстановление прежнего Manager при неуспешной проверке.
++    
++
++Подготовка этих инструкций **не является разрешением на их исполнение**.
++
++## 7. Жёсткие запреты
++
++Без отдельного OWNER GO:
++
++- не останавливать и не перезапускать `UltraLLM_Manager_LIVE`;
++    
++- не менять серверные конфигурации и права;
++    
++- не перезапускать Colibri1/Qwen3.6;
++    
++- не запускать Colibri2/KAT-Coder;
++    
++- не затрагивать Valheim;
++    
++- не изменять firewall, TLS и сетевую конфигурацию;
++    
++- не устанавливать новые зависимости на LIVE-сервер;
++    
++- не удалять старые установки и backups;
++    
++- не проводить LIVE START CPU/CUDA/STOP.
++    
++
++Все новые рабочие материалы — внутри утверждённого workspace. Новые документационные файлы допускаются только по отдельному разрешению владельца.
++
++## 8. Отчёт и критерии завершения
++
++Сдать:
++
++- точную матрицу совместимости Client R5 ↔ Manager;
++    
++- перечень изменённых исходников;
++    
++- безопасный release manifest;
++    
++- тестовые результаты с командами;
++    
++- обнаруженные несовместимости и риски;
++    
++- план обновления и rollback;
++    
++- перечень оставшихся LIVE-тестов;
++    
++- `DONE / CHANGED / DIFF / TESTS / PROBLEMS / QUESTIONS / DOC IMPACT / NEXT`.
++    
++
++Один итоговый Git-коммит на задачу, в разрешённой владельцем ветке, со сквозной нумерацией и обязательным readback. Не изменять `main` без отдельного разрешения.
++
++**Итоговый статус:** `RELEASE CANDIDATE READY / LIVE DEPLOY NOT RUN` — если все подготовительные критерии выполнены.
++
++**Обязательная остановка:** завершить задачу перед любыми изменениями действующего Server Manager. Следующий этап требует отдельного OWNER GO.
+ 
+ ### БЛОК 1.1 — ПОСЛЕДНЯЯ СДАННАЯ ЗАДАЧА (ДОСЛОВНЫЙ ОРИГИНАЛ)
+ 
+@@ -425,20 +635,22 @@
+ 
+ ### БЛОК 2 — ПОСЛЕДНИЕ ПЯТЬ ЗАДАЧ (КОРОТКИЙ ИНДЕКС)
+ 
++- **CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001 / 13.11:** RELEASE CANDIDATE READY / LIVE DEPLOY NOT RUN; Manager 310 PASS + 1 SKIP, Client 49 PASS, Chrome legacy/P0/P1 PASS, release 21 SHA, rollback QA 66 cases/2 scenarios PASS. Только SMB public-source audit сервера; authenticated API/PID и реальные LLM NOT RUN. Коммит отменён владельцем. Отчёт: Manager_Ultra_LLM/README.md; evidence: Documents/Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/acceptance.json. Ротация ARCHIVE BLOCKED.
+ - **CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001 / 13.11:** LIVE PASS — R5 в Production/Client, 73 SHA, прежний ярлык переключён один раз, rollback rehearsal PASS, повторный запуск/exit 0/restart PASS, Manager ONLINE, 34 сообщения/профиль сохранены. SOURCE/сервер не менялись. Независимая приёмка ожидается; единственный итоговый коммит требует согласования публикации. Отчёт: Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/report.md; evidence stage_d_result.json.
+ - **CODEX-UL-CLIENT-DEPLOY-20261112-001 / 12.11:** установлен Client R5 из source 132474781e760e463944c76efcd9d3ff192e8f18 в M:\UltraLLM_Client старым ярлыком; R4 backup 70/70, release 72/72 и install 73/73 SHA256, 49 Client и SOURCE/frozen Chrome P0/P1 PASS; 34 сообщения сохранены, настоящий Manager ONLINE. CLIENT DEPLOY PASS / MANAGER VERSION GATE; independent REVIEW PENDING. Полный отчёт: M:\UltraLLM_Builds\Release\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\REPORT.txt; evidence: M:\UltraLLM_Builds\Release\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\EVIDENCE.json.
+ - **CODEX-UL-STREAM-SLOTS-20261112-001 / 12.11:** SOURCE P0/P1, независимые Manager 302/302 (Windows), Client 49/49 (Windows + GitHub), P0 Chrome + P1 Chrome GitHub Actions PASS; LIVE NOT RUN. №09, отчёт STREAM_SLOTS_REPORT.txt, evidence STREAM_SLOTS_EVIDENCE.json; commit 9900ccd.
+ - **CODEX-UL-CONTROL-01-STREAM-20261111-001 / 11.11:** SOURCE CONTROL-01, independent PARTIAL; полный текст: https://github.com/maxrus82gm-svg/local_LLM/blob/6c74edd7b961661f08969a11f0ea3a93e0cadce0/Documents/07_%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B8%20Codex.md ; №09.
+ - **CODEX-UL-MGR-0D-SERVICE-CORE-001 / 08.11:** этапы offline, independent checkpoints PASS, SERVER LIVE NOT RUN; №09.
+ 
+-Здесь только пять кратких TASK. Полные оригиналы сохранены по immutable Git SHA и адресам №05/09.
++Временно шесть кратких TASK: ARCHIVE BLOCKED, старые записи не вытеснены до координаторской проверки полных оригиналов/AMENDMENT и адресов №05/09.
+ 
+ ### БЛОК 3 — OPEN / NEXT
+ 
+-- CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001: Client migration LIVE PASS; независимая приёмка OPEN. Постоянный EXE теперь Production/Client; старый M:\UltraLLM_Client сохранён, старый VBS отсутствует; operational rollback — полный workspace R5 backup.
+-- Один итоговый коммит: main №44, GPT_2_local не использовать; ветка/порядок публикации ещё не согласованы. Промежуточных commits/push нет.
+-- Server Manager прежней версии: реальные streaming/reasoning/dynamic slots и запуск второй LLM требуют отдельной задачи/OWNER GO. В этом этапе сервер не изменён.
+-- SECOND PC и полный Manager CI без S:-fixture остаются OPEN; предыдущие исходные evidence сохранены.
++- Текущая Manager R5 TASK сдана на независимую приёмку. Release готов локально, LIVE DEPLOY NOT RUN. Commit/push/pull отменены владельцем 13.11; локальный diff сохранён.
++- Ротация ARCHIVE BLOCKED: координатору зарегистрировать полную ROOT migration TASK/AMENDMENT/OWNER GO по main №45 SHA 71462bde1f245f96180bec351e0f1ea7ecdd8b50 в №05/09. Только затем вытеснять прежний БЛОК 1.1 и сокращать временные шесть записей. БЛОК 4 не изменён.
++- Server Manager прежней версии по SMB SHA. Подготовлены package/staging/rollback QA; серверные PID/TLS/API и protected backup не проверялись. До отдельного OWNER GO никаких service restart, изменений config/grants и реальных LLM запросов/START/STOP.
++- ROOT Client migration LIVE PASS остаётся прежним отчётом, независимая приёмка OPEN. В этой задаче Client/ярлык/история не менялись; при инвентаризации Client не запущен.
++- Full Manager CI больше не требует S: в исходниках workflow; hosted run ещё NOT RUN. SECOND PC и реальные CPU/CUDA/latency остаются отдельными OPEN.
+ 
+ ### БЛОК 4 — НЕЗАВИСИМАЯ ПРОВЕРКА (ТОЛЬКО КООРДИНАТОР)
+ 
+--- /dev/null
++++ b/Documents/Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/audit_readonly.py
+@@ -0,0 +1,101 @@
++"""Home-only read-only inventory. No secret/config/history contents are read.
++
++Only public Manager source is copied into a NEW local backup directory.
++Running Manager is queried via the installed Client's existing pinned TLS path.
++"""
++from datetime import datetime, timezone
++import hashlib
++import json
++import os
++from pathlib import Path
++import socket
++import subprocess
++import sys
++from urllib.request import build_opener, ProxyHandler
++from urllib.error import HTTPError
++
++ROOT = Path(__file__).resolve().parents[3]
++OUT = Path(__file__).parent
++TASK = OUT.name
++sys.path.insert(0, str(ROOT / "Manager_Ultra_LLM"))
++from manager_release import RUNTIME, sha
++
++
++def git(*args):
++    return subprocess.check_output(["git", *args], cwd=ROOT).decode("utf-8").strip()
++
++
++def main():
++    if socket.gethostname().upper() != "DESKTOP-SC96D3U":
++        raise RuntimeError("Home PC required")
++    result = {"task": TASK, "host": socket.gethostname(),
++              "utc": datetime.now(timezone.utc).isoformat(),
++              "scope": "READ ONLY remote/public code; GET via existing Client; no secret/history export",
++              "branches": {b: git("log", "-1", "--format=%H %s", b) for b in ("main", "GPT_2_local")},
++              "active_branch": git("branch", "--show-current"),
++              "owner_git_amendment": "NO COMMIT/PUSH/PULL, local diff only"}
++    ps = r'''$ps=@(Get-CimInstance Win32_Process -Filter "Name='UltraLLMClient.exe'");$ids=@($ps.ProcessId);[pscustomobject]@{processes=@($ps|Select-Object ProcessId,ParentProcessId,ExecutablePath,@{n='created_utc';e={$_.CreationDate.ToUniversalTime().ToString('o')}});listeners=@(Get-NetTCPConnection -State Listen|Where-Object {$_.OwningProcess -in $ids}|Select-Object LocalAddress,LocalPort,OwningProcess)}|ConvertTo-Json -Depth 5 -Compress'''
++    found = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", ps],
++                           check=True, capture_output=True, timeout=25)
++    result["client"] = json.loads(found.stdout.decode("utf-8-sig"))
++    opener = build_opener(ProxyHandler({}))
++    expected = ROOT / "Production/Client/UltraLLMClient.exe"
++    result["client"]["exe_sha256"] = sha(expected.read_bytes())
++    procs = [p for p in result["client"]["processes"]
++             if str(p["ExecutablePath"]).casefold() == str(expected).casefold()]
++    if len(procs) == 1:
++        ports = [p["LocalPort"] for p in result["client"]["listeners"]
++                 if p["OwningProcess"] == procs[0]["ProcessId"] and p["LocalAddress"] == "127.0.0.1"]
++        if len(ports) == 1:
++            base = f"http://127.0.0.1:{ports[0]}"
++            for route, key in (("/api/status", "status"),
++                               ("/api/control/catalog?manager_id=manager-server77", "catalog_get")):
++                try:
++                    with opener.open(base + route, timeout=25) as response:
++                        raw = json.load(response)
++                    if key == "status":
++                        rows = raw.get("managers", [])
++                        result[key] = [{k: row[k] for k in ("manager_id", "status", "snapshot", "error") if k in row}
++                                       for row in rows]
++                    else:
++                        result[key] = {"http": 200, "body": raw}
++                except HTTPError as error:
++                    result[key] = {"http": error.code, "body": error.read(1024).decode("utf-8", "replace")}
++    remote = Path(r"\\192.168.0.77\Server\Ultra_LLM\Manager_Live")
++    backup = ROOT / "Backups/Manager" / TASK / "public_code"
++    result["server_public_root"] = str(remote)
++    try:
++        entries = list(remote.iterdir())
++        result["server_top_level"] = [{"name": p.name, "kind": "directory" if p.is_dir() else "file"}
++                                      for p in entries]
++        files = [p for p in entries if p.is_file() and p.name in RUNTIME]
++        if backup.exists():
++            raise FileExistsError("Refuse to overwrite public backup")
++        backup.mkdir(parents=True)
++        hashes = {}
++        for p in files:
++            data = p.read_bytes()
++            (backup / p.name).write_bytes(data)
++            hashes[p.name] = sha(data)
++        result["server_public_files"] = hashes
++        result["backup"] = str(backup)
++        live = (backup / "live_manager.py").read_text(encoding="utf-8-sig")
++        result["server_source_routes"] = {route: route in live for route in (
++            "/v1/control", "/v1/control/catalog", "/v1/chat", "/v1/chat/stream", "/v1/chat/cancel")}
++        result["live_process_identity"] = "NOT VERIFIED remotely: SMB file hash is not running-process provenance"
++    except OSError as error:
++        result["server_public_audit"] = {"status": "NOT RUN", "error_type": type(error).__name__}
++    # Existing task assignment and independent block are retained byte-for-byte.
++    card = (ROOT / "Documents/07_Задачи Codex.md").read_bytes()
++    text = card.decode("utf-8-sig")
++    block4 = text[text.index("### БЛОК 4"):]
++    result["card_before_sha256"] = sha(card)
++    result["block4_sha256"] = sha(block4.encode("utf-8"))
++    result["appearance_sha256"] = sha((ROOT / "Documents/.obsidian/appearance.json").read_bytes())
++    (OUT / "baseline.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
++    print(json.dumps({"saved": str(OUT / "baseline.json"), "server_files": len(result.get("server_public_files", {})),
++                      "client_pid": [p["ProcessId"] for p in procs]}, ensure_ascii=False))
++
++
++if __name__ == "__main__":
++    main()
+--- /dev/null
++++ b/Documents/Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/rollback_qa.py
+@@ -0,0 +1,106 @@
++"""Rollback decision + filesystem rehearsal ONLY under home workspace Test.
++
++No service/task/network/process APIs. This is not a LIVE deploy/rollback tool.
++Unknown or missing post-deploy observations fail closed. No files are deleted.
++"""
++import argparse
++import hashlib
++import json
++from pathlib import Path
++import shutil
++import socket
++import subprocess
++import sys
++from datetime import datetime
++
++ROOT = Path(__file__).resolve().parents[3]
++OUT = Path(__file__).parent
++sys.path.insert(0, str(ROOT / "Manager_Ultra_LLM"))
++import manager_release
++
++REQUIRED = ("manager_identity_verified", "one_manager_listener", "tls_verified",
++            "authenticated_snapshot", "streaming_advertised", "catalog_route_ok",
++            "client_online", "qwen_health_unchanged", "qwen_identity_unchanged",
++            "valheim_identity_unchanged", "config_auth_tls_hashes_unchanged",
++            "task_settings_unchanged", "no_new_model_process", "no_owned_instances",
++            "private_backup_verified", "deadline_met")
++
++
++def decision(observations):
++    reasons = [key for key in REQUIRED if observations.get(key) is not True]
++    return {"decision": "ROLLBACK_REQUIRED" if reasons else "HOLD_CANDIDATE",
++            "failed_or_missing": reasons, "execution": "NONE; owner-controlled Manager-only transaction required"}
++
++
++def tree_hashes(root):
++    return {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
++            for p in root.rglob("*") if p.is_file()}
++
++
++def rehearse(package):
++    if socket.gethostname().upper() != "DESKTOP-SC96D3U":
++        raise RuntimeError("Home PC QA only")
++    qa = ROOT / "Test" / OUT.name / ("rollback_" + datetime.now().strftime("%Y%m%d_%H%M%S"))
++    qa.mkdir(parents=True)
++    original = ROOT / "Backups/Manager" / OUT.name / "public_code"
++    results = []
++    for scenario in ("failed_health", "failed_second_rename"):
++        base = qa / scenario
++        base.mkdir()
++        live, prior, stage, failed = (base / n for n in ("Manager_Live", "prior_retained", "staged", "failed_retained"))
++        shutil.copytree(original, live)
++        (live / "unknown-user-file.bin").write_bytes(b"QA sentinel preserved")
++        private = base / "private"
++        private.mkdir()
++        (private / "synthetic-state.bin").write_bytes(b"QA only; no real auth or DB")
++        before, private_before = tree_hashes(live), tree_hashes(private)
++        manager_release.stage(package, stage)
++        # Directory renames preserve the complete old tree, including unknown files.
++        live.rename(prior)
++        if scenario == "failed_second_rename":
++            try:
++                raise OSError("QA injected second-rename failure")
++            except OSError:
++                prior.rename(live)
++        else:
++            stage.rename(live)
++            observations = dict.fromkeys(REQUIRED, True)
++            observations["authenticated_snapshot"] = False
++            assert decision(observations)["decision"] == "ROLLBACK_REQUIRED"
++            live.rename(failed)
++            prior.rename(live)
++        assert tree_hashes(live) == before
++        assert tree_hashes(private) == private_before
++        proc = subprocess.run([sys.executable, "-B", "-I", "-c",
++            "import sys;sys.path.insert(0,sys.argv[1]);import live_manager,pairing_workflow;print('OLD_IMPORT_OK')",
++            str(live)], capture_output=True, timeout=15)
++        assert proc.returncode == 0, proc.stderr.decode("utf-8", "replace")
++        results.append({"scenario": scenario, "status": "PASS", "restored_files": before,
++                        "private_bytes_unchanged": True, "unknown_file_preserved": True,
++                        "restored_runtime_import_exit_code": proc.returncode,
++                        "retained_candidate": str(failed if failed.exists() else stage)})
++    assert decision({})["decision"] == "ROLLBACK_REQUIRED"
++    assert decision(dict.fromkeys(REQUIRED, True))["decision"] == "HOLD_CANDIDATE"
++    for field in REQUIRED:
++        for value in (False, None, "true", 1):
++            sample = dict.fromkeys(REQUIRED, True)
++            sample[field] = value
++            assert decision(sample)["decision"] == "ROLLBACK_REQUIRED"
++    result = {"status": "PASS", "scope": "QA filesystem, copied old public source, synthetic private bytes; no task restart",
++              "root": str(qa), "scenarios": results, "decision_cases": len(REQUIRED) * 4 + 2,
++              "live_rollback": "NOT RUN; protected private snapshot and actual process/task authority require OWNER GO"}
++    (OUT / "rollback_qa.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
++    print(json.dumps({"status": "PASS", "decision_cases": result["decision_cases"], "scenarios": len(results)}))
++
++
++if __name__ == "__main__":
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--rehearse", type=Path)
++    parser.add_argument("--observations", type=Path)
++    args = parser.parse_args()
++    if args.rehearse:
++        rehearse(args.rehearse)
++    elif args.observations:
++        print(json.dumps(decision(json.loads(args.observations.read_text(encoding="utf-8-sig"))), indent=2))
++    else:
++        parser.error("Choose --rehearse or --observations; neither performs LIVE actions")
+--- /dev/null
++++ b/Documents/Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/run_qa.py
+@@ -0,0 +1,90 @@
++"""Repeatable offline QA on a source COPY under Test, no installed Client use."""
++from datetime import datetime, timezone
++import argparse
++import hashlib
++import json
++import os
++from pathlib import Path
++import shutil
++import socket
++import subprocess
++import sys
++import time
++
++ROOT = Path(__file__).resolve().parents[3]
++OUT = Path(__file__).parent
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--steps", help="Comma-separated stage names; unchanged browser results can be retained")
++    parser.add_argument("--output", default="qa.json")
++    args = parser.parse_args()
++    output = (OUT / args.output).resolve()
++    if output.parent != OUT or output.exists():
++        raise ValueError("Evidence must be a NEW file in this report directory")
++    if socket.gethostname().upper() != "DESKTOP-SC96D3U":
++        raise RuntimeError("Home QA only")
++    qa = ROOT / "Test" / OUT.name / datetime.now().strftime("%Y%m%d_%H%M%S")
++    qa.mkdir(parents=True)
++    manifest = {}
++    for folder in ("Manager_Ultra_LLM", "Client_Ultra_LLM"):
++        source = ROOT / folder
++        for file in source.rglob("*"):
++            if not file.is_file() or any(p.startswith(".") or p in ("__pycache__", "node_modules", "build", "dist")
++                                         for p in file.relative_to(source).parts):
++                continue
++            if file.suffix not in (".py", ".ps1", ".mjs", ".js", ".html", ".css", ".vbs"):
++                continue
++            dest = qa / file.relative_to(ROOT)
++            dest.parent.mkdir(parents=True, exist_ok=True)
++            shutil.copyfile(file, dest)
++            manifest[str(file.relative_to(ROOT))] = hashlib.sha256(file.read_bytes()).hexdigest()
++    temp = qa / "temp"
++    temp.mkdir()
++    env = dict(os.environ, TEMP=str(temp), TMP=str(temp), TMPDIR=str(temp),
++               LOCALAPPDATA=str(qa / "local_appdata"), PYTHONDONTWRITEBYTECODE="1", PYTHONUTF8="1")
++    env.pop("PSModulePath", None)
++    env.pop("PSMODULEPATH", None)
++    env.pop("UL_COLIBRI_SOURCE", None)
++    steps = [
++        ("manager_suite", [sys.executable, "-B", "-m", "unittest", "discover", "-s", "Manager_Ultra_LLM", "-p", "test_*.py", "-q"]),
++        ("client_suite", [sys.executable, "-B", "-m", "unittest", "discover", "-s", "Client_Ultra_LLM", "-p", "test_*.py", "-q"]),
++        ("python_syntax", [sys.executable, "-B", "-c", "from pathlib import Path;[compile(p.read_text(encoding='utf-8-sig'),str(p),'exec') for d in ('Manager_Ultra_LLM','Client_Ultra_LLM') for p in Path(d).glob('*.py')];print('PASS')"]),
++        ("js_syntax", ["node", "--check", "Client_Ultra_LLM/web_assets/client.js"]),
++        ("legacy_chrome", ["node", "Client_Ultra_LLM/test_browser_control_stream.mjs"]),
++        ("p0_tls_chrome", ["node", "Client_Ultra_LLM/test_browser_stream_source.mjs"]),
++        ("p1_tls_chrome", ["node", "Client_Ultra_LLM/test_browser_slots_source.mjs"]),
++        ("powershell_wrapper", ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "Manager_Ultra_LLM/verify_offline.ps1"]),
++    ]
++    if args.steps:
++        selected = set(args.steps.split(","))
++        if selected - {name for name, command in steps}:
++            raise ValueError("Unknown QA stage")
++        steps = [(name, command) for name, command in steps if name in selected]
++    evidence = {"task": OUT.name, "qa_root": str(qa), "host": socket.gethostname(),
++                "scope": "Source COPY; synthetic Colibri/resources; native tests use owned dummy Python only",
++                "source_sha256": manifest, "steps": [], "independent_review": "PENDING",
++                "live_deploy": "NOT RUN", "real_llm": "NOT RUN", "hosted_ci": "NOT RUN"}
++    for name, command in steps:
++        print("RUN " + name, flush=True)
++        began = time.monotonic()
++        try:
++            result = subprocess.run(command, cwd=qa, env=env, capture_output=True, timeout=300)
++            code, stdout, stderr = result.returncode, result.stdout, result.stderr
++        except subprocess.TimeoutExpired as error:
++            code, stdout, stderr = 124, error.stdout or b"", (error.stderr or b"") + b"\nTIMEOUT"
++        row = {"name": name, "command": command, "exit_code": code,
++               "status": "PASS" if code == 0 else "FAIL", "seconds": round(time.monotonic() - began, 3),
++               "stdout": stdout.decode("utf-8", "replace"), "stderr": stderr.decode("utf-8", "replace")}
++        evidence["steps"].append(row)
++        print(row["status"] + " " + name + " " + str(row["seconds"]), flush=True)
++        output.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
++    evidence["status"] = "PASS" if all(s["exit_code"] == 0 for s in evidence["steps"]) else "FAIL"
++    evidence["completed_utc"] = datetime.now(timezone.utc).isoformat()
++    output.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
++    return 0 if evidence["status"] == "PASS" else 1
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+--- /dev/null
++++ b/Documents/Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/verify_handoff.py
+@@ -0,0 +1,127 @@
++"""Final read-only acceptance checks + safe diff/JSON, no LIVE execution."""
++from datetime import datetime, timezone
++import difflib
++import hashlib
++import json
++from pathlib import Path
++import re
++import subprocess
++import sys
++
++ROOT = Path(__file__).resolve().parents[3]
++OUT = Path(__file__).parent
++sys.path.insert(0, str(ROOT / "Manager_Ultra_LLM"))
++import manager_release as release
++
++
++def read(name):
++    return json.loads((OUT / name).read_text(encoding="utf-8-sig"))
++
++
++def main():
++    base, initial, final, package, rollback = (read(n) for n in (
++        "baseline.json", "qa.json", "qa_regression.json", "release.json", "rollback_qa.json"))
++    payload = release.read_package(Path(package["zip"]))
++    assert release.sha(Path(package["zip"]).read_bytes()) == package["zip_sha256"]
++    assert all(payload[name] == (ROOT / "Manager_Ultra_LLM" / name).read_bytes() for name in release.RUNTIME)
++    # Browser results remain valid: every candidate runtime byte is unchanged.
++    browser_runtime_same = all(initial["source_sha256"][str(Path("Manager_Ultra_LLM") / name)]
++                               == release.sha(payload[name]) for name in release.RUNTIME)
++    assert browser_runtime_same
++    assert all(initial["source_sha256"][name] == digest for name, digest in final["source_sha256"].items()
++               if name.startswith("Client_Ultra_LLM/") and name in initial["source_sha256"])
++    steps = [s for s in initial["steps"] if s["name"] not in ("manager_suite", "client_suite", "powershell_wrapper")]
++    steps += final["steps"]
++    assert all(s["exit_code"] == 0 for s in steps)
++    assert rollback["status"] == "PASS"
++    candidate_manifest = {name: release.sha(data) for name, data in payload.items()}
++    (OUT / "release_manifest.json").write_bytes(release.canonical(candidate_manifest))
++    backup = Path(base["backup"])
++    assert all(release.sha((backup / name).read_bytes()) == digest for name, digest in base["server_public_files"].items())
++    remote = Path(base["server_public_root"])
++    remote_unchanged = {name: release.sha((remote / name).read_bytes()) == digest
++                        for name, digest in base["server_public_files"].items()}
++    assert all(remote_unchanged.values())
++    assets = {}
++    for name in ("client.js", "client.css", "index.html"):
++        source = ROOT / "Client_Ultra_LLM/web_assets" / name
++        installed = ROOT / "Production/Client/_internal/web_assets" / name
++        assets[name] = {"source_sha256": release.sha(source.read_bytes()),
++                        "installed_sha256": release.sha(installed.read_bytes())}
++        assert assets[name]["source_sha256"] == assets[name]["installed_sha256"]
++    installed_root = ROOT / "Production/Client"
++    client_files = 0
++    for line in (installed_root / "SHA256SUMS.txt").read_text(encoding="utf-8-sig").splitlines():
++        digest, name = line.split("  ", 1)
++        path = (installed_root / name).resolve()
++        assert path.is_relative_to(installed_root.resolve())
++        assert release.sha(path.read_bytes()) == digest.lower()
++        client_files += 1
++    card = (ROOT / "Documents/07_Задачи Codex.md").read_bytes().decode("utf-8-sig")
++    independent = card[card.index("### БЛОК 4"):]
++    assert release.sha(independent.encode("utf-8")) == base["block4_sha256"]
++    assert "ARCHIVE BLOCKED — CODEX-UL-MANAGER-R5" in card
++    assert subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT).decode().strip() == "71462bde1f245f96180bec351e0f1ea7ecdd8b50"
++    assert not subprocess.check_output(["git", "diff", "--cached", "--name-only"], cwd=ROOT).strip()
++    own = [".github/workflows/ultra-offline-ci.yml", "Manager_Ultra_LLM/README.md",
++           "Manager_Ultra_LLM/manager_release.py", "Manager_Ultra_LLM/test_manager_release.py",
++           "Manager_Ultra_LLM/test_colibri2_runner.py", "Manager_Ultra_LLM/verify_offline.ps1",
++           "Documents/07_Задачи Codex.md"]
++    own += [str(p.relative_to(ROOT)).replace("\\", "/") for p in OUT.glob("*.py")]
++    diff = []
++    for name in own:
++        old = subprocess.run(["git", "show", "HEAD:" + name], cwd=ROOT, capture_output=True)
++        before = old.stdout.decode("utf-8-sig").replace("\r\n", "\n") if old.returncode == 0 else ""
++        after = (ROOT / name).read_text(encoding="utf-8-sig")
++        diff.extend(difflib.unified_diff(before.splitlines(True), after.splitlines(True),
++                    fromfile="a/" + name if old.returncode == 0 else "/dev/null", tofile="b/" + name))
++    (OUT / "review.diff").write_text("".join(diff), encoding="utf-8")
++    screenshot = Path(initial["qa_root"]) / "Client_Ultra_LLM/stream_slots_browser.png"
++    (OUT / "p1_browser.png").write_bytes(screenshot.read_bytes())
++    check = subprocess.run(["git", "diff", "--check", "--", *[p for p in own if p != "Documents/07_Задачи Codex.md"]], cwd=ROOT, capture_output=True)
++    assert check.returncode == 0, check.stdout.decode("utf-8", "replace")
++    card_check = subprocess.run(["git", "diff", "--check", "--", "Documents/07_Задачи Codex.md"], cwd=ROOT, capture_output=True)
++    warnings = card_check.stdout.decode("utf-8", "replace")
++    task_start = card[:card.index("# CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001")].count("\n") + 1
++    task_end = card[:card.index("### БЛОК 1.1")].count("\n") + 1
++    warning_lines = [int(n) for n in re.findall(r"\.md:(\d+): trailing whitespace", warnings)]
++    assert all(task_start <= n < task_end for n in warning_lines), "New whitespace outside verbatim owner task"
++    result = {"task": OUT.name, "completed_utc": datetime.now(timezone.utc).isoformat(),
++              "status": "RELEASE CANDIDATE READY / LIVE DEPLOY NOT RUN", "qa": "PASS",
++              "manager": {"total": 311, "passed": 310, "skipped": 1,
++                          "skip": "Optional installed Colibri source AST audit NOT RUN"},
++              "client": {"total": 49, "passed": 49},
++              "checks": [{k: s[k] for k in ("name", "status", "exit_code", "seconds")} for s in steps],
++              "browser_candidate_runtime_sha_match": browser_runtime_same,
++              "p1_browser_screenshot": {"path": str(OUT / "p1_browser.png"),
++                                        "sha256": release.sha(screenshot.read_bytes()), "scope": "Fake models only"},
++              "installed_client_payload_files_verified": client_files,
++              "installed_client_assets_equal_tested_source": assets,
++              "installed_client_exe": str(installed_root / "UltraLLMClient.exe"),
++              "server_public_files_unchanged": remote_unchanged,
++              "release": package, "rollback": {"qa": "PASS", "decision_cases": 66, "scenarios": 2,
++                                                  "live": "NOT RUN; full private/task backup and authority pending OWNER GO"},
++              "live_checked": "SMB public-source inventory/SHA only; NOT running process provenance",
++              "live_not_run": ["Manager process/task/TLS/authenticated API", "Qwen/Valheim health and identities",
++                               "real inference/reasoning/cancel", "CPU/CUDA/START/STOP", "deploy/rollback"],
++              "history": "Real user history not read or modified; synthetic QA persistence PASS",
++              "rotation": "ARCHIVE BLOCKED; old 1.1 retained; exact Git original verified, missing index in 05/09",
++              "block4_unchanged": True, "source_18_29": "SOURCE UNAVAILABLE",
++              "diff_check": {"source": "PASS", "card_exit_code": card_check.returncode,
++                             "inherited_verbatim_task_whitespace_lines": warning_lines,
++                             "reason": "Owner-assigned task retained verbatim; not normalized to silence git diff --check"},
++              "git": {"branch": "main", "head_number": "45", "head_sha": "71462bde1f245f96180bec351e0f1ea7ecdd8b50",
++                      "task_commit": None, "reason": "Explicit owner amendment: NO COMMIT/PUSH/PULL", "index_unchanged_empty": True},
++              "independent_acceptance": "PENDING", "report": str(ROOT / "Manager_Ultra_LLM/README.md"),
++              "initial_failures": "Retained qa.json; QA config/copy mistakes fixed; final affected suites qa_regression.json PASS"}
++    (OUT / "acceptance.json").write_bytes(release.canonical(result))
++    files = {str(p.relative_to(ROOT)).replace("\\", "/"): release.sha(p.read_bytes())
++             for p in sorted(OUT.iterdir()) if p.is_file() and p.name != "evidence_manifest.json"}
++    (OUT / "evidence_manifest.json").write_bytes(release.canonical(files))
++    print(json.dumps({"status": result["status"], "qa": "PASS", "release_files": len(payload),
++                      "client_payload_unchanged": client_files, "rotation": "ARCHIVE BLOCKED",
++                      "source_diff_check": "PASS", "verbatim_task_whitespace_lines": len(warning_lines)}))
++
++
++if __name__ == "__main__":
++    main()

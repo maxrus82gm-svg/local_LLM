@@ -1,0 +1,206 @@
+{
+  "block4_unchanged": true,
+  "browser_candidate_runtime_sha_match": true,
+  "checks": [
+    {
+      "exit_code": 0,
+      "name": "python_syntax",
+      "seconds": 0.172,
+      "status": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "js_syntax",
+      "seconds": 0.047,
+      "status": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "legacy_chrome",
+      "seconds": 6.875,
+      "status": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "p0_tls_chrome",
+      "seconds": 8.828,
+      "status": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "p1_tls_chrome",
+      "seconds": 30.422,
+      "status": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "manager_suite",
+      "seconds": 65.157,
+      "status": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "client_suite",
+      "seconds": 17.125,
+      "status": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "powershell_wrapper",
+      "seconds": 45.515,
+      "status": "PASS"
+    }
+  ],
+  "client": {
+    "passed": 49,
+    "total": 49
+  },
+  "completed_utc": "2026-11-13T08:40:43.325685+00:00",
+  "diff_check": {
+    "card_exit_code": 2,
+    "inherited_verbatim_task_whitespace_lines": [
+      51,
+      52,
+      53,
+      54,
+      70,
+      72,
+      74,
+      76,
+      78,
+      80,
+      82,
+      93,
+      95,
+      97,
+      99,
+      101,
+      103,
+      105,
+      107,
+      109,
+      111,
+      113,
+      128,
+      130,
+      132,
+      134,
+      136,
+      138,
+      140,
+      142,
+      151,
+      153,
+      155,
+      157,
+      159,
+      161,
+      163,
+      165,
+      167,
+      169,
+      171,
+      182,
+      184,
+      186,
+      188,
+      190,
+      192,
+      194,
+      196,
+      198,
+      200,
+      209,
+      211,
+      213,
+      215,
+      217,
+      219,
+      221,
+      223,
+      225,
+      234,
+      236,
+      238,
+      240,
+      242,
+      244,
+      246,
+      248
+    ],
+    "reason": "Owner-assigned task retained verbatim; not normalized to silence git diff --check",
+    "source": "PASS"
+  },
+  "git": {
+    "branch": "main",
+    "head_number": "45",
+    "head_sha": "71462bde1f245f96180bec351e0f1ea7ecdd8b50",
+    "index_unchanged_empty": true,
+    "reason": "Explicit owner amendment: NO COMMIT/PUSH/PULL",
+    "task_commit": null
+  },
+  "history": "Real user history not read or modified; synthetic QA persistence PASS",
+  "independent_acceptance": "PENDING",
+  "initial_failures": "Retained qa.json; QA config/copy mistakes fixed; final affected suites qa_regression.json PASS",
+  "installed_client_assets_equal_tested_source": {
+    "client.css": {
+      "installed_sha256": "b57db640f0987185ead7525446106436fa6d7ac47bbed2dc8eb81d2c1a7d0f13",
+      "source_sha256": "b57db640f0987185ead7525446106436fa6d7ac47bbed2dc8eb81d2c1a7d0f13"
+    },
+    "client.js": {
+      "installed_sha256": "193b21ddca48d39d3b0af4cf1ce0c95831a25757db8c1985476fb313af17f3b7",
+      "source_sha256": "193b21ddca48d39d3b0af4cf1ce0c95831a25757db8c1985476fb313af17f3b7"
+    },
+    "index.html": {
+      "installed_sha256": "f2e31264e224ec14bfa4774483f595844904a88f5a68a8313e4ea9bc3c85ec0e",
+      "source_sha256": "f2e31264e224ec14bfa4774483f595844904a88f5a68a8313e4ea9bc3c85ec0e"
+    }
+  },
+  "installed_client_exe": "M:\\GitHub\\local_LLM\\Production\\Client\\UltraLLMClient.exe",
+  "installed_client_payload_files_verified": 72,
+  "live_checked": "SMB public-source inventory/SHA only; NOT running process provenance",
+  "live_not_run": [
+    "Manager process/task/TLS/authenticated API",
+    "Qwen/Valheim health and identities",
+    "real inference/reasoning/cancel",
+    "CPU/CUDA/START/STOP",
+    "deploy/rollback"
+  ],
+  "manager": {
+    "passed": 310,
+    "skip": "Optional installed Colibri source AST audit NOT RUN",
+    "skipped": 1,
+    "total": 311
+  },
+  "p1_browser_screenshot": {
+    "path": "M:\\GitHub\\local_LLM\\Documents\\Reports\\CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001\\p1_browser.png",
+    "scope": "Fake models only",
+    "sha256": "a350577e55dbcd8c2b557f34679268f7c6ea7a0c2bcb29a5cf164632a14070ee"
+  },
+  "qa": "PASS",
+  "release": {
+    "directory": "M:\\GitHub\\local_LLM\\Releases\\Manager\\CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001\\UltraLLM_Manager_R5_compat_Win64",
+    "files": 21,
+    "version": "R5-compat-20261113.1",
+    "zip": "M:\\GitHub\\local_LLM\\Releases\\Manager\\CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001\\UltraLLM_Manager_R5_compat_Win64.zip",
+    "zip_sha256": "ba4ebf65af7a0693cf4dce045eb08254434a4475fd4f79e031424c905d661ce2"
+  },
+  "report": "M:\\GitHub\\local_LLM\\Manager_Ultra_LLM\\README.md",
+  "rollback": {
+    "decision_cases": 66,
+    "live": "NOT RUN; full private/task backup and authority pending OWNER GO",
+    "qa": "PASS",
+    "scenarios": 2
+  },
+  "rotation": "ARCHIVE BLOCKED; old 1.1 retained; exact Git original verified, missing index in 05/09",
+  "server_public_files_unchanged": {
+    "chat_runtime.py": true,
+    "live_manager.py": true,
+    "pairing_inbox.py": true,
+    "pairing_server.py": true,
+    "pairing_workflow.py": true
+  },
+  "source_18_29": "SOURCE UNAVAILABLE",
+  "status": "RELEASE CANDIDATE READY / LIVE DEPLOY NOT RUN",
+  "task": "CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001"
+}

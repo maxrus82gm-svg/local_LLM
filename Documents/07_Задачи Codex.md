@@ -41,7 +41,217 @@ Codex работает **на компьютере владельца**, поэ�
 
 ### БЛОК 1 — ТЕКУЩАЯ ЗАДАЧА
 
-Свободен. CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001 сдан; полный оригинал, AMENDMENT 01 и OWNER GO — БЛОК 1.1. Независимая приёмка ожидается.
+**SUBMITTED / REVIEW PENDING — 13.11.2026. RELEASE CANDIDATE READY / LIVE DEPLOY NOT RUN.**
+Полный отчёт: `Manager_Ultra_LLM/README.md` → эта TASK; evidence: `Documents/Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/acceptance.json`.
+**ARCHIVE BLOCKED — CODEX-UL-MANAGER-R5:** предыдущий БЛОК 1.1 подтверждён дословно в main №45 `71462bde1f245f96180bec351e0f1ea7ecdd8b50`, но точной записи ROOT migration с TASK/AMENDMENT/OWNER GO нет в №05/09. До индексирования координатором прежний 1.1 не вытесняется, текущая TASK сохраняется здесь.
+**AMENDMENT 01 владельца, 13.11.2026 (чат):** «коммитить не надо»; работа локально, без commit/push/pull. Номер/SHA нового коммита N/A. Отменяет требование коммита ниже, исходный текст сохранён.
+
+# CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001
+
+**Проект:** Ultra LLM / local_LLM  
+**Исполнитель:** Codex  
+**Приоритет:** P0  
+**Тип:** совместимость Manager с Client R5, подготовка безопасного серверного обновления  
+**Статус:** PROPOSED — назначается владельцем
+
+## 1. Цель
+
+Подготовить проверенный релиз Server Manager, совместимый с установленным Ultra LLM Client R5.
+
+Результат должен позволить провести последующее контролируемое обновление сервера и реальные испытания streaming, reasoning, динамических слотов и управления моделями.
+
+**Эта задача не разрешает обновление действующего Manager, запуск моделей или остановку работающих сервисов.**
+
+## 2. Обязательные источники
+
+Прочитать актуальные версии:
+
+- `Documents/00_Старт.md`
+    
+- `Documents/000_Задачи для агента.md`
+    
+- `Documents/05_Реестр_задач.md`
+    
+- `Documents/07_Задачи Codex.md`
+    
+- `Documents/09_История_задач.md` — последние относящиеся события
+    
+- `Documents/13_Тактический_контекст.md` — актуальный NOW
+    
+- `Documents/18_Техническая_документация.md` — §§18.25, 18.29 и серверные разделы
+    
+
+Проверить текущие версии `main` и `GPT_2_local` до начала работы.
+
+Изучить существующие исходники `Manager_Ultra_LLM`, `Client_Ultra_LLM`, тесты и безопасные доказательства P0/P1.
+
+Не создавать новые рабочие корни.
+
+## 3. Этап A — инвентаризация и совместимость
+
+1. Определить фактическую версию установленного Manager через разрешённую read-only диагностику.
+    
+2. Сопоставить её с исходниками действующего Client R5.
+    
+3. Проверить API:
+    
+    - `/v1/control`
+        
+    - `/v1/control/catalog`
+        
+    - `/v1/chat`
+        
+    - `/v1/chat/stream`
+        
+    - `/v1/chat/cancel`
+        
+4. Проверить каталог моделей, динамические слоты, независимые экземпляры и привязку чатов.
+    
+5. Проверить правила авторизации, `owner_go`, `control_models`, TLS, pairing и изоляцию пользовательских данных.
+    
+6. Отдельно определить недостающие функции, несовместимости и возможные миграции состояния.
+    
+
+Если настоящий сервер недоступен, зафиксировать `LIVE PREFLIGHT NOT RUN`, не заменяя его результатами mock-тестов.
+
+## 4. Этап B — подготовка релиза
+
+Использовать имеющуюся реализацию. Не переписывать готовые функции без выявленной причины.
+
+Подготовить совместимую серверную сборку в пределах:
+
+`M:\GitHub\local_LLM`
+
+Обеспечить:
+
+- версионирование и SHA-256 manifest;
+    
+- переносимость без машинных секретов;
+    
+- совместимость действующих конфигураций;
+    
+- сохранение авторизаций и настроек;
+    
+- отсутствие скрытого автозапуска моделей;
+    
+- изолированную подготовку установки;
+    
+- воспроизводимые команды диагностики и установки;
+    
+- безопасный план отката.
+    
+
+Никакие реальные токены, TLS-ключи, личные базы SQLite, веса LLM и приватные логи в Git не добавлять.
+
+## 5. Этап C — офлайн-проверка
+
+Выполнить доступные тесты Manager и Client, включая:
+
+- регрессию существующих API;
+    
+- streaming и reasoning;
+    
+- корректную отмену генерации;
+    
+- независимые экземпляры одной модели;
+    
+- сохранение слотов;
+    
+- STOP одного экземпляра без воздействия на другие;
+    
+- отказ при отсутствии прав;
+    
+- отказ при отсутствии `owner_go`;
+    
+- моделирование ошибок и восстановления;
+    
+- совместимость с Client R5;
+    
+- отсутствие обязательной недоступной внешней тестовой fixture.
+    
+
+Предпочтительно использовать существующие Windows CI и Python/Chrome QA.
+
+**Mock PASS не считать реальным запуском LLM.**
+
+## 6. Этап D — серверный preflight и rollback
+
+Подготовить подробный план следующего этапа:
+
+1. Снимок работающего Manager и версии файлов.
+    
+2. Резервирование текущего установленного Manager.
+    
+3. Контроль контрольных сумм и конфигурации.
+    
+4. Отдельная staging-проверка.
+    
+5. Обновление только разрешённого Manager.
+    
+6. Проверка Qwen3.6 и доступности Client.
+    
+7. Проверка отсутствия воздействия на Valheim.
+    
+8. Проверка новых API и health.
+    
+9. Автоматически определяемые критерии для немедленного rollback.
+    
+10. Восстановление прежнего Manager при неуспешной проверке.
+    
+
+Подготовка этих инструкций **не является разрешением на их исполнение**.
+
+## 7. Жёсткие запреты
+
+Без отдельного OWNER GO:
+
+- не останавливать и не перезапускать `UltraLLM_Manager_LIVE`;
+    
+- не менять серверные конфигурации и права;
+    
+- не перезапускать Colibri1/Qwen3.6;
+    
+- не запускать Colibri2/KAT-Coder;
+    
+- не затрагивать Valheim;
+    
+- не изменять firewall, TLS и сетевую конфигурацию;
+    
+- не устанавливать новые зависимости на LIVE-сервер;
+    
+- не удалять старые установки и backups;
+    
+- не проводить LIVE START CPU/CUDA/STOP.
+    
+
+Все новые рабочие материалы — внутри утверждённого workspace. Новые документационные файлы допускаются только по отдельному разрешению владельца.
+
+## 8. Отчёт и критерии завершения
+
+Сдать:
+
+- точную матрицу совместимости Client R5 ↔ Manager;
+    
+- перечень изменённых исходников;
+    
+- безопасный release manifest;
+    
+- тестовые результаты с командами;
+    
+- обнаруженные несовместимости и риски;
+    
+- план обновления и rollback;
+    
+- перечень оставшихся LIVE-тестов;
+    
+- `DONE / CHANGED / DIFF / TESTS / PROBLEMS / QUESTIONS / DOC IMPACT / NEXT`.
+    
+
+Один итоговый Git-коммит на задачу, в разрешённой владельцем ветке, со сквозной нумерацией и обязательным readback. Не изменять `main` без отдельного разрешения.
+
+**Итоговый статус:** `RELEASE CANDIDATE READY / LIVE DEPLOY NOT RUN` — если все подготовительные критерии выполнены.
+
+**Обязательная остановка:** завершить задачу перед любыми изменениями действующего Server Manager. Следующий этап требует отдельного OWNER GO.
 
 ### БЛОК 1.1 — ПОСЛЕДНЯЯ СДАННАЯ ЗАДАЧА (ДОСЛОВНЫЙ ОРИГИНАЛ)
 
@@ -425,20 +635,22 @@ Codex обновляет свою рабочую карточку №07 по д�
 
 ### БЛОК 2 — ПОСЛЕДНИЕ ПЯТЬ ЗАДАЧ (КОРОТКИЙ ИНДЕКС)
 
+- **CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001 / 13.11:** RELEASE CANDIDATE READY / LIVE DEPLOY NOT RUN; Manager 310 PASS + 1 SKIP, Client 49 PASS, Chrome legacy/P0/P1 PASS, release 21 SHA, rollback QA 66 cases/2 scenarios PASS. Только SMB public-source audit сервера; authenticated API/PID и реальные LLM NOT RUN. Коммит отменён владельцем. Отчёт: Manager_Ultra_LLM/README.md; evidence: Documents/Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/acceptance.json. Ротация ARCHIVE BLOCKED.
 - **CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001 / 13.11:** LIVE PASS — R5 в Production/Client, 73 SHA, прежний ярлык переключён один раз, rollback rehearsal PASS, повторный запуск/exit 0/restart PASS, Manager ONLINE, 34 сообщения/профиль сохранены. SOURCE/сервер не менялись. Независимая приёмка ожидается; единственный итоговый коммит требует согласования публикации. Отчёт: Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/report.md; evidence stage_d_result.json.
 - **CODEX-UL-CLIENT-DEPLOY-20261112-001 / 12.11:** установлен Client R5 из source 132474781e760e463944c76efcd9d3ff192e8f18 в M:\UltraLLM_Client старым ярлыком; R4 backup 70/70, release 72/72 и install 73/73 SHA256, 49 Client и SOURCE/frozen Chrome P0/P1 PASS; 34 сообщения сохранены, настоящий Manager ONLINE. CLIENT DEPLOY PASS / MANAGER VERSION GATE; independent REVIEW PENDING. Полный отчёт: M:\UltraLLM_Builds\Release\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\REPORT.txt; evidence: M:\UltraLLM_Builds\Release\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\EVIDENCE.json.
 - **CODEX-UL-STREAM-SLOTS-20261112-001 / 12.11:** SOURCE P0/P1, независимые Manager 302/302 (Windows), Client 49/49 (Windows + GitHub), P0 Chrome + P1 Chrome GitHub Actions PASS; LIVE NOT RUN. №09, отчёт STREAM_SLOTS_REPORT.txt, evidence STREAM_SLOTS_EVIDENCE.json; commit 9900ccd.
 - **CODEX-UL-CONTROL-01-STREAM-20261111-001 / 11.11:** SOURCE CONTROL-01, independent PARTIAL; полный текст: https://github.com/maxrus82gm-svg/local_LLM/blob/6c74edd7b961661f08969a11f0ea3a93e0cadce0/Documents/07_%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B8%20Codex.md ; №09.
 - **CODEX-UL-MGR-0D-SERVICE-CORE-001 / 08.11:** этапы offline, independent checkpoints PASS, SERVER LIVE NOT RUN; №09.
 
-Здесь только пять кратких TASK. Полные оригиналы сохранены по immutable Git SHA и адресам №05/09.
+Временно шесть кратких TASK: ARCHIVE BLOCKED, старые записи не вытеснены до координаторской проверки полных оригиналов/AMENDMENT и адресов №05/09.
 
 ### БЛОК 3 — OPEN / NEXT
 
-- CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001: Client migration LIVE PASS; независимая приёмка OPEN. Постоянный EXE теперь Production/Client; старый M:\UltraLLM_Client сохранён, старый VBS отсутствует; operational rollback — полный workspace R5 backup.
-- Один итоговый коммит: main №44, GPT_2_local не использовать; ветка/порядок публикации ещё не согласованы. Промежуточных commits/push нет.
-- Server Manager прежней версии: реальные streaming/reasoning/dynamic slots и запуск второй LLM требуют отдельной задачи/OWNER GO. В этом этапе сервер не изменён.
-- SECOND PC и полный Manager CI без S:-fixture остаются OPEN; предыдущие исходные evidence сохранены.
+- Текущая Manager R5 TASK сдана на независимую приёмку. Release готов локально, LIVE DEPLOY NOT RUN. Commit/push/pull отменены владельцем 13.11; локальный diff сохранён.
+- Ротация ARCHIVE BLOCKED: координатору зарегистрировать полную ROOT migration TASK/AMENDMENT/OWNER GO по main №45 SHA 71462bde1f245f96180bec351e0f1ea7ecdd8b50 в №05/09. Только затем вытеснять прежний БЛОК 1.1 и сокращать временные шесть записей. БЛОК 4 не изменён.
+- Server Manager прежней версии по SMB SHA. Подготовлены package/staging/rollback QA; серверные PID/TLS/API и protected backup не проверялись. До отдельного OWNER GO никаких service restart, изменений config/grants и реальных LLM запросов/START/STOP.
+- ROOT Client migration LIVE PASS остаётся прежним отчётом, независимая приёмка OPEN. В этой задаче Client/ярлык/история не менялись; при инвентаризации Client не запущен.
+- Full Manager CI больше не требует S: в исходниках workflow; hosted run ещё NOT RUN. SECOND PC и реальные CPU/CUDA/latency остаются отдельными OPEN.
 
 ### БЛОК 4 — НЕЗАВИСИМАЯ ПРОВЕРКА (ТОЛЬКО КООРДИНАТОР)
 
