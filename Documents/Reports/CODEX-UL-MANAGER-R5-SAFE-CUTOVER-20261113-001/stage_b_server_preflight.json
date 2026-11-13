@@ -1,0 +1,73 @@
+{
+  "invocation": "Invoke-Command -ComputerName 192.168.0.77 -Authentication Negotiate <stage_b_server_preflight.ps1>",
+  "script_sha256": "90a08894ca56c54c64cf902e933ef6d62a44ec64951d21f7e28de991b33da126",
+  "exit_code": 0,
+  "seconds": 3.112,
+  "stdout": "{\"host\":\"DESKTOP-KT4G5SM\",\"sampled_utc\":\"2026-11-13T19:10:45.6584109Z\",\"phase\":\"B read-only preflight\",\"writes\":false,\"execution\":{\"identity_sid\":\"S-1-5-21-1031822914-1346256643-981559187-1001\",\"authentication\":\"NTLM\",\"identity_name\":\"DESKTOP-KT4G5SM\\\\silver\",\"is_admin\":true},\"task\":{\"config_path\":\"C:\\\\ProgramData\\\\UltraLLM\\\\Manager\\\\private\\\\manager.json\",\"working_directory\":\"C:\\\\Server\\\\Ultra_LLM\\\\Manager_Live\",\"log_dir\":\"C:\\\\ProgramData\\\\UltraLLM\\\\Manager\\\\logs\",\"state\":\"Running\",\"multiple_instances\":\"IgnoreNew\",\"xml_sha256\":\"b797430c62f7ef5c2e7bbdfa64283ae8739b83ede3a5fa0d9b8740e67f7b6884\",\"name\":\"UltraLLM_Manager_LIVE\",\"principal_sid\":\"S-1-5-21-1031822914-1346256643-981559187-1001\",\"logon_type\":\"S4U\",\"script\":\"C:\\\\Server\\\\Ultra_LLM\\\\Manager_Live\\\\live_manager.py\",\"restart_count\":10,\"executable\":\"C:\\\\Users\\\\silver\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe\",\"restart_interval\":\"PT1M\",\"run_level\":\"Limited\"},\"manager\":{\"pid\":209432,\"parent_pid\":1788,\"exe\":\"C:\\\\Users\\\\silver\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe\",\"created_utc\":\"2026-11-11T15:01:00.2472210Z\",\"owner_sid\":\"S-1-5-21-1031822914-1346256643-981559187-1001\",\"name\":\"python.exe\"},\"manager_listener\":{\"port\":8443,\"pid\":209432,\"address\":\"192.168.0.77\"},\"error\":{\"message\":\"Protected process identity ambiguous or absent\",\"id\":\"Protected process identity ambiguous or absent\",\"type\":\"System.Management.Automation.RuntimeException\"},\"checks\":{\"admin_backup_authority\":true,\"task_running_single_action\":true,\"task_arguments_known_contract\":true,\"runtime_path_expected_no_links\":true,\"config_path_expected_no_links\":true,\"python_exists_no_links\":true,\"control_disabled\":true,\"private_paths_local\":true,\"one_manager_listener\":true,\"manager_identity_action_match\":true,\"one_qwen_loopback_listener\":true,\"one_qwen_engine\":true,\"one_valheim_process\":false},\"failed_checks\":[\"one_valheim_process\"],\"status\":\"BLOCKED\"}\r\n",
+  "stderr": "",
+  "result": {
+    "host": "DESKTOP-KT4G5SM",
+    "sampled_utc": "2026-11-13T19:10:45.6584109Z",
+    "phase": "B read-only preflight",
+    "writes": false,
+    "execution": {
+      "identity_sid": "S-1-5-21-1031822914-1346256643-981559187-1001",
+      "authentication": "NTLM",
+      "identity_name": "DESKTOP-KT4G5SM\\silver",
+      "is_admin": true
+    },
+    "task": {
+      "config_path": "C:\\ProgramData\\UltraLLM\\Manager\\private\\manager.json",
+      "working_directory": "C:\\Server\\Ultra_LLM\\Manager_Live",
+      "log_dir": "C:\\ProgramData\\UltraLLM\\Manager\\logs",
+      "state": "Running",
+      "multiple_instances": "IgnoreNew",
+      "xml_sha256": "b797430c62f7ef5c2e7bbdfa64283ae8739b83ede3a5fa0d9b8740e67f7b6884",
+      "name": "UltraLLM_Manager_LIVE",
+      "principal_sid": "S-1-5-21-1031822914-1346256643-981559187-1001",
+      "logon_type": "S4U",
+      "script": "C:\\Server\\Ultra_LLM\\Manager_Live\\live_manager.py",
+      "restart_count": 10,
+      "executable": "C:\\Users\\silver\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "restart_interval": "PT1M",
+      "run_level": "Limited"
+    },
+    "manager": {
+      "pid": 209432,
+      "parent_pid": 1788,
+      "exe": "C:\\Users\\silver\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "created_utc": "2026-11-11T15:01:00.2472210Z",
+      "owner_sid": "S-1-5-21-1031822914-1346256643-981559187-1001",
+      "name": "python.exe"
+    },
+    "manager_listener": {
+      "port": 8443,
+      "pid": 209432,
+      "address": "192.168.0.77"
+    },
+    "error": {
+      "message": "Protected process identity ambiguous or absent",
+      "id": "Protected process identity ambiguous or absent",
+      "type": "System.Management.Automation.RuntimeException"
+    },
+    "checks": {
+      "admin_backup_authority": true,
+      "task_running_single_action": true,
+      "task_arguments_known_contract": true,
+      "runtime_path_expected_no_links": true,
+      "config_path_expected_no_links": true,
+      "python_exists_no_links": true,
+      "control_disabled": true,
+      "private_paths_local": true,
+      "one_manager_listener": true,
+      "manager_identity_action_match": true,
+      "one_qwen_loopback_listener": true,
+      "one_qwen_engine": true,
+      "one_valheim_process": false
+    },
+    "failed_checks": [
+      "one_valheim_process"
+    ],
+    "status": "BLOCKED"
+  }
+}

@@ -47,6 +47,8 @@ Codex работает **на компьютере владельца**, поэ�
 **AMENDMENT / OWNER GO — ЭТАП B / GATE 1, 13.11.2026 (чат владельца):** разрешены исключительно защищённый preflight, полный protected backup и отдельный staging R5. C/D, остановка/перезапуск служб, изменение config/TLS/auth/firewall/task/grants, переключение runtime и inference запрещены. При неизвестном состоянии процессов или проблеме backup — BLOCKED.
 **CHECKPOINT B — BLOCKED / REVIEW PENDING:** SMB доступен; Desktop Commander не содержит сервер, WinRM ExplicitCredentialsRequired, CIM/DCOM timeout. Свежие PID/task/Qwen/Valheim не подтверждены; server backup/staging NOT RUN. Gate 2 не достигнут. Отчёт: Manager_Ultra_LLM/README.md → этап B; evidence: Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_handoff.json. C/D не выполнялись.
 
+**УТОЧНЕНИЕ OWNER / CHECKPOINT B, 14.11.2026:** WinRM по IP 192.168.0.77 с текущим TrustedHosts/Negotiate подтверждён на DESKTOP-KT4G5SM/silver, настройки не менялись. Manager PID 209432/task/listener подтверждены. Новый preflight остановлен: Valheim не обнаружен (0 процессов/служб/задач по имени), владелец подтвердил «Нет, Valheim должен работать на этом сервере». **B BLOCKED / backup-staging NOT RUN / Gate 2 не достигнут / C-D запрещены**. Evidence: Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_ip_handoff.json; предложения №22 ag_llm/№18 local_LLM подготовлены отдельно, не применены.
+
 # CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001
 
 **Проект:** Ultra LLM / local_LLM  

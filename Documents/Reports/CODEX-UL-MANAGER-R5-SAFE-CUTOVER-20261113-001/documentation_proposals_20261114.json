@@ -1,0 +1,19 @@
+{
+  "status": "PROPOSALS ONLY / NOT APPLIED",
+  "date_owner_timezone": "2026-11-14",
+  "evidence": "stage_b_ip_access.json",
+  "ag_llm_changed": false,
+  "local_llm_18_changed": false,
+  "targets": [
+    {
+      "project": "ag_llm",
+      "document": "№22 (exact filename/path not inspected)",
+      "proposal": "WinRM / workgroup: при TrustedHosts=192.168.0.77 обращаться по этому же IP. 14.11.2026 с DESKTOP-SC96D3U проверены Test-WSMan 192.168.0.77 и Invoke-Command -ComputerName 192.168.0.77 -Authentication Negotiate с существующей авторизацией; удалённая команда подтвердила DESKTOP-KT4G5SM и серверный контекст silver (NTLM). Имя DESKTOP-KT4G5SM автоматически не эквивалентно доверенному IP; прежняя попытка по имени вернула ExplicitCredentialsRequired. Доступность WSMan не заменяет проверку authenticated remote hostname/context. TrustedHosts, firewall, Basic и AllowUnencrypted не изменялись; секреты не извлекались. При повторении сначала читать текущий TrustedHosts, затем проверять адрес и удалённый контекст; не расширять доверие до *."
+    },
+    {
+      "project": "local_LLM",
+      "document": "Documents/18_Техническая_документация.md, existing WinRM access paragraph",
+      "proposal": "Уточнение 14.11.2026: текущее значение TrustedHosts домашнего DESKTOP-SC96D3U — 192.168.0.77. Test-WSMan по IP доступен; Invoke-Command -ComputerName 192.168.0.77 -Authentication Negotiate с существующей авторизацией успешно исполняется именно на DESKTOP-KT4G5SM под silver/NTLM. Прежний stage_b_access_probe обращался по имени, которого нет в TrustedHosts, и его отказ не доказывал недоступность WinRM по доверенному IP. Настройки не менялись. Проверка доступа не является разрешением на server cutover, restart или inference: этапы B/C/D сохраняют свои отдельные OWNER GO и проверки baseline."
+    }
+  ]
+}

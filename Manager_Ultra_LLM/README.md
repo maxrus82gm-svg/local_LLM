@@ -739,3 +739,117 @@ remote agent исполнитель не предпринимает.
 Остановлено до server backup/staging. После устранения препятствия можно
 возобновить только B в уже разрешённых границах с полным preflight; C и D
 остаются запрещёнными до отдельных OWNER GO. Commit/push не выполнены.
+
+
+## CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001 — WinRM по IP / повтор B, 14.11.2026
+
+**ACCESS RESTORED / B BLOCKED: VALHEIM BASELINE MISMATCH / C-D NOT RUN.**
+Исполнение на сервере подтверждено, прежнее препятствие WinRM по имени устранено
+правильным адресованием. Однако Gate 2 не достигнут: ожидаемый владельцем
+работающий Valheim не обнаружен серверными запросами. Backup/staging не начаты.
+
+### DONE / TESTS
+
+На домашнем **DESKTOP-SC96D3U** фактически прочитан
+`WSMan:\localhost\Client\TrustedHosts`: ровно **192.168.0.77**.
+`Test-WSMan -ComputerName 192.168.0.77` — REACHABLE.
+`Invoke-Command -ComputerName 192.168.0.77 -Authentication Negotiate` с существующей
+авторизацией — PASS. Подтверждены удалённые hostname и MachineName
+**DESKTOP-KT4G5SM**, контекст **silver**, аутентификация **NTLM**, Windows
+PowerShell 5.1.19041.6456. PID диагностического remoting-процесса 250388 — это
+**не** PID Manager. Серверный C:\Server\Ultra_LLM\Manager_Live действительно
+существует именно в удалённом контексте. Probe exit 0, 1.016 s.
+
+Предыдущий probe обращался по имени DESKTOP-KT4G5SM, отсутствующему в TrustedHosts.
+Его ExplicitCredentialsRequired не доказывал недоступность WinRM по доверенному
+IP. Это упущение предыдущей диагностики исправлено без изменения настроек.
+Нельзя считать hostname автоматически эквивалентным IP для TrustedHosts.
+
+По сохранённому OWNER GO B выполнен новый **read-only** серверный preflight:
+
+| Наблюдение | Проверенный результат |
+| --- | --- |
+| Remote host/context | DESKTOP-KT4G5SM / silver, administrative read/backup authority |
+| UltraLLM_Manager_LIVE | Running; один Exec action, S4U/Limited, IgnoreNew |
+| Task executable | C:\Users\silver\AppData\Local\Programs\Python\Python312\python.exe |
+| Manager PID / creation UTC | **209432**, **2026-11-11T15:01:00.2472210Z** |
+| Manager listener | ровно один **192.168.0.77:8443**, принадлежит PID 209432 |
+| Process / task identity | executable, SID и аргументы процесса совпадают с task action |
+| Task XML SHA-256, in memory | `b797430c62f7ef5c2e7bbdfa64283ae8739b83ede3a5fa0d9b8740e67f7b6884` |
+| Runtime/config paths | ожидаемые server-local пути, reparse ancestor не найден |
+| Control owner_go | выключен; значения прав не менялись |
+| TLS file paths | проверены как server-local private paths; ключи не экспортировались |
+| Qwen | ровно один loopback listener **127.0.0.1:8000**, один дочерний **qwen36.exe** |
+| Valheim | preflight не обнаружил единственный ожидаемый процесс; безопасная запись/backup ещё не начаты |
+
+Preflight exit 0 / 3.112 s — это выдача JSON со статусом **BLOCKED**, не PASS B.
+После неуспешного Valheim predicate сделано только уточнение read-only для точного
+отчёта, без попытки обхода защитного условия:
+
+- Win32_Process Name LIKE '%valheim%': **0**;
+- Win32_Service Name/DisplayName LIKE '%valheim%': **0**;
+- Scheduled Tasks с Valheim в имени: **0**.
+
+Уточнение подтверждает DESKTOP-KT4G5SM, exit 0 / 1.423 s. Command lines с игровыми
+паролями не читались и не экспортировались. На вопрос о baseline владелец ответил:
+**«Нет, Valheim должен работать на этом сервере»**. Поэтому отсутствие Valheim
+не принимается за согласованное штатное состояние. Причина и возможность запуска
+в контейнере/иной схеме этими запросами не установлены; нельзя выдавать результат
+за полную диагностику/ремонт Valheim или самовольно его запускать.
+
+### CHANGED / DIFF
+
+Добавлены локальные read-only scripts `stage_b_ip_access.ps1`,
+`stage_b_server_preflight.ps1`, новые JSON evidence и данный отчёт в существующий
+README. Оригинальные отчёты A/B и source/evidence сохранены. №07 дополнен новым
+checkpoint после уточнения владельца, исходная TASK и БЛОК 4 не менялись.
+
+Никаких изменений TrustedHosts, firewall, Basic/AllowUnencrypted, credentials,
+Scheduled Task, config/auth/TLS, model grants или runtime. Секреты не извлекались;
+не создавались server-side скрипты, private backup, staging или новый listener.
+Защищённый config прочитан **только на сервере в память** для проверки paths и
+owner_go; raw JSON, токены/hash grants и TLS-ключи не передавались в workspace.
+Task XML вычислен в память для SHA, файл не сохранялся и task не изменялась.
+
+### PRE/POST / BACKUP/ROLLBACK
+
+Новыми являются факты доступа/identity Manager и наличие gateway/engine Qwen.
+Полные Qwen identity SID/health/models, TLS handshake, Python bitness, private
+ACL, свободное место, DB/owned instances и файл-lock checks **не завершены**:
+preflight прекратился на Valheim, следующие команды скрипта не выполнялись.
+Не принимать ненаступившие проверки из текста скрипта за исполненные.
+
+На сервере **0 записей со стороны исполнителя**, никаких service/model
+START/STOP/restart, inference и переключения папок. Серверные backup и staging
+**NOT RUN**, реальный rollback **NOT VERIFIED**. C/D **NOT RUN / NOT AUTHORIZED**.
+Состояние здоровья Qwen и Valheim не объявляется PASS; команды управления ими
+отсутствовали. Старая рабочая установка Manager остаётся без изменений.
+
+### PROBLEMS / QUESTIONS
+
+Доступ восстановлен, актуальный blocker теперь иной: ожидаемый работающий
+Valheim не обнаружен разрешёнными запросами, и владелец подтвердил, что должен
+работать. Требуется независимое выяснение корректного protected baseline
+владельцем/координатором; текущая задача не даёт разрешения исправлять или
+перезапускать Valheim. Дополнительный OWNER GO на тот же B не запрашивается.
+После разрешения этого отклонения и подтверждения baseline продолжить только B
+с новой свежей проверкой, затем protected backup/staging. C/D — отдельно.
+
+### DOC IMPACT / NEXT
+
+В `documentation_proposals_20261114.json` отдельно подготовлены короткие
+проверенные формулировки для **№22 ag_llm** и уточнения **№18 local_LLM**.
+**Это предложения, не применённые изменения.** ag_llm не открывался и не менялся;
+точный путь №22 не проверялся. Сам №18 также оставлен без правок. Предложения
+содержат только доказанный способ IP/Negotiate, проверку удалённого host/context
+и запрет расширять доверие/включать небезопасную аутентификацию. Доступ по WinRM
+не трактуется как разрешение на cutover или LLM inference.
+
+Полные команды/exit codes/timings: `stage_b_ip_access.json`,
+`stage_b_server_preflight.json`, `stage_b_valheim_clarification.json`.
+Ответ владельца/baseline: `stage_b_ip_owner_clarification.json`.
+Итог и SHA материалов: `stage_b_ip_handoff.json`, `stage_b_ip_evidence_manifest.json`.
+
+Остановлено на B до backup/staging, **Gate 2 не достигнут**. Текущий main №49
+`b15d5eabd3ec8325109d9c37b8f81085ab997076` сохранён, это принятый ранее владельцем
+коммит. Новые commit/push/pull, смена ветки и изменения индекса не выполнялись.

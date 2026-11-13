@@ -1,0 +1,42 @@
+{
+  "invocation": [
+    "powershell.exe",
+    "-NoProfile",
+    "-NonInteractive",
+    "-Command",
+    "<verbatim stage_b_ip_access.ps1>"
+  ],
+  "script_sha256": "b10ebb7b447e2562455d21e28b7318dec1e0d9fc28346b0ea6776f93e0f4912e",
+  "exit_code": 0,
+  "seconds": 1.016,
+  "stdout": "{\"task\":\"CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001\",\"sampled_utc\":\"2026-11-13T19:06:11.2476775Z\",\"home_host\":\"DESKTOP-SC96D3U\",\"target_ip\":\"192.168.0.77\",\"settings_changed\":false,\"credentials_supplied_or_retrieved\":false,\"trusted_hosts\":\"192.168.0.77\",\"wsman\":{\"status\":\"REACHABLE\",\"vendor\":\"Microsoft Corporation\",\"protocol_version\":\"http://schemas.dmtf.org/wbem/wsman/1/wsman.xsd\"},\"invoke_ip\":{\"status\":\"PASS\",\"context\":{\"hostname\":\"DESKTOP-KT4G5SM\",\"machine_name\":\"DESKTOP-KT4G5SM\",\"execution_pid\":250388,\"identity_name\":\"DESKTOP-KT4G5SM\\\\silver\",\"identity_sid\":\"S-1-5-21-1031822914-1346256643-981559187-1001\",\"authentication_type\":\"NTLM\",\"is_system\":false,\"powershell_version\":\"5.1.19041.6456\",\"server_local_manager_path_exists\":true}}}\r\n",
+  "stderr": "",
+  "result": {
+    "task": "CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001",
+    "sampled_utc": "2026-11-13T19:06:11.2476775Z",
+    "home_host": "DESKTOP-SC96D3U",
+    "target_ip": "192.168.0.77",
+    "settings_changed": false,
+    "credentials_supplied_or_retrieved": false,
+    "trusted_hosts": "192.168.0.77",
+    "wsman": {
+      "status": "REACHABLE",
+      "vendor": "Microsoft Corporation",
+      "protocol_version": "http://schemas.dmtf.org/wbem/wsman/1/wsman.xsd"
+    },
+    "invoke_ip": {
+      "status": "PASS",
+      "context": {
+        "hostname": "DESKTOP-KT4G5SM",
+        "machine_name": "DESKTOP-KT4G5SM",
+        "execution_pid": 250388,
+        "identity_name": "DESKTOP-KT4G5SM\\silver",
+        "identity_sid": "S-1-5-21-1031822914-1346256643-981559187-1001",
+        "authentication_type": "NTLM",
+        "is_system": false,
+        "powershell_version": "5.1.19041.6456",
+        "server_local_manager_path_exists": true
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/documentation_proposals_20261114.json": "48a5b799b0c2351ab0d9acc5f7ee5a23b01bc5f2f61df88aebdc098b5e54fdad",
+  "Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_ip_access.json": "e22fad2a81759e82192129bd3eeb9cf8ef7a7935a6978f11cd586842c9a9da33",
+  "Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_ip_access.ps1": "b10ebb7b447e2562455d21e28b7318dec1e0d9fc28346b0ea6776f93e0f4912e",
+  "Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_ip_baseline.json": "81f0eefc483c9701a58da8d422467f577ea276713567a98a54fa7e1d02aa93f3",
+  "Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_ip_handoff.json": "378eb273d8e0a5ad41d59df37bda144e71cbe35bb1ba861e86fc857ce3c6463b",
+  "Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_ip_owner_clarification.json": "6d3e635b6727cf21093090e0b2619de5e9542651a672ee1b4d0c140c7741b096",
+  "Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_ip_review.diff": "69c7315b24799c7795cc1d2dc6f3aa7ad2ef6a93468300e72a4fcfb294c0de61",
+  "Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_server_preflight.json": "4a795cf27949cd5a38288b38f559f8c7d375b793ea9af84c385e6f8ec14a6f32",
+  "Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_server_preflight.ps1": "90a08894ca56c54c64cf902e933ef6d62a44ec64951d21f7e28de991b33da126",
+  "Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_valheim_clarification.json": "352cc437cb71fcc7167102e2c0196faaf6f03d596f4917fb1f0c710512572223"
+}

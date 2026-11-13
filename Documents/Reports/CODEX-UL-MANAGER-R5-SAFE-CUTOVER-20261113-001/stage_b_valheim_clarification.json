@@ -1,0 +1,16 @@
+{
+  "purpose": "Clarify failed protected-process predicate, read only; no backup/staging actions",
+  "exit_code": 0,
+  "seconds": 1.423,
+  "stdout": "{\"host\":\"DESKTOP-KT4G5SM\",\"sampled_utc\":\"2026-11-13T19:11:44.9289018Z\",\"valheim_process_count\":0,\"processes\":[],\"services\":[],\"tasks\":[],\"writes\":false}\r\n",
+  "stderr": "",
+  "result": {
+    "host": "DESKTOP-KT4G5SM",
+    "sampled_utc": "2026-11-13T19:11:44.9289018Z",
+    "valheim_process_count": 0,
+    "processes": [],
+    "services": [],
+    "tasks": [],
+    "writes": false
+  }
+}

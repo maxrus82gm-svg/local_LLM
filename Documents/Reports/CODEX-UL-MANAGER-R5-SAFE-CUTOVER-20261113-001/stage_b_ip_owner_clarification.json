@@ -1,0 +1,10 @@
+{
+  "date_owner_timezone": "2026-11-14",
+  "started_head": "b15d5eabd3ec8325109d9c37b8f81085ab997076",
+  "original_task_sha256": "18bf6bc5511fe04ae08deda35f687be2e40a478d5001760233d9a198f53720be",
+  "readme_before_bytes": 83323,
+  "readme_before_sha256": "138918c07630714968206ea455bdd9ce684c9efc246a59cd6b295072bc33adf9",
+  "owner_valheim_clarification": "Нет, Valheim должен работать на этом сервере",
+  "owner_valheim_question": "На DESKTOP-KT4G5SM сейчас не обнаружены процессы, службы и Scheduled Tasks с именем Valheim. Это ожидаемое состояние?",
+  "valheim_expected_running": true
+}
