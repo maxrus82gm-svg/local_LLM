@@ -2,7 +2,7 @@ name: Ultra LLM offline source QA
 
 on:
   push:
-    branches: [GPT, main]
+    branches: [GPT_2_local, main]
   pull_request:
     branches: [main]
   workflow_dispatch:
