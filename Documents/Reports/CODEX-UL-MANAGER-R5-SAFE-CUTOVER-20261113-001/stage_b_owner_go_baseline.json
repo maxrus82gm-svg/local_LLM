@@ -1,0 +1,24 @@
+{
+  "task": "CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001",
+  "stage": "B ONLY",
+  "owner_go_source": "Direct user message in this chat, 13.11.2026",
+  "permission": "Protected server preflight, full protected backup and isolated R5 staging only",
+  "explicitly_not_authorized": [
+    "stage C",
+    "stage D",
+    "Manager stop/restart",
+    "Colibri/Qwen/Valheim or other service changes",
+    "live config/TLS/auth/firewall/task/grant changes",
+    "runtime directory switch",
+    "LLM inference"
+  ],
+  "observed_utc": "2026-11-13T18:25:54.412504+00:00",
+  "starting_head": "b8ab83b9a11f8c8b6c6a187a1e90813d597283b6",
+  "starting_git_number": "48",
+  "previous_stage_a_evidence_unchanged": true,
+  "previous_stage_a_artifact_count": 19,
+  "report_before_sha256": "97d512cb20b096fea1a708b31e62e41e39270eb53f42db86c0d064ca0f65dae9",
+  "report_before_bytes": 74060,
+  "original_task_sha256": "18bf6bc5511fe04ae08deda35f687be2e40a478d5001760233d9a198f53720be",
+  "block4_sha256": "6047fc9118dbf396b25097d4ffb6a1397def27e302a992181dc6a8c0e2f89a6c"
+}

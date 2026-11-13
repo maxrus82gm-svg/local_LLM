@@ -1,0 +1,13 @@
+{
+  "command": [
+    "powershell.exe",
+    "-NoProfile",
+    "-NonInteractive",
+    "-File",
+    "M:\\GitHub\\local_LLM\\Documents\\Reports\\CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001\\stage_b_access_probe.ps1"
+  ],
+  "exit_code": 1,
+  "seconds": 0.643,
+  "stdout": "",
+  "stderr": "File M:\\GitHub\\local_LLM\\Documents\\Reports\\CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001\\stage_b_access_probe.ps1 canno\r\nt be loaded because running scripts is disabled on this system. For more information, see about_Execution_Policies at h\r\nttps:/go.microsoft.com/fwlink/?LinkID=135170.\r\n    + CategoryInfo          : SecurityError: (:) [], ParentContainsErrorRecordException\r\n    + FullyQualifiedErrorId : UnauthorizedAccess\r\n"
+}

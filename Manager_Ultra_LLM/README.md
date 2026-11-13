@@ -619,3 +619,123 @@ NEXT: независимая приёмка A и этого evidence. B/C/D не
 только после адресного OWNER GO соответствующего этапа. На Gate 1 остановлено.
 Commit/push/pull и изменения веток не выполнялись; текущая TASK до приёмки
 остаётся локальным diff. Номер/SHA нового коммита N/A, HEAD по-прежнему №47.
+
+
+## CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001 — этап B / Gate 1, 13.11.2026
+
+**RESULT: B BLOCKED / BACKUP NOT RUN / STAGING NOT RUN / C-D NOT RUN.**
+OWNER GO на B получен прямо в чате. Разрешение C/D не получено. Gate 2 ещё не
+достигнут: обязательный серверный preflight не завершён. Работоспособность
+процессов не предполагается по историческим PID или доступности SMB.
+
+### DONE
+
+На домашнем DESKTOP-SC96D3U заново сверены действующая TASK, границы B, отчёт A,
+preflight plan и предыдущие evidence. Локальная main теперь №48
+`b8ab83b9a11f8c8b6c6a187a1e90813d597283b6`, GPT_2_local — №47 `d51b22f`.
+Это принятый владельцем результат A, не новый коммит исполнителя. Рабочее дерево
+при начале B было чистым. Никаких pull/fetch, смены ветки или commit/push в B.
+
+Проверены существующие способы серверного доступа:
+
+| Проверка | Фактический результат |
+| --- | --- |
+| Desktop Commander inventory | 3 зарегистрированных устройства offline; DESKTOP-KT4G5SM отсутствует |
+| SMB public Manager_Live | Папка доступна через 192.168.0.77; это только файловый доступ, не server execution |
+| WinRM к DESKTOP-KT4G5SM, existing Negotiate credentials | UNAVAILABLE: ExplicitCredentialsRequired / PSSessionStateBroken |
+| CIM/DCOM к 192.168.0.77, existing credentials | UNAVAILABLE: NewCimSession timeout, HRESULT 0x40004 |
+
+WinRM сообщил, что текущие credentials для Negotiate over HTTP без TrustedHosts
+или разрешения implicit credentials не могут использоваться. Эти параметры,
+политики доверия, аутентификация, firewall и учётные данные **не менялись**;
+пароли/сохранённые секреты не читались. CIM session не была установлена.
+
+Транспортный probe исполнялся 8.207 s, общий exit 0 означает только корректную
+выдачу JSON: обе защищённые транспортные проверки внутри него UNAVAILABLE.
+Нельзя трактовать exit 0 как PASS этапа B. По условию OWNER GO о неизвестном
+состоянии процессов дальнейшие серверные действия прекращены.
+
+### CHANGED / DIFF
+
+Добавлены только локальный read-only `stage_b_access_probe.ps1` и безопасные
+JSON evidence в прежнем каталоге этой TASK. В этот существующий README добавлен
+отчёт B, предыдущие отчёты сохранены. №07 дополнен отдельным checkpoint B/OWNER
+GO вне исходного текста TASK; БЛОК 4 не изменён. Manager/Client runtime, ZIP,
+старые backups и stage A evidence не редактировались.
+
+Диагностика использует существующие credentials, без создания remote task,
+запуска вспомогательного процесса на сервере через WMI или изменения каналов
+доступа. На сервер не записывался никакой скрипт, backup или staging. Команды
+C/D, Install/Remove и любые process/model START/STOP не выполнялись.
+
+### TESTS
+
+Точный скрипт и результаты:
+`Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/`:
+
+- `stage_b_access.json`: исходный локальный запуск через Windows PowerShell
+  `-File` завершился exit 1 за 0.643 s: scripts disabled. Серверные команды этого
+  запуска не исполнились. ExecutionPolicy не изменялась.
+- `stage_b_access_retry.json`: те же read-only команды переданы штатным
+  `powershell.exe -NoProfile -NonInteractive -Command <verbatim script>`;
+  exit 0, 8.207 s; внутри WinRM unavailable и CIM timeout.
+- Для дочернего Windows PowerShell исключён унаследованный PSModulePath
+  PowerShell7, без изменения системного/пользовательского окружения.
+- `stage_b_device_inventory.json`: наблюдённый inventory Desktop Commander;
+  server device отсутствует, remote execution не производилось.
+- `stage_b_owner_go_baseline.json`, `stage_b_handoff.json`,
+  `stage_b_evidence_manifest.json`: границы разрешения, целостность и итог.
+- `stage_b_review.diff`: локальный diff для координатора.
+
+A-tests и SHA принятого ZIP не повторялись без необходимости; их предыдущие
+артефакты проверены на неизменность. Локальная финальная проверка удостоверяет
+сохранность runtime, исходной TASK/БЛОКА4/прошлых отчётов и отсутствие Git commit.
+
+### PRE/POST
+
+Свежие PID/creation-time/exe/owner/command line Manager, Scheduled Task XML/action,
+HTTPS listener и TLS/authenticated API — **NOT VERIFIED**. Qwen gateway/engine
+identities и health, Valheim и его принадлежность — **NOT VERIFIED**.
+
+ACL, private config/auth/TLS/control gates/owned instances, Python server runtime,
+место и файловые блокировки — **NOT RUN**. Никакие private файлы или логи не
+читались/не выгружались. Доступность public SMB не доказывает безопасное состояние
+процессов и не даёт права пропустить server-side preflight.
+
+Прямые stop/restart/change-команды к действующему Manager, Qwen/Colibri, Valheim,
+Client и другим службам отсутствовали. Их текущее здоровье не объявляется PASS,
+поскольку подтвердить его не удалось.
+
+### BACKUP/ROLLBACK
+
+Полный серверный backup Manager и неизвестных файлов — **NOT RUN**.
+Protected backup task/config/auth/TLS/SQLite+WAL — **NOT RUN**.
+Серверный staging R5, сверка 21 файла, imports/config/TLS check — **NOT RUN**.
+Готовность реального rollback — **NOT VERIFIED**. Ранее успешный offline rollback
+QA не заменяет эту проверку. Рабочие каталоги не переключались, rollback не
+требовался и не запускался. Никаких private данных в Git/workspace не копировалось.
+
+### PROBLEMS
+
+Обязательная identity/authority проверка сервера невозможна через доступные
+авторизованные каналы. Это BLOCKED этапа B до любых server writes. Новых попыток
+изменить доверие, RPC/WinRM/firewall, подбирать credentials или устанавливать
+remote agent исполнитель не предпринимает.
+
+### QUESTIONS
+
+Дополнительное OWNER GO на уже разрешённый scope B не требуется. Нужен рабочий
+авторизованный канал исполнения именно на DESKTOP-KT4G5SM либо согласованное
+выполнение владельцем preflight на самом сервере с безопасным metadata evidence.
+Перед возобновлением заново сверить свежие identities/доступ; не принимать
+исторические PID/состояния за текущие. Секреты/пароли в чат не передавать.
+
+### DOC IMPACT / NEXT
+
+Координатору зафиксировать B BLOCKED из-за доступа; не отмечать backup/staging
+или Gate 2 ready. Stage A PASS остаётся отдельным ранее выполненным результатом.
+№05/06/09/13/18 и независимый БЛОК 4 исполнитель не менял.
+
+Остановлено до server backup/staging. После устранения препятствия можно
+возобновить только B в уже разрешённых границах с полным preflight; C и D
+остаются запрещёнными до отдельных OWNER GO. Commit/push не выполнены.

@@ -1,0 +1,40 @@
+{
+  "invocation": [
+    "powershell.exe",
+    "-NoProfile",
+    "-NonInteractive",
+    "-Command",
+    "<verbatim stage_b_access_probe.ps1>"
+  ],
+  "script_sha256": "ca67ed8fcf17e410d2a3e0427b4cf3dde90517e9c68c1e119a2f87c9855a2520",
+  "exit_code": 0,
+  "seconds": 8.207,
+  "stdout": "{\"task\":\"CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001\",\"stage\":\"B / Gate 1 access preflight\",\"sampled_utc\":\"2026-11-13T18:23:33.6853057Z\",\"home_host\":\"DESKTOP-SC96D3U\",\"expected_server\":\"DESKTOP-KT4G5SM\",\"remote_writes\":false,\"credentials_supplied\":false,\"network_or_trust_changes\":false,\"smb_public\":{\"accessible\":true,\"path\":\"\\\\\\\\192.168.0.77\\\\Server\\\\Ultra_LLM\\\\Manager_Live\"},\"winrm\":{\"status\":\"UNAVAILABLE\",\"error\":\"Connecting to remote server DESKTOP-KT4G5SM failed with the following error message : The WinRM client cannot process the request.  Default credentials with Negotiate over HTTP can be used only if the target machine is part of the TrustedHosts list or the Allow implicit credentials for Negotiate option is specified. For more information, see the about_Remote_Troubleshooting Help topic.\",\"error_id\":\"ExplicitCredentialsRequired,PSSessionStateBroken\",\"error_type\":\"System.Management.Automation.Remoting.PSRemotingTransportException\"},\"cim_dcom\":{\"status\":\"UNAVAILABLE\",\"error\":\"Прекращено из-за истечения времени ожидания \",\"error_id\":\"HRESULT 0x40004,Microsoft.Management.Infrastructure.CimCmdlets.NewCimSessionCommand\",\"error_type\":\"Microsoft.Management.Infrastructure.CimException\"}}\r\n",
+  "stderr": "",
+  "result": {
+    "task": "CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001",
+    "stage": "B / Gate 1 access preflight",
+    "sampled_utc": "2026-11-13T18:23:33.6853057Z",
+    "home_host": "DESKTOP-SC96D3U",
+    "expected_server": "DESKTOP-KT4G5SM",
+    "remote_writes": false,
+    "credentials_supplied": false,
+    "network_or_trust_changes": false,
+    "smb_public": {
+      "accessible": true,
+      "path": "\\\\192.168.0.77\\Server\\Ultra_LLM\\Manager_Live"
+    },
+    "winrm": {
+      "status": "UNAVAILABLE",
+      "error": "Connecting to remote server DESKTOP-KT4G5SM failed with the following error message : The WinRM client cannot process the request.  Default credentials with Negotiate over HTTP can be used only if the target machine is part of the TrustedHosts list or the Allow implicit credentials for Negotiate option is specified. For more information, see the about_Remote_Troubleshooting Help topic.",
+      "error_id": "ExplicitCredentialsRequired,PSSessionStateBroken",
+      "error_type": "System.Management.Automation.Remoting.PSRemotingTransportException"
+    },
+    "cim_dcom": {
+      "status": "UNAVAILABLE",
+      "error": "Прекращено из-за истечения времени ожидания ",
+      "error_id": "HRESULT 0x40004,Microsoft.Management.Infrastructure.CimCmdlets.NewCimSessionCommand",
+      "error_type": "Microsoft.Management.Infrastructure.CimException"
+    }
+  }
+}

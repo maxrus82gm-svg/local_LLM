@@ -44,6 +44,9 @@ Codex работает **на компьютере владельца**, поэ�
 **CHECKPOINT A — SUBMITTED / REVIEW PENDING, 13.11.2026. PREFLIGHT PREPARED / A TESTS PASS / OWNER GO REQUIRED.**
 Повторный offline QA/ZIP и анализ invalid_messages завершены; B/C/D NOT RUN. Полный отчёт: Manager_Ultra_LLM/README.md → SAFE-CUTOVER / этап A. Evidence: Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/handoff.json. Задача остаётся в БЛОКЕ 1 до последующих адресно разрешённых стадий; checkpoint не означает завершение всей TASK. Commit/push не выполнялись.
 
+**AMENDMENT / OWNER GO — ЭТАП B / GATE 1, 13.11.2026 (чат владельца):** разрешены исключительно защищённый preflight, полный protected backup и отдельный staging R5. C/D, остановка/перезапуск служб, изменение config/TLS/auth/firewall/task/grants, переключение runtime и inference запрещены. При неизвестном состоянии процессов или проблеме backup — BLOCKED.
+**CHECKPOINT B — BLOCKED / REVIEW PENDING:** SMB доступен; Desktop Commander не содержит сервер, WinRM ExplicitCredentialsRequired, CIM/DCOM timeout. Свежие PID/task/Qwen/Valheim не подтверждены; server backup/staging NOT RUN. Gate 2 не достигнут. Отчёт: Manager_Ultra_LLM/README.md → этап B; evidence: Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_handoff.json. C/D не выполнялись.
+
 # CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001
 
 **Проект:** Ultra LLM / local_LLM  

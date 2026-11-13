@@ -1,0 +1,23 @@
+{
+  "tool": "mcp__codex_apps__remote_desktop_commander_list_devices",
+  "result_observed_in_this_turn": true,
+  "server_device_present": false,
+  "devices": [
+    {
+      "name": "DESKTOP-SC96D3U",
+      "id": "68ddc5ae-542c-4519-ae55-e12c75d7bbb8",
+      "status": "Offline"
+    },
+    {
+      "name": "DESKTOP-43PAEBO",
+      "id": "accac727-0c4a-4421-bb3a-857104b95350",
+      "status": "Offline"
+    },
+    {
+      "name": "DESKTOP-C4S32CO",
+      "id": "e5c3b77e-6fcf-4571-814a-c6cbcbb10319",
+      "status": "Offline"
+    }
+  ],
+  "remote_execution_calls": 0
+}
