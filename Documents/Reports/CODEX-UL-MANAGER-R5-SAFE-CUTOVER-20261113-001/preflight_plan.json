@@ -1,0 +1,89 @@
+{
+  "task": "CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001",
+  "status": "PREPARED ONLY; NOT RUN",
+  "stage_b_c_d_execution_allowed": false,
+  "gate_1": "Separate OWNER GO for B protected process/task/config metadata, protected full backup and server staging",
+  "gate_2": "Independent A/B acceptance and separate OWNER GO specifically Manager-only switch + rollback",
+  "gate_3": "Separate OWNER GO for existing Qwen ordinary/stream/reasoning/cancel/history 0/5/10; model START/STOP excluded",
+  "host_expected": "DESKTOP-KT4G5SM",
+  "manager_root_historical": "C:\\Server\\Ultra_LLM\\Manager_Live",
+  "manager_task_historical": "UltraLLM_Manager_LIVE",
+  "ports_historical": {
+    "manager_https": 8443,
+    "qwen_loopback": 8000
+  },
+  "release_sha256": "ba4ebf65af7a0693cf4dce045eb08254434a4475fd4f79e031424c905d661ce2",
+  "procedure_authority": "Manager_Ultra_LLM/README.md: original R5 preflight/switch/rollback plan; no replacement deployment procedure",
+  "observations": {
+    "hostname": null,
+    "sampled_utc": null,
+    "manager_pid_creation_exe_owner": null,
+    "single_expected_listener": null,
+    "task_action_hash": null,
+    "task_settings_hash": null,
+    "qwen_gateway_engine_identity_health": null,
+    "valheim_identity": null,
+    "protected_processes_outside_manager_tree": null,
+    "python_312_x64": null,
+    "space_and_acl": null,
+    "owner_go_and_control_grants_summary": null,
+    "owned_instances_empty": null,
+    "complete_code_backup_hash_acl_readback": null,
+    "protected_config_auth_tls_backup_verified": null,
+    "sqlite_consistent_backup_wal_verified_or_absent": null,
+    "staging_21_hashes": null,
+    "staging_import_config_tls_checks": null,
+    "rollback_restore_authority_confirmed": null
+  },
+  "nonexecuted_command_templates": [
+    {
+      "where": "SERVER after gate 1 only",
+      "command": "Get-ScheduledTask -TaskName 'UltraLLM_Manager_LIVE'",
+      "output": "protected server evidence; export only redacted metadata/hash"
+    },
+    {
+      "where": "SERVER after gate 1 only",
+      "command": "Get-NetTCPConnection -LocalPort 8443 -State Listen",
+      "output": "exactly one expected listener or BLOCKED; do not guess PID"
+    },
+    {
+      "where": "SERVER after gate 1 only",
+      "command": "Get-CimInstance Win32_Process -Filter \"ProcessId=<fresh confirmed Manager PID>\"",
+      "output": "identity/creation/parent/owner and checked action; sanitize command line before report"
+    },
+    {
+      "where": "SERVER after gate 1 only",
+      "command": "<existing PythonExe> -B <new staging>\\live_manager.py --config <existing protected config> --check-config",
+      "output": "no --log-dir; check-config validates presence/config, TLS handshake separately; no listener/model start"
+    },
+    {
+      "where": "SERVER after gate 2 only",
+      "command": "Stop-ScheduledTask -TaskName 'UltraLLM_Manager_LIVE'",
+      "output": "verified Manager only; deadline 30 s; listener freed, no automatic respawn, Qwen/Valheim unchanged"
+    },
+    {
+      "where": "SERVER after gate 2 only",
+      "command": "Start-ScheduledTask -TaskName 'UltraLLM_Manager_LIVE'",
+      "output": "same task config/action; fresh identity, HTTPS/TLS/authenticated GET checks; no inference"
+    }
+  ],
+  "backup_requirements": [
+    "Full old Manager directory including unknown files; preserve ACL/owner and readback hashes",
+    "Task XML/config/auth/TLS/private state backup stays protected on server, never Git/LAN-readable staging",
+    "SQLite backup API or proven consistent stopped DB+WAL snapshot; copying DB alone is not sufficient",
+    "No restoration over live owned instances; never adopt/stop Colibri1 or Qwen by name"
+  ],
+  "cutover_constraints": [
+    "If protected Qwen/Valheim processes belong to Manager task/process tree or ownership is unknown: BLOCKED before stop",
+    "Existing task only: no Install/Remove, no task settings/firewall/TLS/grant changes",
+    "Two same-volume directory renames are NOT one atomic transaction; second failure restores first immediately",
+    "Retain old and failed directories; no recursive deletion or broad process kill",
+    "Uncertain PID/TLS/auth/health, changed protected identity/config/task, deadline or any unknown required observation triggers existing rollback gate"
+  ],
+  "privacy_safe_invalid_messages_future_diagnostics": [
+    "Only after separate authorization: locally derive message count, per-message/total character counts, role sequence, extra-key names, serialized UTF8 bytes, negotiated Manager limits and error name",
+    "Do not log text/reasoning/token/payload/full SQLite/private configuration",
+    "Never use history=0 as a deletion/migration operation; installed Client is not patched in A"
+  ],
+  "live_checks_performed": []
+}

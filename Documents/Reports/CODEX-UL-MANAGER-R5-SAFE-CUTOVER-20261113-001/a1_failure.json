@@ -1,0 +1,13 @@
+{
+  "command": [
+    "powershell.exe",
+    "-NoProfile",
+    "-NonInteractive",
+    "-Command",
+    "(Get-FileHash -Algorithm SHA256 -LiteralPath 'M:\\GitHub\\local_LLM\\Releases\\Manager\\CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001\\UltraLLM_Manager_R5_compat_Win64.zip').Hash"
+  ],
+  "exit_code": 1,
+  "seconds": 0.379,
+  "stdout": "",
+  "stderr": "Get-FileHash : The term 'Get-FileHash' is not recognized as the name of a cmdlet, function, script file, or operable pr\r\nogram. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.\r\nAt line:1 char:2\r\n+ (Get-FileHash -Algorithm SHA256 -LiteralPath 'M:\\GitHub\\local_LLM\\Rel ...\r\n+  ~~~~~~~~~~~~\r\n    + CategoryInfo          : ObjectNotFound: (Get-FileHash:String) [], CommandNotFoundException\r\n    + FullyQualifiedErrorId : CommandNotFoundException\r\n \r\n"
+}

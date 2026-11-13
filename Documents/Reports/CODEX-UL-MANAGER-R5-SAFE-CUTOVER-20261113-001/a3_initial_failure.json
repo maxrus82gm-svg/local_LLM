@@ -1,0 +1,8 @@
+{
+  "exit_code": 1,
+  "scope": "Synthetic diagnostic expectation, not runtime or ZIP failure",
+  "case": "large_total / history budget 5 / legacy",
+  "actual": "ACCEPT",
+  "incorrect_expected": "invalid_messages",
+  "explanation": "context_for trims 5-message window to 4 historical rows, below 24000 chars"
+}

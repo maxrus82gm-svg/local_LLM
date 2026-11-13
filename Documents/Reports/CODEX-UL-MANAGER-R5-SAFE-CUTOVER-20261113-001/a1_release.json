@@ -1,0 +1,103 @@
+{
+  "status": "PASS",
+  "zip": "M:\\GitHub\\local_LLM\\Releases\\Manager\\CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001\\UltraLLM_Manager_R5_compat_Win64.zip",
+  "sha256": "ba4ebf65af7a0693cf4dce045eb08254434a4475fd4f79e031424c905d661ce2",
+  "file_count": 21,
+  "manifest_matches": {
+    "RELEASE.json": true,
+    "SHA256SUMS.txt": true,
+    "chat_runtime.py": true,
+    "chat_settings.py": true,
+    "colibri2_runner.py": true,
+    "control_runtime.py": true,
+    "index.html": true,
+    "launch_contract.py": true,
+    "live_manager.py": true,
+    "manager_core.py": true,
+    "manager_release.py": true,
+    "pairing_inbox.py": true,
+    "pairing_server.py": true,
+    "pairing_workflow.py": true,
+    "resource_catalog.py": true,
+    "resource_policy.py": true,
+    "server_preflight.py": true,
+    "server_runner.py": true,
+    "service_core.py": true,
+    "slot_registry.py": true,
+    "windows_process.py": true
+  },
+  "working_source_byte_matches": {
+    "chat_runtime.py": true,
+    "chat_settings.py": true,
+    "colibri2_runner.py": true,
+    "control_runtime.py": true,
+    "index.html": true,
+    "launch_contract.py": true,
+    "live_manager.py": true,
+    "manager_core.py": true,
+    "manager_release.py": true,
+    "pairing_inbox.py": true,
+    "pairing_server.py": true,
+    "pairing_workflow.py": true,
+    "resource_catalog.py": true,
+    "resource_policy.py": true,
+    "server_preflight.py": true,
+    "server_runner.py": true,
+    "service_core.py": true,
+    "slot_registry.py": true,
+    "windows_process.py": true
+  },
+  "accepted_commit_source_matches_after_EOL_normalization": {
+    "chat_runtime.py": true,
+    "chat_settings.py": true,
+    "colibri2_runner.py": true,
+    "control_runtime.py": true,
+    "index.html": true,
+    "launch_contract.py": true,
+    "live_manager.py": true,
+    "manager_core.py": true,
+    "manager_release.py": true,
+    "pairing_inbox.py": true,
+    "pairing_server.py": true,
+    "pairing_workflow.py": true,
+    "resource_catalog.py": true,
+    "resource_policy.py": true,
+    "server_preflight.py": true,
+    "server_runner.py": true,
+    "service_core.py": true,
+    "slot_registry.py": true,
+    "windows_process.py": true
+  },
+  "public_only": "Exact allowlist of code/html + public release metadata/checksums; no config/TLS/SQLite/weights/logs",
+  "stdlib_import_closure": "PASS (existing verifier)",
+  "version": "R5-compat-20261113.1",
+  "commands": [
+    {
+      "command": [
+        "powershell.exe",
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "(Get-FileHash -Algorithm SHA256 -LiteralPath 'M:\\GitHub\\local_LLM\\Releases\\Manager\\CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001\\UltraLLM_Manager_R5_compat_Win64.zip').Hash"
+      ],
+      "exit_code": 0,
+      "seconds": 0.296,
+      "stdout": "BA4EBF65AF7A0693CF4DCE045EB08254434A4475FD4F79E031424C905D661CE2\r\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "C:\\Users\\REX\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "-B",
+        "M:\\GitHub\\local_LLM\\Manager_Ultra_LLM\\manager_release.py",
+        "verify",
+        "M:\\GitHub\\local_LLM\\Releases\\Manager\\CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001\\UltraLLM_Manager_R5_compat_Win64.zip"
+      ],
+      "exit_code": 0,
+      "seconds": 0.283,
+      "stdout": "{\r\n  \"status\": \"VERIFIED\",\r\n  \"release\": {\r\n    \"base_head\": \"71462bde1f245f96180bec351e0f1ea7ecdd8b50\",\r\n    \"configuration\": \"External existing private config/auth/TLS/state; never overwritten\",\r\n    \"control\": \"No model autostart. Missing owner_go/control_models stay disabled\",\r\n    \"files\": {\r\n      \"chat_runtime.py\": \"17d65c18fb213c642e566eb523d58caf1ab242e3a087f2469a44ea2ea2bbebf8\",\r\n      \"chat_settings.py\": \"63886f6ef58d37636da799f9240fb74f06e97dee95edbcace9b70964de769473\",\r\n      \"colibri2_runner.py\": \"43a228abf1634575179c7d73b710f50d7609ff59d627428a07582aaa494b8b09\",\r\n      \"control_runtime.py\": \"0f24c5a411846f407f11f49aac20caf90bd41dfe4aae49c1dd24529a75996b5f\",\r\n      \"index.html\": \"47f32f75e7bed85f8d06f70ae0f2d8498962451178be2ba9d036ed48c1c6d706\",\r\n      \"launch_contract.py\": \"a255c3242435291df3ae10efcd1afe78130c907c8c140a02bcf2dda7daddc86f\",\r\n      \"live_manager.py\": \"7dee682ad4fa5cf692a637d3b3a334b74a67dd5707273f9183a095a58e5a406e\",\r\n      \"manager_core.py\": \"21473cb2babd8719a6223fd609c3e6f7b65b12ebecdd8741dbf0b9d296b42cd4\",\r\n      \"manager_release.py\": \"0e36c6251f56f008d8eae04e67a8675b2078fd96cf36f6272ff1d00a59cf97fe\",\r\n      \"pairing_inbox.py\": \"a963c4dedef64a10109664903010d99057dc777fd26a3ec399a4e44d32543f18\",\r\n      \"pairing_server.py\": \"0e1c390d455a52edba0e9eb538eae01c2e7db1953c7e9f5a9b9e811b5ca60943\",\r\n      \"pairing_workflow.py\": \"51c33d9e7e64554059f7b36c22049d1caff53317c2cb535f09fbd6ed9d8a33aa\",\r\n      \"resource_catalog.py\": \"3bc5e52f13af01c518e376fb450bc695ee6de2422eacd0475e78eb3636c3ab2b\",\r\n      \"resource_policy.py\": \"318f15cc16a776c0e4546ea0ebe47bb93e0e84a4a81238d8e4a736c7f0622782\",\r\n      \"server_preflight.py\": \"36083ae3671ac887efd744f64932e8903e18ba9e1931387c1b1e93820a49c548\",\r\n      \"server_runner.py\": \"983bf6c46f0bf87230ca0b79c4118df366f7d239953a163c5bb43545afe0dbd1\",\r\n      \"service_core.py\": \"7a2840d9eac3f0bd6f3fc97f1b851f755affad61a837367f3a08f1ecbe4319be\",\r\n      \"slot_registry.py\": \"056efcae2d75a9572a279151bef5a38bc0fef89840d337f4794b1e98505f9e3a\",\r\n      \"windows_process.py\": \"aeebedc4bbd3902ef87dc20052cf9399579a879decc97ed0cce1d4569dd0e77d\"\r\n    },\r\n    \"provenance\": \"Local working tree; files pinned by SHA256, NOT an immutable task commit\",\r\n    \"runtime\": \"Windows x64, existing CPython 3.12 x64, stdlib only\",\r\n    \"task\": \"CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001\",\r\n    \"version\": \"R5-compat-20261113.1\"\r\n  }\r\n}\r\n",
+      "stderr": ""
+    }
+  ],
+  "rebuild": "NOT RUN"
+}

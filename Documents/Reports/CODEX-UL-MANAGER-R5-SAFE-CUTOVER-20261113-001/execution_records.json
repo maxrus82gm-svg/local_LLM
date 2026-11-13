@@ -1,0 +1,10 @@
+{
+  "rollback": {
+    "command": "py -3.12 -X utf8 -B Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_a.py rollback",
+    "exit_code": 0,
+    "observed_combined_shell_wall_seconds": 1.6873353,
+    "timing_scope": "Tool measured this invocation followed by read-only evidence/source display in the same shell; rollback alone is bounded by this, not independently timed"
+  },
+  "diagnostics_final": 54.116,
+  "stage_b_c_d": "NOT RUN"
+}

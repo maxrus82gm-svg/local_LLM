@@ -11,14 +11,10 @@
             "id": "b830a0ae8b2d0ac5",
             "type": "leaf",
             "state": {
-              "type": "markdown",
-              "state": {
-                "file": "07_Задачи Codex.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "07_Задачи Codex"
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Граф"
             }
           }
         ]
@@ -187,21 +183,23 @@
   },
   "active": "b830a0ae8b2d0ac5",
   "lastOpenFiles": [
+    "Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/evidence_manifest.json",
+    "Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/handoff.json",
+    "Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/p1_browser.png",
+    "Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/review.diff",
+    "Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/verify_stage_a.py",
+    "Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/execution_records.json",
+    "Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/card_checkpoint.json",
+    "Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/report_preservation.json",
+    "Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/a3_diagnostics_final.json",
+    "Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/a2_rollback.json",
+    "Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/preflight_plan.json",
+    "Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/rollback_observations_template.json",
+    "07_Задачи Codex.md",
     "Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/p1_browser.png",
-    "Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/evidence_manifest.json",
-    "Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/acceptance.json",
-    "Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/review.diff",
-    "Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/release_manifest.json",
-    "Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/verify_handoff.py",
-    "Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/qa_regression.json",
-    "Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/rollback_qa.json",
-    "Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/release.json",
-    "Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/rollback_qa.py",
-    "Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/qa.json",
     "Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_live_overview.png",
     "Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/pre_amendment_01/report.md",
     "Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/report.md",
-    "07_Задачи Codex.md",
     "18_Техническая_документация.md",
     "03_Архитектура.md",
     "Ideas/IDEA-2026-11-11_Client_Gateway_WebAlarm_Ultra.md",

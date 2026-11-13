@@ -1,0 +1,6 @@
+{
+  "task_verbatim_sha256": "18bf6bc5511fe04ae08deda35f687be2e40a478d5001760233d9a198f53720be",
+  "block4_unchanged": true,
+  "task_rotated": false,
+  "reason": "Stage A checkpoint only; full multi-stage task remains active behind gate 1"
+}

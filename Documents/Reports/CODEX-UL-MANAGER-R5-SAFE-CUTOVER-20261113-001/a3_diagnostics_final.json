@@ -1,0 +1,1680 @@
+{
+  "task": "CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001",
+  "status": "PASS",
+  "scope": "Synthetic history, actual Client payload builder, old/R5 validators; no HTTP/inference/private data",
+  "old_source_sha256": "fc69896cc40a64237ff3125299d21d8e4a49ec0b5f0ae6ec64c1d905b9755466",
+  "root": "M:\\GitHub\\local_LLM\\Test\\CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001\\messages_20261113_225432",
+  "validator_cases": [
+    {
+      "case": "message_count_15",
+      "legacy": "ACCEPT",
+      "r5": "ACCEPT",
+      "payload_bytes_utf8": 603,
+      "legacy_http_body_48kib_would_accept_size": true,
+      "metadata": {
+        "messages": 15,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 15,
+        "max_message_content_chars": 1,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      }
+    },
+    {
+      "case": "message_count_16",
+      "legacy": "ACCEPT",
+      "r5": "ACCEPT",
+      "payload_bytes_utf8": 637,
+      "legacy_http_body_48kib_would_accept_size": true,
+      "metadata": {
+        "messages": 16,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "user"
+        ],
+        "content_chars": 16,
+        "max_message_content_chars": 1,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      }
+    },
+    {
+      "case": "message_count_17",
+      "legacy": "invalid_messages",
+      "r5": "ACCEPT",
+      "payload_bytes_utf8": 676,
+      "legacy_http_body_48kib_would_accept_size": true,
+      "metadata": {
+        "messages": 17,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 17,
+        "max_message_content_chars": 1,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      }
+    },
+    {
+      "case": "message_count_127",
+      "legacy": "invalid_messages",
+      "r5": "ACCEPT",
+      "payload_bytes_utf8": 4691,
+      "legacy_http_body_48kib_would_accept_size": true,
+      "metadata": {
+        "messages": 127,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 127,
+        "max_message_content_chars": 1,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      }
+    },
+    {
+      "case": "message_count_128",
+      "legacy": "invalid_messages",
+      "r5": "ACCEPT",
+      "payload_bytes_utf8": 4725,
+      "legacy_http_body_48kib_would_accept_size": true,
+      "metadata": {
+        "messages": 128,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "user"
+        ],
+        "content_chars": 128,
+        "max_message_content_chars": 1,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      }
+    },
+    {
+      "case": "message_count_129",
+      "legacy": "invalid_messages",
+      "r5": "invalid_messages",
+      "payload_bytes_utf8": 4764,
+      "legacy_http_body_48kib_would_accept_size": true,
+      "metadata": {
+        "messages": 129,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 129,
+        "max_message_content_chars": 1,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      }
+    },
+    {
+      "case": "single_content_chars_4000",
+      "legacy": "ACCEPT",
+      "r5": "ACCEPT",
+      "payload_bytes_utf8": 4091,
+      "legacy_http_body_48kib_would_accept_size": true,
+      "metadata": {
+        "messages": 1,
+        "role_sequence": [
+          "user"
+        ],
+        "content_chars": 4000,
+        "max_message_content_chars": 4000,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      }
+    },
+    {
+      "case": "single_content_chars_4001",
+      "legacy": "invalid_messages",
+      "r5": "ACCEPT",
+      "payload_bytes_utf8": 4092,
+      "legacy_http_body_48kib_would_accept_size": true,
+      "metadata": {
+        "messages": 1,
+        "role_sequence": [
+          "user"
+        ],
+        "content_chars": 4001,
+        "max_message_content_chars": 4001,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      }
+    },
+    {
+      "case": "single_content_chars_131072",
+      "legacy": "invalid_messages",
+      "r5": "ACCEPT",
+      "payload_bytes_utf8": 131163,
+      "legacy_http_body_48kib_would_accept_size": false,
+      "metadata": {
+        "messages": 1,
+        "role_sequence": [
+          "user"
+        ],
+        "content_chars": 131072,
+        "max_message_content_chars": 131072,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      }
+    },
+    {
+      "case": "single_content_chars_131073",
+      "legacy": "invalid_messages",
+      "r5": "invalid_messages",
+      "payload_bytes_utf8": 131164,
+      "legacy_http_body_48kib_would_accept_size": false,
+      "metadata": {
+        "messages": 1,
+        "role_sequence": [
+          "user"
+        ],
+        "content_chars": 131073,
+        "max_message_content_chars": 131073,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      }
+    },
+    {
+      "case": "legacy_total_24000",
+      "legacy": "ACCEPT",
+      "r5": "ACCEPT",
+      "payload_bytes_utf8": 24266,
+      "legacy_http_body_48kib_would_accept_size": true,
+      "metadata": {
+        "messages": 6,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "user"
+        ],
+        "content_chars": 24000,
+        "max_message_content_chars": 4000,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      }
+    },
+    {
+      "case": "legacy_total_24001",
+      "legacy": "invalid_messages",
+      "r5": "ACCEPT",
+      "payload_bytes_utf8": 24338,
+      "legacy_http_body_48kib_would_accept_size": true,
+      "metadata": {
+        "messages": 8,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "user"
+        ],
+        "content_chars": 24001,
+        "max_message_content_chars": 3428,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      }
+    },
+    {
+      "case": "r5_total_240000",
+      "legacy": "invalid_messages",
+      "r5": "ACCEPT",
+      "payload_bytes_utf8": 240129,
+      "legacy_http_body_48kib_would_accept_size": false,
+      "metadata": {
+        "messages": 2,
+        "role_sequence": [
+          "assistant",
+          "user"
+        ],
+        "content_chars": 240000,
+        "max_message_content_chars": 120000,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      }
+    },
+    {
+      "case": "r5_total_240001",
+      "legacy": "invalid_messages",
+      "r5": "invalid_messages",
+      "payload_bytes_utf8": 240130,
+      "legacy_http_body_48kib_would_accept_size": false,
+      "metadata": {
+        "messages": 2,
+        "role_sequence": [
+          "assistant",
+          "user"
+        ],
+        "content_chars": 240001,
+        "max_message_content_chars": 120001,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      }
+    },
+    {
+      "case": "reasoning_key_empty",
+      "legacy": "invalid_messages",
+      "r5": "ACCEPT",
+      "payload_bytes_utf8": 190,
+      "legacy_http_body_48kib_would_accept_size": true,
+      "metadata": {
+        "messages": 3,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 3,
+        "max_message_content_chars": 1,
+        "reasoning_chars": 0,
+        "extra_message_keys": [
+          "reasoning_content"
+        ]
+      }
+    },
+    {
+      "case": "reasoning_key_nonempty",
+      "legacy": "invalid_messages",
+      "r5": "ACCEPT",
+      "payload_bytes_utf8": 193,
+      "legacy_http_body_48kib_would_accept_size": true,
+      "metadata": {
+        "messages": 3,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 3,
+        "max_message_content_chars": 1,
+        "reasoning_chars": 3,
+        "extra_message_keys": [
+          "reasoning_content"
+        ]
+      }
+    },
+    {
+      "case": "reasoning_only_assistant",
+      "legacy": "invalid_messages",
+      "r5": "ACCEPT",
+      "payload_bytes_utf8": 192,
+      "legacy_http_body_48kib_would_accept_size": true,
+      "metadata": {
+        "messages": 3,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 2,
+        "max_message_content_chars": 1,
+        "reasoning_chars": 3,
+        "extra_message_keys": [
+          "reasoning_content"
+        ]
+      }
+    },
+    {
+      "case": "two_consecutive_users",
+      "legacy": "ACCEPT",
+      "r5": "ACCEPT",
+      "payload_bytes_utf8": 126,
+      "legacy_http_body_48kib_would_accept_size": true,
+      "metadata": {
+        "messages": 2,
+        "role_sequence": [
+          "user",
+          "user"
+        ],
+        "content_chars": 2,
+        "max_message_content_chars": 1,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      }
+    },
+    {
+      "case": "system_role",
+      "legacy": "invalid_messages",
+      "r5": "invalid_messages",
+      "payload_bytes_utf8": 128,
+      "legacy_http_body_48kib_would_accept_size": true,
+      "metadata": {
+        "messages": 2,
+        "role_sequence": [
+          "system",
+          "user"
+        ],
+        "content_chars": 2,
+        "max_message_content_chars": 1,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      }
+    },
+    {
+      "case": "last_role_assistant",
+      "legacy": "invalid_messages",
+      "r5": "invalid_messages",
+      "payload_bytes_utf8": 97,
+      "legacy_http_body_48kib_would_accept_size": true,
+      "metadata": {
+        "messages": 1,
+        "role_sequence": [
+          "assistant"
+        ],
+        "content_chars": 1,
+        "max_message_content_chars": 1,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      }
+    },
+    {
+      "case": "empty_user",
+      "legacy": "invalid_messages",
+      "r5": "invalid_messages",
+      "payload_bytes_utf8": 91,
+      "legacy_http_body_48kib_would_accept_size": true,
+      "metadata": {
+        "messages": 1,
+        "role_sequence": [
+          "user"
+        ],
+        "content_chars": 0,
+        "max_message_content_chars": 0,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      }
+    },
+    {
+      "case": "reasoning_on_user",
+      "legacy": "invalid_messages",
+      "r5": "invalid_messages",
+      "payload_bytes_utf8": 120,
+      "legacy_http_body_48kib_would_accept_size": true,
+      "metadata": {
+        "messages": 1,
+        "role_sequence": [
+          "user"
+        ],
+        "content_chars": 1,
+        "max_message_content_chars": 1,
+        "reasoning_chars": 3,
+        "extra_message_keys": [
+          "reasoning_content"
+        ]
+      }
+    },
+    {
+      "case": "extra_top_level_options",
+      "legacy": "invalid_fields",
+      "r5": "ACCEPT",
+      "payload_bytes_utf8": 125,
+      "legacy_http_body_48kib_would_accept_size": true,
+      "metadata": {
+        "messages": 1,
+        "role_sequence": [
+          "user"
+        ],
+        "content_chars": 1,
+        "max_message_content_chars": 1,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      }
+    },
+    {
+      "case": "extra_top_level_instance_id",
+      "legacy": "invalid_fields",
+      "r5": "ACCEPT",
+      "payload_bytes_utf8": 120,
+      "legacy_http_body_48kib_would_accept_size": true,
+      "metadata": {
+        "messages": 1,
+        "role_sequence": [
+          "user"
+        ],
+        "content_chars": 1,
+        "max_message_content_chars": 1,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      }
+    }
+  ],
+  "command": [
+    "C:\\Users\\REX\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+    "-X",
+    "utf8",
+    "-B",
+    "M:\\GitHub\\local_LLM\\Documents\\Reports\\CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001\\diagnose_invalid_messages.py",
+    "--output",
+    "a3_diagnostics_final.json"
+  ],
+  "seconds": 54.116,
+  "exit_code": 0,
+  "http_note": "Direct validators, no HTTP; oversized direct boundary cases could fail body-size validation earlier. All 32 Client reproductions fit legacy 48KiB body limit and use exactly 3 legacy fields.",
+  "client_exchange_cases": [
+    {
+      "case": "long_history",
+      "context_messages_budget": 0,
+      "manager": "legacy",
+      "outcome": "ACCEPT",
+      "sent": {
+        "messages": 1,
+        "role_sequence": [
+          "user"
+        ],
+        "content_chars": 9,
+        "max_message_content_chars": 9,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 34,
+      "rows_after": 36
+    },
+    {
+      "case": "long_history",
+      "context_messages_budget": 0,
+      "manager": "r5",
+      "outcome": "ACCEPT",
+      "sent": {
+        "messages": 1,
+        "role_sequence": [
+          "user"
+        ],
+        "content_chars": 9,
+        "max_message_content_chars": 9,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 34,
+      "rows_after": 36
+    },
+    {
+      "case": "long_history",
+      "context_messages_budget": 5,
+      "manager": "legacy",
+      "outcome": "ACCEPT",
+      "sent": {
+        "messages": 5,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 13,
+        "max_message_content_chars": 9,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 34,
+      "rows_after": 36
+    },
+    {
+      "case": "long_history",
+      "context_messages_budget": 5,
+      "manager": "r5",
+      "outcome": "ACCEPT",
+      "sent": {
+        "messages": 5,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 13,
+        "max_message_content_chars": 9,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 34,
+      "rows_after": 36
+    },
+    {
+      "case": "long_history",
+      "context_messages_budget": 10,
+      "manager": "legacy",
+      "outcome": "ACCEPT",
+      "sent": {
+        "messages": 11,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 19,
+        "max_message_content_chars": 9,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 34,
+      "rows_after": 36
+    },
+    {
+      "case": "long_history",
+      "context_messages_budget": 10,
+      "manager": "r5",
+      "outcome": "ACCEPT",
+      "sent": {
+        "messages": 11,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 19,
+        "max_message_content_chars": 9,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 34,
+      "rows_after": 36
+    },
+    {
+      "case": "long_history",
+      "context_messages_budget": 100,
+      "manager": "legacy",
+      "outcome": "invalid_messages",
+      "sent": {
+        "messages": 35,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 43,
+        "max_message_content_chars": 9,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 34,
+      "rows_after": 34
+    },
+    {
+      "case": "long_history",
+      "context_messages_budget": 100,
+      "manager": "r5",
+      "outcome": "ACCEPT",
+      "sent": {
+        "messages": 35,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 43,
+        "max_message_content_chars": 9,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 34,
+      "rows_after": 36
+    },
+    {
+      "case": "large_old_reply",
+      "context_messages_budget": 0,
+      "manager": "legacy",
+      "outcome": "ACCEPT",
+      "sent": {
+        "messages": 1,
+        "role_sequence": [
+          "user"
+        ],
+        "content_chars": 9,
+        "max_message_content_chars": 9,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 2,
+      "rows_after": 4
+    },
+    {
+      "case": "large_old_reply",
+      "context_messages_budget": 0,
+      "manager": "r5",
+      "outcome": "ACCEPT",
+      "sent": {
+        "messages": 1,
+        "role_sequence": [
+          "user"
+        ],
+        "content_chars": 9,
+        "max_message_content_chars": 9,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 2,
+      "rows_after": 4
+    },
+    {
+      "case": "large_old_reply",
+      "context_messages_budget": 5,
+      "manager": "legacy",
+      "outcome": "invalid_messages",
+      "sent": {
+        "messages": 3,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 8011,
+        "max_message_content_chars": 4001,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 2,
+      "rows_after": 2
+    },
+    {
+      "case": "large_old_reply",
+      "context_messages_budget": 5,
+      "manager": "r5",
+      "outcome": "ACCEPT",
+      "sent": {
+        "messages": 3,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 8011,
+        "max_message_content_chars": 4001,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 2,
+      "rows_after": 4
+    },
+    {
+      "case": "large_old_reply",
+      "context_messages_budget": 10,
+      "manager": "legacy",
+      "outcome": "invalid_messages",
+      "sent": {
+        "messages": 3,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 8011,
+        "max_message_content_chars": 4001,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 2,
+      "rows_after": 2
+    },
+    {
+      "case": "large_old_reply",
+      "context_messages_budget": 10,
+      "manager": "r5",
+      "outcome": "ACCEPT",
+      "sent": {
+        "messages": 3,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 8011,
+        "max_message_content_chars": 4001,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 2,
+      "rows_after": 4
+    },
+    {
+      "case": "large_old_reply",
+      "context_messages_budget": 100,
+      "manager": "legacy",
+      "outcome": "invalid_messages",
+      "sent": {
+        "messages": 3,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 8011,
+        "max_message_content_chars": 4001,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 2,
+      "rows_after": 2
+    },
+    {
+      "case": "large_old_reply",
+      "context_messages_budget": 100,
+      "manager": "r5",
+      "outcome": "ACCEPT",
+      "sent": {
+        "messages": 3,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 8011,
+        "max_message_content_chars": 4001,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 2,
+      "rows_after": 4
+    },
+    {
+      "case": "large_total",
+      "context_messages_budget": 0,
+      "manager": "legacy",
+      "outcome": "ACCEPT",
+      "sent": {
+        "messages": 1,
+        "role_sequence": [
+          "user"
+        ],
+        "content_chars": 9,
+        "max_message_content_chars": 9,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 8,
+      "rows_after": 10
+    },
+    {
+      "case": "large_total",
+      "context_messages_budget": 0,
+      "manager": "r5",
+      "outcome": "ACCEPT",
+      "sent": {
+        "messages": 1,
+        "role_sequence": [
+          "user"
+        ],
+        "content_chars": 9,
+        "max_message_content_chars": 9,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 8,
+      "rows_after": 10
+    },
+    {
+      "case": "large_total",
+      "context_messages_budget": 5,
+      "manager": "legacy",
+      "outcome": "ACCEPT",
+      "sent": {
+        "messages": 5,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 14009,
+        "max_message_content_chars": 3500,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 8,
+      "rows_after": 10
+    },
+    {
+      "case": "large_total",
+      "context_messages_budget": 5,
+      "manager": "r5",
+      "outcome": "ACCEPT",
+      "sent": {
+        "messages": 5,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 14009,
+        "max_message_content_chars": 3500,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 8,
+      "rows_after": 10
+    },
+    {
+      "case": "large_total",
+      "context_messages_budget": 10,
+      "manager": "legacy",
+      "outcome": "invalid_messages",
+      "sent": {
+        "messages": 9,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 28009,
+        "max_message_content_chars": 3500,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 8,
+      "rows_after": 8
+    },
+    {
+      "case": "large_total",
+      "context_messages_budget": 10,
+      "manager": "r5",
+      "outcome": "ACCEPT",
+      "sent": {
+        "messages": 9,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 28009,
+        "max_message_content_chars": 3500,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 8,
+      "rows_after": 10
+    },
+    {
+      "case": "large_total",
+      "context_messages_budget": 100,
+      "manager": "legacy",
+      "outcome": "invalid_messages",
+      "sent": {
+        "messages": 9,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 28009,
+        "max_message_content_chars": 3500,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 8,
+      "rows_after": 8
+    },
+    {
+      "case": "large_total",
+      "context_messages_budget": 100,
+      "manager": "r5",
+      "outcome": "ACCEPT",
+      "sent": {
+        "messages": 9,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 28009,
+        "max_message_content_chars": 3500,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 8,
+      "rows_after": 10
+    },
+    {
+      "case": "reasoning",
+      "context_messages_budget": 0,
+      "manager": "legacy",
+      "outcome": "ACCEPT",
+      "sent": {
+        "messages": 1,
+        "role_sequence": [
+          "user"
+        ],
+        "content_chars": 9,
+        "max_message_content_chars": 9,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 2,
+      "rows_after": 4
+    },
+    {
+      "case": "reasoning",
+      "context_messages_budget": 0,
+      "manager": "r5",
+      "outcome": "ACCEPT",
+      "sent": {
+        "messages": 1,
+        "role_sequence": [
+          "user"
+        ],
+        "content_chars": 9,
+        "max_message_content_chars": 9,
+        "reasoning_chars": 0,
+        "extra_message_keys": []
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 2,
+      "rows_after": 4
+    },
+    {
+      "case": "reasoning",
+      "context_messages_budget": 5,
+      "manager": "legacy",
+      "outcome": "invalid_messages",
+      "sent": {
+        "messages": 3,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 11,
+        "max_message_content_chars": 9,
+        "reasoning_chars": 3,
+        "extra_message_keys": [
+          "reasoning_content"
+        ]
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 2,
+      "rows_after": 2
+    },
+    {
+      "case": "reasoning",
+      "context_messages_budget": 5,
+      "manager": "r5",
+      "outcome": "ACCEPT",
+      "sent": {
+        "messages": 3,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 11,
+        "max_message_content_chars": 9,
+        "reasoning_chars": 3,
+        "extra_message_keys": [
+          "reasoning_content"
+        ]
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 2,
+      "rows_after": 4
+    },
+    {
+      "case": "reasoning",
+      "context_messages_budget": 10,
+      "manager": "legacy",
+      "outcome": "invalid_messages",
+      "sent": {
+        "messages": 3,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 11,
+        "max_message_content_chars": 9,
+        "reasoning_chars": 3,
+        "extra_message_keys": [
+          "reasoning_content"
+        ]
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 2,
+      "rows_after": 2
+    },
+    {
+      "case": "reasoning",
+      "context_messages_budget": 10,
+      "manager": "r5",
+      "outcome": "ACCEPT",
+      "sent": {
+        "messages": 3,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 11,
+        "max_message_content_chars": 9,
+        "reasoning_chars": 3,
+        "extra_message_keys": [
+          "reasoning_content"
+        ]
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 2,
+      "rows_after": 4
+    },
+    {
+      "case": "reasoning",
+      "context_messages_budget": 100,
+      "manager": "legacy",
+      "outcome": "invalid_messages",
+      "sent": {
+        "messages": 3,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 11,
+        "max_message_content_chars": 9,
+        "reasoning_chars": 3,
+        "extra_message_keys": [
+          "reasoning_content"
+        ]
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 2,
+      "rows_after": 2
+    },
+    {
+      "case": "reasoning",
+      "context_messages_budget": 100,
+      "manager": "r5",
+      "outcome": "ACCEPT",
+      "sent": {
+        "messages": 3,
+        "role_sequence": [
+          "user",
+          "assistant",
+          "user"
+        ],
+        "content_chars": 11,
+        "max_message_content_chars": 9,
+        "reasoning_chars": 3,
+        "extra_message_keys": [
+          "reasoning_content"
+        ]
+      },
+      "prior_rows_preserved": true,
+      "rows_before": 2,
+      "rows_after": 4
+    }
+  ],
+  "total_cases": 56,
+  "real_user_root_cause": "NOT PROVEN: private history/failed payload/server were not inspected",
+  "findings": [
+    "Legacy count limit 16 includes current request; default Client history=100 can produce 35 messages from 34-row QA history",
+    "Legacy per-message 4000 and total 24000 differ from R5 defaults 131072/240000/128 messages",
+    "Legacy rejects reasoning_content key, R5 accepts valid assistant reasoning",
+    "History=0 excludes saved messages from request and does not delete them",
+    "Budgets 5/10 help counts but do not guarantee legacy compatibility for long text or reasoning",
+    "Validators enforce role whitelist/last user, not strict alternation; upstream-specific behavior NOT RUN",
+    "R5 still has explicit ceilings: e.g. 129 total messages rejected; no unlimited-history guarantee"
+  ],
+  "installed_client_changed": false,
+  "runtime_fix": "NONE: immutable release retained; diagnosis/recommendations only"
+}

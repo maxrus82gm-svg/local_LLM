@@ -418,3 +418,204 @@ $hostDir = 'C:\Server\Ultra_LLM\Manager_Live'
 **Приёмочное свидетельство:** `Manage-ManagerTask.ps1 Install` → задача Running, S4U, BootTrigger, 1 LAN-listener, firewall remote allowlist `192.168.0.9`. Домашний `live_client.py` вернул ONLINE / exit=0, Qwen3.6 в slot1/8000, slot2/3 not_running. Контролируемый Stop → listener 0, Start → новый PID и listener 1; повторный Client ONLINE. Colibri1 и Valheim остались работающими. Проверка штатного статуса скриптом вернула exit=0. **Перезагрузка Windows и авто-восстановление после искусственного crash НЕ тестировались** (без разрешения сервер не перезагружался).
 
 **Важный долг по безопасности:** `silver` запущен с `RunLevel Limited`, но это всё ещё основная пользовательская учётная запись, а **не выделенный сервисный аккаунт**. Для усиленной эксплуатации рекомендуется отдельная непривилегированная локальная учётная запись с минимальными правами только на Python/Colibri read-only и private TLS key; переход — после отдельной приёмки. Нет автоматического продления TLS (текущий сертификат до 10.03.2027), мониторинг срока действия понадобится до истечения. N:M и персональные ACL поддерживаются на уровне конфигурации, реальный второй Client/Manager ещё не проверен.
+
+
+## CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001 — контрольная точка A, 13.11.2026
+
+**PREFLIGHT PREPARED / A TESTS PASS / OWNER GO REQUIRED.** Выполнен только A на
+DESKTOP-SC96D3U. B/C/D **NOT RUN**, никаких действий на реальном сервере, Client,
+его ярлыке или приватной истории. Это новый повтор тестов исполнителем; итоговый
+независимый verdict остаётся за координатором. Никакого LIVE PASS не объявляется.
+
+### DONE
+
+Заново прочитаны №00/000/05/06/07/09/13, §18.29–18.30, предыдущий README и evidence
+release/QA/baseline/rollback. Ветки main и GPT_2_local совпали на №47
+`d51b22f2c2abcc6411a09400e7046d777261519f` (0/0). При входе уже изменены №07
+(назначение этой TASK) и `.obsidian/workspace.json`; чужие изменения сохранены.
+
+A1: авторитетный ZIP SHA-256 независимо пересчитан Python hashlib и Windows
+PowerShell Get-FileHash, затем выполнен существующий `manager_release.py verify`.
+Ожидаемый и фактический SHA:
+`ba4ebf65af7a0693cf4dce045eb08254434a4475fd4f79e031424c905d661ce2`.
+Все 21 файла совпадают с SHA256SUMS/RELEASE.json/прошлым release_manifest; 19 файлов
+payload побайтово совпадают с рабочими исходниками и по тексту с принятым
+`b484bd67f4ff6506390860efd87731cced328cad` (Git EOL нормализованы при сравнении).
+Версия `R5-compat-20261113.1`, stdlib dependency closure PASS. В пакете только
+разрешённые code/html и публичные метаданные/SHA: private config, bearer/TLS keys,
+SQLite/WAL, история, веса и логи отсутствуют. ZIP не пересобирался и не подменялся.
+
+A2: существующий `run_qa.py` использован без переписывания. Через Python import
+изменён только OUT на namespace этой TASK, поэтому новый уникальный a2_qa.json
+и все Test-каталоги изолированы от прошлых evidence. Manager/Client source
+копировались в Test; TEMP/TMP/LOCALAPPDATA и временный профиль Chrome — там же.
+Это повтор существующих тестов с новым запуском, а не перенос прошлых PASS.
+
+### CHANGED / DIFF
+
+Производственные исходники Manager/Client, установленный Client, ZIP и manifest
+не изменены. В существующий README **добавлен** этот отчёт, старый текст сохранён.
+В №07 добавлена только контрольная точка A вне дословной TASK; все стадии и
+оригинал остаются в БЛОК1, задача не ротируется как целиком завершённая. БЛОК4
+сохранён побайтово. Общие журналы/архивы и Obsidian settings не редактировались.
+
+Новые скрипты/evidence находятся в стандартном каталоге
+`Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/`:
+`stage_a.py`, `diagnose_invalid_messages.py`, baseline/A1/A2/A3 JSON,
+`preflight_plan.json`, `rollback_observations_template.json`, `handoff.json`,
+`evidence_manifest.json`, `review.diff`. Все scratch-файлы только в Test.
+Новая архитектура или новая документационная структура не создавались.
+
+### TESTS
+
+| Проверка | Результат | Exit | Время, s |
+| --- | --- | --- | --- |
+| Manager Python | 310 PASS + 1 SKIP, всего 311 | 0 | 64.000 |
+| Client Python | 49 PASS | 0 | 20.063 |
+| Python / JS syntax | PASS / PASS | 0 / 0 | 0.312 / 0.063 |
+| Chrome legacy | PASS | 0 | 7.906 |
+| Chrome P0 TLS/fake Colibri | PASS | 0 | 10.922 |
+| Chrome P1 slots/fake engines | PASS | 0 | 51.265 |
+| PowerShell entrypoint / Manager suite | PASS, тот же optional SKIP | 0 | 78.532 |
+| Rollback decision / filesystem | 66 cases + 2 scenarios PASS | 0 | ≤1.69, см. оговорку ниже |
+| A3 messages | 24 validator + 32 Client/SQLite cases PASS | 0 | 54.116 |
+
+Для rollback инструмент измерил 1.6873353 s всей shell-команды, включавшей затем
+read-only вывод evidence; отдельный внутренний timer не снимался. Поэтому это
+верхняя граница, а не выдуманная точная длительность rollback. Происхождение
+измерения сохранено в `execution_records.json`.
+
+SKIP — optional реальный Colibri AST audit, без разрешённого fixture. Нативные
+Windows jobs тестируются только на принадлежащих тесту dummy Python, CPU/CUDA
+в Chrome — fake, настоящий inference NOT RUN. Права/owner_go/TLS и config
+preservation входят в повторный Manager suite; миграция старого schema-0 SQLite
+и отсутствие удаления истории дополнительно проверены синтетически в A3.
+
+P0 подтвердил первый DOM до DONE, отдельный reasoning и сохранение. В новом
+**fake** прогоне browser first fragment 1968.1 ms, Manager first-forward delay
+0.304 ms; cold durable SQLite claim 1875.213 ms занимает основную часть. Это
+измеренный локальный QA overhead, не серверная latency/TPS Qwen и не обещание SLA.
+P1 подтвердил три default/pять persistent slots, одинаковые модели в независимых
+CPU/CUDA mock instances, stop-one и reload/history isolation.
+
+Точные команды, stdout/stderr, durations и exit codes — в JSON. Основные команды:
+
+```powershell
+py -3.12 -X utf8 -B Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_a.py check
+py -3.12 -X utf8 -B Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_a.py qa
+py -3.12 -X utf8 -B Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_a.py rollback
+py -3.12 -X utf8 -B Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/diagnose_invalid_messages.py --output a3_diagnostics_final.json
+```
+
+Эти имена evidence уже заняты: повтор требует нового namespace/уникального
+имени, старые отчёты не перезаписывать. Оригинальные run_qa.py/rollback_qa.py
+исполнялись повторно с перенаправленными ROOT/OUT исключительно внутри Test;
+прошлые evidence и публичный baseline backup проверены на сохранность.
+
+### A3 — invalid_messages: доказанное и границы вывода
+
+Старый валидатор загружен только из локального публичного backup с проверенным
+SHA `fc69896cc40a64237ff3125299d21d8e4a49ec0b5f0ae6ec64c1d905b9755466`.
+Новый — из принятого R5. Никаких обращений к живому серверу/личной SQLite.
+
+| Контракт messages | Старый Manager | R5 defaults |
+| --- | --- | --- |
+| Всего сообщений, включая новый user | 1–16 | 1–128 |
+| content одного сообщения | 1–4000 символов | до 131072; пустой content только для assistant с reasoning |
+| Суммарный content + reasoning | content до 24000 | до 240000 |
+| reasoning_content key | отвергается даже пустой | строка; непустая — только для assistant |
+| Роли | user/assistant, последний user | то же; строгая alternation не проверяется |
+| options / instance_id на верхнем уровне | invalid_fields | расширенный контракт |
+
+Client по умолчанию выбирает до 100 старых сообщений/200000 символов и затем
+добавляет новый user. На 34 **синтетических** старых строках запрос содержит
+35 messages: старый валидатор возвращает invalid_messages, R5 принимает.
+При истории 0 отправляется только новый запрос: оба валидатора принимают,
+старые строки сохраняются. Это воспроизводит наблюдаемый владельцем тип сбоя
+без чтения его данных. **Причина конкретного LIVE сбоя остаётся НЕ ДОКАЗАНА**:
+нет разрешённого metadata snapshot отказавшего запроса или текущего процесса
+сервера. Наиболее согласованная гипотеза — лимит старого Manager; есть и другие
+независимо воспроизведённые механизмы ниже.
+
+Длинный старый ответ >4000, сумма >24000 или reasoning_content в истории также
+вызывают старый invalid_messages при ненулевой истории. Лимиты 5/10 уменьшают
+count, но не гарантируют прохождение длинного content/reasoning. Нечётный budget
+5 может выбрать 4 старых сообщения, поскольку context_for удаляет ведущий
+assistant; это ожидаемое поведение, не потеря данных. Роли и пустые/невалидные
+сообщения проверены отдельно. Правила Colibri об alternation без inference
+не проверялись и не выдумывались.
+
+Проверялось фактическое формирование body через chat_exchange → send_chat;
+только manager_open заменён вызовом реального валидатора и fake ответом.
+Все 32 Client кейса помещаются в старый body limit 48 KiB и имеют ровно три
+legacy поля, поэтому отказы не спутаны с invalid_json_body/invalid_fields.
+Для больших прямых boundary-кейсов тестируется именно валидатор; при настоящем
+HTTP body может быть отклонён раньше. Реальный TLS roundtrip старого сервера
+или ответ Qwen здесь не имитируется как LIVE.
+
+Браузер SOURCE при target.streaming=false удаляет generation.options перед
+ordinary запросом. Поэтому отдельные extra-field отказы воспроизведены как
+отличие контрактов, но не объявлены причиной пользовательского invalid_messages.
+
+R5 не даёт безлимитную историю: 129 total messages или превышение его явных
+ceilings всё ещё отклоняются. Пока до обновления сохранён ранее выбранный
+владельцем режим history=0, это workaround формирования запроса, не очистка
+истории. Сам исполнитель пользовательские настройки не менял. После отдельного
+GO на D — проверить history 0/5/10 и метаданные negotiated limits, без публикации
+content/reasoning. Не снимать транспортные ceilings и не обрезать приватные
+данные молча. Исправления/установка Client и замена принятого ZIP не выполнялись.
+
+### PRE/POST / BACKUP/ROLLBACK
+
+В этой контрольной точке состояние работающих Server Manager, Client, Qwen и
+Valheim **NOT RUN**: защищённые процессы/task/TLS/config и история не читались,
+даже публичный SMB не требовался. Исторические PID/ONLINE не выданы за текущие.
+Production Client не запускался/не закрывался, ярлык не читался/не менялся.
+
+Rollback повторён существующим кодом на Test-копии пяти публичных runtime-файлов
+старого Manager; старый backup не изменён. Сценарии failed health/failed second
+rename восстанавливают все hashes/unknown sentinel/private synthetic bytes,
+старые runtime imports exit 0. Это не полноценный production backup и не
+проверенный настоящий service rollback; protected backup остаётся будущим B.
+
+Подготовлены `preflight_plan.json` и шаблон 16 rollback observations (все null).
+Пустой шаблон даёт ROLLBACK_REQUIRED, никакого фиктивного baseline PASS.
+План ссылается на прежнюю процедуру README и НЕ меняет её. Добавлено явное
+preflight требование подтвердить, что Qwen/Valheim не принадлежат task/tree
+Manager; иначе BLOCKED до остановки. Команды в JSON — неисполненные templates.
+
+Gate 1: отдельный GO на B — свежие identity/task/listener/Qwen/Valheim baseline,
+Python/ACL/space/owned instances, полный backup неизвестных файлов и protected
+config/auth/TLS/consistent SQLite+WAL, server staging 21 SHA/import/config/TLS.
+Private backup остаётся на сервере под private ACL, не Git/LAN staging.
+Gate 2: после независимой приёмки A/B отдельный GO на Manager-only switch+rollback,
+без изменения task/firewall/TLS/grants. Два rename не единая транзакция; сохранить
+старую и failed папки. Guard/identity/config/health/deadline unknown → rollback
+или BLOCKED при неподтверждённой authority; никаких broad process kills.
+Gate 3: отдельный GO на реальные Qwen запросы/stream/reasoning/cancel/history.
+Запуск KAT, новых моделей, CPU/CUDA START/STOP в этот этап не входит.
+
+### PROBLEMS / QUESTIONS / DOC IMPACT / NEXT
+
+В evidence сохранены первоначальные ошибки QA-подготовки: Get-FileHash не нашёлся
+из-за унаследованного PSModulePath PowerShell7 в дочернем Windows PowerShell5.1
+(exit 1); очищено только окружение дочернего процесса, после чего независимый
+SHA PASS. ZIP ни разу не расходился. В A3 первоначальное ожидание отказа для
+large_total/history=5 оказалось неверным: фактически выбрано 4 сообщения и
+сумма допустима. Ожидание исправлено; исходный FAIL сохранён. Это не исправление
+производственного кода и не скрытый test failure релиза.
+
+Вопросов для завершения A нет. OWNER GO не предполагается и здесь не запрашивается:
+сначала независимая проверка координатором. Реальная причина пользовательского
+сбоя и серверная готовность требуют соответствующих отдельных разрешений.
+
+DOC IMPACT: координатору зафиксировать свежий Windows+ZIP rerun в №05/09/13 и
+§18.30, анализ invalid_messages и сохранённые gates; №06 менять только при новом
+решении. №07 получил checkpoint A без переписывания TASK/БЛОК4 и без ротации
+незавершённой многоэтапной задачи. Предыдущая архивная проблема из старого отчёта
+уже решена координатором в №47, здесь не повторяется как действующий BLOCKED.
+
+NEXT: независимая приёмка A и этого evidence. B/C/D не начаты; дальнейшая работа
+только после адресного OWNER GO соответствующего этапа. На Gate 1 остановлено.
+Commit/push/pull и изменения веток не выполнялись; текущая TASK до приёмки
+остаётся локальным diff. Номер/SHA нового коммита N/A, HEAD по-прежнему №47.

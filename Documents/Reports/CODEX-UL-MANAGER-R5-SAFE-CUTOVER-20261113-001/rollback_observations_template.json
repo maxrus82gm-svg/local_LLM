@@ -1,0 +1,18 @@
+{
+  "manager_identity_verified": null,
+  "one_manager_listener": null,
+  "tls_verified": null,
+  "authenticated_snapshot": null,
+  "streaming_advertised": null,
+  "catalog_route_ok": null,
+  "client_online": null,
+  "qwen_health_unchanged": null,
+  "qwen_identity_unchanged": null,
+  "valheim_identity_unchanged": null,
+  "config_auth_tls_hashes_unchanged": null,
+  "task_settings_unchanged": null,
+  "no_new_model_process": null,
+  "no_owned_instances": null,
+  "private_backup_verified": null,
+  "deadline_met": null
+}
