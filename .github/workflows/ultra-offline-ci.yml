@@ -14,45 +14,101 @@ jobs:
   source-windows:
     name: Windows Manager + Client + TLS Chrome mock P0/P1
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONUTF8: '1'
+      TEMP: ${{ github.workspace }}\Test\ci\tmp
+      TMP: ${{ github.workspace }}\Test\ci\tmp
+      LOCALAPPDATA: ${{ github.workspace }}\Test\ci\local
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          python-version: '3.12'
-      - uses: actions/setup-node@v4
+          persist-credentials: false
+          sparse-checkout: |
+            .github
+            Manager_Ultra_LLM
+            Client_Ultra_LLM
+            Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
-          node-version: '22'
+          python-version: '3.12.10'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.20.0'
+      - name: Initialize isolated scratch and record tested version
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force Test/ci/results,$env:TEMP,$env:LOCALAPPDATA | Out-Null
+          git rev-parse HEAD
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          (Get-Item 'C:\Program Files\Google\Chrome\Application\chrome.exe').VersionInfo.FileVersion
+          & 'C:\Program Files\Git\usr\bin\openssl.exe' version
+          exit $LASTEXITCODE
       - name: Python syntax and JavaScript syntax
         shell: pwsh
         run: |
           python -c "from pathlib import Path; [compile(p.read_text(encoding='utf-8-sig'), str(p), 'exec') for folder in ('Manager_Ultra_LLM','Client_Ultra_LLM') for p in Path(folder).glob('*.py')]; print('Python syntax PASS')"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --check Client_Ultra_LLM/web_assets/client.js
-      - name: Manager unit tests (self-contained synthetic CLI contract)
-        shell: pwsh
-        run: python -B -m unittest discover -s Manager_Ultra_LLM -p 'test_*.py' -q
-      - name: Client unit tests
-        shell: pwsh
-        run: python -B -m unittest discover -s Client_Ultra_LLM -p 'test_*.py' -q
-      - name: Chrome legacy compatibility
-        shell: pwsh
-        run: node Client_Ultra_LLM/test_browser_control_stream.mjs
-      - name: Chrome streaming P0 SOURCE and fake Colibri
-        shell: pwsh
-        run: node Client_Ultra_LLM/test_browser_stream_source.mjs
-      - name: Chrome multi-instance P1 SOURCE and fake engines
-        shell: pwsh
-        run: node Client_Ultra_LLM/test_browser_slots_source.mjs
-      - name: Document hosted-runner scope
+          exit $LASTEXITCODE
+      - name: Independent failure/error/empty-collection negative controls
+        if: ${{ !cancelled() }}
         shell: pwsh
         run: |
+          python -B Manager_Ultra_LLM/test_gate2_hardening.py --negative-controls --output Test/ci/results/negative-controls.json
+          exit $LASTEXITCODE
+      - name: Manager unit tests (self-contained synthetic CLI contract)
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: |
+          python -B Manager_Ultra_LLM/test_gate2_hardening.py --suite Manager_Ultra_LLM --minimum 330 --output Test/ci/results/manager.json
+          exit $LASTEXITCODE
+      - name: Client unit tests
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: |
+          python -B Manager_Ultra_LLM/test_gate2_hardening.py --suite Client_Ultra_LLM --minimum 49 --output Test/ci/results/client.json
+          exit $LASTEXITCODE
+      - name: Chrome legacy compatibility
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: |
+          node Client_Ultra_LLM/test_browser_control_stream.mjs
+          exit $LASTEXITCODE
+      - name: Chrome streaming P0 SOURCE and fake Colibri
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: |
+          node Client_Ultra_LLM/test_browser_stream_source.mjs
+          exit $LASTEXITCODE
+      - name: Chrome multi-instance P1 SOURCE and fake engines
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: |
+          node Client_Ultra_LLM/test_browser_slots_source.mjs
+          exit $LASTEXITCODE
+      - name: Document exact ZIP and hosted-runner scope
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force Test/ci/results | Out-Null
+          @{status='EXACT ZIP CI NOT RUN'; reason='Authoritative ZIP is not in source checkout; synthetic release tests are not original ZIP evidence'} | ConvertTo-Json | Set-Content Test/ci/results/exact-zip.json
+          "EXACT ZIP CI NOT RUN: no substitution with a generated ZIP." | Out-File -Append $env:GITHUB_STEP_SUMMARY
           "Manager tests use a labelled synthetic CLI contract; installed Colibri source drift audit NOT RUN here." | Out-File -Append $env:GITHUB_STEP_SUMMARY
           "Real Colibri, GPU, installed Client and production LIVE: NOT RUN." | Out-File -Append $env:GITHUB_STEP_SUMMARY
-      - name: Upload browser screenshot
+      - name: Upload safe result summaries and screenshot (no profiles or keys)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: browser-qa
-          path: Client_Ultra_LLM/stream_slots_browser.png
-          if-no-files-found: ignore
+          path: |
+            Test/ci/results/*.json
+            Test/ci/results/*.xml
+            Client_Ultra_LLM/stream_slots_browser.png
+          if-no-files-found: error
           retention-days: 7

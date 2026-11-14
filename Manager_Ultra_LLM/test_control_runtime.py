@@ -320,6 +320,19 @@ class AdmissionTests(unittest.TestCase):
 
 
 class HTTPAuthorizationTests(unittest.TestCase):
+    def test_source_denial_and_revoked_grant_are_distinct_http_failures(self):
+        self.assertEqual(self.req('/v1/control/catalog', token=VIEWER_MARKER)[0], 200)
+        config = json.loads(self.config_file.read_text(encoding='utf-8'))
+        config['allowed_client_ips'] = ['127.0.0.2']
+        self.config_file.write_text(json.dumps(config), encoding='utf-8')
+        code, data = self.req('/v1/control/catalog', token=VIEWER_MARKER)
+        self.assertEqual((code, data['error']), (403, 'source_not_permitted'))
+        config['allowed_client_ips'] = ['127.0.0.1']
+        config['clients'] = [c for c in config['clients'] if c['client_id'] != 'viewer']
+        self.config_file.write_text(json.dumps(config), encoding='utf-8')
+        code, data = self.req('/v1/control/catalog', token=VIEWER_MARKER)
+        self.assertEqual((code, data['error']), (401, 'unauthorized'))
+
     setUp=pairing_qa.PairingProtocolTests.setUp
     req=pairing_qa.PairingProtocolTests.req
     def test_control_unauthorized_and_pairing_admin_is_not_control(self):

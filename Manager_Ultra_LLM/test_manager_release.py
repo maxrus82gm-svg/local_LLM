@@ -13,6 +13,53 @@ from control_runtime import ModelControl, ControlError
 
 
 class ReleaseTests(unittest.TestCase):
+    def rewrite_consistent(self, suffix):
+        """Adversarial fixture: hashes agree, so dependency validation is exercised."""
+        payload = release.read_package(self.archive)
+        payload['live_manager.py'] += suffix.encode()
+        meta = json.loads(payload['RELEASE.json'])
+        meta['files'] = {name: release.sha(payload[name]) for name in release.RUNTIME}
+        payload['RELEASE.json'] = release.canonical(meta)
+        payload['SHA256SUMS.txt'] = ''.join(
+            f'{release.sha(payload[name])}  {name}\n'
+            for name in sorted((*release.RUNTIME, 'RELEASE.json'))).encode('ascii')
+        return payload
+
+    def test_missing_member_and_same_count_replacement_are_refused(self):
+        for replacement in (None, '../escape', '..\\escape', 'manager.json'):
+            payload = release.read_package(self.archive)
+            removed = payload.pop('index.html')
+            if replacement is not None:
+                payload[replacement] = removed
+            target = self.root / ('stage-' + str(len(list(self.root.iterdir()))))
+            bad = self.root / (target.name + '.zip')
+            with zipfile.ZipFile(bad, 'w') as archive:
+                for name, data in payload.items():
+                    archive.writestr(name, data)
+            with self.subTest(replacement=replacement), self.assertRaisesRegex(ValueError, 'Unsafe archive members'):
+                release.stage(bad, target)
+            self.assertFalse(target.exists())
+            self.assertFalse((self.root / 'escape').exists())
+
+    def test_metadata_and_checksum_only_tampering_are_refused(self):
+        for name in ('RELEASE.json', 'SHA256SUMS.txt'):
+            payload = release.read_package(self.archive)
+            payload[name] += b'changed'
+            # Specific decoding/checksum rejection; unrelated exceptions must fail.
+            with self.subTest(name=name), self.assertRaises((ValueError, json.JSONDecodeError)):
+                release.validate(payload)
+
+    def test_consistent_manifest_does_not_hide_missing_static_dependency(self):
+        payload = self.rewrite_consistent('\ndef lazy():\n    import qa_unavailable_dependency\n')
+        with self.assertRaisesRegex(ValueError, 'Unpackaged/non-stdlib dependency'):
+            release.validate(payload)
+
+    def test_consistent_manifest_must_not_hide_missing_dynamic_dependency(self):
+        # Acceptance requirement: currently exposes a production validator gap.
+        payload = self.rewrite_consistent("\ndef lazy():\n    return __import__('qa_unavailable_dependency')\n")
+        with self.assertRaisesRegex(ValueError, 'Unpackaged/non-stdlib dependency'):
+            release.validate(payload)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

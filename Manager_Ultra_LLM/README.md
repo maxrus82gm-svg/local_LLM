@@ -1023,3 +1023,209 @@ rename после выхода Manager, гонка restart и настоящий
 не тестировались — это C, не гарантия из копирования. C/D, inference, cancel,
 CPU/CUDA START/STOP и KAT не выполняются автоматически. Backup и staged/failed
 материалы не удалять. Вся многоэтапная TASK пока остаётся активной в БЛОКЕ 1.
+
+
+## CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001 — авторский handoff, 14.11.2026
+
+**RESULT: PARTIAL / AUTHOR TESTED / INDEPENDENT REVIEW PENDING / RELEASE HOLD.**
+Прямой активатор владельца запустил TASK после документного AWAITING OWNER START.
+Это исключительно тесты/CI. Production Manager/Client, Production/Client,
+сервер/WinRM/SMB/backup/staging, Qwen/Colibri/Valheim и C/D не использовались.
+Никакого INDEPENDENT PASS или LIVE PASS автор себе не выдаёт.
+
+### DONE — baseline и границы
+
+Прочитана полная TASK БЛОКА1, относящиеся №00/000 §§3–5.1 TEST-FULL-CYCLE-01,
+№05/07/07.00/09/13/18 §§18.30–18.32, workflow и существующие tests/evidence A/B.
+Исходный main и GPT_2_local: №53
+`12aa17c7462f3a5b492a65481d549c5ad0ad65ce`. Исполнение на DESKTOP-SC96D3U.
+При входе чужое изменение только `Documents/.obsidian/workspace.json`; оно не
+редактировалось и в предлагаемый diff не входит. Branch/ref/index не менялись.
+
+Предыдущий hosted run 43572399891 на №52 — только baseline 311 Manager/49 Client
+и fake Chrome. **Новый CI WINDOWS NOT RUN**: изменения ещё не опубликованы,
+отдельного согласования commit/push нет. Старый run не является результатом этой
+TASK. Локальные результаты относятся к №53 + working diff, закреплённому SHA
+тестового файла и списками проверенных исходников в evidence, не к новому commit.
+
+### Матрица изменение → риск → старый тест → пробел → дополнительный оракул
+
+| Изменение/риск | Уже покрыто / переиспользовано | Пробел / добавленная проверка | Результат автора |
+| --- | --- | --- | --- |
+| ZIP allowlist, чужие/private entries, traversal | Старые release tests: лишний 22-й entry, symlink, junction, tamper, isolated imports | 21 entry с заменой разрешённого имени на private/traversal, отсутствующий member; проверяется отсутствие stage/escape | PASS |
+| Manifest/SHA/dependency closure | Старый tamper был rejected по SHA | Согласованный manifest с новой статической lazy dependency, metadata/checksum-only tamper; build не используется вместо проверки original ZIP | PASS |
+| Динамическая недоступная dependency | AST проверяет Import/ImportFrom | Согласованный synthetic payload с __import__('qa_unavailable_dependency') должен быть RED | **FAIL F2**, текущий validator принимает |
+| PID/creation/exe/SID, Qwen/Valheim, Task XML | В B реальные snapshots, существующий rollback boolean evaluator | Синтетические изменения каждого identity-поля/процесса, отсутствующий protected role, task/config/TLS/grant drift; точные AssertionError/KeyError + отсутствие ready artifact | PASS |
+| Listener и непротиворечивость snapshot | B live probe проверяет listener; offline completion доверяет coarse flags | Изменён только listener PID при прежнем manager/checks; приёмка должна отвергнуть | **FAIL F1a** |
+| Тип guard/check и HTTP error | B coarse status/flags, live source gate различает 401/403 | Строка 'false' не boolean; 403 с произвольной причиной не разрешён | **FAIL F1b/F1c** |
+| Backup TLS/auth/config bytes | B helper копирует/readback; old corruption менял длину | Равная длина, изменённые bytes, отсутствующий файл; manifest/inventory/hash — независимый файловый оракул | PASS |
+| Restore failure / partial transaction | B failed-health/second-rename rehearsal | Известный OSError в записи TLS synthetic file, копия неполна, verify отвергает, source bytes неизменны | PASS |
+| Foreign/stale evidence | B recorded hashes/Git, без новых LIVE действий | Подмена привязанного public evidence record и stale git head отвергаются; full re-signed private backup не выдаётся за проверенный | PASS / F3 GAP |
+| ACL | Готовый acl_equivalent и его 8 негативных проверок переиспользованы | Перестановка Allow ACE — PASS, добавленный SID/права/owner/Deny — RED | PASS |
+| HTTP/auth | Существующие 401/control_models/owner_go/cancel tests | Один реальный loopback HTTP сценарий: token 200 → IP denial 403 source_not_permitted → grant revoked 401 unauthorized | PASS |
+| Пустой/сломанный runner, exit 0/exception | Старый bare unittest мог вернуть 0 на пустой набор | Minimum 330/49, typed FAIL/ERROR/collection controls, JSON + полный JUnit, запрет маскировать expectedFailure | PASS |
+| Windows workflow | Существующий source/mock job | Тот же workflow, pinned actions/runtime, credential persistence OFF, ограниченные artifacts, независимые diagnostic steps | LOCAL STATIC PASS / HOSTED NOT RUN |
+
+Новые тесты вызывают **готовые** Python-функции Gate2 checker/backup helper, но
+ROOT/OUT направлены на Test, Git — на детерминированный fake. Ни один remote
+ScriptBlock, host prepare entry point, настоящий профиль или серверный путь не
+выполняется. Fixtures содержат явно SYNTHETIC PID/SID/paths/data. Оракулы основаны
+на bytes/metadata/error/status и наличии файлов, а не на тексте «PASS» в stdout.
+
+### CHANGED / DIFF — только разрешённые 5 файлов
+
+1. `Manager_Ultra_LLM/test_manager_release.py`: четыре недостающих release tests,
+   включая настоящий RED на dynamic dependency. Production manager_release.py
+   не изменён; требование не ослаблено ради зелёного результата.
+2. `Manager_Ultra_LLM/test_control_runtime.py`: source-denial vs revoked-grant HTTP.
+3. **Единственный новый test_*.py**: `Manager_Ultra_LLM/test_gate2_hardening.py`:
+   14 unit methods, synthetic snapshots/ACL/backup/restore и CI runner/controls.
+4. Существующий `.github/workflows/ultra-offline-ci.yml`; второй workflow не создан.
+5. Авторский append в этот существующий README; предыдущие отчёты сохранены.
+
+Новые permanent Reports/Markdown не создавались. Детальные временные evidence
+только в игнорируемом `Test/CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001`.
+№07/БЛОК4, архивы, №05/06/09/13/18 не менялись: конкретный write-scope разрешает
+только tests/workflow/README. Ротация/документный closeout — координатору, не
+самовольная правка карточки поверх назначенной TASK.
+
+### TESTS — ожидаемые RED отдельно от настоящих FAIL
+
+Финальный Manager: **330 total = 325 PASS, 4 FAIL, 0 ERROR, 1 SKIP**, exit **1**,
+49.911 s. Все 311 baseline cases сохраняются; добавлено 19 test methods.
+SKIP — optional installed Colibri AST fixture, не отсутствие нового теста.
+**Не** expectedFailure/skip: все четыре регрессионных требования остаются RED
+в обычной discovery и блокируют будущий CI. Финальный JUnit содержит все 330
+case entries, включая pass/skip, и корректные failures/errors/skipped поля.
+
+Client **49 PASS**, exit 0; Python/JS syntax PASS. P0 SOURCE TLS/fake Colibri
+PASS, P1 SOURCE slots/multi-instance PASS. Client и runtime bytes не изменены,
+поэтому успешные P0/P1 не гонялись заново после чисто test-runner/Manager changes.
+
+Негативные controls: **5 проверок PASS как проверки наблюдаемого результата**:
+один positive exit0; deliberate assertion FAIL exit1; deliberate RuntimeError
+ERROR exit1; empty collection CollectionError exit3; wrong exact ZIP exit1 с
+точной причиной SHA mismatch и без output PASS artifact. Это ожидаемые RED
+контроли, **не** четыре выявленных незакрытых requirement FAIL.
+
+Legacy Chrome: первый запуск **FAIL exit1** (DOM deadline: 2 Manager cards),
+9.233 s; повтор **без изменения исходников** PASS exit0, 6.810 s, console errors0.
+Первый FAIL сохранён и не стёрт. F4 — нестабильность/недостаточная диагностика
+first-load readiness, причина **HYPOTHESIS**, не доказанный production UI defect.
+Тест Client вне write-scope не исправлялся; автоматический retry в workflow
+не добавлялся, чтобы не прятать реальный FAIL.
+
+Первые source tests: Manager329/4FAIL/1SKIP, Client49, controls, exact ZIP,
+syntax, P0/P1 и первый legacy FAIL сохранены в author-first.json. Далее улучшена
+полнота JUnit/provenance; full suites повторены, добавлен физический restore
+fault test и выполнен финальный полный Manager330. Исходные failed logs сохранены.
+Статический checker workflow первоначально ошибочно ожидал 10 run blocks вместо
+9: отдельная ошибка ожидания checker сохранена, к продукту/hosted run не отнесена.
+
+### Воспроизведение и пути evidence
+
+Из workspace, с **новыми уникальными output именами** (повтор поверх evidence
+запрещён, runner проверяет FileExists):
+
+```powershell
+py -3.12 -X utf8 -B Manager_Ultra_LLM/test_gate2_hardening.py --suite Manager_Ultra_LLM --minimum 330 --output Test/CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001/review-new/manager.json
+py -3.12 -X utf8 -B Manager_Ultra_LLM/test_gate2_hardening.py --suite Client_Ultra_LLM --minimum 49 --output Test/CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001/review-new/client.json
+py -3.12 -X utf8 -B Manager_Ultra_LLM/test_gate2_hardening.py --negative-controls --output Test/CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001/review-new/controls.json
+```
+
+Все TEMP/TMP/LOCALAPPDATA и новые fixtures — Test, новые suites проходят в
+source COPY. Chrome запускать в такой Test-копии, а не рабочем Client/Production.
+Точные команды/cwd, exit codes, timings/stdout/stderr и SHA inputs сохранены:
+
+- `Test/CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001/baseline.json`;
+- `author-first.json`, `author-final.json`, `manager-final330.json`;
+- `manager-first.stderr.log`, `manager-final.stderr.log` и полные связанные stdout;
+- `legacy-rerun.json`, `workflow-static-checks.json`;
+- `summary.json`, `review.diff`, `evidence-manifest.json` — итоговый локальный handoff.
+
+QA roots берутся из JSON: source_20261114_134948 и отдельный source_final_*;
+в них Test/results/*.json/*.xml. Первые artifacts не заменялись финальными.
+Их нет в предлагаемом Git-коммите по scope/privacy; README содержит сводку,
+а новые CI artifacts появятся только после разрешённой публикации/запуска.
+
+**Оригинальный локальный ZIP проверен чтением**: 21 файл, exact SHA
+`ba4ebf65af7a0693cf4dce045eb08254434a4475fd4f79e031424c905d661ce2`, exit0.
+Rebuild/подмена original ZIP не выполнялись. Synthetic ZIP tests не выдаются за
+оригинал. **EXACT ZIP CI NOT RUN**: оригинального архива нет в sparse source
+checkout, workflow явно записывает NOT RUN, не воссоздаёт его вместо проверки.
+
+### CI / TEST-FULL-CYCLE-01
+
+Один существующий windows-latest job, timeout25m, contents:read,
+persist-credentials:false, sparse checkout разрешённых исходников/готовых safe
+helper scripts, Python **3.12.10**, Node **22.20.0**. Actions закреплены полными
+SHA официальных repos (проверены read-only git ls-remote, без credential helper):
+checkout 11bd71901bbe5b1630ceea73d27597364c9af683;
+setup-python a26af69be951a213d495a4c3e4e4022e16d87065;
+setup-node 49933ea5288caeca8642d1e84afbd3f7d6820020;
+upload-artifact ea165f8d65b6e75b540449e92b4886f43607fa02.
+Chrome/OpenSSL image versions записываются при запуске, неизменность hosted image
+не заявляется. Продуктовые тесты используют loopback/fake, нет secrets/real auth,
+server access/paid API. Setup toolchain не разрешает app выполнять LIVE вызовы.
+
+Native exit codes явно возвращаются из всех run-блоков; независимые diagnostic
+steps выполняются после предыдущего FAIL, но итог job остаётся FAIL. Минимальная
+collection330/49 и typed negative controls не позволяют пустому runner дать PASS.
+Artifacts ограничены только JSON/XML **верхнего уровня results** + fake screenshot;
+не публикуются temp/profiles/cert keys/SQLite/synthetic private folders.
+
+PowerShell AST parse **9/9 run blocks PASS**, refs/permissions/static safety PASS.
+Полная YAML schema/actionlint **NOT RUN**: такого parser/tool здесь не установлено,
+новые зависимости не устанавливались. Текст вручную проверен, новый GitHub run
+и проверка GitHub parser **NOT RUN** до отдельного publish GO. Новый run ID/SHA
+не выдумываются. Нельзя использовать старый run43572399891 вместо этого.
+
+### PROBLEMS / FOLLOWUP — без production-исправлений
+
+- **F1 / CONFIRMED / Gate2 delivery acceptance:** stage_b_complete_readonly.main
+  доверяет all(checks.values()) и status без строгого schema/type/relationship
+  контроля. Synthetic post с прежним manager и чужим listener PID; строка 'false'
+  вместо bool; 403/unrelated_forbidden при coarse PASS — принимаются и создают
+  ready artifact. Нужен отдельный scope на hardened validator и регрессии. Это
+  воспроизведённый дефект acceptance checker, не заявленный сбой live Manager.
+- **F2 / CONFIRMED / release dependency validator:** согласованный synthetic
+  manifest скрывает недоступный constant dynamic __import__. Static AST-only
+  closure его не видит. Literal lazy import отвергается. Нужен отдельный scope
+  на guarded dynamic import policy/validation, без произвольного исполнения
+  недоверенного кода. Текущий original ZIP не содержит внесённой missing module,
+  его SHA/bytes правильны; продуктовая генерация не проверялась.
+- **F3 / COVERAGE GAP / private-backup provenance:** generic verify_snapshot
+  проверяет соответствие данным своего manifest, а independent_verify template
+  не сравнивает private manifest digest с внешним trusted expected value. Новый
+  тест отвергает подмену привязанного public record/stale HEAD, но совместная
+  замена private backup+его manifest не объявлена проверенным RED. Нужен отдельный
+  тест/контракт trusted provenance pin в reviewer; физический сервер не трогать.
+- **F4 / HYPOTHESIS:** legacy Chrome first-load deadline FAIL→PASS при тех же
+  bytes. Нужны диагностика readiness/console/network при первом FAIL и отдельный
+  scope на Client harness; продление timeout/retry без доказательства не сделано.
+
+### QUESTIONS / DOC IMPACT / NEXT
+
+Нужно адресное согласование **публикации этих пяти файлов**: единственный итоговый
+commit в разрешённой GPT_2_local и push. Прямой body TASK §4 требует отдельного
+согласования commit/push; верхняя отметка про исключение GitHub не трактуется как
+безусловное право Codex публиковать код в main. Нового commit/SHA пока **N/A**,
+перед возможной публикацией вновь сверить refs/общий номер; номер не резервируется.
+Push запустит тот же workflow, и четыре незакрытых regression FAIL должны дать
+красный CI. Дополнительный production-fix scope не запрашивается как скрытая часть
+этой TASK; F1/F2/F3 передаются координатору как отдельные FOLLOWUP.
+
+DOC IMPACT: координатору занести TASK/FAIL/FOLLOWUP/статусы в №05/09/13 и технику
+в №18; при необходимости решения №06 и карточка №07. Конкретный write-scope
+этого задания не разрешает самому редактировать эти документы, независимый
+БЛОК4 или архивы. Требование TEST-FULL-CYCLE-01 не отменяется — DOC UPDATE OWNER /
+COORDINATOR PENDING, а не фиктивное выполненное закрытие.
+
+**Раздельные verdicts:** AUTHOR TESTED; TECHNICAL **PARTIAL / FAIL gate**;
+CI WINDOWS **NOT RUN** (новая TASK); REAL APPLICATION **NOT RUN / forbidden**;
+USER UX **NOT REQUIRED** (внутренние тесты/CI, пользовательское поведение не
+изменено); RELEASE **HOLD**; INDEPENDENT REVIEW **PENDING**.
+
+Остановиться для независимой проверки координатором и согласования публикации.
+Никакого server cutover/нового backup/staging, C/D, реального inference/START/STOP,
+изменения Client/ярлыка/истории/секретов. Предыдущие Gate2 материалы не изменены.
