@@ -1,0 +1,7 @@
+{
+  "status": "PASS",
+  "check": "Existing legacy pycache ignored; source executed in isolated -B child without creating cache",
+  "seconds": 0.067,
+  "exit_code": 0,
+  "root": "M:\\GitHub\\local_LLM\\Test\\CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001\\bytecode_guard_20261114_113511"
+}

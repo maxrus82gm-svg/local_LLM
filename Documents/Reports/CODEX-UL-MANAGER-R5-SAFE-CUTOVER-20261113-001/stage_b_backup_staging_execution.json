@@ -1,0 +1,10 @@
+{
+  "invocation": "powershell.exe -NoProfile -NonInteractive -Command - (single block, stage_b_execute.ps1 via stdin; public Copy-Item -ToSession)",
+  "exit_code": 0,
+  "seconds": 0.282,
+  "rendered_driver_sha256": "7e00351fe971396c257f6d65a25f3a219fc7771c7f275b58a1bb0f89128db6d0",
+  "helper_sha256": "4c771dddf75e70209c5a15095e4eab4996c4a41122d645e0b570f2a2f5aedf3b",
+  "stdout": "",
+  "stderr": "",
+  "records": []
+}

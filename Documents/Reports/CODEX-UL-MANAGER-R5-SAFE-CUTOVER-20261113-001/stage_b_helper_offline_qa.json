@@ -1,0 +1,16 @@
+{
+  "status": "PASS",
+  "scope": "Synthetic files under Test only",
+  "root": "M:\\GitHub\\local_LLM\\Test\\CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001\\backup_helper_20261114_011123",
+  "checks": [
+    "complete inventory/bytes/empty directory/SDDL readback",
+    "existing backup refused",
+    "backup corruption refused",
+    "live log captured at copy-time bounded size",
+    "reparse point refused before backup",
+    "home execution host denied before writes"
+  ],
+  "count": 6,
+  "exit_code": 0,
+  "seconds": 0.131
+}

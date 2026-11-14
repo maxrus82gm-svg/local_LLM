@@ -1,0 +1,296 @@
+{
+  "task": "CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001",
+  "stage": "B ONLY",
+  "status": "B PASS / GATE 2 / INDEPENDENT REVIEW PENDING",
+  "completed_utc": "2026-11-14T06:42:01.613239+00:00",
+  "completed_owner_local": "2026-11-14T11:42:01.613239+05:00",
+  "backup_staging": {
+    "status": "BACKUP_STAGING_PREPARED",
+    "maintenance_root": "C:\\ProgramData\\UltraLLM\\Manager_R5_STAGEB_20261114T063715Z_685df77d",
+    "backup_code": "C:\\ProgramData\\UltraLLM\\Manager_R5_STAGEB_20261114T063715Z_685df77d\\backups\\code",
+    "backup_state": "C:\\ProgramData\\UltraLLM\\Manager_R5_STAGEB_20261114T063715Z_685df77d\\backups\\state",
+    "backup_task_xml": "C:\\ProgramData\\UltraLLM\\Manager_R5_STAGEB_20261114T063715Z_685df77d\\backups\\task_original.xml",
+    "private_manifest": "C:\\ProgramData\\UltraLLM\\Manager_R5_STAGEB_20261114T063715Z_685df77d\\backups\\backup_manifest_PRIVATE.json",
+    "private_manifest_sha256": "aae98df0cc3a0bd7514d4d76ede8083c9268001788aab082ddaf86e66326977b",
+    "code_files": 26,
+    "state_files": 4,
+    "code_directories": 6,
+    "state_directories": 3,
+    "sqlite_wal": "NOT PRESENT / N/A",
+    "original_acl_owner_group_dacl_recorded": true,
+    "log_snapshot": "Fixed captured lengths; no global atomic log snapshot claimed",
+    "backup_readback": "PASS",
+    "restored_private_bytes_and_tls_pair": "PASS",
+    "restored_old_runtime_import": "PASS",
+    "staging": "C:\\ProgramData\\UltraLLM\\Manager_R5_STAGEB_20261114T063715Z_685df77d\\staging",
+    "zip_sha256": "ba4ebf65af7a0693cf4dce045eb08254434a4475fd4f79e031424c905d661ce2",
+    "stage_files": 21,
+    "release_version": "R5-compat-20261113.1",
+    "staged_config": "MANAGER_CONFIGURATION_OK",
+    "staged_imports": "R5_IMPORT_OK",
+    "working_code_state_bytes_unchanged": true,
+    "listener_or_model_start": false,
+    "live_rollback": "NOT RUN",
+    "stage_c_d": "NOT RUN"
+  },
+  "post": {
+    "host": "DESKTOP-KT4G5SM",
+    "sampled_utc": "2026-11-14T06:38:41.2354245Z",
+    "phase": "B read-only preflight",
+    "writes": false,
+    "execution": {
+      "identity_sid": "S-1-5-21-1031822914-1346256643-981559187-1001",
+      "authentication": "NTLM",
+      "identity_name": "DESKTOP-KT4G5SM\\silver",
+      "is_admin": true
+    },
+    "task": {
+      "config_path": "C:\\ProgramData\\UltraLLM\\Manager\\private\\manager.json",
+      "working_directory": "C:\\Server\\Ultra_LLM\\Manager_Live",
+      "log_dir": "C:\\ProgramData\\UltraLLM\\Manager\\logs",
+      "state": "Running",
+      "multiple_instances": "IgnoreNew",
+      "xml_sha256": "b797430c62f7ef5c2e7bbdfa64283ae8739b83ede3a5fa0d9b8740e67f7b6884",
+      "name": "UltraLLM_Manager_LIVE",
+      "principal_sid": "S-1-5-21-1031822914-1346256643-981559187-1001",
+      "logon_type": "S4U",
+      "script": "C:\\Server\\Ultra_LLM\\Manager_Live\\live_manager.py",
+      "restart_count": 10,
+      "executable": "C:\\Users\\silver\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "restart_interval": "PT1M",
+      "run_level": "Limited"
+    },
+    "manager": {
+      "pid": 209432,
+      "parent_pid": 1788,
+      "exe": "C:\\Users\\silver\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "created_utc": "2026-11-11T15:01:00.2472210Z",
+      "owner_sid": "S-1-5-21-1031822914-1346256643-981559187-1001",
+      "name": "python.exe"
+    },
+    "manager_listener": {
+      "port": 8443,
+      "pid": 209432,
+      "address": "192.168.0.77"
+    },
+    "qwen_gateway": {
+      "pid": 138268,
+      "parent_pid": 137484,
+      "exe": "C:\\Users\\silver\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "created_utc": "2026-11-08T07:13:36.7596450Z",
+      "owner_sid": "S-1-5-21-1031822914-1346256643-981559187-1001",
+      "name": "python.exe"
+    },
+    "qwen_engine": {
+      "pid": 139516,
+      "parent_pid": 138268,
+      "exe": "C:\\Users\\silver\\AppData\\Local\\colibri\\runtime\\colibri-v2.1.0\\qwen36.exe",
+      "created_utc": "2026-11-08T07:13:36.9946200Z",
+      "owner_sid": "S-1-5-21-1031822914-1346256643-981559187-1001",
+      "name": "qwen36.exe"
+    },
+    "valheim": {
+      "pid": 248800,
+      "parent_pid": 249332,
+      "exe": "C:\\Server\\New_Valhelm\\Valheim dedicated server\\valheim_server.exe",
+      "created_utc": "2026-11-13T19:14:58.4652220Z",
+      "owner_sid": "S-1-5-21-1031822914-1346256643-981559187-1001",
+      "name": "valheim_server.exe"
+    },
+    "valheim_udp": [
+      {
+        "LocalAddress": "::",
+        "LocalPort": 56115,
+        "OwningProcess": 248800
+      },
+      {
+        "LocalAddress": "::",
+        "LocalPort": 2456,
+        "OwningProcess": 248800
+      },
+      {
+        "LocalAddress": "0.0.0.0",
+        "LocalPort": 62202,
+        "OwningProcess": 248800
+      },
+      {
+        "LocalAddress": "0.0.0.0",
+        "LocalPort": 2457,
+        "OwningProcess": 248800
+      }
+    ],
+    "manager_children": [
+      {
+        "ProcessId": 197792,
+        "ParentProcessId": 209432,
+        "Name": "conhost.exe"
+      }
+    ],
+    "manager_descendant_count": 1,
+    "private_acl": {
+      "owner": "BUILTIN\\Администраторы",
+      "rules": [
+        {
+          "sid": "S-1-5-18",
+          "type": "Allow",
+          "rights": "FullControl",
+          "inherited": false
+        },
+        {
+          "sid": "S-1-5-32-544",
+          "type": "Allow",
+          "rights": "FullControl",
+          "inherited": false
+        },
+        {
+          "sid": "S-1-5-21-1031822914-1346256643-981559187-1001",
+          "type": "Allow",
+          "rights": "FullControl",
+          "inherited": false
+        }
+      ],
+      "protected": true
+    },
+    "disk": {
+      "free_bytes": 152757268480,
+      "drive": "C:",
+      "size_bytes": 499505938432
+    },
+    "public_code": [
+      {
+        "name": "chat_runtime.py",
+        "bytes": 4560,
+        "sha256": "fc69896cc40a64237ff3125299d21d8e4a49ec0b5f0ae6ec64c1d905b9755466"
+      },
+      {
+        "name": "live_manager.py",
+        "bytes": 23438,
+        "sha256": "e15ef6ccea34fc4a6d7ba2afc2a4a37d6739d9b48884dcd99d0a9baa4584da51"
+      },
+      {
+        "name": "live_manager.py.before_TASK004",
+        "bytes": 12769,
+        "sha256": "16a30354de8d5b9873eccf1f5d791b340351cd3278a35732eb99bddc925fe449"
+      },
+      {
+        "name": "live_manager.py.before_TASK007",
+        "bytes": 15201,
+        "sha256": "199a74307cd9503111d8ba4e0658f6d6d1883908acd5ee36dd3ba4cc7c2255a6"
+      },
+      {
+        "name": "live_tls_smoke.py",
+        "bytes": 5548,
+        "sha256": "8c6a4cd0ccc80d933cc8ab617f733175ac34422bbcdf20b45bd2a539d4869f17"
+      },
+      {
+        "name": "Manage-ManagerTask.ps1",
+        "bytes": 7213,
+        "sha256": "555008253c15838184eb4e27ac72b406bdfd699fc207347401e049ae8480c125"
+      },
+      {
+        "name": "pairing_inbox.py",
+        "bytes": 6020,
+        "sha256": "a963c4dedef64a10109664903010d99057dc777fd26a3ec399a4e44d32543f18"
+      },
+      {
+        "name": "pairing_server.py",
+        "bytes": 10752,
+        "sha256": "09117e3ecf338708f186e78ac83029a50f504565b060e9a1436ff2b67009cb99"
+      },
+      {
+        "name": "pairing_workflow.py",
+        "bytes": 1867,
+        "sha256": "51c33d9e7e64554059f7b36c22049d1caff53317c2cb535f09fbd6ed9d8a33aa"
+      }
+    ],
+    "python_audit": {
+      "status": "PASS",
+      "metadata": {
+        "python": {
+          "version": "3.12.10",
+          "bits": 64
+        },
+        "config_sha256": "87e91f7a02dc697964356e0e9ca71d28e1b41eb2954b0b0186cd08d1af313d86",
+        "client_count": 1,
+        "control_models_granted_count": 0,
+        "pairing_admin_count": 0,
+        "owner_go": false,
+        "slot_count": 3,
+        "tls_keypair_load": "PASS",
+        "tls_peer_sha256": "6ffd03d256372ca5a96d47719e2d5bb48e58a0d49c377e3ca326b46fe756fef1",
+        "unauth_snapshot_http": 403,
+        "unauth_snapshot_error": "source_not_permitted",
+        "qwen_health": {
+          "status": "ok"
+        },
+        "qwen_models": {
+          "model_ids": [
+            "qwen3.6-35b-a3b-colibri"
+          ]
+        },
+        "state_databases": [],
+        "state_root": "C:\\ProgramData\\UltraLLM\\Manager"
+      }
+    },
+    "checks": {
+      "admin_backup_authority": true,
+      "task_running_single_action": true,
+      "task_arguments_known_contract": true,
+      "runtime_path_expected_no_links": true,
+      "config_path_expected_no_links": true,
+      "python_exists_no_links": true,
+      "control_disabled": true,
+      "private_paths_local": true,
+      "one_manager_listener": true,
+      "manager_identity_action_match": true,
+      "one_qwen_loopback_listener": true,
+      "one_qwen_engine": true,
+      "one_valheim_process": true,
+      "valheim_udp_bound": true,
+      "protected_processes_outside_manager_tree": true,
+      "manager_has_no_model_children": true,
+      "private_acl_protected_scoped": true,
+      "backup_space_available": true,
+      "known_installed_manager_version": true,
+      "python_private_tls_health_audit": true,
+      "python_312_x64": true,
+      "tls_and_access_denial": true,
+      "qwen_ready_expected_model": true,
+      "state_databases_consistent_no_jobs": true
+    },
+    "failed_checks": [],
+    "status": "PREFLIGHT_READONLY_PASS"
+  },
+  "acl": {
+    "new_tree_items": 112,
+    "unsafe_items": 0,
+    "directory_restore_rehearsal": "PASS",
+    "file_restore_rehearsal": "PASS by owner/group/ACE/flags equivalence",
+    "original_sddl_order_only_difference": true,
+    "canonical_all_allow_rules": true,
+    "negative_equivalence_checks": 8,
+    "source_or_backup_acl_changed_to_resolve_difference": false
+  },
+  "limitations": [
+    "Live service rollback, task re-registration and working-directory rename NOT RUN",
+    "Task XML, owner/group/DACL preserved; auditing policy not changed",
+    "Live logs captured at bounded file lengths, not a global atomic log snapshot",
+    "SQLite/WAL absent; no synthetic claim of database backup",
+    "Server-local unauthenticated Manager request returned expected IP-filter 403; authenticated Client roundtrip belongs to C/D",
+    "No real LLM generation, cancel or model-control START/STOP"
+  ],
+  "stage_c": "NOT RUN / SEPARATE OWNER GO REQUIRED",
+  "stage_d": "NOT RUN / SEPARATE OWNER GO REQUIRED",
+  "current_live_manager": "Previous version still running; R5 only staged",
+  "client_shortcut_history_changes": false,
+  "private_data_exported": false,
+  "existing_task_config_tls_auth_network_trust_acl_changes": false,
+  "new_server_writes": "Only new protected maintenance directory and its backup/stage/rehearsal contents",
+  "git": {
+    "head": "35fbd14744b3d2f99788bd021e85e484ddceae1a",
+    "number": "50",
+    "new_commits": 0,
+    "push_pull_fetch": "NOT RUN"
+  },
+  "next": "STOP at Gate 2. Independent coordinator review; do not execute C or D without their separate OWNER GO."
+}

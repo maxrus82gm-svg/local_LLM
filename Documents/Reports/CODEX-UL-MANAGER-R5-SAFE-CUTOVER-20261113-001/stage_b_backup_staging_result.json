@@ -1,0 +1,29 @@
+{
+  "invocation": [
+    "powershell.exe",
+    "-NoProfile",
+    "-NonInteractive",
+    "-Command",
+    "& ([scriptblock]::Create([IO.File]::ReadAllText('M:\\GitHub\\local_LLM\\Test\\CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001\\stage_b_driver\\execute_rendered.ps1')))"
+  ],
+  "exit_code": 2,
+  "seconds": 11.825,
+  "stdout": "{\"phase\":\"NEW_PROTECTED_ROOT\",\"root\":\"C:\\\\ProgramData\\\\UltraLLM\\\\Manager_R5_STAGEB_20261114T063715Z_685df77d\",\"existing_directories_changed\":false}\r\n{\"status\":\"B BLOCKED\",\"maintenance_root\":\"C:\\\\ProgramData\\\\UltraLLM\\\\Manager_R5_STAGEB_20261114T063715Z_685df77d\",\"error_type\":\"System.Management.Automation.RemoteException\",\"error\":\"File ACL restore rehearsal mismatch\",\"partial_directories_retained\":true,\"stage_c_d\":\"NOT RUN\",\"working_directories_switched\":false}\r\n",
+  "stderr": "",
+  "records": [
+    {
+      "phase": "NEW_PROTECTED_ROOT",
+      "root": "C:\\ProgramData\\UltraLLM\\Manager_R5_STAGEB_20261114T063715Z_685df77d",
+      "existing_directories_changed": false
+    },
+    {
+      "status": "B BLOCKED",
+      "maintenance_root": "C:\\ProgramData\\UltraLLM\\Manager_R5_STAGEB_20261114T063715Z_685df77d",
+      "error_type": "System.Management.Automation.RemoteException",
+      "error": "File ACL restore rehearsal mismatch",
+      "partial_directories_retained": true,
+      "stage_c_d": "NOT RUN",
+      "working_directories_switched": false
+    }
+  ]
+}

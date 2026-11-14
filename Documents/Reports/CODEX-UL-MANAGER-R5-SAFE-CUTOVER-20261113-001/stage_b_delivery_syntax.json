@@ -1,0 +1,23 @@
+{
+  "python_files_compiled": 3,
+  "powershell_parse": [
+    {
+      "file": "stage_b_execute.ps1",
+      "errors": 0
+    },
+    {
+      "file": "stage_b_independent_verify.ps1",
+      "errors": 0
+    },
+    {
+      "file": "stage_b_server_preflight_v2.ps1",
+      "errors": 0
+    },
+    {
+      "file": "stage_b_server_preflight_v3.ps1",
+      "errors": 0
+    }
+  ],
+  "exit_code": 0,
+  "server_actions": "NONE"
+}

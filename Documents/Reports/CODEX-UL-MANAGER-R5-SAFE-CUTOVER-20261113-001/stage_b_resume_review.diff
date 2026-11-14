@@ -1,0 +1,1142 @@
+--- a/Manager_Ultra_LLM/README.md
++++ b/Manager_Ultra_LLM/README.md
+@@ -853,3 +853,173 @@
+ Остановлено на B до backup/staging, **Gate 2 не достигнут**. Текущий main №49
+ `b15d5eabd3ec8325109d9c37b8f81085ab997076` сохранён, это принятый ранее владельцем
+ коммит. Новые commit/push/pull, смена ветки и изменения индекса не выполнялись.
++
++
++## CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001 — этап B завершён, Gate 2 (14.11.2026)
++
++**B PASS / BACKUP VERIFIED / R5 STAGING READY / GATE 2 / REVIEW PENDING.**
++Выполнен только разрешённый B. Действующий Manager остаётся прежней версии.
++**C/D, переключение каталогов, stop/restart сервисов и inference НЕ выполнялись.**
++Это отчёт исполнителя; независимый verdict и отдельный OWNER GO C ещё требуются.
++
++### DONE
++
++После уточнения владельца о штатном завершении и ручном повторном запуске Valheim
++сделан свежий server-side preflight через существующий WinRM **192.168.0.77 /
++Negotiate**, на **DESKTOP-KT4G5SM / silver / NTLM**. Доступ/credentials/TrustedHosts
++не перенастраивались. Актуальные процессы зафиксированы до и после B:
++
++| Компонент | PID | Creation UTC | Подтверждение |
++| --- | --- | --- | --- |
++| Manager | 209432 | 2026-11-11T15:01:00.2472210Z | Task Running, один listener 192.168.0.77:8443, exe/SID/args совпадают с action |
++| Colibri gateway | 138268 | 2026-11-08T07:13:36.7596450Z | один loopback listener 127.0.0.1:8000 |
++| Qwen engine | 139516 | 2026-11-08T07:13:36.9946200Z | qwen36.exe, дочерний gateway; health=ok, qwen3.6-35b-a3b-colibri |
++| Valheim | 248800 | 2026-11-13T19:14:58.4652220Z | C:\Server\New_Valhelm\Valheim dedicated server\valheim_server.exe; UDP 2456/2457 |
++
++Qwen и Valheim находятся **вне дерева Manager**. В дереве Manager обнаружен
++обычный conhost.exe, а не модельный job: отсутствие ВСЕХ дочерних процессов не
++требуется и не подменяется отсутствием owned LLM instances. Идентичности,
++включая creation/exe/SID, до/после совпали. Функциональный игровой тест/игроки
++Valheim не проверялись; зафиксированы процесс и UDP endpoints, без вмешательства.
++
++Python сервера 3.12.10 x64, private ACL защищён (silver/SYSTEM/Administrators),
++свободно более 152 GB на C:, installed Manager соответствует прежним SHA.
++owner_go=false, control_models=0, pairing_admin=0, один клиент/три слота.
++SQLite/WAL/owned state DB не обнаружены до/после. TLS keypair загружается,
++существующее HTTPS соединение проверено по сертификату. Серверный запрос без
++авторизации отклонён **403 source_not_permitted** — ожидаемый IP allowlist gate;
++это не выдаётся за проверку bearer-аутентификации/Client roundtrip.
++
++### BACKUP/ROLLBACK — реальные серверные материалы
++
++Создан единственный новый защищённый каталог **на сервере DESKTOP-KT4G5SM**:
++
++`C:\ProgramData\UltraLLM\Manager_R5_STAGEB_20261114T063715Z_685df77d`
++
++Это серверный путь, не домашний C:. Существующие каталоги не переносились и не
++перезаписывались. Внутри:
++
++- `backups\code` — **все 26 файлов / 6 каталогов** прежнего Manager, включая
++  неизвестные/исторические файлы, старые .rollback/.staging и cache; SHA readback PASS.
++- `backups\state` — **все 4 файла / 3 каталога** Manager ProgramData: private
++  config/auth/TLS и журнал. Raw содержимое осталось исключительно на сервере.
++- `backups\task_original.xml` — исходный Scheduled Task XML в UTF-16; parse и
++  readback/canonical UTF-8 SHA проверены, task не перерегистрировался.
++- `backups\backup_manifest_PRIVATE.json` — полный private manifest с SHA и
++  исходными owner/group/DACL SDDL. SHA этого manifest:
++  `aae98df0cc3a0bd7514d4d76ede8083c9268001788aab082ddaf86e66326977b`.
++- `rollback_rehearsal` — **новая** копия backup старого кода/private файлов:
++  все исходные bytes сохранены, old runtime imports и TLS pair load PASS.
++- `rollback_acl_probe` — только новые синтетические объекты для репетиции
++  возврата owner/group/DACL; действующие права не изменялись.
++- `package`, `incoming`, `package_tools` — проверенный публичный ZIP и инструменты.
++- `staging` — **R5-compat-20261113.1, 21/21 файлов**, ещё НЕ рабочий runtime.
++
++Новый root защищён до копирования private данных. Все **112 объектов** нового
++дерева проверены: 0 reparse и 0 посторонних Allow-SID; доступ только silver,
++SYSTEM и Administrators. Исходные ACL сохранены в private manifest, а не
++применены поверх backup с широкими source grants. Для репетиции private ACL
++применён только к новым синтетическим объектам и затем проверен чтением.
++Аудит-политика/SACL не менялась; записаны owner/group/DACL.
++
++Старый runtime импортирован из восстановленной копии в isolated Python с -B и
++отдельным несуществующим pycache_prefix: существующий legacy .pyc не исполнялся,
++новые cache-файлы не создавались. Private bytes и восстановленная cert/key пара
++проверены на сервере, не передавались домой. Новая папка на том же C: volume;
++реальные rename/rollback рабочей установки и restart task **NOT RUN**.
++
++Для работающего журнала сохранена проверенная копия заданной длины на момент
++чтения, допускающая штатное дописывание оригинала. Это не глобальный атомарный
++снимок всех логов. Non-log config/auth/TLS/code должны быть и остались byte-exact.
++SQLite/WAL backup — **N/A: файлов нет**, а не тест условной/synthetic БД. Если БД
++появится при будущем preflight, нужен отдельный consistent SQLite backup, без
++слепого копирования одного DB или восстановления поверх работающих jobs.
++
++### STAGING / TESTS
++
++Использован прежний авторитетный ZIP, без пересборки:
++`ba4ebf65af7a0693cf4dce045eb08254434a4475fd4f79e031424c905d661ce2`.
++Публичные файлы переданы Copy-Item -ToSession через тот же IP/Negotiate канал;
++private параметры/Task XML сформированы на сервере и не возвращались клиенту.
++Helper и ZIP проверены SHA до исполнения. Штатный manager_release.py из этого
++ZIP использован для verify/stage; неизвестные extras и reparse не допускаются.
++
++На staging:
++
++- все 21 файла/manifest/stdlib import closure — PASS;
++- isolated source imports — **R5_IMPORT_OK**;
++- существующий private config, без --log-dir/listener — **MANAGER_CONFIGURATION_OK**;
++- после imports/config-check состав staging всё ещё ровно 21, никаких DB/cache/log;
++- model-control не включался, новый listener/модель не запускались.
++
++Новые проверки помощника на домашнем Test: 6 сценариев PASS (полнота копии,
++неперезапись backup, повреждение, log append, junction refusal, host guard) и
++отдельный 1 PASS на игнорирование подменённого legacy bytecode. Это offline QA,
++не тест LLM. Полные A suites не повторялись без изменения продукта.
++
++Read-only preflight v3 — **24/24 PASS**, exit 0, 4.267 s; post-check — 24/24 PASS.
++Первый локальный stdin driver вернул пустой вывод: это **не** было принято за
++успех; отдельная серверная read-only проверка подтвердила отсутствие новых
++каталогов. Затем тот же сохранённый scriptblock исполнен штатным -Command без
++изменения ExecutionPolicy. Транзакция backup/staging заняла 11.825 s и дошла до
++ошибки собственного точного строкового ACL self-test; последующее read-only
++уточнение/post-check — 4.942 s. Все исходные exit codes/stdout сохранены.
++
++### PROBLEMS — почему промежуточный BLOCKED не скрыт
++
++1. Исходная проверка ожидала только HTTP 401. Существующий source IP filter
++   закономерно возвращает 403 source_not_permitted на локальный server request.
++   Принят только подтверждённый 401/unauthorized либо 403/source_not_permitted;
++   произвольный 403 не маскируется под PASS. TLS и auth/config не менялись.
++2. Directory ACL restore PASS, file self-test сравнивал SDDL как строку. Windows
++   переставила два наследуемых **Allow FullControl** ACE (SYSTEM/Administrators).
++   Owner/group/protected/canonical и все SID/rights/inheritance/propagation
++   совпали; Deny/object ACE отсутствуют. Read-only semantic comparison + 8
++   отрицательных проверок подтвердили эквивалентность. Никакие live/backup права
++   ради PASS не исправлялись. Начальный exit 2 сохранён, prepare не повторялся.
++
++Это исправления оценки собственных проверок, а не ослабление защитных условий
++или ремонт живой системы. Итог B основан на реальных backup/stage readback,
++проверке прав и неизменных post identities/config/task/TLS. В независимую приёмку
++переданы и промежуточные ошибки, и окончательная проверка.
++
++### PRE/POST / CHANGED / DIFF
++
++Task XML canonical SHA **до/после**:
++`b797430c62f7ef5c2e7bbdfa64283ae8739b83ede3a5fa0d9b8740e67f7b6884`.
++Private config SHA:
++`87e91f7a02dc697964356e0e9ca71d28e1b41eb2954b0b0186cd08d1af313d86`.
++TLS peer SHA:
++`6ffd03d256372ca5a96d47719e2d5bb48e58a0d49c377e3ca326b46fe756fef1`.
++Рабочие code/state non-log bytes и права, task action/settings, owner_go/grants,
++сеть/firewall/TrustedHosts не изменялись. Manager/Qwen/Valheim не останавливались
++и не перезапускались. Client/ярлык/его приватная история не открывались.
++
++Изменения на сервере ограничены **новым защищённым maintenance-каталогом**.
++Локально добавлены stage_b_* скрипты/evidence и этот append к существующему README,
++checkpoint в №07 вне оригинальной TASK. БЛОК4 и прежние evidence сохранены.
++Рабочие исходники Manager/Client и прежний ZIP не менялись. Git HEAD main №50
++`35fbd14744b3d2f99788bd021e85e484ddceae1a` сохранён; новых commit/push/pull нет.
++
++### QUESTIONS / DOC IMPACT / NEXT
++
++Технических блокеров B не осталось. **Остановлено на Gate 2.** Требуется
++независимая приёмка координатором, затем отдельный OWNER GO именно на C / Manager-
++only switch + rollback. Новое разрешение не предполагается из команды «продолжай».
++
++Независимый read-only шаблон: `stage_b_independent_verify.ps1` (после B автором
++не исполнялся). Он возвращает только booleans, private данные остаются серверными.
++Основные evidence: `stage_b_completion.json`, `stage_b_backup_staging_result.json`,
++`stage_b_acl_readonly_diagnostic.json`, `stage_b_server_preflight_ready.json`,
++`stage_b_final_handoff.json`, `stage_b_resume_evidence_manifest.json`.
++
++Координатору актуализировать №05/09/13/18 по B, не переносить source/mock PASS
++в реальный streaming PASS. Ранее подготовленные предложения №22 ag_llm и №18
++local_LLM остаются отдельными предложениями; ag_llm и сам №18 здесь не изменялись.
++
++До C заново сверить свежие PID/creation/task/config/TLS, состояние protected
++процессов, backup/staging hashes и возможные новые DB/owned jobs. Доступность
++rename после выхода Manager, гонка restart и настоящий service rollback ещё
++не тестировались — это C, не гарантия из копирования. C/D, inference, cancel,
++CPU/CUDA START/STOP и KAT не выполняются автоматически. Backup и staged/failed
++материалы не удалять. Вся многоэтапная TASK пока остаётся активной в БЛОКЕ 1.
+--- a/Documents/07_Задачи Codex.md
++++ b/Documents/07_Задачи Codex.md
+@@ -48,6 +48,8 @@
+ **CHECKPOINT B — BLOCKED / REVIEW PENDING:** SMB доступен; Desktop Commander не содержит сервер, WinRM ExplicitCredentialsRequired, CIM/DCOM timeout. Свежие PID/task/Qwen/Valheim не подтверждены; server backup/staging NOT RUN. Gate 2 не достигнут. Отчёт: Manager_Ultra_LLM/README.md → этап B; evidence: Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_handoff.json. C/D не выполнялись.
+ 
+ **УТОЧНЕНИЕ OWNER / CHECKPOINT B, 14.11.2026:** WinRM по IP 192.168.0.77 с текущим TrustedHosts/Negotiate подтверждён на DESKTOP-KT4G5SM/silver, настройки не менялись. Manager PID 209432/task/listener подтверждены. Новый preflight остановлен: Valheim не обнаружен (0 процессов/служб/задач по имени), владелец подтвердил «Нет, Valheim должен работать на этом сервере». **B BLOCKED / backup-staging NOT RUN / Gate 2 не достигнут / C-D запрещены**. Evidence: Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_ip_handoff.json; предложения №22 ag_llm/№18 local_LLM подготовлены отдельно, не применены.
++
++**ПРОДОЛЖЕНИЕ OWNER / CHECKPOINT B — 14.11.2026:** владелец уточнил, что прежний Valheim завершался, затем был вручную заново запущен. Свежий preflight подтвердил Valheim PID 248800/UDP2456-2457 и независимость от Manager, Qwen health=ok. **B PASS / BACKUP VERIFIED / R5 STAGING READY / GATE 2 / REVIEW PENDING.** Создан только новый protected серверный каталог C:\ProgramData\UltraLLM\Manager_R5_STAGEB_20261114T063715Z_685df77d: code backup26/state4/task XML, staging21/21, restore readback/import/TLS/ACL PASS. Manager PID209432/Qwen138268+139516/Valheim248800, task/config/TLS неизменны; службы не перезапускались. C/D и inference НЕ ВЫПОЛНЯЛИСЬ, отдельный OWNER GO C ещё нужен. Отчёт: Manager_Ultra_LLM/README.md → этап B завершён/Gate2; evidence: Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_final_handoff.json.
+ 
+ # CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001
+ 
+--- /dev/null
++++ b/Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_complete_readonly.py
+@@ -0,0 +1,96 @@
++"""Conclude B from fresh read-only evidence; no server execution or mutation.
++
++For the observed ACL case, reordering distinct inherited Allow/FullControl ACEs
++does not change access. Deny/noncanonical/owner/group/flag differences fail.
++"""
++from collections import Counter
++from datetime import datetime, timezone, timedelta
++import hashlib
++import json
++from pathlib import Path
++import subprocess
++
++ROOT = Path(__file__).resolve().parents[3]
++OUT = Path(__file__).parent
++
++
++def read(name):
++    return json.loads((OUT / name).read_text(encoding="utf-8"))
++
++
++def acl_equivalent(left, right):
++    fields = ("owner_sid", "group_sid", "protected", "canonical")
++    if any(left[k] != right[k] for k in fields) or not left["canonical"]:
++        return False
++    rows = left["rules"] + right["rules"]
++    if any(r["type"] != "Allow" or r["rights"] != "FullControl" or not r["inherited"]
++           or r["inheritance"] != "None" or r["propagation"] != "None" for r in rows):
++        return False
++    return Counter(json.dumps(r, sort_keys=True) for r in left["rules"]) == Counter(
++        json.dumps(r, sort_keys=True) for r in right["rules"])
++
++
++def main():
++    baseline = read("stage_b_server_preflight_ready.json")["result"]
++    diagnostic = read("stage_b_acl_readonly_diagnostic.json")
++    assert diagnostic["exit_code"] == 0 and len(diagnostic["records"]) == 2
++    acl, post = diagnostic["records"]
++    prepared = acl["summary"]
++    assert prepared["status"] == "BACKUP_STAGING_PREPARED"
++    assert post["status"] == baseline["status"] == "PREFLIGHT_READONLY_PASS"
++    assert all(post["checks"].values()) and len(post["checks"]) == 24
++    assert acl["unsafe_new_tree_items"] == 0 and acl["checked_new_tree_items"] == 112
++    assert acl_equivalent(acl["source_acl"], acl["probe_acl"])
++    for key in ("owner_sid", "group_sid", "protected", "canonical"):
++        bad = json.loads(json.dumps(acl["probe_acl"]))
++        bad[key] = not bad[key] if isinstance(bad[key], bool) else "different"
++        assert not acl_equivalent(acl["source_acl"], bad)
++    for key, value in (("sid", "different"), ("rights", "Read"), ("type", "Deny"), ("inherited", False)):
++        bad = json.loads(json.dumps(acl["probe_acl"]))
++        bad["rules"][0][key] = value
++        assert not acl_equivalent(acl["source_acl"], bad)
++    for role in ("manager", "qwen_gateway", "qwen_engine", "valheim"):
++        assert post[role] == baseline[role], "Protected identity changed"
++    assert post["task"] == baseline["task"]
++    for key in ("config_sha256", "tls_peer_sha256", "owner_go", "client_count",
++                "control_models_granted_count", "pairing_admin_count", "slot_count"):
++        assert post["python_audit"]["metadata"][key] == baseline["python_audit"]["metadata"][key]
++    assert post["public_code"] == baseline["public_code"]
++    assert prepared["stage_files"] == 21
++    assert prepared["zip_sha256"] == "ba4ebf65af7a0693cf4dce045eb08254434a4475fd4f79e031424c905d661ce2"
++    resume = read("stage_b_resume_baseline_20261114.json")
++    assert all(hashlib.sha256((OUT / n).read_bytes()).hexdigest() == h for n, h in resume["previous_files"].items())
++    assert subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT).decode().strip() == resume["head"]
++    result = {"task": OUT.name, "stage": "B ONLY", "status": "B PASS / GATE 2 / INDEPENDENT REVIEW PENDING",
++        "completed_utc": datetime.now(timezone.utc).isoformat(),
++        "completed_owner_local": datetime.now(timezone(timedelta(hours=5))).isoformat(),
++        "backup_staging": prepared, "post": post,
++        "acl": {"new_tree_items": 112, "unsafe_items": 0, "directory_restore_rehearsal": "PASS",
++                "file_restore_rehearsal": "PASS by owner/group/ACE/flags equivalence",
++                "original_sddl_order_only_difference": True,
++                "canonical_all_allow_rules": True, "negative_equivalence_checks": 8,
++                "source_or_backup_acl_changed_to_resolve_difference": False},
++        "limitations": ["Live service rollback, task re-registration and working-directory rename NOT RUN",
++                        "Task XML, owner/group/DACL preserved; auditing policy not changed",
++                        "Live logs captured at bounded file lengths, not a global atomic log snapshot",
++                        "SQLite/WAL absent; no synthetic claim of database backup",
++                        "Server-local unauthenticated Manager request returned expected IP-filter 403; authenticated Client roundtrip belongs to C/D",
++                        "No real LLM generation, cancel or model-control START/STOP"],
++        "stage_c": "NOT RUN / SEPARATE OWNER GO REQUIRED",
++        "stage_d": "NOT RUN / SEPARATE OWNER GO REQUIRED",
++        "current_live_manager": "Previous version still running; R5 only staged",
++        "client_shortcut_history_changes": False, "private_data_exported": False,
++        "existing_task_config_tls_auth_network_trust_acl_changes": False,
++        "new_server_writes": "Only new protected maintenance directory and its backup/stage/rehearsal contents",
++        "git": {"head": resume["head"], "number": "50", "new_commits": 0, "push_pull_fetch": "NOT RUN"},
++        "next": "STOP at Gate 2. Independent coordinator review; do not execute C or D without their separate OWNER GO."}
++    with (OUT / "stage_b_completion.json").open("x", encoding="utf-8") as stream:
++        json.dump(result, stream, ensure_ascii=False, indent=2)
++        stream.write("\n")
++    print(json.dumps({"status": result["status"], "code_backup_files": prepared["code_files"],
++                      "state_backup_files": prepared["state_files"], "stage_files": prepared["stage_files"],
++                      "protected_processes_unchanged": True, "acl_equivalent": True}))
++
++
++if __name__ == "__main__":
++    main()
+--- /dev/null
++++ b/Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_helper_offline_qa.py
+@@ -0,0 +1,82 @@
++"""Backup-helper safety checks on synthetic files, confined to workspace/Test."""
++from datetime import datetime
++import importlib.util
++import json
++import os
++from pathlib import Path
++import socket
++import subprocess
++import time
++
++ROOT = Path(__file__).resolve().parents[3]
++OUT = Path(__file__).parent
++
++
++def main():
++    began = time.perf_counter()
++    assert socket.gethostname().upper() == "DESKTOP-SC96D3U"
++    spec = importlib.util.spec_from_file_location("helper", OUT / "stage_b_prepare_server.py")
++    helper = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(helper)
++    root = ROOT / "Test" / OUT.name / ("backup_helper_" + datetime.now().strftime("%Y%m%d_%H%M%S"))
++    root.mkdir(parents=True)
++    source = root / "source"
++    source.mkdir()
++    (source / "unknown-empty").mkdir()
++    (source / "logs").mkdir()
++    (source / "unknown.bin").write_bytes(b"SYNTHETIC USER SENTINEL")
++    (source / "logs/active.log").write_bytes(b"SYNTHETIC LOG\n")
++    checks = []
++    entries = helper.inventory(source)
++    target = root / "backup"
++    manifest = helper.copy_snapshot(source, target, entries, active_logs=True)
++    helper.verify_snapshot(target, manifest)
++    assert (target / "unknown-empty").is_dir()
++    assert (target / "unknown.bin").read_bytes() == b"SYNTHETIC USER SENTINEL"
++    assert "sddl_owner_group_dacl" in manifest["unknown.bin"]
++    checks.append("complete inventory/bytes/empty directory/SDDL readback")
++    try:
++        helper.copy_snapshot(source, target, entries)
++        raise AssertionError("Overwrote existing backup")
++    except FileExistsError:
++        checks.append("existing backup refused")
++    (target / "unknown.bin").write_bytes(b"SYNTHETIC TAMPER")
++    try:
++        helper.verify_snapshot(target, manifest)
++        raise AssertionError("Tampering accepted")
++    except ValueError:
++        checks.append("backup corruption refused")
++    (source / "logs/active.log").write_bytes(b"SYNTHETIC LOG\nAPPEND\n")
++    later = root / "snapshot-after-append"
++    second = helper.copy_snapshot(source, later, entries, active_logs=True)
++    helper.verify_snapshot(later, second)
++    assert (later / "logs/active.log").read_bytes().endswith(b"APPEND\n")
++    checks.append("live log captured at copy-time bounded size")
++    real = root / "real"
++    real.mkdir()
++    junction = source / "forbidden-junction"
++    subprocess.run(["cmd.exe", "/c", "mklink", "/J", str(junction), str(real)], capture_output=True, check=True)
++    try:
++        try:
++            helper.inventory(source)
++            raise AssertionError("Followed junction")
++        except ValueError:
++            checks.append("reparse point refused before backup")
++    finally:
++        junction.rmdir()  # This known test junction only, no recursive removal.
++    try:
++        helper.prepare({}, b"invalid")
++        raise AssertionError("Server helper ran on home host")
++    except RuntimeError:
++        checks.append("home execution host denied before writes")
++    result = {"status": "PASS", "scope": "Synthetic files under Test only", "root": str(root),
++              "checks": checks, "count": len(checks), "exit_code": 0,
++              "seconds": round(time.perf_counter() - began, 3)}
++    with (OUT / "stage_b_helper_offline_qa.json").open("x", encoding="utf-8") as stream:
++        json.dump(result, stream, ensure_ascii=False, indent=2)
++        stream.write("\n")
++    print(json.dumps(result))
++
++
++if __name__ == "__main__":
++    main()
+--- /dev/null
++++ b/Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_prepare_server.py
+@@ -0,0 +1,310 @@
++"""B-only protected backup/staging helper, executed in server memory with -B.
++
++Never stops processes, edits existing files, runs a listener or deletes anything.
++Private content/SDDL/task XML stay in the new protected server directory.
++"""
++from datetime import datetime, timezone
++import base64
++import ctypes
++import hashlib
++import importlib.util
++import json
++import os
++from pathlib import Path
++import shutil
++import socket
++import ssl
++import subprocess
++import sys
++import xml.etree.ElementTree as ET
++import zipfile
++
++EXPECTED_ZIP = "ba4ebf65af7a0693cf4dce045eb08254434a4475fd4f79e031424c905d661ce2"
++REPARSE = 0x400
++
++
++def sha(data):
++    return hashlib.sha256(data).hexdigest()
++
++
++def file_sha(path):
++    with Path(path).open("rb") as stream:
++        return hashlib.file_digest(stream, "sha256").hexdigest()
++
++
++def no_links(path):
++    path = Path(path).absolute()
++    for item in (path, *path.parents):
++        if item.exists() and item.lstat().st_file_attributes & REPARSE:
++            raise ValueError("Reparse path refused")
++    return path
++
++
++def inventory(root):
++    root = no_links(root)
++    if not root.is_dir():
++        raise ValueError("Source directory absent")
++    result = {".": {"directory": True}}
++    for parent, directories, files in os.walk(root, followlinks=False):
++        for name in (*directories, *files):
++            path = no_links(Path(parent) / name)
++            stat = path.stat()
++            result[path.relative_to(root).as_posix()] = {"directory": path.is_dir(),
++                "bytes": stat.st_size if path.is_file() else 0, "mtime_ns": stat.st_mtime_ns}
++            if path.is_file():
++                with path.open("rb"):
++                    pass  # Required backup read access, without locking writers.
++    return result
++
++
++def security_descriptor(path):
++    """Read owner/group/DACL as SDDL. No audit-policy or permission changes."""
++    advapi = ctypes.WinDLL("advapi32", use_last_error=True)
++    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
++    get_info = advapi.GetNamedSecurityInfoW
++    get_info.argtypes = [ctypes.c_wchar_p, ctypes.c_uint, ctypes.c_uint,
++                        ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p,
++                        ctypes.c_void_p, ctypes.POINTER(ctypes.c_void_p)]
++    get_info.restype = ctypes.c_uint
++    to_text = advapi.ConvertSecurityDescriptorToStringSecurityDescriptorW
++    to_text.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint,
++                       ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(ctypes.c_uint)]
++    to_text.restype = ctypes.c_int
++    kernel.LocalFree.argtypes = [ctypes.c_void_p]
++    kernel.LocalFree.restype = ctypes.c_void_p
++    descriptor, text, length = ctypes.c_void_p(), ctypes.c_void_p(), ctypes.c_uint()
++    error = get_info(str(path), 1, 7, None, None, None, None, ctypes.byref(descriptor))
++    if error:
++        raise OSError(error, "Security descriptor read refused")
++    try:
++        if not to_text(descriptor, 1, 7, ctypes.byref(text), ctypes.byref(length)):
++            raise ctypes.WinError(ctypes.get_last_error())
++        return ctypes.wstring_at(text)
++    finally:
++        if text:
++            kernel.LocalFree(text)
++        kernel.LocalFree(descriptor)
++
++
++def copy_snapshot(source, target, entries, *, active_logs=False):
++    """Copy all entries. Only append-only log prefixes can grow during snapshot."""
++    source, target = no_links(source), no_links(target)
++    if target.exists():
++        raise FileExistsError("Never overwrite a backup")
++    target.mkdir()
++    manifest = {}
++    for relative, metadata in sorted(entries.items(), key=lambda pair: (len(Path(pair[0]).parts), pair[0])):
++        src = no_links(source / relative)
++        dst = target / relative
++        if relative == "." or metadata["directory"]:
++            if relative != ".":
++                dst.mkdir()
++            manifest[relative] = {"directory": True, "sddl_owner_group_dacl": security_descriptor(src)}
++            continue
++        size = src.stat().st_size
++        digest = hashlib.sha256()
++        with src.open("rb") as incoming, dst.open("xb") as outgoing:
++            remaining = size
++            while remaining:
++                chunk = incoming.read(min(1024 * 1024, remaining))
++                if not chunk:
++                    raise ValueError("Source shrank during snapshot")
++                digest.update(chunk)
++                outgoing.write(chunk)
++                remaining -= len(chunk)
++        if file_sha(dst) != digest.hexdigest():
++            raise ValueError("Backup readback mismatch")
++        dynamic = active_logs and Path(relative).parts[0].lower() == "logs"
++        with src.open("rb") as current:
++            prefix = hashlib.sha256()
++            left = size
++            while left:
++                chunk = current.read(min(left, 1024 * 1024))
++                if not chunk:
++                    raise ValueError("Source changed during snapshot")
++                prefix.update(chunk)
++                left -= len(chunk)
++            grew = bool(current.read(1))
++        if prefix.hexdigest() != digest.hexdigest() or (grew and not dynamic):
++            raise ValueError("Non-log source changed during snapshot")
++        manifest[relative] = {"directory": False, "bytes": size, "sha256": digest.hexdigest(),
++            "sddl_owner_group_dacl": security_descriptor(src),
++            "snapshot": "captured log prefix; live append permitted" if dynamic else "stable exact file"}
++        os.utime(dst, ns=(src.stat().st_atime_ns, metadata["mtime_ns"]))
++    return manifest
++
++
++def verify_snapshot(root, manifest):
++    actual = inventory(root)
++    if set(actual) != set(manifest):
++        raise ValueError("Backup inventory mismatch")
++    for relative, row in manifest.items():
++        path = root / relative
++        if path.is_dir() != row["directory"]:
++            raise ValueError("Backup entry type mismatch")
++        if not row["directory"] and (path.stat().st_size != row["bytes"] or file_sha(path) != row["sha256"]):
++            raise ValueError("Backup verification failed")
++
++
++def write_json(path, value):
++    with path.open("x", encoding="utf-8") as stream:
++        json.dump(value, stream, ensure_ascii=False, indent=2)
++        stream.write("\n")
++
++
++def run_python(command):
++    # Ignore copied legacy __pycache__ as well as preventing new bytecode writes.
++    unused_cache = Path(__file__).resolve().parent / "_no_bytecode_cache"
++    result = subprocess.run([sys.executable, "-X", "utf8", "-X", "pycache_prefix=" + str(unused_cache), "-I", "-B", *command],
++                            capture_output=True, timeout=25,
++                            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
++    if result.returncode:
++        raise RuntimeError("Isolated Python check failed; exit=" + str(result.returncode))
++    return result.stdout.decode("utf-8-sig").strip()
++
++
++def prepare(params, package_bytes):
++    if socket.gethostname().upper() != "DESKTOP-KT4G5SM":
++        raise RuntimeError("Server execution required")
++    root = no_links(Path(params["maintenance_root"]))
++    code = no_links(Path(r"C:\Server\Ultra_LLM\Manager_Live"))
++    state = no_links(Path(r"C:\ProgramData\UltraLLM\Manager"))
++    if root.parent != Path(r"C:\ProgramData\UltraLLM") or not root.name.startswith("Manager_R5_STAGEB_"):
++        raise ValueError("Unexpected maintenance destination")
++    if not root.is_dir() or {p.name for p in root.iterdir()} != {"incoming"}:
++        raise ValueError("New protected directory with only verified public incoming files required")
++    if sha(package_bytes) != EXPECTED_ZIP:
++        raise ValueError("Authoritative ZIP mismatch")
++    code_files, state_files = inventory(code), inventory(state)
++    if any(Path(name).suffix.lower() in (".db", ".sqlite", ".sqlite3") or name.lower().endswith(("-wal", "-shm"))
++           for name, row in (*code_files.items(), *state_files.items()) if not row["directory"]):
++        raise ValueError("Unexpected SQLite/WAL requires a consistent backup plan")
++    for name, expected in params["source_top_hashes"].items():
++        if file_sha(code / name) != expected:
++            raise ValueError("Live code differs from approved preflight")
++    config = state / "private/manager.json"
++    if file_sha(config) != params["config_sha256"]:
++        raise ValueError("Live config changed")
++    cfg = json.loads(config.read_text(encoding="utf-8-sig"))
++    if cfg.get("control", {}).get("owner_go") is True:
++        raise ValueError("Control must remain disabled")
++    if any(Path(cfg[k]).resolve().parent != (state / "private").resolve() for k in ("cert_file", "key_file")):
++        raise ValueError("External private dependencies not in backup scope")
++    estimated = sum(row.get("bytes", 0) for row in (*code_files.values(), *state_files.values()))
++    if shutil.disk_usage(root).free < estimated * 4 + 1024 ** 3:
++        raise ValueError("Insufficient backup/stage space")
++    backups = root / "backups"
++    backups.mkdir()
++    code_manifest = copy_snapshot(code, backups / "code", code_files)
++    state_manifest = copy_snapshot(state, backups / "state", state_files, active_logs=True)
++    verify_snapshot(backups / "code", code_manifest)
++    verify_snapshot(backups / "state", state_manifest)
++    xml = base64.b64decode(params["task_xml_utf8_b64"]).decode("utf-8")
++    if sha(xml.encode("utf-8")) != params["task_xml_sha256"]:
++        raise ValueError("Task XML differs from preflight")
++    xml_bytes = xml.encode("utf-16")
++    task_file = backups / "task_original.xml"
++    with task_file.open("xb") as stream:
++        stream.write(xml_bytes)
++    ET.fromstring(task_file.read_bytes())
++    if sha(task_file.read_bytes().decode("utf-16").encode("utf-8")) != params["task_xml_sha256"]:
++        raise ValueError("Task XML backup readback failed")
++    private_manifest = {"scope": "FULL code/state trees; logs captured as bounded point-in-time prefixes",
++        "code_source": str(code), "state_source": str(state),
++        "code": code_manifest, "state": state_manifest,
++        "task_xml_canonical_utf8_sha256": params["task_xml_sha256"],
++        "task_xml_file_sha256": file_sha(task_file),
++        "security": "Original owner/group/DACL SDDL recorded; backups inherit restrictive maintenance ACL, never source broad ACL",
++        "sqlite_wal": "Not present in source inventory"}
++    manifest_file = backups / "backup_manifest_PRIVATE.json"
++    write_json(manifest_file, private_manifest)
++    # Restore rehearsal into a NEW protected copy, never working directories.
++    rehearsal = root / "rollback_rehearsal"
++    rehearsal.mkdir()
++    shutil.copytree(backups / "code", rehearsal / "code")
++    shutil.copytree(backups / "state/private", rehearsal / "private")
++    verify_snapshot(rehearsal / "code", code_manifest)
++    for name, row in state_manifest.items():
++        if name.startswith("private/") and not row["directory"]:
++            if file_sha(rehearsal / name) != row["sha256"]:
++                raise ValueError("Restored private bytes mismatch")
++    restored_cert = rehearsal / "private" / Path(cfg["cert_file"]).name
++    restored_key = rehearsal / "private" / Path(cfg["key_file"]).name
++    ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER).load_cert_chain(restored_cert, restored_key)
++    old_import = run_python(["-c", "import sys;sys.path.insert(0,sys.argv[1]);import live_manager,pairing_workflow;print('OLD_IMPORT_OK')", str(rehearsal / "code")])
++    if old_import != "OLD_IMPORT_OK":
++        raise ValueError("Restored old runtime import failed")
++    # Only the externally pinned PUBLIC archive/verifier is executed for staging.
++    package_dir = root / "package"
++    package_dir.mkdir()
++    package = package_dir / "UltraLLM_Manager_R5_compat_Win64.zip"
++    with package.open("xb") as stream:
++        stream.write(package_bytes)
++    tools = root / "package_tools"
++    tools.mkdir()
++    with zipfile.ZipFile(package) as archive:
++        verifier_bytes = archive.read("manager_release.py")
++    if sha(verifier_bytes) != params["verifier_sha256"]:
++        raise ValueError("Verifier provenance mismatch")
++    verifier_path = tools / "manager_release.py"
++    with verifier_path.open("xb") as stream:
++        stream.write(verifier_bytes)
++    spec = importlib.util.spec_from_file_location("pinned_manager_release", verifier_path)
++    release = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(release)
++    release.read_package(package)
++    staged = root / "staging"
++    stage_result = release.stage(package, staged)
++    stage_meta = release.validate(release.read_package(staged))
++    check_config = run_python(["-c", "import runpy,sys;from pathlib import Path;root=sys.argv.pop(1);sys.path.insert(0,root);sys.argv[0]=str(Path(root)/'live_manager.py');runpy.run_path(sys.argv[0],run_name='__main__')",
++                               str(staged), "--config", str(config), "--check-config"])
++    if check_config != "MANAGER_CONFIGURATION_OK":
++        raise ValueError("Staged config check failed")
++    imports = run_python(["-c", "import sys;sys.path.insert(0,sys.argv[1]);import live_manager,control_runtime,pairing_workflow;print('R5_IMPORT_OK')", str(staged)])
++    if imports != "R5_IMPORT_OK":
++        raise ValueError("Staged imports failed")
++    release.read_package(staged)  # Imports/check-config must leave no pycache/state.
++    # Static config/auth/TLS bytes must remain unchanged; logs may append normally.
++    for name, row in state_manifest.items():
++        if not row["directory"] and Path(name).parts[0].lower() != "logs" and file_sha(state / name) != row["sha256"]:
++            raise ValueError("Live private state changed")
++    if set(inventory(code)) != set(code_manifest):
++        raise ValueError("Live code inventory changed")
++    for name, row in code_manifest.items():
++        if not row["directory"] and file_sha(code / name) != row["sha256"]:
++            raise ValueError("Live code bytes changed")
++    if any(Path(n).suffix.lower() in (".db", ".sqlite", ".sqlite3") or n.lower().endswith(("-wal", "-shm"))
++           for n, row in inventory(state).items() if not row["directory"]):
++        raise ValueError("State database appeared during maintenance")
++    summary = {"status": "BACKUP_STAGING_PREPARED", "maintenance_root": str(root),
++        "backup_code": str(backups / "code"), "backup_state": str(backups / "state"),
++        "backup_task_xml": str(task_file), "private_manifest": str(manifest_file),
++        "private_manifest_sha256": file_sha(manifest_file),
++        "code_files": sum(not row["directory"] for row in code_manifest.values()),
++        "state_files": sum(not row["directory"] for row in state_manifest.values()),
++        "code_directories": sum(row["directory"] for row in code_manifest.values()),
++        "state_directories": sum(row["directory"] for row in state_manifest.values()),
++        "sqlite_wal": "NOT PRESENT / N/A", "original_acl_owner_group_dacl_recorded": True,
++        "log_snapshot": "Fixed captured lengths; no global atomic log snapshot claimed",
++        "backup_readback": "PASS", "restored_private_bytes_and_tls_pair": "PASS",
++        "restored_old_runtime_import": "PASS", "staging": str(staged),
++        "zip_sha256": file_sha(package), "stage_files": stage_result["files"],
++        "release_version": stage_meta["version"], "staged_config": check_config,
++        "staged_imports": imports, "working_code_state_bytes_unchanged": True,
++        "listener_or_model_start": False, "live_rollback": "NOT RUN", "stage_c_d": "NOT RUN"}
++    write_json(root / "summary_PUBLIC.json", summary)
++    return summary
++
++
++if __name__ == "__main__":
++    try:
++        parameters = json.loads(base64.b64decode(sys.argv[1]))
++        package_path = no_links(Path(sys.argv[2]))
++        if package_path.parent != Path(parameters["maintenance_root"]) / "incoming":
++            raise ValueError("Incoming package escaped new maintenance directory")
++        data = package_path.read_bytes()
++        print(json.dumps(prepare(parameters, data), ensure_ascii=False))
++    except Exception as error:
++        print(json.dumps({"status": "BLOCKED", "phase": "B protected backup/staging", "error_type": type(error).__name__,
++                          "error": str(error), "partial_new_directory_retained": True}))
++        raise SystemExit(2)
+--- /dev/null
++++ b/Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_execute.ps1
+@@ -0,0 +1,131 @@
++# B ONLY. Local driver, existing IP/Negotiate WinRM. No stop/start/task mutation.
++# Paths/expected metadata filled by the local launcher, never private credentials.
++$ErrorActionPreference='Stop'
++[Console]::OutputEncoding=New-Object Text.UTF8Encoding($false)
++$session=$null
++$rootCreated=$null
++try {
++    if($env:COMPUTERNAME -ne 'DESKTOP-SC96D3U'){throw 'Wrong home host'}
++    $expectedJson=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__EXPECTED_B64__'))
++    $preflight=[scriptblock]::Create([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__PREFLIGHT_B64__')))
++    $session=New-PSSession -ComputerName 192.168.0.77 -Authentication Negotiate -SessionOption (New-PSSessionOption -OpenTimeout 6000 -OperationTimeout 45000)
++    $freshText=Invoke-Command -Session $session -ScriptBlock $preflight
++    $fresh=($freshText -join "`n")|ConvertFrom-Json
++    if($fresh.status -ne 'PREFLIGHT_READONLY_PASS'){throw 'Fresh complete preflight did not pass; no server write'}
++    $init=Invoke-Command -Session $session -ArgumentList $expectedJson -ScriptBlock {
++        param($expectedJson)
++        $ErrorActionPreference='Stop'
++        if($env:COMPUTERNAME -ne 'DESKTOP-KT4G5SM'){throw 'Wrong server host'}
++        $expected=$expectedJson|ConvertFrom-Json
++        foreach($role in @('manager','qwen_gateway','qwen_engine','valheim')) {
++            $want=$expected.$role
++            $p=Get-CimInstance Win32_Process -Filter ('ProcessId='+$want.pid)
++            if(-not $p -or $p.CreationDate.ToUniversalTime().ToString('o') -ne $want.created_utc -or $p.ExecutablePath -ine $want.exe -or (Invoke-CimMethod -InputObject $p -MethodName GetOwnerSid).Sid -ne $want.owner_sid){throw ('Protected identity changed: '+$role)}
++        }
++        $task=Get-ScheduledTask -TaskName 'UltraLLM_Manager_LIVE'
++        if($task.State -ne 'Running' -or @($task.Actions).Count -ne 1){throw 'Manager task changed'}
++        $xml=Export-ScheduledTask -TaskName 'UltraLLM_Manager_LIVE'
++        $hash=[Security.Cryptography.SHA256]::Create()
++        $xmlHash=([BitConverter]::ToString($hash.ComputeHash([Text.Encoding]::UTF8.GetBytes($xml)))).Replace('-','').ToLowerInvariant()
++        if($xmlHash -ne $expected.task.xml_sha256){throw 'Task XML changed'}
++        if((Get-FileHash -LiteralPath $expected.task.config_path -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected.python_audit.metadata.config_sha256){throw 'Protected config changed'}
++        $base='C:\ProgramData\UltraLLM'
++        $node=Get-Item -LiteralPath $base
++        while($node) {
++            if($node.Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'Reparse maintenance ancestor'}
++            $node=$node.Parent
++        }
++        $leaf='Manager_R5_STAGEB_'+[DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ')+'_'+[Guid]::NewGuid().ToString('N').Substring(0,8)
++        $destination=Join-Path $base $leaf
++        if(Test-Path -LiteralPath $destination){throw 'Maintenance destination already exists'}
++        [void][IO.Directory]::CreateDirectory($destination)
++        # Only the NEW empty directory is secured; all existing ACLs stay intact.
++        $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User
++        $acl=Get-Acl -LiteralPath $destination
++        $acl.SetAccessRuleProtection($true,$false)
++        foreach($rule in @($acl.Access)){[void]$acl.RemoveAccessRuleSpecific($rule)}
++        foreach($id in @($sid.Value,'S-1-5-18','S-1-5-32-544')) {
++            $account=New-Object Security.Principal.SecurityIdentifier($id)
++            $rule=New-Object Security.AccessControl.FileSystemAccessRule($account,'FullControl','ContainerInherit,ObjectInherit','None','Allow')
++            $acl.AddAccessRule($rule)
++        }
++        $acl.SetOwner($sid)
++        Set-Acl -LiteralPath $destination -AclObject $acl
++        $checked=Get-Acl -LiteralPath $destination
++        $allowed=@($sid.Value,'S-1-5-18','S-1-5-32-544')
++        if(-not $checked.AreAccessRulesProtected -or @($checked.Access|Where-Object {$_.AccessControlType -eq 'Allow' -and $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value -notin $allowed}).Count){throw 'New maintenance ACL unsafe; no private copy'}
++        [void][IO.Directory]::CreateDirectory((Join-Path $destination 'incoming'))
++        [pscustomobject]@{maintenance_root=$destination;new_root_protected=$true;allowed_sids=$allowed;host=$env:COMPUTERNAME}
++    }
++    $rootCreated=$init.maintenance_root
++    [pscustomobject]@{phase='NEW_PROTECTED_ROOT';root=$rootCreated;existing_directories_changed=$false}|ConvertTo-Json -Compress
++    $zipDestination=Join-Path $rootCreated 'incoming\release.zip'
++    $helperDestination=Join-Path $rootCreated 'incoming\stage_b_prepare_server.py'
++    Copy-Item -LiteralPath '__LOCAL_ZIP__' -Destination $zipDestination -ToSession $session
++    Copy-Item -LiteralPath '__LOCAL_HELPER__' -Destination $helperDestination -ToSession $session
++    $preparedText=Invoke-Command -Session $session -ArgumentList $rootCreated,$expectedJson,'__HELPER_SHA__','__VERIFIER_SHA__' -ScriptBlock {
++        param($root,$expectedJson,$helperHash,$verifierHash)
++        $ErrorActionPreference='Stop'
++        if($env:COMPUTERNAME -ne 'DESKTOP-KT4G5SM'){throw 'Wrong server host'}
++        $expected=$expectedJson|ConvertFrom-Json
++        $helper=Join-Path $root 'incoming\stage_b_prepare_server.py'
++        $zip=Join-Path $root 'incoming\release.zip'
++        if((Get-FileHash -LiteralPath $helper -Algorithm SHA256).Hash.ToLowerInvariant() -ne $helperHash){throw 'Public helper transfer mismatch'}
++        if((Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant() -ne 'ba4ebf65af7a0693cf4dce045eb08254434a4475fd4f79e031424c905d661ce2'){throw 'ZIP transfer mismatch; no rebuild'}
++        $xml=Export-ScheduledTask -TaskName 'UltraLLM_Manager_LIVE'
++        $params=[ordered]@{maintenance_root=$root;task_xml_utf8_b64=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($xml));task_xml_sha256=$expected.task.xml_sha256;config_sha256=$expected.python_audit.metadata.config_sha256;verifier_sha256=$verifierHash;source_top_hashes=[ordered]@{}}
++        foreach($row in $expected.public_code){$params.source_top_hashes[$row.name]=$row.sha256}
++        $encoded=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($params|ConvertTo-Json -Depth 8 -Compress)))
++        if($encoded.Length -gt 20000){throw 'Private metadata argument too large; do not emit it'}
++        $output=@(& $expected.task.executable -I -X utf8 -B $helper $encoded $zip)
++        $code=$LASTEXITCODE
++        if($code -ne 0){throw ('B helper refused preparation; sanitized result: '+($output -join ' '))}
++        $output -join "`n"
++    }
++    $prepared=($preparedText -join "`n")|ConvertFrom-Json
++    if($prepared.status -ne 'BACKUP_STAGING_PREPARED'){throw 'B helper did not pass'}
++    $aclResult=Invoke-Command -Session $session -ArgumentList $rootCreated,$expectedJson -ScriptBlock {
++        param($root,$expectedJson)
++        $ErrorActionPreference='Stop'
++        if($env:COMPUTERNAME -ne 'DESKTOP-KT4G5SM'){throw 'Wrong host'}
++        $expected=$expectedJson|ConvertFrom-Json
++        $rootFull=[IO.Path]::GetFullPath($root)
++        if(-not $rootFull.StartsWith('C:\ProgramData\UltraLLM\Manager_R5_STAGEB_',[StringComparison]::OrdinalIgnoreCase)){throw 'ACL check escaped maintenance root'}
++        # Apply original PRIVATE ACL only to a NEW empty rehearsal directory/file.
++        $probe=Join-Path $root 'rollback_acl_probe'
++        if(Test-Path -LiteralPath $probe){throw 'ACL probe already exists'}
++        [void][IO.Directory]::CreateDirectory($probe)
++        $original=Get-Acl -LiteralPath (Split-Path -Parent $expected.task.config_path)
++        Set-Acl -LiteralPath $probe -AclObject $original
++        $sections=[Security.AccessControl.AccessControlSections]::Access -bor [Security.AccessControl.AccessControlSections]::Owner -bor [Security.AccessControl.AccessControlSections]::Group
++        if((Get-Acl -LiteralPath $probe).GetSecurityDescriptorSddlForm($sections) -ne $original.GetSecurityDescriptorSddlForm($sections)){throw 'Private ACL restore rehearsal mismatch'}
++        $file=Join-Path $probe 'synthetic_acl_probe.bin'
++        [IO.File]::WriteAllBytes($file,[Text.Encoding]::ASCII.GetBytes('SYNTHETIC ACL PROBE'))
++        $originalFileAcl=Get-Acl -LiteralPath $expected.task.config_path
++        Set-Acl -LiteralPath $file -AclObject $originalFileAcl
++        if((Get-Acl -LiteralPath $file).GetSecurityDescriptorSddlForm($sections) -ne $originalFileAcl.GetSecurityDescriptorSddlForm($sections)){throw 'File ACL restore rehearsal mismatch'}
++        $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
++        $allowed=@($sid,'S-1-5-18','S-1-5-32-544')
++        $items=@(Get-Item -LiteralPath $root -Force)+@(Get-ChildItem -LiteralPath $root -Recurse -Force)
++        foreach($p in $items) {
++            if($p.Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'Reparse point in new maintenance tree'}
++            $a=Get-Acl -LiteralPath $p.FullName
++            if(@($a.Access|Where-Object {$_.AccessControlType -eq 'Allow' -and $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value -notin $allowed}).Count){throw 'Broad grant in new protected backup/staging tree'}
++        }
++        [pscustomobject]@{new_tree_items_checked=$items.Count;only_allow_sids=$allowed;private_directory_acl_restore='PASS';private_file_acl_restore='PASS';existing_acl_changes=$false}
++    }
++    $postText=Invoke-Command -Session $session -ScriptBlock $preflight
++    $post=($postText -join "`n")|ConvertFrom-Json
++    if($post.status -ne 'PREFLIGHT_READONLY_PASS'){throw 'Post B protective checks failed; retain all new directories'}
++    $expected=$expectedJson|ConvertFrom-Json
++    foreach($role in @('manager','qwen_gateway','qwen_engine','valheim')) {
++        if($post.$role.pid -ne $expected.$role.pid -or $post.$role.created_utc -ne $expected.$role.created_utc -or $post.$role.exe -ine $expected.$role.exe -or $post.$role.owner_sid -ne $expected.$role.owner_sid){throw ('Post B protected identity changed: '+$role)}
++    }
++    if($post.task.xml_sha256 -ne $expected.task.xml_sha256 -or $post.python_audit.metadata.config_sha256 -ne $expected.python_audit.metadata.config_sha256 -or $post.python_audit.metadata.tls_peer_sha256 -ne $expected.python_audit.metadata.tls_peer_sha256){throw 'Task/config/TLS changed across B'}
++    [ordered]@{status='B PASS / GATE 2 / OWNER GO C REQUIRED';backup_staging=$prepared;backup_acl=$aclResult;post=$post;protected_processes_task_config_tls_unchanged=$true;stage_c_d='NOT RUN';maintenance_root=$rootCreated}|ConvertTo-Json -Depth 15 -Compress
++} catch {
++    [ordered]@{status='B BLOCKED';maintenance_root=$rootCreated;error_type=$_.Exception.GetType().FullName;error=$_.Exception.Message;partial_directories_retained=$true;stage_c_d='NOT RUN';working_directories_switched=$false}|ConvertTo-Json -Depth 5 -Compress
++    exit 2
++} finally {
++    if($session){Remove-PSSession -Session $session}
++}
+--- /dev/null
++++ b/Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_independent_verify.ps1
+@@ -0,0 +1,29 @@
++# Independent reviewer template: read-only, not executed by author after B.
++$ErrorActionPreference='Stop'
++Invoke-Command -ComputerName 192.168.0.77 -Authentication Negotiate -ScriptBlock {
++    $ErrorActionPreference='Stop'
++    if($env:COMPUTERNAME -ne 'DESKTOP-KT4G5SM'){throw 'Wrong server'}
++    $root='C:\ProgramData\UltraLLM\Manager_R5_STAGEB_20261114T063715Z_685df77d'
++    $helper=Join-Path $root 'incoming\stage_b_prepare_server.py'
++    if((Get-FileHash -LiteralPath $helper -Algorithm SHA256).Hash.ToLowerInvariant() -ne '4c771dddf75e70209c5a15095e4eab4996c4a41122d645e0b570f2a2f5aedf3b'){throw 'Helper changed'}
++    $python='C:\Users\silver\AppData\Local\Programs\Python\Python312\python.exe'
++    $code=@'
++import hashlib,importlib.util,json,pathlib,ssl,sys,zipfile
++root=pathlib.Path(sys.argv[1]);file=root/'incoming/stage_b_prepare_server.py'
++spec=importlib.util.spec_from_file_location('backup_readonly',file);helper=importlib.util.module_from_spec(spec);spec.loader.exec_module(helper)
++manifest=json.loads((root/'backups/backup_manifest_PRIVATE.json').read_text(encoding='utf-8'))
++helper.verify_snapshot(root/'backups/code',manifest['code']);helper.verify_snapshot(root/'backups/state',manifest['state'])
++package=root/'package/UltraLLM_Manager_R5_compat_Win64.zip';assert hashlib.sha256(package.read_bytes()).hexdigest()=='ba4ebf65af7a0693cf4dce045eb08254434a4475fd4f79e031424c905d661ce2'
++verifier=root/'staging/manager_release.py'
++with zipfile.ZipFile(package) as archive:assert verifier.read_bytes()==archive.read('manager_release.py')
++spec=importlib.util.spec_from_file_location('release_readonly',verifier);release=importlib.util.module_from_spec(spec);spec.loader.exec_module(release)
++release.read_package(root/'staging')
++config=root/'backups/state/private/manager.json';cfg=json.loads(config.read_text(encoding='utf-8-sig'))
++ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER).load_cert_chain(root/'backups/state/private'/pathlib.Path(cfg['cert_file']).name,root/'backups/state/private'/pathlib.Path(cfg['key_file']).name)
++assert hashlib.sha256((root/'backups/task_original.xml').read_bytes().decode('utf-16').encode('utf-8')).hexdigest()==manifest['task_xml_canonical_utf8_sha256']
++print(json.dumps({'backup_bytes':'PASS','backup_tls_pair':'PASS','task_xml':'PASS','staging_21_files':'PASS','private_data_exported':False,'mutations':False}))
++'@
++    $encoded=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($code))
++    & $python -I -B -c 'import base64,sys;exec(base64.b64decode(sys.argv.pop(1)))' $encoded $root
++    if($LASTEXITCODE -ne 0){throw 'Read-only verification failed'}
++}
+--- /dev/null
++++ b/Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_server_preflight_v2.ps1
+@@ -0,0 +1,143 @@
++# Execute through existing IP/Negotiate WinRM. READ ONLY, no backup/staging yet.
++$ErrorActionPreference = 'Stop'
++if ($env:COMPUTERNAME -ne 'DESKTOP-KT4G5SM') { throw 'Wrong execution host' }
++$checks = [ordered]@{}
++$e = [ordered]@{ host=$env:COMPUTERNAME; sampled_utc=[DateTime]::UtcNow.ToString('o'); phase='B read-only preflight'; writes=$false }
++function Check([string]$name, [bool]$value) { $checks[$name]=$value }
++function Identity($process) {
++    $sid = (Invoke-CimMethod -InputObject $process -MethodName GetOwnerSid).Sid
++    if (-not $sid) { throw 'Process owner SID unavailable' }
++    return [pscustomobject]@{ pid=[int]$process.ProcessId; parent_pid=[int]$process.ParentProcessId; exe=$process.ExecutablePath; created_utc=$process.CreationDate.ToUniversalTime().ToString('o'); owner_sid=$sid; name=$process.Name }
++}
++function NoLinks([string]$path) {
++    $node = [IO.Path]::GetFullPath($path)
++    while ($node) {
++        if (Test-Path -LiteralPath $node) {
++            if ((Get-Item -LiteralPath $node -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { return $false }
++        }
++        $parent = [IO.Directory]::GetParent($node)
++        $node = if ($parent) {$parent.FullName} else {$null}
++    }
++    return $true
++}
++try {
++    $who=[Security.Principal.WindowsIdentity]::GetCurrent()
++    $e.execution=@{ identity_sid=$who.User.Value; identity_name=$who.Name; authentication=$who.AuthenticationType; is_admin=([Security.Principal.WindowsPrincipal]$who).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) }
++    Check 'admin_backup_authority' $e.execution.is_admin
++    $task=Get-ScheduledTask -TaskName 'UltraLLM_Manager_LIVE'
++    Check 'task_running_single_action' ($task.State -eq 'Running' -and @($task.Actions).Count -eq 1)
++    if (-not $checks.task_running_single_action) { throw 'Task not running with a single action' }
++    $action=$task.Actions[0]
++    $pattern='^\s*-u\s+-B\s+(?:"(?<script>[^"]+)"|(?<script>\S+))\s+--config\s+(?:"(?<config>[^"]+)"|(?<config>\S+))\s+--log-dir\s+(?:"(?<logs>[^"]+)"|(?<logs>\S+))\s*$'
++    $m=[regex]::Match($action.Arguments,$pattern)
++    Check 'task_arguments_known_contract' $m.Success
++    if (-not $m.Success) { throw 'Unexpected task argument contract; arguments not exported' }
++    $script=$m.Groups['script'].Value; $config=$m.Groups['config'].Value; $logs=$m.Groups['logs'].Value
++    $root=Split-Path -Parent $script
++    Check 'runtime_path_expected_no_links' ($root -ieq 'C:\Server\Ultra_LLM\Manager_Live' -and (NoLinks $root))
++    Check 'config_path_expected_no_links' ($config -ieq 'C:\ProgramData\UltraLLM\Manager\private\manager.json' -and (NoLinks $config))
++    Check 'python_exists_no_links' ((Test-Path -LiteralPath $action.Execute -PathType Leaf) -and (NoLinks $action.Execute))
++    $taskSid=([Security.Principal.NTAccount]$task.Principal.UserId).Translate([Security.Principal.SecurityIdentifier]).Value
++    $taskXml=Export-ScheduledTask -TaskName 'UltraLLM_Manager_LIVE'
++    $hash=[Security.Cryptography.SHA256]::Create()
++    $taskHash=([BitConverter]::ToString($hash.ComputeHash([Text.Encoding]::UTF8.GetBytes($taskXml)))).Replace('-','').ToLowerInvariant()
++    $e.task=@{ name=$task.TaskName; state=[string]$task.State; executable=$action.Execute; script=$script; config_path=$config; log_dir=$logs; working_directory=$action.WorkingDirectory; principal_sid=$taskSid; logon_type=[string]$task.Principal.LogonType; run_level=[string]$task.Principal.RunLevel; xml_sha256=$taskHash; restart_count=$task.Settings.RestartCount; restart_interval=[string]$task.Settings.RestartInterval; multiple_instances=[string]$task.Settings.MultipleInstances }
++    $cfg=Get-Content -LiteralPath $config -Raw -Encoding UTF8 | ConvertFrom-Json
++    Check 'control_disabled' ($cfg.control.owner_go -ne $true)
++    Check 'private_paths_local' ((NoLinks $cfg.cert_file) -and (NoLinks $cfg.key_file) -and $cfg.cert_file.StartsWith('C:\ProgramData\UltraLLM\Manager\private\',[StringComparison]::OrdinalIgnoreCase) -and $cfg.key_file.StartsWith('C:\ProgramData\UltraLLM\Manager\private\',[StringComparison]::OrdinalIgnoreCase))
++    $listeners=@(Get-NetTCPConnection -State Listen | Where-Object {$_.LocalPort -eq [int]$cfg.listen_port})
++    Check 'one_manager_listener' ($listeners.Count -eq 1 -and $listeners[0].LocalAddress -eq $cfg.bind_host)
++    if (-not $checks.one_manager_listener) { throw 'Manager listener ambiguous' }
++    $manager=Get-CimInstance Win32_Process -Filter ('ProcessId='+$listeners[0].OwningProcess)
++    $managerId=Identity $manager
++    Check 'manager_identity_action_match' ($managerId.exe -ieq $action.Execute -and $managerId.owner_sid -eq $taskSid -and $manager.CommandLine.EndsWith($action.Arguments,[StringComparison]::OrdinalIgnoreCase))
++    $e.manager=$managerId
++    $e.manager_listener=@{address=$listeners[0].LocalAddress;port=$listeners[0].LocalPort;pid=$listeners[0].OwningProcess}
++    $qport=8000
++    $qListeners=@(Get-NetTCPConnection -State Listen | Where-Object {$_.LocalPort -eq $qport})
++    Check 'one_qwen_loopback_listener' ($qListeners.Count -eq 1 -and $qListeners[0].LocalAddress -eq '127.0.0.1')
++    if (-not $checks.one_qwen_loopback_listener) { throw 'Qwen listener ambiguous or absent' }
++    $gateway=Get-CimInstance Win32_Process -Filter ('ProcessId='+$qListeners[0].OwningProcess)
++    $engine=@(Get-CimInstance Win32_Process -Filter ("ParentProcessId="+$gateway.ProcessId) | Where-Object {$_.Name -eq 'qwen36.exe'})
++    Check 'one_qwen_engine' ($engine.Count -eq 1)
++    $valheim=@(Get-CimInstance Win32_Process -Filter "Name='valheim_server.exe'")
++    Check 'one_valheim_process' ($valheim.Count -eq 1)
++    if (-not $checks.one_qwen_engine -or -not $checks.one_valheim_process) { throw 'Protected process identity ambiguous or absent' }
++    $e.qwen_gateway=Identity $gateway; $e.qwen_engine=Identity $engine[0]; $e.valheim=Identity $valheim[0]
++    $e.valheim_udp=@(Get-NetUDPEndpoint | Where-Object {$_.OwningProcess -eq $valheim[0].ProcessId} | Select-Object LocalAddress,LocalPort,OwningProcess)
++    Check 'valheim_udp_bound' ($e.valheim_udp.Count -gt 0)
++    $tree=@(Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,Name)
++    $descendants=New-Object 'System.Collections.Generic.HashSet[int]'
++    [void]$descendants.Add([int]$manager.ProcessId)
++    do {
++        $changed=$false
++        foreach($p in $tree) {if($descendants.Contains([int]$p.ParentProcessId) -and $descendants.Add([int]$p.ProcessId)) {$changed=$true}}
++    } while($changed)
++    Check 'protected_processes_outside_manager_tree' (-not $descendants.Contains([int]$gateway.ProcessId) -and -not $descendants.Contains([int]$engine[0].ProcessId) -and -not $descendants.Contains([int]$valheim[0].ProcessId))
++    $children=@($tree | Where-Object {$_.ProcessId -ne $manager.ProcessId -and $descendants.Contains([int]$_.ProcessId)})
++    $e.manager_children=@($children | Select-Object ProcessId,ParentProcessId,Name)
++    Check 'manager_has_no_model_children' (@($children | Where-Object {$_.Name -notin @('powershell.exe','conhost.exe')}).Count -eq 0)
++    $e.manager_descendant_count=$descendants.Count-1
++    $private=Split-Path -Parent $config
++    $acl=Get-Acl -LiteralPath $private
++    $allowedSids=@($who.User.Value,'S-1-5-18','S-1-5-32-544')
++    $aclRows=@($acl.Access | ForEach-Object {[pscustomobject]@{sid=$_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value;type=[string]$_.AccessControlType;rights=[string]$_.FileSystemRights;inherited=$_.IsInherited}})
++    Check 'private_acl_protected_scoped' ($acl.AreAccessRulesProtected -and @($aclRows | Where-Object {$_.type -eq 'Allow' -and $_.sid -notin $allowedSids}).Count -eq 0)
++    $e.private_acl=@{protected=$acl.AreAccessRulesProtected;rules=$aclRows;owner=$acl.Owner}
++    $disk=Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
++    Check 'backup_space_available' ($disk.FreeSpace -gt 2GB)
++    $e.disk=@{drive='C:';free_bytes=$disk.FreeSpace;size_bytes=$disk.Size}
++    $e.public_code=@(Get-ChildItem -LiteralPath $root -File -Force | ForEach-Object {[pscustomobject]@{name=$_.Name;bytes=$_.Length;sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()}})
++    $known=@{'live_manager.py'='e15ef6ccea34fc4a6d7ba2afc2a4a37d6739d9b48884dcd99d0a9baa4584da51';'chat_runtime.py'='fc69896cc40a64237ff3125299d21d8e4a49ec0b5f0ae6ec64c1d905b9755466'}
++    Check 'known_installed_manager_version' (@($known.Keys | Where-Object {(Get-FileHash -LiteralPath (Join-Path $root $_) -Algorithm SHA256).Hash.ToLowerInvariant() -ne $known[$_]}).Count -eq 0)
++    $py=@'
++import hashlib,http.client,json,pathlib,socket,sqlite3,ssl,sys,urllib.request
++try:
++ c=json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8-sig'))
++ state=pathlib.Path(sys.argv[1]).parent.parent
++ out={'python':{'version':sys.version.split()[0],'bits':__import__('struct').calcsize('P')*8},'config_sha256':hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest(),'client_count':len(c['clients']),'control_models_granted_count':sum(x.get('control_models') is True for x in c['clients']),'pairing_admin_count':sum(x.get('pairing_admin') is True for x in c['clients']),'owner_go':c.get('control',{}).get('owner_go',False),'slot_count':len(c['slots'])}
++ server=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);server.load_cert_chain(c['cert_file'],c['key_file'])
++ out['tls_keypair_load']='PASS'
++ ctx=ssl.create_default_context(cafile=c['cert_file']);ctx.minimum_version=ssl.TLSVersion.TLSv1_2
++ conn=http.client.HTTPSConnection(c['bind_host'],c['listen_port'],context=ctx,timeout=4)
++ conn.connect();out['tls_peer_sha256']=hashlib.sha256(conn.sock.getpeercert(binary_form=True)).hexdigest()
++ conn.request('GET','/v1/snapshot');resp=conn.getresponse();out['unauth_snapshot_http']=resp.status;resp.read(4096);conn.close()
++ direct=urllib.request.build_opener(urllib.request.ProxyHandler({}))
++ for name,route in (('qwen_health','/health'),('qwen_models','/v1/models')):
++  with direct.open('http://127.0.0.1:8000'+route,timeout=3) as r:data=json.loads(r.read(65536))
++  out[name]=({'status':data.get('status')} if name=='qwen_health' else {'model_ids':[v['id'] for v in data.get('data',[])]})
++ dbs=[]
++ for p in state.rglob('*'):
++  if p.is_file() and p.suffix.lower() in ('.db','.sqlite','.sqlite3'):
++   db=sqlite3.connect(p.resolve().as_uri()+'?mode=ro',uri=True,timeout=2)
++   good=db.execute('PRAGMA quick_check').fetchone()[0]=='ok'
++   tables={x[0] for x in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
++   active=db.execute('SELECT COUNT(*) FROM instances WHERE released=0').fetchone()[0] if 'instances' in tables else None
++   db.close();dbs.append({'relative':str(p.relative_to(state)),'quick_check_ok':good,'active_owned_instances':active,'wal_present':p.with_name(p.name+'-wal').exists()})
++ out['state_databases']=dbs
++ out['state_root']=str(state)
++ print(json.dumps({'status':'PASS','metadata':out}))
++except Exception as e:
++ print(json.dumps({'status':'BLOCKED','error_type':type(e).__name__}));sys.exit(2)
++'@
++    $encoded=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($py))
++    $pythonOutput=@(& $action.Execute -X utf8 -B -c 'import base64,sys;exec(base64.b64decode(sys.argv.pop(1)))' $encoded $config)
++    $pythonExit=$LASTEXITCODE
++    $parsed=($pythonOutput -join "`n") | ConvertFrom-Json
++    Check 'python_private_tls_health_audit' ($pythonExit -eq 0 -and $parsed.status -eq 'PASS')
++    $e.python_audit=$parsed
++    if ($parsed.status -eq 'PASS') {
++        $meta=$parsed.metadata
++        Check 'python_312_x64' ($meta.python.version.StartsWith('3.12.') -and $meta.python.bits -eq 64)
++        Check 'tls_and_auth_denial' ($meta.tls_keypair_load -eq 'PASS' -and $meta.unauth_snapshot_http -eq 401)
++        Check 'qwen_ready_expected_model' ($meta.qwen_health.status -eq 'ok' -and @($meta.qwen_models.model_ids | Where-Object {$_ -match '(?i)qwen'}).Count -gt 0)
++        Check 'state_databases_consistent_no_jobs' (@($meta.state_databases | Where-Object {-not $_.quick_check_ok -or $_.active_owned_instances -gt 0}).Count -eq 0)
++    }
++} catch {
++    $e.error=@{type=$_.Exception.GetType().FullName;id=$_.FullyQualifiedErrorId;message=$_.Exception.Message}
++}
++$e.checks=$checks
++$failed=@($checks.Keys | Where-Object {-not $checks[$_]})
++$e.failed_checks=$failed
++$e.status=if($e.error -or $failed.Count -gt 0){'BLOCKED'}else{'PREFLIGHT_READONLY_PASS'}
++$e | ConvertTo-Json -Depth 12 -Compress
+--- /dev/null
++++ b/Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_server_preflight_v3.ps1
+@@ -0,0 +1,143 @@
++# Execute through existing IP/Negotiate WinRM. READ ONLY, no backup/staging yet.
++$ErrorActionPreference = 'Stop'
++if ($env:COMPUTERNAME -ne 'DESKTOP-KT4G5SM') { throw 'Wrong execution host' }
++$checks = [ordered]@{}
++$e = [ordered]@{ host=$env:COMPUTERNAME; sampled_utc=[DateTime]::UtcNow.ToString('o'); phase='B read-only preflight'; writes=$false }
++function Check([string]$name, [bool]$value) { $checks[$name]=$value }
++function Identity($process) {
++    $sid = (Invoke-CimMethod -InputObject $process -MethodName GetOwnerSid).Sid
++    if (-not $sid) { throw 'Process owner SID unavailable' }
++    return [pscustomobject]@{ pid=[int]$process.ProcessId; parent_pid=[int]$process.ParentProcessId; exe=$process.ExecutablePath; created_utc=$process.CreationDate.ToUniversalTime().ToString('o'); owner_sid=$sid; name=$process.Name }
++}
++function NoLinks([string]$path) {
++    $node = [IO.Path]::GetFullPath($path)
++    while ($node) {
++        if (Test-Path -LiteralPath $node) {
++            if ((Get-Item -LiteralPath $node -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { return $false }
++        }
++        $parent = [IO.Directory]::GetParent($node)
++        $node = if ($parent) {$parent.FullName} else {$null}
++    }
++    return $true
++}
++try {
++    $who=[Security.Principal.WindowsIdentity]::GetCurrent()
++    $e.execution=@{ identity_sid=$who.User.Value; identity_name=$who.Name; authentication=$who.AuthenticationType; is_admin=([Security.Principal.WindowsPrincipal]$who).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) }
++    Check 'admin_backup_authority' $e.execution.is_admin
++    $task=Get-ScheduledTask -TaskName 'UltraLLM_Manager_LIVE'
++    Check 'task_running_single_action' ($task.State -eq 'Running' -and @($task.Actions).Count -eq 1)
++    if (-not $checks.task_running_single_action) { throw 'Task not running with a single action' }
++    $action=$task.Actions[0]
++    $pattern='^\s*-u\s+-B\s+(?:"(?<script>[^"]+)"|(?<script>\S+))\s+--config\s+(?:"(?<config>[^"]+)"|(?<config>\S+))\s+--log-dir\s+(?:"(?<logs>[^"]+)"|(?<logs>\S+))\s*$'
++    $m=[regex]::Match($action.Arguments,$pattern)
++    Check 'task_arguments_known_contract' $m.Success
++    if (-not $m.Success) { throw 'Unexpected task argument contract; arguments not exported' }
++    $script=$m.Groups['script'].Value; $config=$m.Groups['config'].Value; $logs=$m.Groups['logs'].Value
++    $root=Split-Path -Parent $script
++    Check 'runtime_path_expected_no_links' ($root -ieq 'C:\Server\Ultra_LLM\Manager_Live' -and (NoLinks $root))
++    Check 'config_path_expected_no_links' ($config -ieq 'C:\ProgramData\UltraLLM\Manager\private\manager.json' -and (NoLinks $config))
++    Check 'python_exists_no_links' ((Test-Path -LiteralPath $action.Execute -PathType Leaf) -and (NoLinks $action.Execute))
++    $taskSid=([Security.Principal.NTAccount]$task.Principal.UserId).Translate([Security.Principal.SecurityIdentifier]).Value
++    $taskXml=Export-ScheduledTask -TaskName 'UltraLLM_Manager_LIVE'
++    $hash=[Security.Cryptography.SHA256]::Create()
++    $taskHash=([BitConverter]::ToString($hash.ComputeHash([Text.Encoding]::UTF8.GetBytes($taskXml)))).Replace('-','').ToLowerInvariant()
++    $e.task=@{ name=$task.TaskName; state=[string]$task.State; executable=$action.Execute; script=$script; config_path=$config; log_dir=$logs; working_directory=$action.WorkingDirectory; principal_sid=$taskSid; logon_type=[string]$task.Principal.LogonType; run_level=[string]$task.Principal.RunLevel; xml_sha256=$taskHash; restart_count=$task.Settings.RestartCount; restart_interval=[string]$task.Settings.RestartInterval; multiple_instances=[string]$task.Settings.MultipleInstances }
++    $cfg=Get-Content -LiteralPath $config -Raw -Encoding UTF8 | ConvertFrom-Json
++    Check 'control_disabled' ($cfg.control.owner_go -ne $true)
++    Check 'private_paths_local' ((NoLinks $cfg.cert_file) -and (NoLinks $cfg.key_file) -and $cfg.cert_file.StartsWith('C:\ProgramData\UltraLLM\Manager\private\',[StringComparison]::OrdinalIgnoreCase) -and $cfg.key_file.StartsWith('C:\ProgramData\UltraLLM\Manager\private\',[StringComparison]::OrdinalIgnoreCase))
++    $listeners=@(Get-NetTCPConnection -State Listen | Where-Object {$_.LocalPort -eq [int]$cfg.listen_port})
++    Check 'one_manager_listener' ($listeners.Count -eq 1 -and $listeners[0].LocalAddress -eq $cfg.bind_host)
++    if (-not $checks.one_manager_listener) { throw 'Manager listener ambiguous' }
++    $manager=Get-CimInstance Win32_Process -Filter ('ProcessId='+$listeners[0].OwningProcess)
++    $managerId=Identity $manager
++    Check 'manager_identity_action_match' ($managerId.exe -ieq $action.Execute -and $managerId.owner_sid -eq $taskSid -and $manager.CommandLine.EndsWith($action.Arguments,[StringComparison]::OrdinalIgnoreCase))
++    $e.manager=$managerId
++    $e.manager_listener=@{address=$listeners[0].LocalAddress;port=$listeners[0].LocalPort;pid=$listeners[0].OwningProcess}
++    $qport=8000
++    $qListeners=@(Get-NetTCPConnection -State Listen | Where-Object {$_.LocalPort -eq $qport})
++    Check 'one_qwen_loopback_listener' ($qListeners.Count -eq 1 -and $qListeners[0].LocalAddress -eq '127.0.0.1')
++    if (-not $checks.one_qwen_loopback_listener) { throw 'Qwen listener ambiguous or absent' }
++    $gateway=Get-CimInstance Win32_Process -Filter ('ProcessId='+$qListeners[0].OwningProcess)
++    $engine=@(Get-CimInstance Win32_Process -Filter ("ParentProcessId="+$gateway.ProcessId) | Where-Object {$_.Name -eq 'qwen36.exe'})
++    Check 'one_qwen_engine' ($engine.Count -eq 1)
++    $valheim=@(Get-CimInstance Win32_Process -Filter "Name='valheim_server.exe'")
++    Check 'one_valheim_process' ($valheim.Count -eq 1)
++    if (-not $checks.one_qwen_engine -or -not $checks.one_valheim_process) { throw 'Protected process identity ambiguous or absent' }
++    $e.qwen_gateway=Identity $gateway; $e.qwen_engine=Identity $engine[0]; $e.valheim=Identity $valheim[0]
++    $e.valheim_udp=@(Get-NetUDPEndpoint | Where-Object {$_.OwningProcess -eq $valheim[0].ProcessId} | Select-Object LocalAddress,LocalPort,OwningProcess)
++    Check 'valheim_udp_bound' ($e.valheim_udp.Count -gt 0)
++    $tree=@(Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,Name)
++    $descendants=New-Object 'System.Collections.Generic.HashSet[int]'
++    [void]$descendants.Add([int]$manager.ProcessId)
++    do {
++        $changed=$false
++        foreach($p in $tree) {if($descendants.Contains([int]$p.ParentProcessId) -and $descendants.Add([int]$p.ProcessId)) {$changed=$true}}
++    } while($changed)
++    Check 'protected_processes_outside_manager_tree' (-not $descendants.Contains([int]$gateway.ProcessId) -and -not $descendants.Contains([int]$engine[0].ProcessId) -and -not $descendants.Contains([int]$valheim[0].ProcessId))
++    $children=@($tree | Where-Object {$_.ProcessId -ne $manager.ProcessId -and $descendants.Contains([int]$_.ProcessId)})
++    $e.manager_children=@($children | Select-Object ProcessId,ParentProcessId,Name)
++    Check 'manager_has_no_model_children' (@($children | Where-Object {$_.Name -notin @('powershell.exe','conhost.exe')}).Count -eq 0)
++    $e.manager_descendant_count=$descendants.Count-1
++    $private=Split-Path -Parent $config
++    $acl=Get-Acl -LiteralPath $private
++    $allowedSids=@($who.User.Value,'S-1-5-18','S-1-5-32-544')
++    $aclRows=@($acl.Access | ForEach-Object {[pscustomobject]@{sid=$_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value;type=[string]$_.AccessControlType;rights=[string]$_.FileSystemRights;inherited=$_.IsInherited}})
++    Check 'private_acl_protected_scoped' ($acl.AreAccessRulesProtected -and @($aclRows | Where-Object {$_.type -eq 'Allow' -and $_.sid -notin $allowedSids}).Count -eq 0)
++    $e.private_acl=@{protected=$acl.AreAccessRulesProtected;rules=$aclRows;owner=$acl.Owner}
++    $disk=Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
++    Check 'backup_space_available' ($disk.FreeSpace -gt 2GB)
++    $e.disk=@{drive='C:';free_bytes=$disk.FreeSpace;size_bytes=$disk.Size}
++    $e.public_code=@(Get-ChildItem -LiteralPath $root -File -Force | ForEach-Object {[pscustomobject]@{name=$_.Name;bytes=$_.Length;sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()}})
++    $known=@{'live_manager.py'='e15ef6ccea34fc4a6d7ba2afc2a4a37d6739d9b48884dcd99d0a9baa4584da51';'chat_runtime.py'='fc69896cc40a64237ff3125299d21d8e4a49ec0b5f0ae6ec64c1d905b9755466'}
++    Check 'known_installed_manager_version' (@($known.Keys | Where-Object {(Get-FileHash -LiteralPath (Join-Path $root $_) -Algorithm SHA256).Hash.ToLowerInvariant() -ne $known[$_]}).Count -eq 0)
++    $py=@'
++import hashlib,http.client,json,pathlib,socket,sqlite3,ssl,sys,urllib.request
++try:
++ c=json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8-sig'))
++ state=pathlib.Path(sys.argv[1]).parent.parent
++ out={'python':{'version':sys.version.split()[0],'bits':__import__('struct').calcsize('P')*8},'config_sha256':hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest(),'client_count':len(c['clients']),'control_models_granted_count':sum(x.get('control_models') is True for x in c['clients']),'pairing_admin_count':sum(x.get('pairing_admin') is True for x in c['clients']),'owner_go':c.get('control',{}).get('owner_go',False),'slot_count':len(c['slots'])}
++ server=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);server.load_cert_chain(c['cert_file'],c['key_file'])
++ out['tls_keypair_load']='PASS'
++ ctx=ssl.create_default_context(cafile=c['cert_file']);ctx.minimum_version=ssl.TLSVersion.TLSv1_2
++ conn=http.client.HTTPSConnection(c['bind_host'],c['listen_port'],context=ctx,timeout=4)
++ conn.connect();out['tls_peer_sha256']=hashlib.sha256(conn.sock.getpeercert(binary_form=True)).hexdigest()
++ conn.request('GET','/v1/snapshot');resp=conn.getresponse();out['unauth_snapshot_http']=resp.status;out['unauth_snapshot_error']=json.loads(resp.read(4096)).get('error');conn.close()
++ direct=urllib.request.build_opener(urllib.request.ProxyHandler({}))
++ for name,route in (('qwen_health','/health'),('qwen_models','/v1/models')):
++  with direct.open('http://127.0.0.1:8000'+route,timeout=3) as r:data=json.loads(r.read(65536))
++  out[name]=({'status':data.get('status')} if name=='qwen_health' else {'model_ids':[v['id'] for v in data.get('data',[])]})
++ dbs=[]
++ for p in state.rglob('*'):
++  if p.is_file() and p.suffix.lower() in ('.db','.sqlite','.sqlite3'):
++   db=sqlite3.connect(p.resolve().as_uri()+'?mode=ro',uri=True,timeout=2)
++   good=db.execute('PRAGMA quick_check').fetchone()[0]=='ok'
++   tables={x[0] for x in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
++   active=db.execute('SELECT COUNT(*) FROM instances WHERE released=0').fetchone()[0] if 'instances' in tables else None
++   db.close();dbs.append({'relative':str(p.relative_to(state)),'quick_check_ok':good,'active_owned_instances':active,'wal_present':p.with_name(p.name+'-wal').exists()})
++ out['state_databases']=dbs
++ out['state_root']=str(state)
++ print(json.dumps({'status':'PASS','metadata':out}))
++except Exception as e:
++ print(json.dumps({'status':'BLOCKED','error_type':type(e).__name__}));sys.exit(2)
++'@
++    $encoded=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($py))
++    $pythonOutput=@(& $action.Execute -X utf8 -B -c 'import base64,sys;exec(base64.b64decode(sys.argv.pop(1)))' $encoded $config)
++    $pythonExit=$LASTEXITCODE
++    $parsed=($pythonOutput -join "`n") | ConvertFrom-Json
++    Check 'python_private_tls_health_audit' ($pythonExit -eq 0 -and $parsed.status -eq 'PASS')
++    $e.python_audit=$parsed
++    if ($parsed.status -eq 'PASS') {
++        $meta=$parsed.metadata
++        Check 'python_312_x64' ($meta.python.version.StartsWith('3.12.') -and $meta.python.bits -eq 64)
++        Check 'tls_and_access_denial' ($meta.tls_keypair_load -eq 'PASS' -and (($meta.unauth_snapshot_http -eq 401 -and $meta.unauth_snapshot_error -eq 'unauthorized') -or ($meta.unauth_snapshot_http -eq 403 -and $meta.unauth_snapshot_error -eq 'source_not_permitted')))
++        Check 'qwen_ready_expected_model' ($meta.qwen_health.status -eq 'ok' -and @($meta.qwen_models.model_ids | Where-Object {$_ -match '(?i)qwen'}).Count -gt 0)
++        Check 'state_databases_consistent_no_jobs' (@($meta.state_databases | Where-Object {-not $_.quick_check_ok -or $_.active_owned_instances -gt 0}).Count -eq 0)
++    }
++} catch {
++    $e.error=@{type=$_.Exception.GetType().FullName;id=$_.FullyQualifiedErrorId;message=$_.Exception.Message}
++}
++$e.checks=$checks
++$failed=@($checks.Keys | Where-Object {-not $checks[$_]})
++$e.failed_checks=$failed
++$e.status=if($e.error -or $failed.Count -gt 0){'BLOCKED'}else{'PREFLIGHT_READONLY_PASS'}
++$e | ConvertTo-Json -Depth 12 -Compress

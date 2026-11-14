@@ -853,3 +853,173 @@ Valheim не обнаружен разрешёнными запросами, и 
 Остановлено на B до backup/staging, **Gate 2 не достигнут**. Текущий main №49
 `b15d5eabd3ec8325109d9c37b8f81085ab997076` сохранён, это принятый ранее владельцем
 коммит. Новые commit/push/pull, смена ветки и изменения индекса не выполнялись.
+
+
+## CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001 — этап B завершён, Gate 2 (14.11.2026)
+
+**B PASS / BACKUP VERIFIED / R5 STAGING READY / GATE 2 / REVIEW PENDING.**
+Выполнен только разрешённый B. Действующий Manager остаётся прежней версии.
+**C/D, переключение каталогов, stop/restart сервисов и inference НЕ выполнялись.**
+Это отчёт исполнителя; независимый verdict и отдельный OWNER GO C ещё требуются.
+
+### DONE
+
+После уточнения владельца о штатном завершении и ручном повторном запуске Valheim
+сделан свежий server-side preflight через существующий WinRM **192.168.0.77 /
+Negotiate**, на **DESKTOP-KT4G5SM / silver / NTLM**. Доступ/credentials/TrustedHosts
+не перенастраивались. Актуальные процессы зафиксированы до и после B:
+
+| Компонент | PID | Creation UTC | Подтверждение |
+| --- | --- | --- | --- |
+| Manager | 209432 | 2026-11-11T15:01:00.2472210Z | Task Running, один listener 192.168.0.77:8443, exe/SID/args совпадают с action |
+| Colibri gateway | 138268 | 2026-11-08T07:13:36.7596450Z | один loopback listener 127.0.0.1:8000 |
+| Qwen engine | 139516 | 2026-11-08T07:13:36.9946200Z | qwen36.exe, дочерний gateway; health=ok, qwen3.6-35b-a3b-colibri |
+| Valheim | 248800 | 2026-11-13T19:14:58.4652220Z | C:\Server\New_Valhelm\Valheim dedicated server\valheim_server.exe; UDP 2456/2457 |
+
+Qwen и Valheim находятся **вне дерева Manager**. В дереве Manager обнаружен
+обычный conhost.exe, а не модельный job: отсутствие ВСЕХ дочерних процессов не
+требуется и не подменяется отсутствием owned LLM instances. Идентичности,
+включая creation/exe/SID, до/после совпали. Функциональный игровой тест/игроки
+Valheim не проверялись; зафиксированы процесс и UDP endpoints, без вмешательства.
+
+Python сервера 3.12.10 x64, private ACL защищён (silver/SYSTEM/Administrators),
+свободно более 152 GB на C:, installed Manager соответствует прежним SHA.
+owner_go=false, control_models=0, pairing_admin=0, один клиент/три слота.
+SQLite/WAL/owned state DB не обнаружены до/после. TLS keypair загружается,
+существующее HTTPS соединение проверено по сертификату. Серверный запрос без
+авторизации отклонён **403 source_not_permitted** — ожидаемый IP allowlist gate;
+это не выдаётся за проверку bearer-аутентификации/Client roundtrip.
+
+### BACKUP/ROLLBACK — реальные серверные материалы
+
+Создан единственный новый защищённый каталог **на сервере DESKTOP-KT4G5SM**:
+
+`C:\ProgramData\UltraLLM\Manager_R5_STAGEB_20261114T063715Z_685df77d`
+
+Это серверный путь, не домашний C:. Существующие каталоги не переносились и не
+перезаписывались. Внутри:
+
+- `backups\code` — **все 26 файлов / 6 каталогов** прежнего Manager, включая
+  неизвестные/исторические файлы, старые .rollback/.staging и cache; SHA readback PASS.
+- `backups\state` — **все 4 файла / 3 каталога** Manager ProgramData: private
+  config/auth/TLS и журнал. Raw содержимое осталось исключительно на сервере.
+- `backups\task_original.xml` — исходный Scheduled Task XML в UTF-16; parse и
+  readback/canonical UTF-8 SHA проверены, task не перерегистрировался.
+- `backups\backup_manifest_PRIVATE.json` — полный private manifest с SHA и
+  исходными owner/group/DACL SDDL. SHA этого manifest:
+  `aae98df0cc3a0bd7514d4d76ede8083c9268001788aab082ddaf86e66326977b`.
+- `rollback_rehearsal` — **новая** копия backup старого кода/private файлов:
+  все исходные bytes сохранены, old runtime imports и TLS pair load PASS.
+- `rollback_acl_probe` — только новые синтетические объекты для репетиции
+  возврата owner/group/DACL; действующие права не изменялись.
+- `package`, `incoming`, `package_tools` — проверенный публичный ZIP и инструменты.
+- `staging` — **R5-compat-20261113.1, 21/21 файлов**, ещё НЕ рабочий runtime.
+
+Новый root защищён до копирования private данных. Все **112 объектов** нового
+дерева проверены: 0 reparse и 0 посторонних Allow-SID; доступ только silver,
+SYSTEM и Administrators. Исходные ACL сохранены в private manifest, а не
+применены поверх backup с широкими source grants. Для репетиции private ACL
+применён только к новым синтетическим объектам и затем проверен чтением.
+Аудит-политика/SACL не менялась; записаны owner/group/DACL.
+
+Старый runtime импортирован из восстановленной копии в isolated Python с -B и
+отдельным несуществующим pycache_prefix: существующий legacy .pyc не исполнялся,
+новые cache-файлы не создавались. Private bytes и восстановленная cert/key пара
+проверены на сервере, не передавались домой. Новая папка на том же C: volume;
+реальные rename/rollback рабочей установки и restart task **NOT RUN**.
+
+Для работающего журнала сохранена проверенная копия заданной длины на момент
+чтения, допускающая штатное дописывание оригинала. Это не глобальный атомарный
+снимок всех логов. Non-log config/auth/TLS/code должны быть и остались byte-exact.
+SQLite/WAL backup — **N/A: файлов нет**, а не тест условной/synthetic БД. Если БД
+появится при будущем preflight, нужен отдельный consistent SQLite backup, без
+слепого копирования одного DB или восстановления поверх работающих jobs.
+
+### STAGING / TESTS
+
+Использован прежний авторитетный ZIP, без пересборки:
+`ba4ebf65af7a0693cf4dce045eb08254434a4475fd4f79e031424c905d661ce2`.
+Публичные файлы переданы Copy-Item -ToSession через тот же IP/Negotiate канал;
+private параметры/Task XML сформированы на сервере и не возвращались клиенту.
+Helper и ZIP проверены SHA до исполнения. Штатный manager_release.py из этого
+ZIP использован для verify/stage; неизвестные extras и reparse не допускаются.
+
+На staging:
+
+- все 21 файла/manifest/stdlib import closure — PASS;
+- isolated source imports — **R5_IMPORT_OK**;
+- существующий private config, без --log-dir/listener — **MANAGER_CONFIGURATION_OK**;
+- после imports/config-check состав staging всё ещё ровно 21, никаких DB/cache/log;
+- model-control не включался, новый listener/модель не запускались.
+
+Новые проверки помощника на домашнем Test: 6 сценариев PASS (полнота копии,
+неперезапись backup, повреждение, log append, junction refusal, host guard) и
+отдельный 1 PASS на игнорирование подменённого legacy bytecode. Это offline QA,
+не тест LLM. Полные A suites не повторялись без изменения продукта.
+
+Read-only preflight v3 — **24/24 PASS**, exit 0, 4.267 s; post-check — 24/24 PASS.
+Первый локальный stdin driver вернул пустой вывод: это **не** было принято за
+успех; отдельная серверная read-only проверка подтвердила отсутствие новых
+каталогов. Затем тот же сохранённый scriptblock исполнен штатным -Command без
+изменения ExecutionPolicy. Транзакция backup/staging заняла 11.825 s и дошла до
+ошибки собственного точного строкового ACL self-test; последующее read-only
+уточнение/post-check — 4.942 s. Все исходные exit codes/stdout сохранены.
+
+### PROBLEMS — почему промежуточный BLOCKED не скрыт
+
+1. Исходная проверка ожидала только HTTP 401. Существующий source IP filter
+   закономерно возвращает 403 source_not_permitted на локальный server request.
+   Принят только подтверждённый 401/unauthorized либо 403/source_not_permitted;
+   произвольный 403 не маскируется под PASS. TLS и auth/config не менялись.
+2. Directory ACL restore PASS, file self-test сравнивал SDDL как строку. Windows
+   переставила два наследуемых **Allow FullControl** ACE (SYSTEM/Administrators).
+   Owner/group/protected/canonical и все SID/rights/inheritance/propagation
+   совпали; Deny/object ACE отсутствуют. Read-only semantic comparison + 8
+   отрицательных проверок подтвердили эквивалентность. Никакие live/backup права
+   ради PASS не исправлялись. Начальный exit 2 сохранён, prepare не повторялся.
+
+Это исправления оценки собственных проверок, а не ослабление защитных условий
+или ремонт живой системы. Итог B основан на реальных backup/stage readback,
+проверке прав и неизменных post identities/config/task/TLS. В независимую приёмку
+переданы и промежуточные ошибки, и окончательная проверка.
+
+### PRE/POST / CHANGED / DIFF
+
+Task XML canonical SHA **до/после**:
+`b797430c62f7ef5c2e7bbdfa64283ae8739b83ede3a5fa0d9b8740e67f7b6884`.
+Private config SHA:
+`87e91f7a02dc697964356e0e9ca71d28e1b41eb2954b0b0186cd08d1af313d86`.
+TLS peer SHA:
+`6ffd03d256372ca5a96d47719e2d5bb48e58a0d49c377e3ca326b46fe756fef1`.
+Рабочие code/state non-log bytes и права, task action/settings, owner_go/grants,
+сеть/firewall/TrustedHosts не изменялись. Manager/Qwen/Valheim не останавливались
+и не перезапускались. Client/ярлык/его приватная история не открывались.
+
+Изменения на сервере ограничены **новым защищённым maintenance-каталогом**.
+Локально добавлены stage_b_* скрипты/evidence и этот append к существующему README,
+checkpoint в №07 вне оригинальной TASK. БЛОК4 и прежние evidence сохранены.
+Рабочие исходники Manager/Client и прежний ZIP не менялись. Git HEAD main №50
+`35fbd14744b3d2f99788bd021e85e484ddceae1a` сохранён; новых commit/push/pull нет.
+
+### QUESTIONS / DOC IMPACT / NEXT
+
+Технических блокеров B не осталось. **Остановлено на Gate 2.** Требуется
+независимая приёмка координатором, затем отдельный OWNER GO именно на C / Manager-
+only switch + rollback. Новое разрешение не предполагается из команды «продолжай».
+
+Независимый read-only шаблон: `stage_b_independent_verify.ps1` (после B автором
+не исполнялся). Он возвращает только booleans, private данные остаются серверными.
+Основные evidence: `stage_b_completion.json`, `stage_b_backup_staging_result.json`,
+`stage_b_acl_readonly_diagnostic.json`, `stage_b_server_preflight_ready.json`,
+`stage_b_final_handoff.json`, `stage_b_resume_evidence_manifest.json`.
+
+Координатору актуализировать №05/09/13/18 по B, не переносить source/mock PASS
+в реальный streaming PASS. Ранее подготовленные предложения №22 ag_llm и №18
+local_LLM остаются отдельными предложениями; ag_llm и сам №18 здесь не изменялись.
+
+До C заново сверить свежие PID/creation/task/config/TLS, состояние protected
+процессов, backup/staging hashes и возможные новые DB/owned jobs. Доступность
+rename после выхода Manager, гонка restart и настоящий service rollback ещё
+не тестировались — это C, не гарантия из копирования. C/D, inference, cancel,
+CPU/CUDA START/STOP и KAT не выполняются автоматически. Backup и staged/failed
+материалы не удалять. Вся многоэтапная TASK пока остаётся активной в БЛОКЕ 1.

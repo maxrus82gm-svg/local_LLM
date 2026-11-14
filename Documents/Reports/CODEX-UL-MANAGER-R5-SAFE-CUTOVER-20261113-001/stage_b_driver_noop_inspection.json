@@ -1,0 +1,9 @@
+{
+  "exit_code": 0,
+  "stdout": "{\"host\":\"DESKTOP-KT4G5SM\",\"maintenance_directories\":[]}\r\n",
+  "stderr": "",
+  "result": {
+    "host": "DESKTOP-KT4G5SM",
+    "maintenance_directories": []
+  }
+}
