@@ -44,6 +44,14 @@ Codex работает **на компьютере владельца**, поэ�
 
 ### БЛОК 1 — ТЕКУЩАЯ ЗАДАЧА
 
+**Свободен — новой TASK нет.** `CODEX-UL-R5-GATE2-REGRESSION-FIX-20261114-001` **закрыта только в scope OFFLINE SOURCE/TEST**, потому что independent Windows CI PASS, но `RELEASE HOLD` на весь Manager R5 продолжается. После принятия документного коммита №57 владелец отдельно согласует следующий scope и запуск Codex; наличие FOLLOWUP в БЛОКЕ 3 — не назначение задачи.
+
+**Не выполнять автоматически:** новую пересборку исходного Manager ZIP, restaging, overwrite/stop/start живого Manager, Qwen, Valheim, CPU/CUDA, реальный inference, SAFE-CUTOVER C/D. Эти действия требуют новой явной OWNER GO.
+
+### БЛОК 1.1 — ПОСЛЕДНЯЯ СДАННАЯ ЗАДАЧА (ДОСЛОВНЫЙ ОРИГИНАЛ)
+
+**CODEX-UL-R5-GATE2-REGRESSION-FIX-20261114-001 — AUTHOR QA READY / INDEPENDENT SOURCE+CI ACCEPTED / SCOPED TASK CLOSED / RELEASE HOLD.** Дословный полный прежний БЛОК 1 следует ниже; исторический статус `AWAITING OWNER START` внутри оригинала отражает дату назначения и не является текущим. Фактический исходный код в `main` №56 `d79e7fb0aeabb49c96cbbb643376ab910b4a6cb5`, независимый GitHub CI [run `43599309587`, attempt 2](https://github.com/maxrus82gm-svg/local_LLM/actions/runs/43599309587/attempts/2): Manager 337 total = 336 PASS + 1 SKIP, Client49 PASS, negative controls и Chrome PASS. Код и четыре прежних RED-метода проверены координатором, текст всех четырёх методов **совпадает с №54**, README append-only. Real server/packaged release NOT RUN; `USER UX NOT REQUIRED` для внутренней проверки. Предыдущая БЛОК 1.1 `CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001` с полным текстом сохранена в [immutable №56](https://github.com/maxrus82gm-svg/local_LLM/blob/d79e7fb0aeabb49c96cbbb643376ab910b4a6cb5/Documents/07_%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B8%20Codex.md) → старая 1.1 и №07.00/09. SAFE-CUTOVER `CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001` A/B Gate2 и C/D OPEN остаётся в immutable №54. Архивная ротация **не означает релизный GO**.
+
 **CODEX-UL-R5-GATE2-REGRESSION-FIX-20261114-001 / AWAITING OWNER START.** Владелец примет документный №55, затем отдельно активирует Codex.
 
 # CODEX-UL-R5-GATE2-REGRESSION-FIX-20261114-001
@@ -90,86 +98,26 @@ Codex работает **на компьютере владельца**, поэ�
 
 `DONE / CHANGED / DIFF / TESTS / CI / PROBLEMS / QUESTIONS / DOC IMPACT / NEXT`, точные изменённые файлы, сохраняемые F3 trusted private backup provenance и F4 flaky first Chrome (отдельные FOLLOWUP). Статус `AUTHOR QA READY / INDEPENDENT REVIEW PENDING` либо `PARTIAL/BLOCKED`; по сдаче остановиться. Координатор независимо проверяет код/CI и ведёт №05/07/09/13/18. **USER UX NOT REQUIRED** для внутреннего фикса, `RELEASE HOLD` и отдельный GO для C/D сохраняются даже при зелёном CI.
 
-
-### БЛОК 1.1 — ПОСЛЕДНЯЯ СДАННАЯ ЗАДАЧА (ДОСЛОВНЫЙ ОРИГИНАЛ)
-
-**CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001: AUTHOR TESTED / PARTIAL / WINDOWS CI FAIL 4 / RELEASE HOLD / ITERATION ARCHIVED.** Дословный текст прежнего БЛОКА 1 следует ниже (включая историческую метку `AWAITING OWNER START`, которая относилась лишь к моменту постановки). Позднее единственный commit №54 `f324513cac5a270ac620acdf2466c0f27efb6593` уже был опубликован прямо в `main`. [Windows run `43581579523`](https://github.com/maxrus82gm-svg/local_LLM/actions/runs/43581579523) подтвердил четыре RED; повторная публикация не требуется. Independent code+CI log review подтвердил регрессии, но fresh own test run не выполнялся. Предшествующая полная `CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001` с AMENDMENT/стадиями A/B заархивирована в [immutable №54](https://github.com/maxrus82gm-svg/local_LLM/blob/f324513cac5a270ac620acdf2466c0f27efb6593/Documents/07_%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B8%20Codex.md) → предыдущий БЛОК 1.1, остаётся OPEN C/D.
-
-**CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001 — AWAITING OWNER START.** Исключение на запись в GitHub выдано владельцем 14.11.2026; Codex пока не запускать.
-
-# CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001
-
-**Задача:** усилить инженерные и CI-проверки Manager R5 перед разрешением обновления сервера  
-**Исполнитель:** Codex; **приоритет:** P0; **дата:** 14.11.2026  
-**Статус:** ASSIGNED IN CARD / **AWAITING OWNER START**. Владелец отдельно запустит задачу после обновления GitHub Desktop. Это ещё не исполнение.
-
-## 1. Цель и baseline
-
-Подготовить воспроизводимый offline source/Windows CI gate для `R5-compat-20261113.1`, исправить пробелы **в тестах**, а не переписать готовый Manager. Предыдущая `CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001` завершила только A/B (Stage B backup/staging и Gate 2); C/D всё ещё OPEN и не разрешены.
-
-**Git baseline:** на момент постановки `main` и `GPT_2_local` совпадали на `f50336a74a9e8929bc6999dd4a4bd77f9ced23d0` (№52). Проверить HEAD заново перед началом. **Существующий Windows CI:** `43572399891`, исходный SHA №52, Manager `Ran 311 tests / OK (skipped=1)`, Client `Ran 49 tests / OK`, Chrome legacy/P0/P1 PASS. Это source/mock tests, не real inference, настоящий ZIP SHA или live server.
-
-## 2. Матрица чтения
-
-Обязательно читать относящиеся разделы:
-- `Documents/00_Старт.md`; `Documents/000_Задачи для агента.md` §§3–5.1 `TEST-FULL-CYCLE-01`;
-- `Documents/07_Задачи Codex.md` БЛОКИ 1, 1.1, 3–4; `Documents/07.00_История_задач_Codex.md`;
-- `Documents/05_Реестр_задач.md`, `Documents/09_История_задач.md`, `Documents/13_Тактический_контекст.md`, `Documents/18_Техническая_документация.md` §§18.30–18.32;
-- `.github/workflows/ultra-offline-ci.yml`;
-- `Manager_Ultra_LLM/manager_release.py`, `test_manager_release.py`, `README.md`, связанные preflight/rollback/security/HTTP tests;
-- опубликованные evidence `Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/` и `Documents/Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/` по необходимости.
-
-Перед любой правкой проверить actual HEAD, локальный diff, отсутствие чужих изменений, scope и ранее закрытое покрытие. Не дублировать тесты.
-
-## 3. Работа и тесты
-
-**A. Coverage matrix:** `изменение → риск → старый тест → пробел → новый тест/оракул`. Разделять AUTHOR, независимые проверки, FAIL, SKIP, NOT RUN.
-
-**B. Синтетические негативные/регрессионные сценарии, только недостающее покрытие:**
-1. Release ZIP 21 файл, allowlist, manifest/SHA, приватные/лишние файлы, опасные пути/link/junction, отсутствующие зависимости. *Созданный синтетический ZIP ≠ оригинальный авторитетный ZIP.* Если исходный ZIP недоступен в CI — `EXACT ZIP CI NOT RUN`.
-2. Manager guard: неожиданно изменившиеся PID/creation time/owner/Task XML/listener; отсутствующие или изменившиеся Qwen и Valheim — **fail-closed** на synthetic snapshots, без касания реальных процессов.
-3. Backup/restore/rollback: повреждённый, неполный, чужой, stale backup/TLS/auth/config, сбой restore/неполная транзакция — ожидаемый RED. Никакого реального cutover.
-4. ACL: равнозначные перестановки Allow ACE разрешены; новый посторонний SID/изменённый owner или права, небезопасное расширение — RED.
-5. HTTP/auth: ожидаемый `401` и точно `403 source_not_permitted` различать; произвольный 403, пропавший grant или пустой вывод не являются успехом.
-6. Негативные контроли должны реально обнаруживать ошибку; пустая test collection, любое исключение или просто exit 0 — не PASS. Сохранять первый FAIL.
-
-**C. Existing Windows CI:** использовать **тот же** `.github/workflows/ultra-offline-ci.yml`, не создавать второй workflow. При необходимости улучшить `windows-latest`, timeout, минимальные permissions, `persist-credentials: false`, fixed Python/Node/dependency versions, script exit codes, непустые suites, независимые negative controls. Инструменты и тестируемые данные — изолированные, без секретов и внешнего API. Hosted CI на точном SHA с run ID только если действительно запущен; старый run или YAML без выполнения не считать новым PASS.
-
-**D. Авторские проверки:** повторить уместные offline suites/negative tests по разрешённым правам, зафиксировать команды, фактические PASS/FAIL/ERROR/SKIP, regressions. Если найден production-defect — воспроизвести и оформить FOLLOWUP; **не менять production-код ради зелёных тестов**.
-
-## 4. Write scope и запреты
-
-Разрешены правки существующих адресных тестов в `Manager_Ultra_LLM/`, при необходимости один новый `test_*.py` в этой папке, существующий `.github/workflows/ultra-offline-ci.yml` и относящаяся авторская часть `Manager_Ultra_LLM/README.md`. Временные тестовые файлы — только в согласованном workspace `M:\GitHub\local_LLM`. Не создавать другие новые документы/отчёты/CI workflow без отдельного GO.
-
-Git-чтение разрешено; commit/push и изменения чужих веток, особенно `main`, **не разрешены автоматически**. Для публикации CI/test изменений запросить отдельное согласование; общий регламент — один итоговый коммит на TASK. Не выполнять команды с реальными auth/секретами.
-
-**Запрет:** изменения live/production Manager или Client, `Production/Client`, TLS/auth/config/ACL, Scheduled Task, firewall, Qwen/Colibri, Valheim, API charges, LLM inference, CPU/CUDA START/STOP, серверный backup/staging или переключение; C/D и физический rollback — только по отдельному OWNER GO.
-
-## 5. Критерий сдачи
-
-`DONE / CHANGED / DIFF / PROBLEMS / QUESTIONS / DOC IMPACT / NEXT`, точный исходный SHA, матрица рисков, пути правок, команды/exit codes/counts, отдельно ожидаемые RED и реальные FAIL, доказательства и CI run ID/SHA или честное NOT RUN, проверка оригинального ZIP или NOT RUN, список безопасных followups. Не объявлять собственный `INDEPENDENT PASS` или `LIVE PASS`.
-
-Подробный авторский handoff — в **существующем** `Manager_Ultra_LLM/README.md` (не создавать новые permanent reports без разрешения). Итог `AUTHOR QA READY / INDEPENDENT REVIEW PENDING` либо `PARTIAL/BLOCKED`. После сдачи **остановиться**, дальнейшую независимую проверку выполняет ChatGPT по №000 §5.1. Для сугубо внутреннего QA OWNER UX `NOT REQUIRED`. Никакого C/D.
-
 ### БЛОК 2 — ПОСЛЕДНИЕ ПЯТЬ ЗАДАЧ (КОРОТКИЙ ИНДЕКС)
 
-- **CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001 / 14.11** — AUTHOR PARTIAL / CODE+CI LOG REVIEW / 4 reproduced FAIL / RELEASE HOLD; полный оригинал в БЛОКЕ 1.1, источник `main` №54, Windows run `43581579523`, handoff `Manager_Ultra_LLM/README.md`.
-- **CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001 / 13.11** — SOURCE candidate, independent evidence review, LIVE NOT RUN; immutable №52 → №07 БЛОК 1.1, №07.00/09.
-- **CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001 / 13.11** — AUTHOR Client LIVE PASS / independent evidence, host rerun NOT RUN; №09.
-- **CODEX-UL-CLIENT-DEPLOY-20261112-001 / 12.11** — Client deploy, later root migration; архив №09/immutable №54.
-- **CODEX-UL-STREAM-SLOTS-20261112-001 / 12.11** — SOURCE/mock CI PASS / LIVE NOT RUN; №09.
+- **CODEX-UL-R5-GATE2-REGRESSION-FIX-20261114-001 / 14.11:** OFFLINE source fix **SCOPED CLOSED / INDEPENDENT TECHNICAL+CI PASS**: №56 `d79e7fb0aeabb49c96cbbb643376ab910b4a6cb5`, [independent CI attempt 2](https://github.com/maxrus82gm-svg/local_LLM/actions/runs/43599309587/attempts/2) 336 Manager PASS/1 SKIP, Client49 PASS, Chrome/5 controls PASS. REAL/ZIP rebuild NOT RUN; RELEASE HOLD.
+- **CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001 / 14.11:** AUTHOR PARTIAL, independent code/CI review, четыре RED/Windows FAIL; оригинал [immutable №56](https://github.com/maxrus82gm-svg/local_LLM/blob/d79e7fb0aeabb49c96cbbb643376ab910b4a6cb5/Documents/07_%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B8%20Codex.md) → прежняя БЛОК 1.1; №54/README/№09.
+- **CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001 / 13.11:** SOURCE candidate/evidence PASS; immutable №52 оригинал; реальный deploy NOT RUN.
+- **CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001 / 13.11:** AUTHOR Client LIVE PASS, independent evidence review, own rerun NOT RUN; №09.
+- **CODEX-UL-CLIENT-DEPLOY-20261112-001 / 12.11:** Client deployment and later ROOT migration; история №09, immutable commits.
 
-**Отдельно OPEN (не пятый закрытый результат):** `CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001` A/B Gate 2, C/D NOT RUN, original+AMENDMENT [immutable №54](https://github.com/maxrus82gm-svg/local_LLM/blob/f324513cac5a270ac620acdf2466c0f27efb6593/Documents/07_%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B8%20Codex.md) → прежний БЛОК 1.1. Новая `CODEX-UL-R5-GATE2-REGRESSION-FIX-20261114-001` — в БЛОКЕ 1, AWAITING OWNER START.
+**Дополнительные OPEN вне завершённой пятёрки:** `CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001` — A/B SUBMITTED, Stage B Gate2, C/D NOT RUN/OWNER GO absent; полная задача и AMENDMENT immutable №54. F3 backup provenance pin; F4 Chrome first-run; versioned R5 release/re-stage после source fixes. Все ранние задачи остаются в №09/immutable Git.
 
 ### БЛОК 3 — OPEN / NEXT
 
-- **ACTIVE / NEXT:** `CODEX-UL-R5-GATE2-REGRESSION-FIX-20261114-001` — P0 offline исправление F1a listener, F1b boolean flags, F1c точный `403/source_not_permitted`, F2 dynamic import; сейчас `AWAITING OWNER START`. Только после разрешённой активации один scoped commit/push в `GPT_2_local`.
-- **Уже опубликовано:** `main` №54 `f324513cac5a270ac620acdf2466c0f27efb6593`, [Actions 43581579523](https://github.com/maxrus82gm-svg/local_LLM/actions/runs/43581579523) `FAIL`, Manager `325 PASS / 4 FAIL / 1 SKIP`, Client 49 PASS, negative controls/Chrome PASS. Это не «ожидает публикации», повторный commit тех же тестов запрещён.
-- **SAFE-CUTOVER `CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001`:** A/B SUBMITTED, Gate 2, полная TASK OPEN, C/D без GO; оригинал архивирован по SHA №54. Реальный сервер/Qwen/Valheim не менялись по evidence; OWN host rerun NOT RUN.
-- **F3/F4:** trusted private backup provenance COVERAGE GAP, legacy first Chrome failure/second pass HYPOTHESIS — separate OPEN, не смешивать с 4 FAIL.
-- **Публикация:** №55 документный child №54 только в `GPT_2_local`, owner принимает в main. Проверять Git SHA, task/README/CI run до каждого повторного предложения commit; строго whitelist, `.obsidian/**` запрещён.
+- **Свободен БЛОК 1.** `CODEX-UL-R5-GATE2-REGRESSION-FIX-20261114-001` технически принята и архивирована в БЛОК 1.1, **не** принята как релиз/серверное развертывание. Новая TASK пока не назначена.
+- **F1a/F1b/F1c/F2 source закрыты:** №56 `d79e7fb0aeabb49c96cbbb643376ab910b4a6cb5`, независимый Windows [run 43599309587 attempt 2](https://github.com/maxrus82gm-svg/local_LLM/actions/runs/43599309587/attempts/2) — Manager `337 total (336 PASS/1 SKIP)`, Client49 PASS, five negative controls/Chrome legacy/P0/P1 PASS, 4 старые RED сохранены и теперь PASS.
+- **RELEASE HOLD / NEXT по отдельному OWNER GO:** старый original ZIP и серверное staging 21/21 содержат прежний validator; требуется версия нового release + проверка SHA и безопасное staging (не в этой TASK), независимый physical host preflight, F3 trusted private backup provenance pin, оценка F4 Chrome first-run. C/D `CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001` не разрешены, Qwen/Valheim не трогать.
+- **История/согласование:** №05/07.00/09/13/18 и №00 обновлены одним doc-only №57 в `GPT_2_local`, `main` меняет только владелец. §5.3 publication guard / test protocol продолжают действовать, новых UI изменений нет, OWNER UX NOT REQUIRED.
 
 ### БЛОК 4 — НЕЗАВИСИМАЯ ПРОВЕРКА (ТОЛЬКО КООРДИНАТОР)
+
+**14.11.2026 — независимая приёмка `CODEX-UL-R5-GATE2-REGRESSION-FIX-20261114-001` (№56):** лично проверены Git diff №55→№56 и точный whitelist 5/5 файлов (никакого `.obsidian/**`), source `stage_b_complete_readonly.py` и `manager_release.py` по F1a/F1b/F1c/F2, тесты, README append-only. Все четыре оригинальные regression test methods **дословно равны №54**, без `skip`/`expectedFailure`; новые positive/negative и Python `-O` checks присутствуют. Авторский hosted [CI run 43599309587 attempt 1](https://github.com/maxrus82gm-svg/local_LLM/actions/runs/43599309587) PASS. **Координатор лично инициировал повтор GitHub Actions job `132460435835` → новый job `132547140934`, [attempt 2](https://github.com/maxrus82gm-svg/local_LLM/actions/runs/43599309587/attempts/2) на том же SHA `d79e7fb0aeabb49c96cbbb643376ab910b4a6cb5` — `completed/success`, `Ran 337 tests OK (skipped=1)`, Client `Ran 49 tests`, negative controls, Chrome legacy/P0/P1 PASS, failure/error 0.** Отдельного собственного нового test-файла не добавлялось; независимый повторяет уже опубликованные suites на новом hosted runner. Вердикт: `AUTHOR QA READY / INDEPENDENT TECHNICAL PASS (SOURCE SCOPE) / CI WINDOWS PASS (ATTEMPT 2) / REAL APPLICATION NOT RUN / USER UX NOT REQUIRED / SOURCE TASK CLOSED / RELEASE HOLD`. **Релизный ZIP оригинал проверен автором локально, hosted exact ZIP NOT RUN; сервер/стадии C/D запрещены и не проверялись.** F3/F4 и rebuild/re-stage отдельно OPEN.
 
 **14.11.2026 — `CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001`: независимая инженерная приёмка PARTIAL.** Прочитаны код и настоящий GitHub-hosted Windows CI `43581579523` на №54 `f324513cac5a270ac620acdf2466c0f27efb6593`: 330 Manager (325 PASS, 4 FAIL, 1 SKIP), 49 Client PASS, Chrome legacy/P0/P1 и 5 negative controls PASS. Подтверждены F1a listener PID mismatch, F1b truthy `'false'`, F1c чужая 403 reason, F2 `__import__('qa_unavailable_dependency')` в корректном synthetic manifest. Это **INDEPENDENT CODE + CI LOG REVIEW CONFIRMED / CI WINDOWS FAIL / TECHNICAL PARTIAL / OWN FRESH TEST RUN NOT RUN / LIVE NOT RUN / RELEASE HOLD**. Авторский exact ZIP SHA+21 PASS, hosted exact ZIP NOT RUN. `main` №54 уже содержит единственную test-публикацию, но среди шести файлов был вне scope `Documents/.obsidian/workspace.json` (ранее изменён, входил также в №48–51); точный инициатор staging неизвестен. Ротация в БЛОК 1.1 не равна PRODUCT PASS. Новая `CODEX-UL-R5-GATE2-REGRESSION-FIX-20261114-001` ожидает старта владельцем.
 
@@ -188,6 +136,8 @@ Git-чтение разрешено; commit/push и изменения чужи�
 **12.11.2026, CODEX-UL-STREAM-SLOTS-20261112-001: P0 SOURCE OFFLINE PASS / P1 SOURCE PARTIAL / LIVE NOT RUN.** Прочитаны SOURCE commit 9900ccd, отчёт и evidence. На DESKTOP-SC96D3U независимо из этого HEAD: Manager verify_offline.ps1 **302/302 PASS**; Client unittest **49/49 PASS**; Chrome test_browser_stream_source.mjs **PASS** (SOURCE Client → TLS Manager → fake Colibri, первый фрагмент до DONE, reasoning отдельно, сохранение); node --check client.js **PASS**, общий exit 0. Для P1 Chrome только авторские mock evidence. Реальный GPU/KAT/Colibri/START/STOP и LIVE latency НЕ проверены. Никакого PROD PASS/OWNER GO из этого вердикта не следует.
 
 Исторические старые БЛОКИ 2–4 сохранены дословно в №09, чтобы не терять прежние независимые проверки.
+
+
 
 
 
