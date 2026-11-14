@@ -317,6 +317,264 @@ class ACLAndBackupTests(ScratchTests):
                 helper.verify_snapshot(target, manifest)
 
 
+class BackupProvenanceTests(ScratchTests):
+    def setUp(self):
+        super().setUp()
+        import backup_provenance
+        self.verifier = backup_provenance
+        self.helper = module('provenance_legacy_subject', 'stage_b_prepare_server.py')
+        self.serial = 0
+
+    def write_manifest(self, backup, manifest):
+        raw = (json.dumps(manifest, indent=2) + '\n').encode('utf-8')
+        (backup / self.verifier.MANIFEST).write_bytes(raw)
+        return hashlib.sha256(raw).hexdigest()
+
+    def fixture(self):
+        self.serial += 1
+        folder = self.root / str(self.serial)
+        folder.mkdir()
+        backup = folder / 'backup'
+        backup.mkdir()
+        manifest = {'scope': 'SYNTHETIC FULL code/state', 'code_source': 'SYNTHETIC/code',
+                    'state_source': 'SYNTHETIC/state', 'security': 'SYNTHETIC SDDL metadata',
+                    'sqlite_wal': 'SYNTHETIC NOT PRESENT'}
+        for tree in ('code', 'state'):
+            source = folder / ('source-' + tree)
+            source.mkdir()
+            if tree == 'code': (source / 'main.py').write_bytes(b"raise RuntimeError('NEVER EXECUTE')\n")
+            else:
+                (source / 'private').mkdir()
+                (source / 'private/auth.bin').write_bytes(b'SYNTHETIC PRIVATE AUTH ORIGINAL')
+                (source / 'private/tls.bin').write_bytes(b'SYNTHETIC PRIVATE TLS ORIGINAL')
+            with patch.object(self.helper, 'security_descriptor', return_value='SYNTHETIC SDDL'):
+                manifest[tree] = self.helper.copy_snapshot(source, backup / tree, self.helper.inventory(source))
+        xml = '<Task><Description>SYNTHETIC TASK</Description></Task>'
+        task_raw = xml.encode('utf-16')
+        (backup / 'task_original.xml').write_bytes(task_raw)
+        manifest['task_xml_file_sha256'] = hashlib.sha256(task_raw).hexdigest()
+        manifest['task_xml_canonical_utf8_sha256'] = hashlib.sha256(xml.encode('utf-8')).hexdigest()
+        pin = self.write_manifest(backup, manifest)  # Retained outside the backup, before any tamper.
+        return backup, manifest, pin
+
+    def verify(self, fixture, pin=None):
+        return self.verifier.verify_backup(fixture[0], trusted_manifest_sha256=fixture[2] if pin is None else pin)
+
+    def rejected(self, fixture, reason, pin=None):
+        with self.assertRaisesRegex(self.verifier.VerificationError, '^' + reason + '$'):
+            self.verify(fixture, pin=pin)
+
+    def test_good_pinned_backup_is_read_only_and_exports_only_safe_counts(self):
+        fixture = self.fixture()
+        before = self.verifier._inventory(fixture[0])
+        bytes_before = {p.relative_to(fixture[0]).as_posix(): p.read_bytes()
+                        for p in fixture[0].rglob('*') if p.is_file()}
+        result = self.verify(fixture)
+        self.assertEqual(result, {'status': 'PASS', 'manifest_sha256': fixture[2],
+            'code_files': 1, 'state_files': 2, 'task_xml': 'PASS', 'read_only': True,
+            'initial_authenticity': 'NOT PROVEN'})
+        self.assertEqual(before, self.verifier._inventory(fixture[0]))
+        self.assertEqual(bytes_before, {p.relative_to(fixture[0]).as_posix(): p.read_bytes()
+                                       for p in fixture[0].rglob('*') if p.is_file()})
+        self.assertNotIn('PRIVATE AUTH', json.dumps(result))
+
+    def test_joint_backup_and_manifest_replacement_passes_legacy_but_fails_external_pin(self):
+        fixture = self.fixture()
+        backup, manifest, original_pin = fixture
+        target = backup / 'state/private/auth.bin'
+        target.write_bytes(b'SYNTHETIC ATTACKER REPLACEMENT')
+        row = manifest['state']['private/auth.bin']
+        row.update(bytes=target.stat().st_size, sha256=hashlib.sha256(target.read_bytes()).hexdigest())
+        replaced_pin = self.write_manifest(backup, manifest)
+        self.assertNotEqual(original_pin, replaced_pin)
+        # Real old helper accepts the internally consistent forged backup.
+        self.helper.verify_snapshot(backup / 'code', manifest['code'])
+        self.helper.verify_snapshot(backup / 'state', manifest['state'])
+        self.rejected(fixture, 'trusted_manifest_mismatch')
+
+    def test_one_private_file_or_manifest_only_tampering_fails(self):
+        fixture = self.fixture()
+        (fixture[0] / 'state/private/auth.bin').write_bytes(b'SYNTHETIC PRIVATE AUTH REPLACED')
+        self.rejected(fixture, 'file_hash_mismatch')
+        fixture = self.fixture()
+        fixture[1]['scope'] = 'SYNTHETIC REPLACED MANIFEST'
+        self.write_manifest(fixture[0], fixture[1])
+        self.rejected(fixture, 'trusted_manifest_mismatch')
+
+    def test_missing_malformed_or_wrong_trusted_pin_cannot_be_inferred(self):
+        fixture = self.fixture()
+        for pin in (None, '', 'x' * 64, 1):
+            with self.subTest(pin=pin), patch.object(self.verifier, '_checked_stat', side_effect=AssertionError('No filesystem access')):
+                with self.assertRaisesRegex(self.verifier.VerificationError, '^trusted_pin_required$'):
+                    self.verifier.verify_backup(fixture[0], trusted_manifest_sha256=pin)
+        self.rejected(fixture, 'trusted_manifest_mismatch', pin='0' * 64)
+        self.assertEqual(self.verify(fixture, pin=fixture[2].upper())['status'], 'PASS')
+
+    def test_missing_extra_and_type_swapped_members_fail_closed(self):
+        for mode in ('missing', 'extra', 'extra_directory', 'type', 'manifest_missing'):
+            fixture = self.fixture()
+            target = fixture[0] / 'state/private/auth.bin'
+            if mode in ('missing', 'type'):
+                target.unlink()
+                if mode == 'type': target.mkdir()
+            elif mode == 'extra': (fixture[0] / 'extra.bin').write_bytes(b'SYNTHETIC EXTRA')
+            elif mode == 'extra_directory': (fixture[0] / 'extra').mkdir()
+            else: (fixture[0] / self.verifier.MANIFEST).unlink()
+            with self.subTest(mode=mode):
+                self.rejected(fixture, 'manifest_missing' if mode == 'manifest_missing' else 'backup_inventory_mismatch')
+
+    def test_unsafe_manifest_paths_are_rejected_even_with_matching_pin(self):
+        for path in ('../escape', '/absolute', 'C:/escape', 'private\\auth.bin', 'private//auth.bin',
+                     'private/./auth.bin', 'private/../auth.bin', 'private/auth.bin:stream',
+                     'private/auth.bin.', 'private/CON', 'private/LPT1.txt'):
+            fixture = self.fixture()
+            fixture[1]['state'][path] = fixture[1]['state'].pop('private/auth.bin')
+            pin = self.write_manifest(fixture[0], fixture[1])
+            with self.subTest(path=path): self.rejected(fixture, 'unsafe_manifest_path', pin=pin)
+
+    def test_manifest_schema_duplicates_types_and_nonfinite_values_fail(self):
+        for mode in ('empty', 'missing', 'unknown', 'bool_size', 'hash', 'directory', 'parent', 'case_collision'):
+            fixture = self.fixture()
+            data = fixture[1]
+            row = data['state']['private/auth.bin']
+            if mode == 'empty': data = {}
+            elif mode == 'missing': del data['task_xml_file_sha256']
+            elif mode == 'unknown': data['unknown'] = True
+            elif mode == 'bool_size': row['bytes'] = True
+            elif mode == 'hash': row['sha256'] = 'invalid'
+            elif mode == 'directory': data['state']['.']['directory'] = 1
+            elif mode == 'parent': del data['state']['private']
+            else: data['state']['PRIVATE/AUTH.BIN'] = copy.deepcopy(row)
+            pin = self.write_manifest(fixture[0], data)
+            with self.subTest(mode=mode): self.rejected(fixture, 'manifest_schema', pin=pin)
+        for raw in (b'{"code":{},"code":{}}', b'{"code": NaN}', b'[]', b'{', b'\xff'):
+            fixture = self.fixture()
+            (fixture[0] / self.verifier.MANIFEST).write_bytes(raw)
+            with self.subTest(raw=raw): self.rejected(fixture, 'manifest_schema', pin=hashlib.sha256(raw).hexdigest())
+
+    def test_task_raw_canonical_hashes_and_wellformedness_are_checked(self):
+        fixture = self.fixture()
+        (fixture[0] / 'task_original.xml').write_bytes('<Task>CHANGED</Task>'.encode('utf-16'))
+        self.rejected(fixture, 'task_hash_mismatch')
+        fixture = self.fixture()
+        fixture[1]['task_xml_canonical_utf8_sha256'] = '0' * 64
+        self.rejected(fixture, 'task_hash_mismatch', pin=self.write_manifest(fixture[0], fixture[1]))
+        fixture = self.fixture()
+        raw = '<Task>BROKEN'.encode('utf-16')
+        (fixture[0] / 'task_original.xml').write_bytes(raw)
+        fixture[1]['task_xml_file_sha256'] = hashlib.sha256(raw).hexdigest()
+        self.rejected(fixture, 'task_xml_invalid', pin=self.write_manifest(fixture[0], fixture[1]))
+
+    def test_read_errors_are_fail_closed_without_private_path_disclosure(self):
+        fixture = self.fixture()
+        with patch.object(self.verifier.os, 'open', side_effect=PermissionError('SYNTHETIC PRIVATE SECRET PATH')):
+            self.rejected(fixture, 'backup_unreadable')
+
+    def test_file_changes_during_read_or_after_read_are_rejected(self):
+        for mode in ('before_read', 'open_race', 'mid_read', 'after_read'):
+            fixture = self.fixture()
+            target = fixture[0] / 'state/private/auth.bin'
+            actual_read = self.verifier._read_verified
+            actual_open = self.verifier.os.open
+            actual_fstat = self.verifier.os.fstat
+            actual_fdopen = self.verifier.os.fdopen
+            hits = []
+            def change():
+                target.write_bytes(b'SYNTHETIC PRIVATE AUTH REPLACED')
+            def read(path, *args, **kwargs):
+                if path == target and mode == 'before_read': change()
+                result = actual_read(path, *args, **kwargs)
+                if path == target and mode == 'after_read': change()
+                return result
+            def opened(path, flags):
+                fd = actual_open(path, flags)
+                if Path(path) == target: hits.append(fd)
+                return fd
+            def fstat(fd):
+                if hits and fd == hits[-1] and mode == 'open_race':
+                    hits.clear()
+                    change()
+                return actual_fstat(fd)
+            def fdopen(fd, *args, **kwargs):
+                stream = actual_fdopen(fd, *args, **kwargs)
+                if mode != 'mid_read' or not hits or fd != hits[-1]: return stream
+                hits.clear()
+                class ChangingReader:
+                    changed = False
+                    def __enter__(self): return self
+                    def __exit__(self, *exc): return stream.__exit__(*exc)
+                    def fileno(self): return stream.fileno()
+                    def read(self, size):
+                        chunk = stream.read(size)
+                        if chunk and not self.changed:
+                            self.changed = True
+                            change()
+                        return chunk
+                return ChangingReader()
+            with self.subTest(mode=mode), patch.object(self.verifier, '_read_verified', side_effect=read), \
+                 patch.object(self.verifier.os, 'open', side_effect=opened), \
+                 patch.object(self.verifier.os, 'fdopen', side_effect=fdopen), patch.object(self.verifier.os, 'fstat', side_effect=fstat):
+                self.rejected(fixture, 'backup_changed' if mode == 'after_read' else 'file_changed')
+
+    def test_new_member_added_during_verification_is_rejected(self):
+        fixture = self.fixture()
+        actual_read = self.verifier._read_verified
+        def changed(path, *args, **kwargs):
+            result = actual_read(path, *args, **kwargs)
+            if path.name == 'task_original.xml': (fixture[0] / 'extra.bin').write_bytes(b'SYNTHETIC NEW')
+            return result
+        with patch.object(self.verifier, '_read_verified', side_effect=changed):
+            self.rejected(fixture, 'backup_changed')
+
+    def test_junction_and_hardlink_are_rejected_without_following(self):
+        fixture = self.fixture()
+        external = self.root / 'outside'
+        external.mkdir()
+        (external / 'sentinel').write_bytes(b'SYNTHETIC NEVER READ')
+        junction = fixture[0] / 'redirect'
+        result = subprocess.run(['cmd.exe', '/c', 'mklink', '/J', str(junction), str(external)],
+                                capture_output=True, timeout=5)
+        self.assertEqual(result.returncode, 0, result.stderr.decode('utf-8', 'replace'))
+        try:
+            self.rejected(fixture, 'unsafe_link')
+            with self.assertRaisesRegex(self.verifier.VerificationError, '^unsafe_link$'):
+                self.verifier.verify_backup(junction, trusted_manifest_sha256=fixture[2])
+        finally: junction.rmdir()  # This known junction only, never recursive removal.
+        fixture = self.fixture()
+        os.link(external / 'sentinel', fixture[0] / 'hardlink')
+        self.rejected(fixture, 'unsafe_hardlink')
+        self.assertEqual((external / 'sentinel').read_bytes(), b'SYNTHETIC NEVER READ')
+
+    def test_symlink_metadata_is_rejected_before_opening(self):
+        fixture = self.fixture()
+        real_stat = self.verifier._checked_stat
+        target = fixture[0] / self.verifier.MANIFEST
+        def linked(path):
+            if path == target: raise self.verifier.VerificationError('unsafe_link')
+            return real_stat(path)
+        with patch.object(self.verifier, '_checked_stat', side_effect=linked): self.rejected(fixture, 'unsafe_link')
+        # Directly exercise the reparse/symlink classifier without symlink privilege.
+        from types import SimpleNamespace
+        for info in (SimpleNamespace(st_mode=0o120777, st_file_attributes=0),
+                     SimpleNamespace(st_mode=0o100644, st_file_attributes=0x400)):
+            with patch.object(Path, 'lstat', return_value=info):
+                with self.assertRaisesRegex(self.verifier.VerificationError, '^unsafe_link$'):
+                    real_stat(target)
+
+    def test_cli_has_sanitized_output_exit_codes_and_needs_explicit_pin(self):
+        fixture = self.fixture()
+        cli = ROOT / 'Manager_Ultra_LLM/backup_provenance.py'
+        for flags in (['-B'], ['-O', '-B']):
+            command = [sys.executable, *flags, str(cli), '--backup-root', str(fixture[0])]
+            for pin, expected in ((fixture[2], 0), ('0' * 64, 1), (None, 2)):
+                args = command + (['--trusted-manifest-sha256', pin] if pin else [])
+                result = subprocess.run(args, capture_output=True, timeout=15)
+                with self.subTest(flags=flags, pin=pin):
+                    self.assertEqual(result.returncode, expected)
+                    self.assertNotIn(b'PRIVATE AUTH', result.stdout + result.stderr)
+                    if pin: self.assertEqual(json.loads(result.stdout)['status'], 'PASS' if expected == 0 else 'FAIL')
+
+
 class CollectionError(ValueError):
     pass
 

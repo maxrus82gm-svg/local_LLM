@@ -44,6 +44,25 @@ Codex работает **на компьютере владельца**, поэ�
 
 ### БЛОК 1 — ТЕКУЩАЯ ЗАДАЧА
 
+Свободен. Готов к получению следующей задачи от владельца.
+
+### БЛОК 1.1 — ПОСЛЕДНЯЯ СДАННАЯ ЗАДАЧА (ДОСЛОВНЫЙ ОРИГИНАЛ)
+
+**CODEX-UL-R5-F3-BACKUP-PROVENANCE-20261114-001 — PARTIAL / REVIEW PENDING.**
+Авторский offline QA готов: Manager 351 (350 PASS / 1 прежний SKIP), Client49,
+negative controls и Chrome legacy/P0/P1 PASS. Новый hosted CI NOT RUN: публикация
+принадлежит владельцу по OWNER AMENDMENT. Реальный private backup/сервер NOT READ;
+initial capture authenticity NOT PROVEN; RELEASE HOLD, C/D NOT AUTHORIZED.
+Полный дословный оригинал F3 и полный OWNER AMENDMENT ниже; старое разрешение
+commit/push в оригинале отменено AMENDMENT. Отчёт: Manager_Ultra_LLM/README.md,
+раздел CODEX-UL-R5-F3-BACKUP-PROVENANCE-20261114-001.
+
+Предыдущая полная CODEX-UL-R5-GATE2-REGRESSION-FIX-20261114-001 сохранена и сверена
+с [immutable №57](https://github.com/maxrus82gm-svg/local_LLM/blob/6e3f29582a041df6632651ed0743d69c95d667b1/Documents/07_%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B8%20Codex.md)
+→ БЛОК 1.1; история №09 → DOC-UL-R5-REGRESSION-INDEPENDENT-ACCEPTANCE-20261114-001.
+Локальная ротация не является независимой приёмкой или публикацией.
+
+
 # CODEX-UL-R5-F3-BACKUP-PROVENANCE-20261114-001
 
 **Название:** Manager R5 — независимая проверка происхождения и целостности приватных резервных копий (F3)
@@ -211,55 +230,54 @@ Codex обязан провести авторскую проверку ново
 
 После сдачи остановиться для независимой приёмки ChatGPT. **RELEASE HOLD сохраняется; никаких C/D.**
 
-### БЛОК 1.1 — ПОСЛЕДНЯЯ СДАННАЯ ЗАДАЧА (ДОСЛОВНЫЙ ОРИГИНАЛ)
+**OWNER AMENDMENT — правила работы, Git и ротация карточки.**
 
-**CODEX-UL-R5-GATE2-REGRESSION-FIX-20261114-001 — AUTHOR QA READY / INDEPENDENT SOURCE+CI ACCEPTED / SCOPED TASK CLOSED / RELEASE HOLD.** Дословный полный прежний БЛОК 1 следует ниже; исторический статус `AWAITING OWNER START` внутри оригинала отражает дату назначения и не является текущим. Фактический исходный код в `main` №56 `d79e7fb0aeabb49c96cbbb643376ab910b4a6cb5`, независимый GitHub CI [run `43599309587`, attempt 2](https://github.com/maxrus82gm-svg/local_LLM/actions/runs/43599309587/attempts/2): Manager 337 total = 336 PASS + 1 SKIP, Client49 PASS, negative controls и Chrome PASS. Код и четыре прежних RED-метода проверены координатором, текст всех четырёх методов **совпадает с №54**, README append-only. Real server/packaged release NOT RUN; `USER UX NOT REQUIRED` для внутренней проверки. Предыдущая БЛОК 1.1 `CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001` с полным текстом сохранена в [immutable №56](https://github.com/maxrus82gm-svg/local_LLM/blob/d79e7fb0aeabb49c96cbbb643376ab910b4a6cb5/Documents/07_%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B8%20Codex.md) → старая 1.1 и №07.00/09. SAFE-CUTOVER `CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001` A/B Gate2 и C/D OPEN остаётся в immutable №54. Архивная ротация **не означает релизный GO**.
+Относится к задаче `CODEX-UL-R5-F3-BACKUP-PROVENANCE-20261114-001`.
 
-**CODEX-UL-R5-GATE2-REGRESSION-FIX-20261114-001 / AWAITING OWNER START.** Владелец примет документный №55, затем отдельно активирует Codex.
+**1. Git — строгое уточнение полномочий**
 
-# CODEX-UL-R5-GATE2-REGRESSION-FIX-20261114-001
+Ты работаешь исключительно с локальными файлами на компьютере владельца.
 
-**Приоритет P0 · исполнитель Codex · дата 14.11.2026 · статус ASSIGNED / AWAITING OWNER START.** Владелец сначала принимает документный №55 из `GPT_2_local`, после этого отдельно активирует Codex. Это отдельная OFFLINE regression-fix TASK, не разрешение на Stage C/D.
+**Тебе ЗАПРЕЩЕНО выполнять `git add`, `git commit`, `git push`, merge, rebase, reset, force-push, самостоятельно переключать рабочие ветки или публиковать изменения на GitHub.**
 
-## 1. Истина и цель
+Разрешены read-only Git-команды для проверки состояния, истории и diff.
 
-`main` №54 `f324513cac5a270ac620acdf2466c0f27efb6593` уже содержит исходный результат `CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001` с пятью разрешёнными test/CI-файлами плюс вне scope `Documents/.obsidian/workspace.json`. Изучить авторский handoff `Manager_Ultra_LLM/README.md` начиная с раздела `CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001` (примерно строка 1028), четыре RED-теста и `TEST-FULL-CYCLE-01` №000 §5.1–5.3. **Не публиковать прежние файлы повторно.**
+Все локальные изменения, подготовленные тобой, публикует **только владелец**. ChatGPT-координатор может отдельно изменять удалённую ветку `GPT_2_local` по поручению владельца.
 
-В [Windows CI №54](https://github.com/maxrus82gm-svg/local_LLM/actions/runs/43581579523) Manager **330 = 325 PASS + 4 FAIL + 1 SKIP**, Client 49 PASS, Chrome legacy/P0/P1 и negative controls PASS. Эти четыре FAIL воспроизводимы; `RELEASE HOLD` действует. Исправить ТОЛЬКО подтверждённые F1a/F1b/F1c/F2 без реального обновления Manager и без ослабления существующих тестов.
+Ошибочное разрешение на commit/push из раздела 5 текущей задачи F3 считать **отменённым**. Общие требования №000 об одном коммите на задачу относятся к процедуре публикации, но не дают тебе права коммитить.
 
-## 2. Read matrix
+**2. Текущее состояние №07**
 
-`Documents/{00_Старт.md,000_Задачи для агента.md,05_Реестр_задач.md,07_Задачи Codex.md,07.00_История_задач_Codex.md,09_История_задач.md,13_Тактический_контекст.md,18_Техническая_документация.md}` — актуальные вводные, §18.33, №000 §5.1/5.3; `Manager_Ultra_LLM/{README.md,test_gate2_hardening.py,test_manager_release.py,test_control_runtime.py,manager_release.py}`; `Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_complete_readonly.py`; `.github/workflows/ultra-offline-ci.yml`; исходный GitHub [run №54](https://github.com/maxrus82gm-svg/local_LLM/actions/runs/43581579523). Проверять текущие Git HEAD и diff перед работой, не использовать старый №53 как источник актуальных тестов.
+Владелец уже разместил задачу F3 в БЛОКЕ 1. Она опубликована в `main` коммитом №58.
 
-## 3. Четыре исправления (без live execution)
+Если в локальном №07 имеется незакоммиченный diff владельца, не удаляй, не перезаписывай и не добавляй его в Git. Если diff относится к согласованной постановке F3 и нет других конфликтов, разрешается продолжать локальную работу, сохраняя №07 неизменным до сдачи.
 
-1. **F1a — listener:** в offline `stage_b_complete_readonly.py` отказывать при противоречии `manager_listener` с manager PID и baseline. Проверять PID, адрес, порт, отсутствие полей, несоответствие источников и относительную идентичность. Не полагаться лишь на равенство объектов `post.manager == baseline.manager`.
-2. **F1b — flags:** все ожидаемые 24 guard-проверки должны быть строго `bool True`, а не truthy `'false'`, `1` или произвольное значение. Пустой/лишний/недостающий/inconsistent набор — FAIL; не оставлять security-guards только через оптимизируемые `assert` при `python -O`.
-3. **F1c — HTTP:** принимать только строго заданное `unauth_snapshot_http=403` и `unauth_snapshot_error='source_not_permitted'` при согласованном baseline. Произвольная 403 reason, другие status, отсутствие reason и несогласованность — FAIL; использовать synthetic evidence, не обращаться к live серверу.
-4. **F2 — import closure:** в `manager_release.py` безопасным статическим AST-анализом выявлять константные `__import__('missing')` и `importlib.import_module('missing')` в консистентном package manifest и блокировать неупакованные/non-stdlib зависимости без исполнения недоверенного кода. Динамические неизвестные expression — явная, документированная fail-closed policy. Не ломать разрешённые stdlib/локальные imports.
+Все посторонние изменения оставлять нетронутыми.
 
-**Критерий:** исходные четыре RED-теста проходят только благодаря правильным изменениям валидаторов. Добавить ограниченные negative/positive cases (listener address/port/missing/PID, type `1`, HTTP bad reason, importlib expression, stdlib imports). Запрещено `skip`, `expectedFailure`, исключение из discovery, подмена fixture, маскировка traceback, удаление FAIL evidence.
+**3. Обязательная ротация после сдачи**
 
-## 4. Точный WRITE и Git scope
+После фактического завершения работы и подготовки отчёта:
 
-Разрешены ТОЛЬКО:
-- `Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_complete_readonly.py` (офлайн checker; опубликованные JSON доказательства не менять);
-- `Manager_Ultra_LLM/manager_release.py`;
-- `Manager_Ultra_LLM/test_gate2_hardening.py`;
-- `Manager_Ultra_LLM/test_manager_release.py`;
-- `Manager_Ultra_LLM/README.md` (только append author handoff).
+- Убедись, что предыдущая постановка из БЛОКА 1.1 (`CODEX-UL-R5-GATE2-REGRESSION-FIX-20261114-001`) сохранена в неизменяемом Git-коммите №57 и отражена в истории.
+- Сначала перенеси **полный дословный текст текущей F3**, включая дополнения OWNER AMENDMENT, из БЛОКА 1 в БЛОК 1.1.
+- Перед оригиналом укажи фактический статус: `SUBMITTED / INDEPENDENT REVIEW PENDING` либо `PARTIAL / REVIEW PENDING` с перечислением незакрытых ограничений.
+- Только после успешного переноса освободи БЛОК 1 и напиши: **«Свободен. Готов к получению следующей задачи от владельца».**
+- В БЛОКЕ 4 не выставляй себе независимую оценку. Её вносит ChatGPT после проверки.
 
-Всё прочее **READ ONLY**, включая `.github/workflows/ultra-offline-ci.yml`, `test_control_runtime.py`, `Documents/.obsidian/**`, документы №00/000/05/06/07/09/13/18, client/installer и private backups. Если scope недостаточен — `BLOCKED / ASK OWNER`, не расширять самому.
+Это разрешение на **локальную ротацию только №07 при сдаче текущей задачи**. Оно не распространяется на изменение других документов вне write-scope.
 
-После явного стартового сообщения владельца разрешён **ровно один финальный commit/push только в `GPT_2_local`** этих пяти разрешённых файлов, если текущая ветка и ancestor/HEAD корректны. Перед публикацией проверить `git status`, `git diff --name-only`, `git diff --cached --name-only` и строгое совпадение с whitelist; запрещено `git add .`, `git add -A`, force push, reset/rebase/merge самостоятельно и любые commits напрямую в `main`. Если там ещё чужой staged `workspace.json` — остановиться, не удалять чужие изменения и не включать файл в commit.
+Если предыдущий оригинал не удаётся надёжно сохранить или проверить, отметь `ARCHIVE BLOCKED` и не очищай БЛОК 1.
 
-**Запрещено:** live Manager, server/WinRM/SMB execution, real auth/TLS, task/firewall/ACL, Qwen/Valheim, модельные запуски/LLM inference, Client Production, изменение ZIP/staged 21 files, rollback/backup, Stage C/D и работа вне согласованного source scope.
+Если работа остановлена на входной проверке без выполнения задачи, ротацию не делай — сообщи о блокере.
 
-## 5. Проверка и handoff
+**4. Сдача**
 
-Автор должен реально проверить Manager suite **не меньше 330**, Client **не меньше 49**, 5 негативных контролей, Chrome legacy/P0/P1, synthetic backup/ACL/identity, ZIP/source policy. Дать матрицу `F1a/F1b/F1c/F2 → до FAIL → после PASS`, команды, exit codes, counts, первый FAIL, новых FAIL нет, отчёт. Пуш в `GPT_2_local` запускает существующий hosted Windows CI; зафиксировать **новый** SHA и run ID, JUnit/JSON, не выдавать старый `43581579523` за новый PASS. Если CI недоступен — `NOT RUN`, если FAIL — честно `PARTIAL`.
+Предоставь авторский отчёт, локальные файлы изменений, результаты тестов и evidence. Никаких commit/push.
 
-`DONE / CHANGED / DIFF / TESTS / CI / PROBLEMS / QUESTIONS / DOC IMPACT / NEXT`, точные изменённые файлы, сохраняемые F3 trusted private backup provenance и F4 flaky first Chrome (отдельные FOLLOWUP). Статус `AUTHOR QA READY / INDEPENDENT REVIEW PENDING` либо `PARTIAL/BLOCKED`; по сдаче остановиться. Координатор независимо проверяет код/CI и ведёт №05/07/09/13/18. **USER UX NOT REQUIRED** для внутреннего фикса, `RELEASE HOLD` и отдельный GO для C/D сохраняются даже при зелёном CI.
+После сдачи остановись для независимой приёмки ChatGPT. Следующую задачу самостоятельно не начинать.
+
+**Все технические ограничения F3 сохраняются: только OFFLINE/SYNTHETIC, без сервера, приватных backup, Qwen, Valheim, Client Production и этапов C/D.**
+
 
 ### БЛОК 2 — ПОСЛЕДНИЕ ПЯТЬ ЗАДАЧ (КОРОТКИЙ ИНДЕКС)
 

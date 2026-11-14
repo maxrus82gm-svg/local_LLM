@@ -1354,3 +1354,152 @@ NEXT: один следующий свободный номер, один scoped
 проверить remote SHA/readback и новый Windows CI, затем остановиться для
 независимой приёмки. Никаких исправлений CI вторым коммитом/перезаписью истории,
 перехода к C/D, обновления серверного Manager или реальных моделей автоматически.
+
+## CODEX-UL-R5-F3-BACKUP-PROVENANCE-20261114-001 — авторский handoff, 15.11.2026
+
+**PARTIAL / AUTHOR OFFLINE QA READY / INDEPENDENT REVIEW PENDING / RELEASE HOLD.**
+Исходники и авторские offline tests готовы; новый hosted CI **NOT RUN** до
+публикации владельцем. По OWNER AMENDMENT от 15.11 Codex запрещены staging,
+commit/push, переключение веток и публикация; прежнее разрешение §5 TASK отменено.
+Ни один старый Actions run не выдан за проверку нынешнего working diff.
+
+### DONE — исходное состояние и граница доверия
+
+Домашний DESKTOP-SC96D3U, единый workspace M:\GitHub\local_LLM. На входе чистые
+worktree/index, текущая main №58 `8b7278fc880446aed41a6a717199c290bdb7cc94`;
+GPT_2_local локально №57. Ветки, refs и index не менялись исполнителем.
+Прочитаны TASK целиком, OWNER AMENDMENT, №00/000 §§5.1/5.3, №05/07/09/13/18
+§§18.33–18.34, прежние author handoffs, tests, Stage B helpers и публичные JSON.
+Никакого обращения к серверу, настоящему backup или private manifest не было.
+
+В immutable №51 `c2c1bb84aa83ae6ee4ba7cdd3f0604eeb9f0c7b4`:
+`stage_b_final_handoff.json → server_materials.private_manifest_sha256` и
+`stage_b_completion.json → backup_staging.private_manifest_sha256` совпадают:
+`aae98df0cc3a0bd7514d4d76ede8083c9268001788aab082ddaf86e66326977b`.
+Текущие публичные evidence совпадают с №51 с учётом Git EOL. Это подтверждает
+сохранность записи, а не безусловную подлинность первоначального capture.
+
+| Источник | Доверенная граница / контрольный SHA | Проверяемые bytes / подмена | Результат |
+| --- | --- | --- | --- |
+| Manifest внутри backup | Эталон задаёт сам проверяемый backup | Files и manifest заменены согласованно | Старый verify_snapshot принимает; F3 GAP воспроизведён |
+| Два публичных JSON из immutable №51 | Внешний сохранённый SHA выше; caller отдельно доверяет этому commit/evidence | Только публичная запись SHA | Retention/совпадение CONFIRMED; реальный private manifest NOT READ |
+| Явный trusted_manifest_sha256 | Reviewer передаёт эталон вне проверяемого дерева | Raw bytes manifest, до разбора JSON | Несовпадение/отсутствие/неправильный формат → FAIL |
+| Manifest, совпавший с внешним SHA | Его хеши/размеры/состав становятся закреплённым контрактом | code/state, task XML, missing/extra/redirected files | Synthetic good PASS; tamper FAIL |
+| Первоначальная копия / субъект, зафиксировавший SHA | Git retention сам по себе не устанавливает capture authenticity | Реальные bytes/ACL/согласованность служб не исследованы | **INITIAL AUTHENTICITY NOT PROVEN** |
+
+### CHANGED / DIFF
+
+1. Новый stdlib-only `Manager_Ultra_LLM/backup_provenance.py`, самостоятельный
+   read-only verifier; production Manager API его не вызывает.
+2. В `test_gate2_hardening.py` добавлены **14 методов** с positive/negative/fault
+   subcases. Все 18 существовавших test methods AST-идентичны baseline;
+   исходные четыре RED из №54 не менялись, проходят в полном suite.
+3. Этот append в README; прежний текст сохранён.
+4. Только по OWNER AMENDMENT — локальная ротация №07 БЛОК1→1.1 с полным оригиналом
+   F3 и полным AMENDMENT. Предыдущая 1.1 сверена с immutable №57, отражена в №09.
+   БЛОК4, БЛОК2/3 и другие документы остаются неизменными.
+
+Исторические Stage B scripts/JSON, приватный manifest, старые SHA, release ZIP,
+21 staged files, workflow, Client/production и модели не изменялись.
+
+### Интерфейс и контракт verifier
+
+Library: `verify_backup(backups_root, *, trusted_manifest_sha256=external_sha)`.
+CLI: `python -B backup_provenance.py --backup-root <local-backups-root>
+--trusted-manifest-sha256 <independently-retained-64-hex-sha>`.
+Это интерфейс для **будущего отдельно разрешённого** аудита, не команда на
+проверку настоящего сервера сейчас. CLI не подключается к сети, сам не ищет pin,
+не загружает Python из backup, TLS/config/секреты не интерпретирует.
+
+Ожидается существующий контракт Stage B: backup_manifest_PRIVATE.json, code/,
+state/, task_original.xml. Проверяются raw SHA manifest, строгая JSON-схема,
+duplicate/nonfinite fields, имена/типы/состав, file size+SHA, raw UTF-16 task SHA
+и decode-to-UTF8 SHA, well-formed Task XML. Небезопасные Windows paths/ADS,
+links/reparse/junctions и hardlinks отвергаются. Root/ancestors проверяются,
+inventory до/после сравнивается; open handle сверяется с ожидаемой identity,
+size/mtime, фиксируется изменение metadata до/после чтения. Все opens read-only.
+Выход содержит только PASS/counts/manifest SHA или FAIL/reason, без имён private
+файлов, содержимого и SDDL. CLI exits: 0 PASS, 1 отказ, 2 ошибка arguments.
+
+Новый verifier не вычисляет доверенный эталон из backup. Если caller сам передаст
+новый SHA подменённого manifest, доверенная граница уже нарушена: происхождение
+переданного pin обязан проверять reviewer. Аутентификация pin не возникает из
+его синтаксиса. Current ACL и валидность TLS pair здесь не проверяются; старые
+SDDL — только metadata контракта, не требование скопировать широкие source ACL.
+
+### TESTS / NEGATIVE CONTROLS
+
+Все проверки в source COPY под Test, собственные TEMP/TMP/LOCALAPPDATA,
+synthetic files/config/TLS и fake loopback engines. Настоящий backup не читался.
+
+| Проверка | Факт |
+| --- | --- |
+| Финальный полный Manager | **351 = 350 PASS + 1 прежний SKIP**, 0 FAIL/ERROR, exit0; subprocess 62.584 s |
+| Client | **49 PASS**, exit0, 19.212 s |
+| Five negative controls | PASS, 1.201 s: assertion FAIL1, RuntimeError ERROR1, empty CollectionError3, wrong ZIP1, positive0 |
+| Chrome legacy/P0/P1 | PASS первого full прогона, exits0, 7.504 / 9.224 / 35.818 s |
+| F3 CLI normal и python -O | Positive0, wrong-pin1, missing-pin2; приватный marker в вывод не попадает |
+| Existing identity/ACL/backup/rollback synthetic tests | PASS в Manager; старые helpers переиспользованы |
+| JSON/JUnit | Полный список testcase entries и counts проверен |
+| Python compile / JS syntax / diff whitespace | PASS |
+| New hosted Windows CI | **NOT RUN — publication belongs to owner** |
+
+Проверены file-only/manifest-only tamper, совместная подмена, wrong/missing pin,
+missing/extra/type-swapped members, unsafe paths, реальные NTFS junction/hardlink,
+symlink/reparse metadata simulation, corrupt/schema/duplicate/nonfinite JSON,
+task raw/canonical hash и повреждённый XML, PermissionError, изменения до open,
+между open/fstat, внутри stream.read и после чтения, добавление нового файла.
+Отказы проверяются конкретными reason codes; пустой output не считается PASS.
+
+**Ключевое доказательство:** joint-substitution.json фиксирует согласованные
+заменённые file+manifest: legacy verify_snapshot **PASS**, новый verifier с
+прежним внешним pin **FAIL / trusted_manifest_mismatch**. На intact fixture PASS.
+Synthetic pin до подмены `c8cfc3fbf17b791910cb24bcb4cabab45ef73e701c9613d11020850921ded186`,
+после `da3cdea3d2621a5b7515afd0a756d5f367c68c31d1328ce747ffe4e83b25f6f8`.
+
+Первый targeted run: 14 methods, failures13/errors2 (с учётом subtests), сохранён.
+Причина CONFIRMED: Windows CPython3.12 lstat/fstat по-разному отражают ctime после
+utime. Исправлена cross-API проверка; ctime сохранён в same-API before/after,
+общие identity/size/mtime сверяются между API. Следующий targeted run PASS14.
+Полный Manager351 PASS повторён после добавления CLI -O. Первый FAIL не удалён.
+Один старый SKIP — optional installed Colibri AST audit; новых skip нет.
+
+### Evidence и воспроизведение
+
+`Test/CODEX-UL-R5-F3-BACKUP-PROVENANCE-20261114-001/`: baseline.json,
+task-original.txt, owner-amendment.txt, archive-preflight.json,
+joint-substitution.json, targeted_001708.json (первый FAIL), targeted_001825.json,
+full_001913.json (все suites), final_002255.json (финальный Manager),
+stdout/stderr, source copies и Test/results/*.json/*.xml; итоговые summary.json,
+rotation-evidence.json, review.diff, evidence-manifest.json готовятся при сдаче.
+Артефакты игнорируются Git, содержат только synthetic/current public evidence.
+Для нового локального review запускать в новой source COPY, новый output в Test:
+
+```powershell
+py -3.12 -X utf8 -B Manager_Ultra_LLM/test_gate2_hardening.py --suite Manager_Ultra_LLM --minimum 351 --output Test/review-new/manager.json
+py -3.12 -X utf8 -B Manager_Ultra_LLM/test_gate2_hardening.py --suite Client_Ultra_LLM --minimum 49 --output Test/review-new/client.json
+py -3.12 -X utf8 -B Manager_Ultra_LLM/test_gate2_hardening.py --negative-controls --output Test/review-new/controls.json
+```
+
+### CI / PROBLEMS / QUESTIONS / DOC IMPACT / NEXT
+
+**PARTIAL** относится к отсутствию нового CI на опубликованном F3 source SHA.
+Тесты обнаруживаются обычной discovery существующего workflow без его правки;
+он проверит новые методы после публикации владельцем. Самостоятельный dispatch
+старого №58 не подтвердил бы working diff и не выполнялся. Нового commit/SHA/run
+нет; авторские результаты закреплены worktree hashes на baseline №58.
+
+Ограничения будущей серверной проверки: отдельный OWNER GO; независимая проверка
+источника pin/commit, защищённый локальный read-only root и quiescent данные;
+соответствие bytes pin не доказывает initial capture authenticity. Обнаруживаются
+наблюдаемые races; атомарный snapshot против привилегированного concurrent writer
+не гарантируется. ОС может обновлять access time при чтении. ACL/TLS health,
+готовность LIVE rollback и C/D не доказаны. Реальная symlink creation не требовала
+включения privileges: проверена simulation плюс настоящая junction. F4 OPEN.
+
+QUESTIONS: блокирующих вопросов для локальной реализации нет. Публикация и CI —
+владельцу, независимый verdict — координатору. DOC IMPACT: №07 локально ротируется
+по AMENDMENT, остальные №00/000/05/09/13/18 read-only; их синхронизация — координатору.
+NEXT: владелец публикует разрешённый локальный пакет своим порядком, новый hosted
+CI на точном SHA, независимая приёмка. **REAL APPLICATION NOT RUN / USER UX NOT
+REQUIRED / RELEASE HOLD / NO C/D.** После сдачи остановиться, новую TASK не начинать.
