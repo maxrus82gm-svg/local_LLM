@@ -44,6 +44,67 @@ Codex работает **на компьютере владельца**, поэ�
 
 ### БЛОК 1 — ТЕКУЩАЯ ЗАДАЧА
 
+**CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001 — AWAITING OWNER START.** Исключение на запись в GitHub выдано владельцем 14.11.2026; Codex пока не запускать.
+
+# CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001
+
+**Задача:** усилить инженерные и CI-проверки Manager R5 перед разрешением обновления сервера  
+**Исполнитель:** Codex; **приоритет:** P0; **дата:** 14.11.2026  
+**Статус:** ASSIGNED IN CARD / **AWAITING OWNER START**. Владелец отдельно запустит задачу после обновления GitHub Desktop. Это ещё не исполнение.
+
+## 1. Цель и baseline
+
+Подготовить воспроизводимый offline source/Windows CI gate для `R5-compat-20261113.1`, исправить пробелы **в тестах**, а не переписать готовый Manager. Предыдущая `CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001` завершила только A/B (Stage B backup/staging и Gate 2); C/D всё ещё OPEN и не разрешены.
+
+**Git baseline:** на момент постановки `main` и `GPT_2_local` совпадали на `f50336a74a9e8929bc6999dd4a4bd77f9ced23d0` (№52). Проверить HEAD заново перед началом. **Существующий Windows CI:** `43572399891`, исходный SHA №52, Manager `Ran 311 tests / OK (skipped=1)`, Client `Ran 49 tests / OK`, Chrome legacy/P0/P1 PASS. Это source/mock tests, не real inference, настоящий ZIP SHA или live server.
+
+## 2. Матрица чтения
+
+Обязательно читать относящиеся разделы:
+- `Documents/00_Старт.md`; `Documents/000_Задачи для агента.md` §§3–5.1 `TEST-FULL-CYCLE-01`;
+- `Documents/07_Задачи Codex.md` БЛОКИ 1, 1.1, 3–4; `Documents/07.00_История_задач_Codex.md`;
+- `Documents/05_Реестр_задач.md`, `Documents/09_История_задач.md`, `Documents/13_Тактический_контекст.md`, `Documents/18_Техническая_документация.md` §§18.30–18.32;
+- `.github/workflows/ultra-offline-ci.yml`;
+- `Manager_Ultra_LLM/manager_release.py`, `test_manager_release.py`, `README.md`, связанные preflight/rollback/security/HTTP tests;
+- опубликованные evidence `Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/` и `Documents/Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/` по необходимости.
+
+Перед любой правкой проверить actual HEAD, локальный diff, отсутствие чужих изменений, scope и ранее закрытое покрытие. Не дублировать тесты.
+
+## 3. Работа и тесты
+
+**A. Coverage matrix:** `изменение → риск → старый тест → пробел → новый тест/оракул`. Разделять AUTHOR, независимые проверки, FAIL, SKIP, NOT RUN.
+
+**B. Синтетические негативные/регрессионные сценарии, только недостающее покрытие:**
+1. Release ZIP 21 файл, allowlist, manifest/SHA, приватные/лишние файлы, опасные пути/link/junction, отсутствующие зависимости. *Созданный синтетический ZIP ≠ оригинальный авторитетный ZIP.* Если исходный ZIP недоступен в CI — `EXACT ZIP CI NOT RUN`.
+2. Manager guard: неожиданно изменившиеся PID/creation time/owner/Task XML/listener; отсутствующие или изменившиеся Qwen и Valheim — **fail-closed** на synthetic snapshots, без касания реальных процессов.
+3. Backup/restore/rollback: повреждённый, неполный, чужой, stale backup/TLS/auth/config, сбой restore/неполная транзакция — ожидаемый RED. Никакого реального cutover.
+4. ACL: равнозначные перестановки Allow ACE разрешены; новый посторонний SID/изменённый owner или права, небезопасное расширение — RED.
+5. HTTP/auth: ожидаемый `401` и точно `403 source_not_permitted` различать; произвольный 403, пропавший grant или пустой вывод не являются успехом.
+6. Негативные контроли должны реально обнаруживать ошибку; пустая test collection, любое исключение или просто exit 0 — не PASS. Сохранять первый FAIL.
+
+**C. Existing Windows CI:** использовать **тот же** `.github/workflows/ultra-offline-ci.yml`, не создавать второй workflow. При необходимости улучшить `windows-latest`, timeout, минимальные permissions, `persist-credentials: false`, fixed Python/Node/dependency versions, script exit codes, непустые suites, независимые negative controls. Инструменты и тестируемые данные — изолированные, без секретов и внешнего API. Hosted CI на точном SHA с run ID только если действительно запущен; старый run или YAML без выполнения не считать новым PASS.
+
+**D. Авторские проверки:** повторить уместные offline suites/negative tests по разрешённым правам, зафиксировать команды, фактические PASS/FAIL/ERROR/SKIP, regressions. Если найден production-defect — воспроизвести и оформить FOLLOWUP; **не менять production-код ради зелёных тестов**.
+
+## 4. Write scope и запреты
+
+Разрешены правки существующих адресных тестов в `Manager_Ultra_LLM/`, при необходимости один новый `test_*.py` в этой папке, существующий `.github/workflows/ultra-offline-ci.yml` и относящаяся авторская часть `Manager_Ultra_LLM/README.md`. Временные тестовые файлы — только в согласованном workspace `M:\GitHub\local_LLM`. Не создавать другие новые документы/отчёты/CI workflow без отдельного GO.
+
+Git-чтение разрешено; commit/push и изменения чужих веток, особенно `main`, **не разрешены автоматически**. Для публикации CI/test изменений запросить отдельное согласование; общий регламент — один итоговый коммит на TASK. Не выполнять команды с реальными auth/секретами.
+
+**Запрет:** изменения live/production Manager или Client, `Production/Client`, TLS/auth/config/ACL, Scheduled Task, firewall, Qwen/Colibri, Valheim, API charges, LLM inference, CPU/CUDA START/STOP, серверный backup/staging или переключение; C/D и физический rollback — только по отдельному OWNER GO.
+
+## 5. Критерий сдачи
+
+`DONE / CHANGED / DIFF / PROBLEMS / QUESTIONS / DOC IMPACT / NEXT`, точный исходный SHA, матрица рисков, пути правок, команды/exit codes/counts, отдельно ожидаемые RED и реальные FAIL, доказательства и CI run ID/SHA или честное NOT RUN, проверка оригинального ZIP или NOT RUN, список безопасных followups. Не объявлять собственный `INDEPENDENT PASS` или `LIVE PASS`.
+
+Подробный авторский handoff — в **существующем** `Manager_Ultra_LLM/README.md` (не создавать новые permanent reports без разрешения). Итог `AUTHOR QA READY / INDEPENDENT REVIEW PENDING` либо `PARTIAL/BLOCKED`. После сдачи **остановиться**, дальнейшую независимую проверку выполняет ChatGPT по №000 §5.1. Для сугубо внутреннего QA OWNER UX `NOT REQUIRED`. Никакого C/D.
+
+
+### БЛОК 1.1 — ПОСЛЕДНЯЯ СДАННАЯ ЗАДАЧА (ДОСЛОВНЫЙ ОРИГИНАЛ)
+
+**CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001 — A/B SUBMITTED / INDEPENDENT EVIDENCE REVIEW / FULL TASK OPEN / Gate 2 / C-D NOT AUTHORIZED.** Ниже — **дословный полный предыдущий БЛОК 1**, включая первоначальную TASK, AMENDMENT и checkpoints. Перенос не закрывает задачу. Предыдущий БЛОК 1.1 `CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001` сохранён дословно в [immutable Git №52](https://github.com/maxrus82gm-svg/local_LLM/blob/f50336a74a9e8929bc6999dd4a4bd77f9ced23d0/Documents/07_%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B8%20Codex.md) → БЛОК 1.1; запись в №07.00 и №09.
+
 **CHECKPOINT A — SUBMITTED / REVIEW PENDING, 13.11.2026. PREFLIGHT PREPARED / A TESTS PASS / OWNER GO REQUIRED.**
 Повторный offline QA/ZIP и анализ invalid_messages завершены; B/C/D NOT RUN. Полный отчёт: Manager_Ultra_LLM/README.md → SAFE-CUTOVER / этап A. Evidence: Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/handoff.json. Задача остаётся в БЛОКЕ 1 до последующих адресно разрешённых стадий; checkpoint не означает завершение всей TASK. Commit/push не выполнялись.
 
@@ -399,237 +460,27 @@ START/STOP CPU/CUDA, запуск KAT-Coder и нескольких экземп
 
 **Главный принцип: работоспособность Qwen и Valheim важнее скорости обновления Manager.**
 
-### БЛОК 1.1 — ПОСЛЕДНЯЯ СДАННАЯ ЗАДАЧА (ДОСЛОВНЫЙ ОРИГИНАЛ)
-
-**CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001 — SOURCE PREPARATION CLOSED / INDEPENDENT CODE/EVIDENCE REVIEW PASS / OWN WINDOWS+ZIP RERUN NOT RUN / LIVE DEPLOY NOT RUN.** Полная постановка ниже без изменений. Авторский инженерный код/evidence опубликован в `main` `b484bd67f4ff6506390860efd87731cced328cad`; отчёт `Manager_Ultra_LLM/README.md`, `Documents/Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/acceptance.json`. Прежний ROOT original с AMENDMENT и OWNER GO сохранён в immutable `main` `b484bd67f4ff6506390860efd87731cced328cad` (старый БЛОК 1.1), точные адреса в №05 и №09, поэтому ARCHIVE BLOCKED снят.
-
-**AMENDMENT владельца 13.11:** «коммитить не надо» относилось к сдаче Codex; затем владелец поручил координатору независимую проверку и один closeout-коммит с документацией. Исходное поручение сохраняется дословно ниже.
-
-# CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001
-
-**Проект:** Ultra LLM / local_LLM  
-**Исполнитель:** Codex  
-**Приоритет:** P0  
-**Тип:** совместимость Manager с Client R5, подготовка безопасного серверного обновления  
-**Статус:** PROPOSED — назначается владельцем
-
-## 1. Цель
-
-Подготовить проверенный релиз Server Manager, совместимый с установленным Ultra LLM Client R5.
-
-Результат должен позволить провести последующее контролируемое обновление сервера и реальные испытания streaming, reasoning, динамических слотов и управления моделями.
-
-**Эта задача не разрешает обновление действующего Manager, запуск моделей или остановку работающих сервисов.**
-
-## 2. Обязательные источники
-
-Прочитать актуальные версии:
-
-- `Documents/00_Старт.md`
-    
-- `Documents/000_Задачи для агента.md`
-    
-- `Documents/05_Реестр_задач.md`
-    
-- `Documents/07_Задачи Codex.md`
-    
-- `Documents/09_История_задач.md` — последние относящиеся события
-    
-- `Documents/13_Тактический_контекст.md` — актуальный NOW
-    
-- `Documents/18_Техническая_документация.md` — §§18.25, 18.29 и серверные разделы
-    
-
-Проверить текущие версии `main` и `GPT_2_local` до начала работы.
-
-Изучить существующие исходники `Manager_Ultra_LLM`, `Client_Ultra_LLM`, тесты и безопасные доказательства P0/P1.
-
-Не создавать новые рабочие корни.
-
-## 3. Этап A — инвентаризация и совместимость
-
-1. Определить фактическую версию установленного Manager через разрешённую read-only диагностику.
-    
-2. Сопоставить её с исходниками действующего Client R5.
-    
-3. Проверить API:
-    
-    - `/v1/control`
-        
-    - `/v1/control/catalog`
-        
-    - `/v1/chat`
-        
-    - `/v1/chat/stream`
-        
-    - `/v1/chat/cancel`
-        
-4. Проверить каталог моделей, динамические слоты, независимые экземпляры и привязку чатов.
-    
-5. Проверить правила авторизации, `owner_go`, `control_models`, TLS, pairing и изоляцию пользовательских данных.
-    
-6. Отдельно определить недостающие функции, несовместимости и возможные миграции состояния.
-    
-
-Если настоящий сервер недоступен, зафиксировать `LIVE PREFLIGHT NOT RUN`, не заменяя его результатами mock-тестов.
-
-## 4. Этап B — подготовка релиза
-
-Использовать имеющуюся реализацию. Не переписывать готовые функции без выявленной причины.
-
-Подготовить совместимую серверную сборку в пределах:
-
-`M:\GitHub\local_LLM`
-
-Обеспечить:
-
-- версионирование и SHA-256 manifest;
-    
-- переносимость без машинных секретов;
-    
-- совместимость действующих конфигураций;
-    
-- сохранение авторизаций и настроек;
-    
-- отсутствие скрытого автозапуска моделей;
-    
-- изолированную подготовку установки;
-    
-- воспроизводимые команды диагностики и установки;
-    
-- безопасный план отката.
-    
-
-Никакие реальные токены, TLS-ключи, личные базы SQLite, веса LLM и приватные логи в Git не добавлять.
-
-## 5. Этап C — офлайн-проверка
-
-Выполнить доступные тесты Manager и Client, включая:
-
-- регрессию существующих API;
-    
-- streaming и reasoning;
-    
-- корректную отмену генерации;
-    
-- независимые экземпляры одной модели;
-    
-- сохранение слотов;
-    
-- STOP одного экземпляра без воздействия на другие;
-    
-- отказ при отсутствии прав;
-    
-- отказ при отсутствии `owner_go`;
-    
-- моделирование ошибок и восстановления;
-    
-- совместимость с Client R5;
-    
-- отсутствие обязательной недоступной внешней тестовой fixture.
-    
-
-Предпочтительно использовать существующие Windows CI и Python/Chrome QA.
-
-**Mock PASS не считать реальным запуском LLM.**
-
-## 6. Этап D — серверный preflight и rollback
-
-Подготовить подробный план следующего этапа:
-
-1. Снимок работающего Manager и версии файлов.
-    
-2. Резервирование текущего установленного Manager.
-    
-3. Контроль контрольных сумм и конфигурации.
-    
-4. Отдельная staging-проверка.
-    
-5. Обновление только разрешённого Manager.
-    
-6. Проверка Qwen3.6 и доступности Client.
-    
-7. Проверка отсутствия воздействия на Valheim.
-    
-8. Проверка новых API и health.
-    
-9. Автоматически определяемые критерии для немедленного rollback.
-    
-10. Восстановление прежнего Manager при неуспешной проверке.
-    
-
-Подготовка этих инструкций **не является разрешением на их исполнение**.
-
-## 7. Жёсткие запреты
-
-Без отдельного OWNER GO:
-
-- не останавливать и не перезапускать `UltraLLM_Manager_LIVE`;
-    
-- не менять серверные конфигурации и права;
-    
-- не перезапускать Colibri1/Qwen3.6;
-    
-- не запускать Colibri2/KAT-Coder;
-    
-- не затрагивать Valheim;
-    
-- не изменять firewall, TLS и сетевую конфигурацию;
-    
-- не устанавливать новые зависимости на LIVE-сервер;
-    
-- не удалять старые установки и backups;
-    
-- не проводить LIVE START CPU/CUDA/STOP.
-    
-
-Все новые рабочие материалы — внутри утверждённого workspace. Новые документационные файлы допускаются только по отдельному разрешению владельца.
-
-## 8. Отчёт и критерии завершения
-
-Сдать:
-
-- точную матрицу совместимости Client R5 ↔ Manager;
-    
-- перечень изменённых исходников;
-    
-- безопасный release manifest;
-    
-- тестовые результаты с командами;
-    
-- обнаруженные несовместимости и риски;
-    
-- план обновления и rollback;
-    
-- перечень оставшихся LIVE-тестов;
-    
-- `DONE / CHANGED / DIFF / TESTS / PROBLEMS / QUESTIONS / DOC IMPACT / NEXT`.
-    
-
-Один итоговый Git-коммит на задачу, в разрешённой владельцем ветке, со сквозной нумерацией и обязательным readback. Не изменять `main` без отдельного разрешения.
-
-**Итоговый статус:** `RELEASE CANDIDATE READY / LIVE DEPLOY NOT RUN` — если все подготовительные критерии выполнены.
-
-**Обязательная остановка:** завершить задачу перед любыми изменениями действующего Server Manager. Следующий этап требует отдельного OWNER GO.
-
 ### БЛОК 2 — ПОСЛЕДНИЕ ПЯТЬ ЗАДАЧ (КОРОТКИЙ ИНДЕКС)
 
-- **CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001 / 13.11:** SOURCE CANDIDATE DONE / INDEPENDENT CODE/EVIDENCE REVIEW PASS / OWN WINDOWS+ZIP RERUN NOT RUN / LIVE DEPLOY NOT RUN; `main` `b484bd6`, авторские Manager 310 PASS+1 SKIP, Client 49 PASS, Chrome mock и rollback QA PASS; source/evidence см. №09 и №18 §18.30.
-- **CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001 / 13.11:** LIVE PASS — R5 в Production/Client, 73 SHA, прежний ярлык переключён один раз, rollback rehearsal PASS, повторный запуск/exit 0/restart PASS, Manager ONLINE, 34 сообщения/профиль сохранены. SOURCE/сервер не менялись. INDEPENDENT EVIDENCE REVIEW PASS / HOST NOT RE-RUN; коммит №45 принят в main. Отчёт: Documents/Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/report.md; evidence stage_d_result.json.
-- **CODEX-UL-CLIENT-DEPLOY-20261112-001 / 12.11:** установлен Client R5 из source 132474781e760e463944c76efcd9d3ff192e8f18 в M:\UltraLLM_Client старым ярлыком; R4 backup 70/70, release 72/72 и install 73/73 SHA256, 49 Client и SOURCE/frozen Chrome P0/P1 PASS; 34 сообщения сохранены, настоящий Manager ONLINE. CLIENT DEPLOY PASS / MANAGER VERSION GATE; independent REVIEW PENDING. Полный отчёт: M:\UltraLLM_Builds\Release\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\REPORT.txt; evidence: M:\UltraLLM_Builds\Release\CODEX-UL-CLIENT-DEPLOY-20261112-001_20261112_173219\EVIDENCE.json.
-- **CODEX-UL-STREAM-SLOTS-20261112-001 / 12.11:** SOURCE P0/P1, независимые Manager 302/302 (Windows), Client 49/49 (Windows + GitHub), P0 Chrome + P1 Chrome GitHub Actions PASS; LIVE NOT RUN. №09, отчёт STREAM_SLOTS_REPORT.txt, evidence STREAM_SLOTS_EVIDENCE.json; commit 9900ccd.
-- **CODEX-UL-CONTROL-01-STREAM-20261111-001 / 11.11:** SOURCE CONTROL-01, independent PARTIAL; полный текст: https://github.com/maxrus82gm-svg/local_LLM/blob/6c74edd7b961661f08969a11f0ea3a93e0cadce0/Documents/07_%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B8%20Codex.md ; №09.
+- **CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001 / 13.11:** SOURCE candidate, code/evidence review, original `main` `f50336a74a9e8929bc6999dd4a4bd77f9ced23d0` → №07 БЛОК 1.1; live NOT RUN. См. №07.00/№09.
+- **CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001 / 13.11:** AUTHOR LIVE PASS / independent EVIDENCE REVIEW / HOST NOT RE-RUN; №09, main №45.
+- **CODEX-UL-CLIENT-DEPLOY-20261112-001 / 12.11:** AUTHOR Client deployment; старый оригинальный краткий отчёт в [№07 immutable snapshot](https://github.com/maxrus82gm-svg/local_LLM/blob/f50336a74a9e8929bc6999dd4a4bd77f9ced23d0/Documents/07_%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B8%20Codex.md) → БЛОК 2, №09 архивный указатель.
+- **CODEX-UL-STREAM-SLOTS-20261112-001 / 12.11:** SOURCE P0/P1 mock Windows CI PASS, LIVE NOT RUN; №09, commit 9900ccd.
+- **CODEX-UL-CONTROL-01-STREAM-20261111-001 / 11.11:** SOURCE PARTIAL, LIVE NOT RUN; №09, commit 6c74edd.
 
-Старые постановки и доказательства остаются в №05/09 и immutable Git SHA.
+**Отдельный незавершённый checkpoint:** `CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001` A/B SUBMITTED, C/D OPEN и Gate 2; полная постановка в 1.1, **не** закрытая целиком задача. Новая `CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001` в БЛОКЕ 1 **AWAITING OWNER START**. Прежняя пятёрка сохранена через immutable №52 и историю №09.
 
 ### БЛОК 3 — OPEN / NEXT
 
-- Manager R5 source candidate проверен по GitHub source/evidence; **INDEPENDENT CODE/EVIDENCE REVIEW PASS / OWN WINDOWS+ZIP RERUN NOT RUN / LIVE DEPLOY NOT RUN**. Не выдавать авторские QA за личный Windows запуск.
-- Независимая проверка Windows/Chrome и SHA-256 исходного ZIP ещё OPEN; `FOLLOWUP-UL-MANAGER-R5-INDEPENDENT-RERUN-20261113-001` в №05.
-- Серверный Manager остаётся прежним по последней read-only SMB инвентаризации; реальный PID/TLS/API, Qwen/Valheim, CUDA/CPU/KAT, streaming и rollback NOT RUN; для любого LIVE вмешательства отдельный OWNER GO.
-- Ротация восстановлена: прежний ROOT архив сохранён по immutable SHA; БЛОК 1 свободен, 1.1 теперь хранит последнюю MANAGER R5 TASK, БЛОК 4 обновляется только координатором.
+- **Текущая новая постановка:** `CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001` — offline CI/negative tests; напрямую помещена координатором по разовому поручению владельца, **AWAITING OWNER START**, авторских результатов по ней ещё нет.
+- **SAFE-CUTOVER `CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001` остаётся OPEN:** A/B сданы, Stage B Gate 2 по авторским evidence (backup 26 code+4 state+Task XML, staging R5 21), C/D не выполнялись и не разрешены. Полная TASK+AMENDMENT в БЛОКЕ 1.1.
+- **Windows source CI** №52 run `43572399891`: Manager 311, 1 SKIP, Client 49, Chrome legacy/P0/P1 PASS; независимый физический серверный повтор и SHA оригинального ZIP NOT RUN. Внедрение и owner UX позже по отдельному GO.
+- **History/WinRM:** №05/09/13/18 сохраняют evidence и OPEN. Предложения WinRM для №22 `ag_llm` и №18 `local_LLM` остаются отдельно без внедрения.
+- После технической сдачи новой TASK координатор выполняет собственные тесты/CI и обновляет БЛОК 4, реестр, общую историю и тактический контекст.
 
 ### БЛОК 4 — НЕЗАВИСИМАЯ ПРОВЕРКА (ТОЛЬКО КООРДИНАТОР)
+
+**14.11.2026 — CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001, checkpoint B:** независимый code/evidence review авторских pre/post 24/24, SHA, TLS/ACL/backup/staging, защищённых Manager/Qwen/Valheim: `EVIDENCE REVIEW PASS / OWN PHYSICAL SERVER RERUN NOT RUN`. Самостоятельно изучен Windows Actions run `43572399891` (№52: 311 Manager, 1 SKIP; 49 Client; Chrome SOURCE P0/P1 PASS). Это **CI WINDOWS SOURCE PASS**, не LIVE cutover/rollback/real Qwen; этап C/D не разрешён. Ротация в БЛОК 1.1 не закрывает SAFE-CUTOVER. Новая `CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001` пока **AWAITING OWNER START**, её тесты ещё NOT RUN.
 
 **13.11.2026 — CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001: INDEPENDENT CODE/EVIDENCE REVIEW PASS / OWN WINDOWS+ZIP RERUN NOT RUN / LIVE DEPLOY NOT RUN.** Координатор независимо прочитал `main` `b484bd67f4ff6506390860efd87731cced328cad`, `Manager_Ultra_LLM/manager_release.py` (21 член/allowlist/sha/depcheck, отказ от path traversal, symlink, injected/private files, staging только в новый каталог), `test_manager_release.py`, `Documents/Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/{qa.json,qa_regression.json,acceptance.json,rollback_qa.json,release_manifest.json}`, README и рабочую Git-историю. По авторским evidence: Manager 310 PASS+1 SKIP, Client 49 PASS, Chrome legacy/P0/P1 PASS, rollback 66/2 PASS. Первые QA ошибки synthetic config и отсутствующего VBS в тестовой копии сохранены в `qa.json`, повторные тесты прошли в `qa_regression.json`. **Повторный прогон координатора и байтовая SHA ZIP НЕ ВЫПОЛНЕНЫ**: Desktop Commander после начального чтения локальных отчётов перестал отвечать; новый hosted CI также NOT RUN. Реальный LIVE Manager/API/TLS/LLM/rollback NOT RUN. Verdict касается подготовленного SOURCE кандидата, **не** самостоятельной runtime-проверки и не разрешает серверные изменения. `main` уже содержит код/evidence `b484bd6`; не создавать дублирующий Codex-коммит. Независимый runner и SERVER OWNER GO — отдельные открытые этапы, см. №05/09/13/18 §18.30.
 
@@ -644,6 +495,8 @@ START/STOP CPU/CUDA, запуск KAT-Coder и нескольких экземп
 **12.11.2026, CODEX-UL-STREAM-SLOTS-20261112-001: P0 SOURCE OFFLINE PASS / P1 SOURCE PARTIAL / LIVE NOT RUN.** Прочитаны SOURCE commit 9900ccd, отчёт и evidence. На DESKTOP-SC96D3U независимо из этого HEAD: Manager verify_offline.ps1 **302/302 PASS**; Client unittest **49/49 PASS**; Chrome test_browser_stream_source.mjs **PASS** (SOURCE Client → TLS Manager → fake Colibri, первый фрагмент до DONE, reasoning отдельно, сохранение); node --check client.js **PASS**, общий exit 0. Для P1 Chrome только авторские mock evidence. Реальный GPU/KAT/Colibri/START/STOP и LIVE latency НЕ проверены. Никакого PROD PASS/OWNER GO из этого вердикта не следует.
 
 Исторические старые БЛОКИ 2–4 сохранены дословно в №09, чтобы не терять прежние независимые проверки.
+
+
 
 ## 4. Отчёт исполнителя — минимальная форма
 
