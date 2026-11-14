@@ -11,14 +11,10 @@
             "id": "b830a0ae8b2d0ac5",
             "type": "leaf",
             "state": {
-              "type": "markdown",
-              "state": {
-                "file": "07_Задачи Codex.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "07_Задачи Codex"
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Граф"
             }
           }
         ]
@@ -187,6 +183,7 @@
   },
   "active": "b830a0ae8b2d0ac5",
   "lastOpenFiles": [
+    "07_Задачи Codex.md",
     "Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_helper_offline_qa.json",
     "Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_helper_offline_qa.py",
     "Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_prepare_server.py",
@@ -197,9 +194,7 @@
     "Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_resume_baseline_20261114.json",
     "Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_ip_evidence_manifest.json",
     "Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_ip_review.diff",
-    "Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_ip_handoff.json",
     "Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/p1_browser.png",
-    "07_Задачи Codex.md",
     "Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/p1_browser.png",
     "Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/stage_d_live_overview.png",
     "Reports/CODEX-UL-ROOT-CLIENT-MIGRATION-20261112-001/pre_amendment_01/report.md",
