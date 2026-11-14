@@ -1229,3 +1229,128 @@ USER UX **NOT REQUIRED** (внутренние тесты/CI, пользоват
 Остановиться для независимой проверки координатором и согласования публикации.
 Никакого server cutover/нового backup/staging, C/D, реального inference/START/STOP,
 изменения Client/ярлыка/истории/секретов. Предыдущие Gate2 материалы не изменены.
+
+## CODEX-UL-R5-GATE2-REGRESSION-FIX-20261114-001 — авторский handoff, 14.11.2026
+
+**AUTHOR QA READY / INDEPENDENT REVIEW PENDING / RELEASE HOLD.**
+Это offline исправление четырёх подтверждённых дефектов. REAL APPLICATION
+**NOT RUN**, C/D **NOT AUTHORIZED**, USER UX **NOT REQUIRED**: пользовательский
+интерфейс и установленное приложение не изменяются. Ни один авторский PASS
+не является независимой приёмкой или разрешением обновлять сервер.
+
+### DONE — источники, baseline и воспроизведение
+
+Прочитаны актуальные №00/000 §5.1–5.3, №05/07/07.00/09/13/18 §18.33,
+предыдущий CI-HARDEN handoff, валидаторы/тесты и неизменённый workflow.
+На входе домашний DESKTOP-SC96D3U, workspace M:\GitHub\local_LLM, чистые index
+и worktree. Во время начальной сверки владелец обновил main №54→55; повторная
+проверка обнаружила main/GPT_2_local/origin и удалённые refs на одном №55
+`a30259e7e2b860b1f6d6c2f2b2449add4ebc9729`. Далее работа только GPT_2_local.
+main не изменяется исполнителем. №54 не публикуется повторно.
+
+Исходный hosted run 43581579523 на №54: 330 Manager, 4 FAIL, 1 SKIP;
+Client49, controls и Chrome PASS. Четыре исходных RED повторены до исправлений
+в source COPY: 4 tests, 4 FAIL, exit1. Первый лог сохранён в
+`Test/CODEX-UL-R5-GATE2-REGRESSION-FIX-20261114-001/before_181013-original_four.stderr.log`.
+Текст и AST каждого из этих четырёх методов совпадают с №54; fixtures,
+discovery, decorators и ожидания не ослаблены. Новых skip/expectedFailure нет.
+
+### CHANGED / DIFF — точный whitelist из пяти файлов
+
+| Файл | Изменение и риск | До → после / дополнительные оракулы |
+| --- | --- | --- |
+| Documents/Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/stage_b_complete_readonly.py | F1a: оба listener содержат address/port/pid, строгие числовые типы и диапазоны, PID связан с Manager, baseline/post совпадают | исходный RED → PASS; drift address/port, missing, bool PID/port, противоречащие друг другу поля → отказ без completion |
+| Тот же checker | F1b: точный набор 24 известных guards из контракта v3, каждое значение `is True` в baseline и post | RED → PASS; 1/null/False/extra/renamed/incomplete → отказ; контракт тестом сверен с v3 |
+| Тот же checker | F1c: в обоих источниках только int 403 и exact source_not_permitted | RED → PASS; другая reason, 401/200, float/string status, отсутствующее поле → отказ |
+| Manager_Ultra_LLM/manager_release.py | F2: AST closure для константных __import__/importlib.import_module, aliases и builtins.__import__ | RED → PASS; coherent manifest с missing dependency отвергается; stdlib/flat local imports разрешены; payload с top-level raise не исполняется |
+| Manager_Ultra_LLM/test_gate2_hardening.py | 4 дополнительных метода: listener, exact flags, HTTP, настоящий subprocess `python -O` | положительный main и отрицательные listener/guard/HTTP/identity/provenance под -O, отсутствие completion при отказе |
+| Manager_Ultra_LLM/test_manager_release.py | 3 дополнительных метода с subcases dynamic imports | aliases, importlib.util binding, unknown expression, relative/escaped loader и stdlib/local positive |
+| Manager_Ultra_LLM/README.md | Только этот author append | Прежние handoff и FAIL сохранены |
+
+В checker все security `assert` заменены явным require/AssertionError:
+проверки сохраняются при оптимизации Python. Отсутствующие обязательные поля
+могут дать KeyError; это fail-closed без нового completion, а не PASS.
+
+**F2 policy:** проверяются статические Import/ImportFrom и распознаваемые loader
+calls, включая прямые imported aliases. Имя должно быть строковым AST Constant;
+variable, concatenation, unpacking, relative import/level, wildcard loader и
+передача распознанной loader function как значения запрещены. Flat local modules
+разрешены только из RUNTIME, stdlib — по sys.stdlib_module_names. Это bounded
+dependency validation, не sandbox для произвольного Python или reflective/eval
+кода. Никакое содержимое payload для dependency_check не исполняется.
+
+### TESTS — полный авторский offline цикл
+
+Все runtime tests выполнялись в отдельных копиях под workspace/Test с собственными
+TEMP/TMP/LOCALAPPDATA, synthetic config/TLS/models, loopback и headless Chrome.
+Сервер/WinRM/SMB, установленный Client и настоящие модели не использовались.
+
+| Проверка | Фактический результат |
+| --- | --- |
+| Финальный Manager (после уточнения importlib.util binding) | **337 = 336 PASS + 0 FAIL + 0 ERROR + 1 SKIP**, exit0, runner 57.511 s / subprocess 58.138 s |
+| Исходные F1a/F1b/F1c/F2 | **4 FAIL до → 4 PASS после**, исходный текст/AST сохранён |
+| Client | **49/49 PASS**, exit0, 17.981 s; bytes Client одинаковы в первой и финальной QA copies |
+| Negative controls | **5/5 PASS**, 1.422 s: positive exit0; assertion/error exit1; empty CollectionError exit3; неверный exact ZIP exit1 без PASS artifact |
+| Chrome legacy | PASS первого запуска этой TASK, exit0, 8.738 s |
+| Chrome P0 TLS/fake Colibri | PASS, exit0, 8.377 s |
+| Chrome P1 slots/fake engines | PASS, exit0, 33.736 s |
+| Synthetic backup/ACL/identity/partial restore | PASS в полном Manager suite; штатные готовые helpers переиспользованы |
+| JSON/JUnit | Все 337/49 testcase entries сохранены; failures/errors/skipped и counts согласованы |
+| Python compile / JS syntax / git diff --check | PASS |
+| Исторические опубликованные B snapshots | Новая schema принимает baseline/post 2/2, read-only; это не свежая проверка сервера |
+| Оригинальный release ZIP | SHA/21 members/read_package PASS, без build/stage; EXACT ZIP CI NOT RUN |
+
+Единственный SKIP прежний: optional installed Colibri AST audit, требующий
+UL_COLIBRI_SOURCE. Проверку настоящего Colibri намеренно не включали.
+Первый полный Manager337 тоже PASS; после небольшого уточнения AST binding
+повторён весь Manager suite. Первые логи не заменены. Client/Chrome не повторялись
+после изменения только validator/subcase: их source hashes совпадают.
+
+Оригинальный ZIP SHA256:
+`ba4ebf65af7a0693cf4dce045eb08254434a4475fd4f79e031424c905d661ce2`.
+Он содержит прежний validator, поэтому source fix **не означает** обновлённый
+release/staging. ZIP, 21 staged files, backups и опубликованные JSON не менялись.
+Новый versioned release, restaging и любые C/D — отдельный scope/OWNER GO.
+
+### Воспроизводимость и evidence
+
+Временный root: `Test/CODEX-UL-R5-GATE2-REGRESSION-FIX-20261114-001/`:
+baseline.json; before_181013.json и первый stderr; after_181311.json с полным
+циклом; final_181534.json с окончательным Manager; policy-checks.json;
+соответствующие source copies, stdout/stderr и Test/results/*.json/*.xml.
+Каждый record содержит cwd/command/exit/time и SHA проверенных исходников.
+Локальные файлы Test игнорируются Git и не входят в публикацию.
+
+Из новой source COPY, с новым output path под её Test:
+
+```powershell
+py -3.12 -X utf8 -B Manager_Ultra_LLM/test_gate2_hardening.py --suite Manager_Ultra_LLM --minimum 330 --output Test/review-new/manager.json
+py -3.12 -X utf8 -B Manager_Ultra_LLM/test_gate2_hardening.py --suite Client_Ultra_LLM --minimum 49 --output Test/review-new/client.json
+py -3.12 -X utf8 -B Manager_Ultra_LLM/test_gate2_hardening.py --negative-controls --output Test/review-new/controls.json
+node Client_Ultra_LLM/test_browser_control_stream.mjs
+node Client_Ultra_LLM/test_browser_stream_source.mjs
+node Client_Ultra_LLM/test_browser_slots_source.mjs
+```
+
+### CI / PROBLEMS / QUESTIONS / DOC IMPACT / NEXT
+
+**CI на момент формирования единственного коммита: PENDING PUBLICATION.**
+Новый hosted run появится после разрешённого push в GPT_2_local. Точный итоговый
+SHA/run ID/status и remote readback будут переданы в финальном сообщении и
+локальном Test evidence; старый run 43581579523 не считается новым PASS.
+Исторический авторский handoff выше сохраняет свои временные NOT RUN.
+
+PROBLEMS: новых FAIL в авторском цикле нет. **F3** trusted external private backup
+provenance остаётся отдельным OPEN coverage gap. **F4** flaky first Chrome остаётся
+OPEN; нынешний первый PASS не устанавливает причину прежнего FAIL.
+QUESTIONS: для этой scoped публикации разрешение уже дано стартовым сообщением;
+дополнительных блокирующих вопросов нет. RELEASE HOLD сохраняется.
+
+DOC IMPACT: №00/000/05/07/07.00/09/13/18 и БЛОК4 read-only по точной TASK.
+Ротация/реестр/история/тактический контекст и независимый verdict — координатору
+после сдачи. Самостоятельно не объявлять задачу ACCEPTED и не менять карточку.
+
+NEXT: один следующий свободный номер, один scoped commit/push GPT_2_local;
+проверить remote SHA/readback и новый Windows CI, затем остановиться для
+независимой приёмки. Никаких исправлений CI вторым коммитом/перезаписью истории,
+перехода к C/D, обновления серверного Manager или реальных моделей автоматически.

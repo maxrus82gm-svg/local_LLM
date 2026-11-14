@@ -181,6 +181,83 @@ class SnapshotGuardTests(ScratchTests):
         fixture[2]['records'][1]['python_audit']['metadata']['unauth_snapshot_error'] = 'unrelated_forbidden'
         self.rejected(fixture)  # Requirement regression: cannot trust a coarse PASS flag.
 
+    def test_listener_address_port_missing_fields_and_relative_pid_are_rejected(self):
+        for field, value in (('address', '192.0.2.99'), ('port', 9443), ('pid', True),
+                             ('port', True), ('port', 0), ('address', ''), ('address', None)):
+            fixture = self.fixture()
+            fixture[2]['records'][1]['manager_listener'][field] = value
+            with self.subTest(field=field, value=value): self.rejected(fixture)
+        for field in ('address', 'port', 'pid', 'manager_listener'):
+            fixture = self.fixture()
+            post = fixture[2]['records'][1]
+            del (post if field == 'manager_listener' else post['manager_listener'])[field]
+            with self.subTest(missing=field): self.rejected(fixture, (AssertionError, KeyError))
+        fixture = self.fixture()
+        for snapshot in (fixture[1], fixture[2]['records'][1]):
+            snapshot['manager_listener']['pid'] = 999
+        self.rejected(fixture)  # Matching sources still contradict Manager identity.
+
+    def test_guard_contract_is_exact_and_strict_in_both_sources(self):
+        expected = set(re.findall(r"\bCheck '([^']+)'", (REPORT / 'stage_b_server_preflight_v3.ps1').read_text(encoding='utf-8-sig')))
+        self.assertEqual(self.guard.EXPECTED_CHECKS, expected)
+        for source in ('baseline', 'post'):
+            for mode in ('one', 'null', 'extra', 'renamed', 'false'):
+                fixture = self.fixture()
+                checks = (fixture[1] if source == 'baseline' else fixture[2]['records'][1])['checks']
+                key = next(iter(checks))
+                if mode == 'extra': checks['unknown_guard'] = True
+                elif mode == 'renamed': checks['unknown_guard'] = checks.pop(key)
+                else: checks[key] = {'one': 1, 'null': None, 'false': False}[mode]
+                with self.subTest(source=source, mode=mode): self.rejected(fixture)
+
+    def test_http_status_reason_and_missing_metadata_fail_closed(self):
+        for source in ('baseline', 'post', 'both'):
+            for status, reason in ((401, 'unauthorized'), (403, ''), (403, None),
+                                   (403.0, 'source_not_permitted'), ('403', 'source_not_permitted'),
+                                   (200, 'source_not_permitted')):
+                fixture = self.fixture()
+                snapshots = {'baseline': [fixture[1]], 'post': [fixture[2]['records'][1]],
+                             'both': [fixture[1], fixture[2]['records'][1]]}[source]
+                for snapshot in snapshots:
+                    snapshot['python_audit']['metadata'].update(unauth_snapshot_http=status, unauth_snapshot_error=reason)
+                with self.subTest(source=source, status=status, reason=reason): self.rejected(fixture)
+        for field in ('unauth_snapshot_http', 'unauth_snapshot_error'):
+            fixture = self.fixture()
+            del fixture[2]['records'][1]['python_audit']['metadata'][field]
+            with self.subTest(missing=field): self.rejected(fixture, KeyError)
+
+    def test_optimized_python_keeps_acceptance_guards_active(self):
+        # Run the actual main under -O with injected synthetic paths/Git only.
+        script = '''
+import sys
+sys.path.insert(0, 'Manager_Ultra_LLM')
+from test_gate2_hardening import SnapshotGuardTests
+case = SnapshotGuardTests('test_good_synthetic_fixture_accepts')
+case.setUp()
+try:
+    case.run_fixture(case.fixture())
+    for mode in ('listener', 'guard', 'http', 'identity', 'provenance'):
+        fixture = case.fixture()
+        post = fixture[2]['records'][1]
+        kwargs = {}
+        if mode == 'listener': post['manager_listener']['port'] = 9443
+        elif mode == 'guard': post['checks'][next(iter(post['checks']))] = 1
+        elif mode == 'http': post['python_audit']['metadata']['unauth_snapshot_error'] = 'other'
+        elif mode == 'identity': post['valheim']['pid'] = 999
+        else: kwargs['current_head'] = '2' * 40
+        try: case.run_fixture(fixture, **kwargs)
+        except AssertionError: pass
+        else: raise RuntimeError('Optimized checker accepted ' + mode)
+        if (fixture[0] / 'stage_b_completion.json').exists():
+            raise RuntimeError('Rejected evidence created completion')
+    print('OPTIMIZED_GUARDS_PASS')
+finally: case.doCleanups()
+'''
+        result = subprocess.run([sys.executable, '-O', '-B', '-c', script], cwd=ROOT,
+                                capture_output=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr.decode('utf-8', 'replace'))
+        self.assertIn(b'OPTIMIZED_GUARDS_PASS', result.stdout)
+
 
 class ACLAndBackupTests(ScratchTests):
     def test_interrupted_restore_cannot_verify_as_complete_and_source_is_intact(self):

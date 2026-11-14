@@ -60,6 +60,47 @@ class ReleaseTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Unpackaged/non-stdlib dependency'):
             release.validate(payload)
 
+    def test_literal_importlib_and_builtin_aliases_reject_missing_dependencies(self):
+        for statement in (
+            "import importlib; importlib.import_module('qa_unavailable_dependency')",
+            "import importlib.util; importlib.import_module('qa_unavailable_dependency')",
+            "import importlib as il; il.import_module(name='qa_unavailable_dependency')",
+            "from importlib import import_module as load; load('qa_unavailable_dependency')",
+            "import builtins as bi; bi.__import__('qa_unavailable_dependency')",
+            "from builtins import __import__ as load; load('qa_unavailable_dependency')",
+        ):
+            with self.subTest(statement=statement), self.assertRaisesRegex(ValueError, 'Unpackaged/non-stdlib dependency'):
+                release.validate(self.rewrite_consistent('\n' + statement + '\n'))
+
+    def test_unknown_relative_or_escaped_dynamic_imports_fail_closed(self):
+        for statement in (
+            "__import__(module_name)", "__import__('j' + 'son')",
+            "import importlib; importlib.import_module(module_name)",
+            "import importlib; importlib.import_module('.child', 'live_manager')",
+            "__import__('json', level=1)", "__import__('json', level=unknown)",
+            "__import__(**options)", "__import__('json', **options)",
+            "loader = __import__", "import importlib; loader = importlib.import_module",
+            "from importlib import *", "from . import child",
+        ):
+            with self.subTest(statement=statement), self.assertRaisesRegex(ValueError, 'Dynamic[/ ]'):
+                release.validate(self.rewrite_consistent('\n' + statement + '\n'))
+
+    def test_constant_stdlib_and_flat_local_imports_are_allowed_without_execution(self):
+        statement = '''
+import importlib as il
+from importlib import import_module as load
+import builtins as bi
+__import__('json')
+__import__(name='chat_runtime')
+il.import_module('xml.etree.ElementTree')
+load('chat_settings')
+bi.__import__('pathlib')
+raise RuntimeError('PAYLOAD MUST NEVER EXECUTE')
+'''
+        # A top-level raise would fail immediately if validation executed payload.
+        payload = self.rewrite_consistent(statement)
+        self.assertEqual(release.validate(payload)['version'], release.VERSION)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

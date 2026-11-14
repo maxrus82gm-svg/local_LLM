@@ -10,6 +10,7 @@ import hashlib
 import json
 from pathlib import Path
 import stat
+import sys
 import zipfile
 
 VERSION = "R5-compat-20261113.1"
@@ -41,18 +42,73 @@ def no_links(path):
 
 
 def dependency_check(payload):
-    """Reject omitted sibling Python modules, including lazy imports."""
+    """Static closure for this flat, stdlib-only release; never execute payload.
+
+    Recognize literal __import__/importlib.import_module, including imported
+    aliases and builtins.__import__. Unknown names, relative imports and escaped
+    loader references fail closed. This is a dependency policy, not a sandbox.
+    """
     names = {Path(name).stem for name in RUNTIME if name.endswith(".py")}
-    # All Manager modules are stdlib-only. Explicitly check local import closure.
-    stdlib = __import__("sys").stdlib_module_names
+    stdlib = sys.stdlib_module_names
     for name in names:
         tree = ast.parse(payload[name + ".py"].decode("utf-8-sig"))
+        loader_names = {"__import__"}
+        # Canonical spellings also cover `import importlib.util`, which binds
+        # importlib rather than the dotted submodule name.
+        module_aliases = {"importlib": "importlib", "builtins": "builtins"}
         for node in ast.walk(tree):
-            imported = ([alias.name.split(".")[0] for alias in node.names]
-                        if isinstance(node, ast.Import) else
-                        [node.module.split(".")[0]] if isinstance(node, ast.ImportFrom) and node.module else [])
-            if set(imported) - names - stdlib - {"__future__"}:
-                raise ValueError("Unpackaged/non-stdlib dependency in " + name)
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name in ("importlib", "builtins"):
+                        module_aliases[alias.asname or alias.name] = alias.name
+            elif isinstance(node, ast.ImportFrom) and node.module in ("importlib", "builtins"):
+                for alias in node.names:
+                    if alias.name == ("import_module" if node.module == "importlib" else "__import__"):
+                        loader_names.add(alias.asname or alias.name)
+
+        def loader_kind(node):
+            if isinstance(node, ast.Name) and node.id in loader_names:
+                return "__import__" if node.id == "__import__" else "aliased"
+            if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+                origin = module_aliases.get(node.value.id)
+                if (origin, node.attr) in (("importlib", "import_module"), ("builtins", "__import__")):
+                    return node.attr
+            return None
+
+        def check_module(module):
+            if (type(module) is not str or not module or
+                    any(not part.isidentifier() for part in module.split("."))):
+                raise ValueError("Dynamic/relative import refused in " + name)
+            root = module.split(".")[0]
+            if root not in names | stdlib | {"__future__"} or (root in names and "." in module):
+                raise ValueError("Unpackaged/non-stdlib dependency in " + name + ": " + module)
+
+        parents = {child: node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    check_module(alias.name)
+            elif isinstance(node, ast.ImportFrom):
+                if node.level or node.module is None:
+                    raise ValueError("Dynamic/relative import refused in " + name)
+                check_module(node.module)
+                if node.module in ("importlib", "builtins") and any(a.name == "*" for a in node.names):
+                    raise ValueError("Dynamic import loader wildcard refused in " + name)
+            if loader_kind(node):
+                parent = parents.get(node)
+                if not isinstance(parent, ast.Call) or parent.func is not node:
+                    raise ValueError("Dynamic import loader reference refused in " + name)
+            if isinstance(node, ast.Call) and loader_kind(node.func):
+                arguments = list(node.args[:1]) + [kw.value for kw in node.keywords if kw.arg == "name"]
+                if (len(arguments) != 1 or not isinstance(arguments[0], ast.Constant)
+                        or any(isinstance(arg, ast.Starred) for arg in node.args)
+                        or any(kw.arg is None for kw in node.keywords)):
+                    raise ValueError("Dynamic import expression refused in " + name)
+                check_module(arguments[0].value)
+                levels = list(node.args[4:5]) + [kw.value for kw in node.keywords if kw.arg == "level"]
+                if any(not isinstance(level, ast.Constant) or type(level.value) is not int
+                       or level.value != 0 for level in levels):
+                    raise ValueError("Dynamic/relative import refused in " + name)
 
 
 def validate(payload):
