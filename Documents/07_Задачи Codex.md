@@ -48,7 +48,74 @@ Codex работает **на компьютере владельца**, поэ�
 
 ### БЛОК 1 — ТЕКУЩАЯ ЗАДАЧА
 
-Свободен. Готов к получению следующей задачи от владельца.
+# CODEX-UL-R5-CHROME-STABILITY-20261117-001
+
+**TASK ID:** `CODEX-UL-R5-CHROME-STABILITY-20261117-001`  
+**Название:** F4 Chrome cold-start + P1 post-STOP intermittent status — диагностика, минимальный fix, регрессии  
+**Дата:** 17.11.2026  
+**Проект:** `maxrus82gm-svg/local_LLM`, локальный root `M:\GitHub\local_LLM`  
+**Исполнитель:** Codex; приоритет P0; **OFFLINE SOURCE/CHROME QA ONLY**  
+**Статус:** ASSIGNED IN BLOCK1 / AWAITING OWNER LOCAL SYNC + ACTIVATION. Размещение в GitHub само не синхронизирует локальный Codex.
+
+## 1. Цель и доказательства
+
+Исследовать две **пока не доказано связанные** нестабильности.
+
+**P1:** [Windows Actions FAIL №43634294641](https://github.com/maxrus82gm-svg/local_LLM/actions/runs/43634294641), job `132567585813` на source SHA №60 `de6a96ba78f53685e85a49b5f49d7fa870f4f187`. Manager 350 PASS/1 SKIP, Client49 PASS, Chrome legacy и P0 PASS; P1 `Client_Ultra_LLM/test_browser_slots_source.mjs:65` после `Stop slot2` вызвал `api("/api/status").then(x=>x.managers[0].data.control.instances...)` при `data=null`: `TypeError: Cannot read properties of null (reading 'control')`. Причина NULL в статусе неизвестна.
+
+**Контроль:** [Actions PASS №43635620449](https://github.com/maxrus82gm-svg/local_LLM/actions/runs/43635620449), job `132571644874` — тот же exact source SHA, все этапы PASS. Это указывает на непостоянный сбой, а НЕ доказывает его безвредность.
+
+**F4:** ранее первый запуск Chrome legacy завершился FAIL, затем без изменения исходников повторился PASS; прежний `FOLLOWUP-UL-R5-CHROME-FIRST-LOAD-20261114-001` открыт. Не считать F4 и P1 одной причиной без подтверждения.
+
+**Итог задачи:** документированная первопричина/границы для каждого случая, безопасное воспроизведение, минимальное обоснованное исправление в whitelist либо честный PARTIAL/BLOCKED при неизвестной причине/выходе за scope, усиленные offline regression/negative controls.
+
+## 2. READ MATRIX
+
+Сначала: `Documents/07_Задачи Codex.md` §§1–3 и БЛОК1; `Documents/000_Задачи для агента.md` OWNER RULE, §§4,5.1,5.3–5.4; текущие NOW `Documents/00_Старт.md`, `Documents/05_Реестр_задач.md`, `Documents/13_Тактический_контекст.md`; `Documents/18_Техническая_документация.md` §§18.31,18.35–18.36. Изучить указанные два GitHub run с логами и доступные прошлые F4 evidence; если F4 evidence недоступен — SOURCE UNAVAILABLE, не домысливать.
+
+Изучить `Client_Ultra_LLM/test_browser_control_stream.mjs`, `test_browser_slots_source.mjs`, `test_browser_stream_source.mjs`, `browser_qa_helpers.mjs`, `offline_stream_host.py`, `web_client.py`, `web_assets/client.js`, `.github/workflows/ultra-offline-ci.yml`. При необходимости **READ-ONLY** `Manager_Ultra_LLM/live_manager.py`, `control_runtime.py`, `chat_runtime.py`, `service_core.py`, соответствующие тесты, `Manager_Ultra_LLM/README.md`.
+
+## 3. WRITE / TEST SCOPE — ТОЛЬКО whitelist
+
+Допустимы минимальные локальные правки в следующих существующих файлах:
+- `Client_Ultra_LLM/test_browser_control_stream.mjs`
+- `Client_Ultra_LLM/test_browser_slots_source.mjs`
+- `Client_Ultra_LLM/test_browser_stream_source.mjs`
+- `Client_Ultra_LLM/browser_qa_helpers.mjs`
+- `Client_Ultra_LLM/offline_stream_host.py`
+- `Client_Ultra_LLM/web_client.py`
+- `Client_Ultra_LLM/web_assets/client.js`
+- `.github/workflows/ultra-offline-ci.yml` — только конечные offline диагностики/проверки без удаления прежних steps
+- `Manager_Ultra_LLM/README.md` — append-only отчёт о TASK
+- `Documents/07_Задачи Codex.md` — только штатная ротация после содержательной сдачи.
+
+**Manager source/runtime, release/backup code, Production Client, любые другие документы и `Documents/.obsidian/**`, tracked screenshot `Client_Ultra_LLM/stream_slots_browser.png` — READ ONLY.** Если доказанная причина требует Manager code или расширенного write scope — остановиться с root-cause evidence и запросом отдельного OWNER AMENDMENT. Не создавать новые документы/узлы Obsidian, не добавлять зависимости. Временные артефакты хранить только локально в разрешённом ignored scratch/Test, затем очистить.
+
+## 4. Запреты и границы прав
+
+**Codex НИКОГДА не выполняет Git write**: `git add/commit/push/merge/rebase/reset/checkout/cherry-pick`, создание веток и изменения GitHub. Допустимы read-only `git status/diff/log/show`. Синхронизацию локального репозитория и один итоговый commit/push выполняет владелец; ChatGPT публикует документное назначение только в удалённую `GPT_2_local`, выполняет независимую приёмку после owner push. Перед началом проверить локальные source/HEAD после синхронизации ВЛАДЕЛЬЦЕМ; несовпадение — STOP, не чинить Git самостоятельно.
+
+Никаких действий на рабочем Server Manager/UNC, real Colibri/Qwen/KAT/Valheim, CPU/CUDA START/STOP, Windows Tasks, Firewall, TLS, ACL, live API, release ZIP, backup, `Production/Client`, Client EXE, SAFE-CUTOVER C/D. Только synthetic loopback fixtures, временный Chrome профиль, никакие приватные ключи или пользовательские сообщения в evidence. **Manager R5 RELEASE HOLD**, F3 initial real backup provenance NOT PROVEN, exact ZIP CI NOT RUN.
+
+Не допускать `catch{ return true }`, безусловных sleep как fix, отключения P1/legacy, бесконечных retries, умышленного PASS при `data=null`, удаления negative/security checks. Деградированное состояние должно приводить к bounded ожиданию с диагностикой либо честному FAIL, не false READY.
+
+## 5. План и проверяемые результаты
+
+1. **Baseline:** read-only git status/HEAD/diff, Chrome/Node/Python versions; точные шаги обоих run и исторические логи F4. Отдельные incident timelines.
+2. **Диагностика:** безопасно логировать `fixture → Chrome cold page → /api/status → start → stop slot2 → poll/refresh/reload`; timestamps, HTTP status/error class, sanitized структуру `data`, latency/transition, JS/CDP/fixture exceptions; не публиковать raw snapshot, секреты или персональную историю. Найти точку происхождения `data=null` (Manager/Client/fixture/browser).
+3. **Повторения:** минимум **10 чистых cold-start legacy** и **10 изолированных P1 STOP/status/reload cycles**, с реальным числом PASS/FAIL и контролем завершения Chrome/fixture и очистки временных данных. Если невозможно — явно сколько RUN, что BLOCKED. Добавить негативные инъекции `data:null`, частичный ответ, HTTP 503/connection failure, задержки, race `refresh()`/STOP; проверить длительность ожиданий и отсутствие false positive.
+4. **Классификация:** для F4 и P1 отдельно `CONFIRMED / REPRODUCED / HYPOTHESIS / NOT RUN`. Не выдавать «flaky runner» за установленную причину. Если всё воспроизводится только через injection — назвать границу честно. По доказанному корню сделать **минимальный** diff в whitelist: bounded ожидания допустимого transient, строгий null/error guard, предсказуемый teardown, информативные ошибки на deadline, без ослабления assertions. Если требуется Manager backend — STOP/OWNER AMENDMENT.
+5. **Тесты:** после изменений прогнать Chrome legacy, P0, P1, 10+ повторов, Python/JS syntax, имеющийся полный Manager suite (база 350 PASS/1 SKIP), Client suite (база 49 PASS), 5 negative controls; не выключать ни один тест. Проверить slot isolation, STOP только одного, сохранение истории, reload, отсутствие зависших процессов. Сохранить изначальный FAIL и сравнительные цифры.
+6. **Отчёт:** append-only в существующий `Manager_Ultra_LLM/README.md`, секция TASK-ID; команды, даты/версии, run counts, PASS/FAIL/SKIP/NOT RUN, объяснение каждой правки и F4/P1 статус, ограничения, sanitized evidence. До owner commit **GitHub Windows CI NOT RUN** для нового source; не приписывать себе independent PASS.
+7. **Ротация:** только после содержательной сдачи DONE/PARTIAL и проверки immutable хранения прежней F3 БЛОК1.1 в №60 `de6a96ba...` + №09; перенести весь оригинал БЛОК1 и AMENDMENT дословно в 1.1, освободить БЛОК1, оставить предыдущую F3 immutable. Если archive unverified — `ARCHIVE BLOCKED`, не очищать. При preflight STOP без результата не ротировать.
+
+## 6. Acceptance и формат сдачи
+
+Критерии: P1 и F4 не смешаны без доказательств; negative `data:null` и 503 не дают ложного READY; повторяемость и bounded fail-closed подтверждены; старые security guards F1/F2/F3 и P0/P1/legacy не ослаблены; точный whitelist соблюдён; старый RED сохранён. Если источник не найден — сдача PARTIAL с конкретным дальнейшим планом, не фиктивное DONE.
+
+После публикации владельцем координатор независимо изучает diff, выполняет Windows GitHub CI на новом SHA и отдельно фиксирует AUTHOR/TECHNICAL/CI/REAL/OWNER UX/RELEASE. Offline тесты не являются реальным продуктом или разрешением на Manager R5 C/D; при изменении видимого UI нужен OWNER UX smoke.
+
+**Ответ Codex:** `DONE / CHANGED / DIFF / TESTS / NEGATIVE CONTROLS / CI / PROBLEMS / QUESTIONS / DOC IMPACT / NEXT`; фактический статус, README evidence и результат ротации. Дальше остановиться для независимой приёмки.
 
 ### БЛОК 1.1 — ПОСЛЕДНЯЯ СДАННАЯ ЗАДАЧА (ДОСЛОВНЫЙ ОРИГИНАЛ)
 
