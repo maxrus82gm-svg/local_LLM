@@ -1643,3 +1643,65 @@ and `Test/.../local` contains three empty directories. Automatic approval
 review blocked both recursive removal and removal of that exact verified file;
 no alternate deletion method was used. These files remain only inside the
 task's ignored QA scratch, with no tracked or production path affected.
+
+
+### CODEX-UL-R5-CHROME-STABILITY-20261117-001 — OWNER AMENDMENT, CI race follow-up (18.11.2026)
+
+**CHANGED / DIFF.** Starting from clean local HEAD №63
+`7a3f7355f03280713c6d3e423b3dbd31e73094b3`, only
+`Client_Ultra_LLM/offline_stream_host.py` and
+`Client_Ultra_LLM/test_browser_slots_source.mjs` changed in the test stand.
+The fixture's shared FIFO status-fault queue became a probe-ID map. A fault is
+claimed only by `/api/status` carrying its QA probe header; an untagged status
+request leaves it untouched. A consumed or unknown probe returns 409. A bounded
+multi-use probe preserves the 503 burst test. P1 explicitly puts an ordinary
+status request between every arm and intended claim, retains strict
+`null`/`partial`/503/delay/disconnect assertions, checks one-shot rejection,
+and sends targeted `null` through the existing browser `refresh(true)` path.
+The normal Client/Manager product code and legacy/P0 tests did not change.
+
+**ROOT CAUSE.** On published №63, Windows CI run `44309630442`, job
+`134820087536`, passed Manager/Client/legacy/P0 and failed P1 at line 118:
+`partial` expected `control=false`, observed `true`. The old fixture popped the
+next fault for *any* `/api/status` request, while `client.js` can refresh in
+the background. The CI trace records a null response followed by a complete
+normal status immediately before the failing assertion. A synthetic replay
+against the exact published fixture (`race-proof.json`) deterministically
+showed: first untagged request consumed `partial`, next intended request saw
+normal control. The particular competing HTTP request in CI was not logged,
+but the shared-queue mechanism and resulting wrong-target delivery are
+confirmed. This is a test-fixture race; no Manager runtime cause was shown.
+
+**TESTS / NEGATIVE CONTROLS.** In isolated SOURCE copy under
+`Test/CODEX-UL-R5-CHROME-STABILITY-20261117-001/amendment-01/`:
+
+| Check | Author result |
+| --- | --- |
+| Exact old-fixture queue replay | PASS: untagged request takes `partial`, next sees normal status |
+| Preliminary addressed P1 series | 10/10 PASS, 33.196–50.054 s, each with zero JS errors and zero leftover Chrome fixture profiles |
+| Final P1 series with targeted `refresh(true)` | 10/10 PASS, 33.936–39.887 s, 33–35 sanitized status samples each, zero JS errors and zero leftover profiles |
+| Chrome legacy / P0 | PASS / PASS, exit0, 5.913 / 11.287 s |
+| Manager suite | 351 = 350 PASS + 1 existing SKIP, 0 FAIL/ERROR, exit0, 87.028 s |
+| Client suite | 49 PASS, 0 FAIL/ERROR, exit0, 25.780 s |
+| Five existing negative controls | PASS, exit0, 1.159 s, including fail/error/empty/wrong-ZIP detection |
+| JS/Python syntax and `git diff --check` | PASS |
+
+Final P1 still checks STOP slot2 while slot3 stays READY, four simultaneous
+fake instances, slot/history persistence through reload, risk cancel/confirm,
+`null`, `partial`, 503, 350 ms delay, TCP disconnect, finite 503 deadline and
+recovery. A tagged probe cannot replay after consumption (HTTP 409); untagged
+background-like reads remain normal. Tests use only temporary Chrome profiles,
+fake engines and loopback. Exact per-run exit codes, durations, status classes
+and sanitized traces are in `p1-repeats.json` and stdout logs; full suite
+JSON/XML, `race-proof.json`, `ci-incident.json`, `review.diff`, `summary.json`
+and SHA manifest are in the same ignored amendment evidence folder.
+
+**OPEN / NEXT.** New hosted Windows CI on this uncommitted diff is **NOT RUN**;
+publication belongs to the owner. No Git add/commit/push was performed. The
+original historical transient that produced `data=null` remains separately
+unexplained; this amendment fixes wrong-target synthetic delivery. Manager R5
+remains RELEASE HOLD; real server, Production Client, genuine models and
+SAFE-CUTOVER C/D were NOT RUN. Owner may publish this scoped local diff;
+coordinator should independently rerun Windows CI on the exact new SHA and
+review the negative trace. №07 stays as-is in BLOCK1.1; no second rotation or
+independent verdict was written.

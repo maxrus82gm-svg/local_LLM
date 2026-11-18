@@ -42,8 +42,8 @@ def main():
     normal_active=[0,0]
     normal_lock=threading.Lock()
     normal_pair=threading.Event()
-    # One-shot, synthetic Client status faults for browser QA only.
-    status_faults=[]
+    # Synthetic faults are claimed only by the browser request carrying their probe ID.
+    status_faults={}
     status_fault_lock=threading.Lock()
     class Colibri(BaseHTTPRequestHandler):
         model_id="qa-model"
@@ -52,10 +52,17 @@ def main():
                 if reload_handler[0]:reload_handler[0]()
                 self.send_response(204);self.end_headers();return
             if self.path.startswith("/__qa/status_fault/"):
-                mode=self.path.rsplit("/",1)[-1]
-                if mode not in ("null", "partial", "503", "delay", "disconnect"):
+                parts=self.path.split("/")
+                if (len(parts)!=6 or parts[3] not in ("null", "partial", "503", "delay", "disconnect")
+                        or not parts[4].isascii() or not parts[4].isdigit() or len(parts[4])>8
+                        or not parts[5].isascii() or not parts[5].isdigit()
+                        or not 1<=int(parts[5])<=32):
                     self.send_response(400);self.end_headers();return
-                with status_fault_lock: status_faults.append(mode)
+                mode,probe,count=parts[3],parts[4],int(parts[5])
+                with status_fault_lock:
+                    if probe in status_faults:
+                        self.send_response(409);self.end_headers();return
+                    status_faults[probe]=[mode,count]
                 self.send_response(204);self.end_headers();return
             if self.path in ("/__qa/low_ram","/__qa/normal_ram"):
                 resource_memory[0]=8 if self.path.endswith('low_ram') else 64
@@ -191,8 +198,17 @@ def main():
     class LocalQA(base_local):
         def do_GET(self):
             if self.path=="/api/status":
-                with status_fault_lock:
-                    mode=status_faults.pop(0) if status_faults else None
+                probe=self.headers.get("X-QA-Status-Probe")
+                mode=None
+                if probe is not None:
+                    with status_fault_lock:
+                        fault=status_faults.get(probe)
+                        if fault:
+                            mode=fault[0]
+                            fault[1]-=1
+                            if fault[1]==0:del status_faults[probe]
+                    if mode is None:
+                        return self._send_json(409,{"error":"qa_probe_unarmed"})
                 if mode=="delay":time.sleep(0.35)
                 elif mode=="disconnect":
                     self.close_connection=True

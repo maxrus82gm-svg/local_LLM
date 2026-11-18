@@ -25,10 +25,18 @@ try{
   browser=await chromeSession(host.url,path.join(root,'chrome'));
   mark('chrome_ready');
   const {evaluate,until}=browser;
-  async function status(){
+  let nextProbe=0;
+  async function armFault(mode,count=1){
+    const probe=String(++nextProbe);
+    const response=await fetch(`${host.upstream}/__qa/status_fault/${mode}/${probe}/${count}`);
+    assert.equal(response.status,204);
+    return probe;
+  }
+  async function status(probe=null){
     // Capture only status/shape; never include private snapshot fields in evidence.
     const sampled=performance.now();
-    const view=await evaluate(`fetch('/api/status').then(async r=>{
+    const options=probe===null?'':`,{headers:{"X-QA-Status-Probe":${JSON.stringify(probe)}}}`;
+    const view=await evaluate(`fetch('/api/status'${options}).then(async r=>{
       let p;try{p=await r.json()}catch{return {http:r.status,kind:'invalid_json'}}
       const m=Array.isArray(p?.managers)?p.managers.find(x=>x?.manager_id==='qa-manager'):null;
       const d=m?.data,c=d?.control;
@@ -40,10 +48,36 @@ try{
     statusTrace.push({ms:Date.now(),elapsed_ms:Math.round(performance.now()-sampled),...view});
     return view;
   }
-  async function waitStatus(label,predicate,timeoutMs=22000){
+  async function refreshWithProbe(probe){
+    const started=performance.now();
+    while(performance.now()-started<5000){
+      await until('!isRefreshing && !refreshQueued');
+      const result=await evaluate(`(async()=>{
+        if(isRefreshing||refreshQueued)return {busy:true};
+        const original=window.fetch;let targeted=0,sawNull=false;
+        window.fetch=(input,options)=>{
+          if(input==='/api/status'&&targeted===0){
+            targeted=1;
+            return original.call(window,input,{...options,headers:{...(options?.headers||{}),
+              "X-QA-Status-Probe":${JSON.stringify(probe)}}}).then(async response=>{
+                const payload=await response.clone().json();
+                sawNull=payload.managers?.[0]?.data===null;
+                return response;
+              });
+          }
+          return original.call(window,input,options);
+        };
+        try{await refresh(true);return {busy:false,targeted,saw_null:sawNull};}
+        finally{window.fetch=original;}
+      })()`);
+      if(!result.busy)return result;
+    }
+    throw Error('Targeted refresh did not become idle within 5 s');
+  }
+  async function waitStatus(label,predicate,timeoutMs=22000,probe=null){
     const start=performance.now();let last;
     do{
-      last=await status();
+      last=await status(probe);
       if(last.http===200&&last.manager_status==='online'&&last.control&&predicate(last))return last;
       await delay(100);
     }while(performance.now()-start<timeoutMs);
@@ -104,18 +138,26 @@ try{
   assert.equal(concurrency.max_parallel_normal,2);
   await click('slot2','Стоп');
   mark('slot2_stop_requested');
-  assert.equal((await fetch(host.upstream+'/__qa/status_fault/null')).status,204);
+  const uiProbe=await armFault('null');
+  const bystander=await status();
+  assert.equal(bystander.control,true,'An untagged background status must not consume a probe');
+  const uiNull=await refreshWithProbe(uiProbe);
+  assert.deepEqual(uiNull,{busy:false,targeted:1,saw_null:true});
   await evaluate('refresh(true)');
   await until('!isRefreshing && !refreshQueued');
   assert.deepEqual(browser.errors,[],'Transient null status must not crash UI refresh');
-  // One-shot faults model a Client status request failing while STOP is active.
+  // Probe IDs bind every fault to the intended request, despite background refreshes.
   for(const mode of ['null','partial','503','delay','disconnect']){
-    const injected=await fetch(host.upstream+'/__qa/status_fault/'+mode);
-    assert.equal(injected.status,204);
-    const observed=await status();
+    const probe=await armFault(mode);
+    const background=await status();
+    assert.equal(background.control,true,'Untagged status consumed '+mode);
+    const observed=await status(probe);
     assert.equal(observed.http,mode==='disconnect'?0:mode==='503'?503:200);
     if(mode==='null')assert.equal(observed.kind,'null');
-    if(mode==='partial')assert.equal(observed.control,false);
+    if(mode==='partial'){
+      assert.equal(observed.control,false);
+      assert.equal((await status(probe)).http,409,'Consumed probe must not replay');
+    }
     if(mode==='503')assert.equal(observed.control,false);
     if(mode==='disconnect')assert.equal(observed.kind,'network_error');
   }
@@ -131,9 +173,9 @@ try{
   state=await data();assert.equal(state.control.slots.find(s=>s.slot_id==='slot3').model_key,'kat');
   assert.equal(state.control.slots.find(s=>s.slot_id==='slot5').mode,'cuda');
   // A burst of unavailable snapshots must hit a finite deadline, never READY.
-  for(let i=0;i<12;i++)assert.equal((await fetch(host.upstream+'/__qa/status_fault/503')).status,204);
+  const burstProbe=await armFault('503',12);
   const boundedStart=performance.now();
-  await assert.rejects(waitStatus('injected 503 burst',()=>true,250),/Status deadline injected 503 burst/);
+  await assert.rejects(waitStatus('injected 503 burst',()=>true,250,burstProbe),/Status deadline injected 503 burst/);
   const boundedFailureMs=Math.round(performance.now()-boundedStart);
   await waitStatus('recovered after 503 burst',()=>true);
   mark('status_recovered');
