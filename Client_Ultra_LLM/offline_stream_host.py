@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import socket
 import ssl
 import subprocess
 import sys
@@ -41,11 +42,20 @@ def main():
     normal_active=[0,0]
     normal_lock=threading.Lock()
     normal_pair=threading.Event()
+    # One-shot, synthetic Client status faults for browser QA only.
+    status_faults=[]
+    status_fault_lock=threading.Lock()
     class Colibri(BaseHTTPRequestHandler):
         model_id="qa-model"
         def do_GET(self):
             if self.path=="/__qa/reload":
                 if reload_handler[0]:reload_handler[0]()
+                self.send_response(204);self.end_headers();return
+            if self.path.startswith("/__qa/status_fault/"):
+                mode=self.path.rsplit("/",1)[-1]
+                if mode not in ("null", "partial", "503", "delay", "disconnect"):
+                    self.send_response(400);self.end_headers();return
+                with status_fault_lock: status_faults.append(mode)
                 self.send_response(204);self.end_headers();return
             if self.path in ("/__qa/low_ram","/__qa/normal_ram"):
                 resource_memory[0]=8 if self.path.endswith('low_ram') else 64
@@ -177,7 +187,26 @@ def main():
         "ca_cert":"qa-cert.pem","token_file":"qa-token.txt"}]}))
     local=ThreadingHTTPServer(("127.0.0.1",0),None)
     local_port=local.server_address[1]
-    local.RequestHandlerClass=web_client.make_handler(root,lambda:local_port,"QA-CSRF")
+    base_local=web_client.make_handler(root,lambda:local_port,"QA-CSRF")
+    class LocalQA(base_local):
+        def do_GET(self):
+            if self.path=="/api/status":
+                with status_fault_lock:
+                    mode=status_faults.pop(0) if status_faults else None
+                if mode=="delay":time.sleep(0.35)
+                elif mode=="disconnect":
+                    self.close_connection=True
+                    try:self.connection.shutdown(socket.SHUT_RDWR)
+                    except OSError:pass
+                    return
+                elif mode=="503":return self._send_json(503,{"error":"synthetic_status_unavailable"})
+                elif mode in ("null","partial"):
+                    data=None if mode=="null" else {"control":None}
+                    return self._send_json(200,{"configured":True,"managers":[{
+                        "manager_id":"qa-manager","status":"unreachable" if mode=="null" else "online",
+                        "data":data,"error":"connection_or_config_error" if mode=="null" else None}]})
+            return super().do_GET()
+    local.RequestHandlerClass=LocalQA
     serve(local)
     print(json.dumps({"url":f"http://127.0.0.1:{local_port}","upstream":f"http://127.0.0.1:{upstream_port}",
                       "ipv6_occupied_port":ipv6.getsockname()[1] if ipv6 else None}),flush=True)

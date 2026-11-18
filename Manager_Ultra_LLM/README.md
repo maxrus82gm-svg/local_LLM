@@ -1503,3 +1503,143 @@ QUESTIONS: блокирующих вопросов для локальной р�
 NEXT: владелец публикует разрешённый локальный пакет своим порядком, новый hosted
 CI на точном SHA, независимая приёмка. **REAL APPLICATION NOT RUN / USER UX NOT
 REQUIRED / RELEASE HOLD / NO C/D.** После сдачи остановиться, новую TASK не начинать.
+
+
+## CODEX-UL-R5-CHROME-STABILITY-20261117-001 — PARTIAL / REVIEW PENDING (18.11.2026)
+
+### DONE / incident classification
+
+Baseline: home workspace `M:\GitHub\local_LLM`, initial `git status` clean, local
+`main` and `GPT_2_local` at №62 `21038dcd4fdb0060f21239c2581c7d5095287cd8`.
+No Git write, server, installed Client, real LLM or production profile was touched.
+All new execution used SOURCE copies, fake engines, ephemeral loopback ports and
+temporary Chrome profiles. Chrome `157.0.8103.79`, Node `22.20.0`, Python `3.12.10`.
+
+**F4 — CONFIRMED test timing fault under synthetic concurrent load; historical
+machine delay remains HYPOTHESIS.** The preserved 14.11 first legacy run failed
+after 9.233 s at `document.querySelectorAll('.manager').length===2`; its old
+poll had only `100 × 50 ms` after CDP Runtime enable. Unchanged source passed on
+the next run in 6.810 s. In this task, 10 traced cold starts under concurrent
+P1 load all passed with the new bounded 12 s wait. Runtime-enable → first
+`client.js` request was **5.375–7.427 s**, and Runtime-enable → cards ready
+**5.510–7.560 s**. Once `/api/status` was requested, cards appeared in
+**29–61 ms**. Thus the former 5 s guard can fail before the app script loads;
+this local stress reproduces the mechanism. The old failure had no phase trace,
+so its precise Chrome/runner delay cannot be proven retroactively. The new
+deadline still requires exactly two Manager cards and reports DOM state,
+script presence, Chrome exit and JS errors if it expires.
+
+**P1 — CONFIRMED unsafe test dereference; origin of the historic transient is
+UNKNOWN.** Windows Actions run `43634294641`, job `132567585813`, SHA №60
+`de6a96ba78f53685e85a49b5f49d7fa870f4f187` failed after STOP slot2 at
+the old `data.control.instances` poll because `data` was null. The same SHA
+passed all steps in run `43635620449`, job `132571644874`. Source inspection
+shows Client `live_client.fetch_one()` initializes `data=None`, retains it
+on HTTP/TLS/network/config exceptions and sets a safe error class; `web_client`
+wraps that Manager row in HTTP 200 `/api/status`. This explains how the test
+can receive null, but the old CI did not capture which upstream exception
+occurred, so no Manager or network defect is asserted. Product `client.js`
+already guards unavailable Manager data; synthetic null during its forced
+refresh produced no JS exception. No product/runtime change was justified.
+
+### CHANGED / DIFF
+
+- `Client_Ultra_LLM/test_browser_control_stream.mjs`: 12 s bounded DOM wait,
+  phase timestamps from fixture/Chrome/CDP through script/status/cards, and
+  sanitized timeout diagnostics. Existing DOM, control, stream assertions stay.
+- `Client_Ultra_LLM/test_browser_slots_source.mjs`: typed `/api/status` probe
+  with timestamp, HTTP code, safe error class, data/control shape, synthetic
+  slot state and elapsed time. The STOP/pick/ready poll accepts only HTTP 200,
+  `manager_status=online` and a present control object; it has a finite
+  deadline and recent sanitized trace. Direct data reads also require complete
+  `instances`/`slots`. No null/503 can be interpreted as READY.
+- `Client_Ultra_LLM/offline_stream_host.py`: one-shot synthetic status faults
+  (`null`, `partial`, `503`, 350 ms `delay`, `disconnect`) on the existing
+  loopback QA fixture. It never changes real Manager/Client behavior.
+
+No workflow, production Client JS/Python, Manager runtime or security test
+was changed. `git diff --check` and syntax checks passed. The original RED
+test assertion/condition was retained, with a safe bounded status reader.
+
+### TESTS / NEGATIVE CONTROLS
+
+| Offline check | Author result |
+| --- | --- |
+| Legacy Chrome cold starts, initial isolated set | 10/10 PASS, 5.837–8.046 s, 0 JS errors and 0 scratch residue per run |
+| Legacy Chrome traced set under parallel P1 | 10/10 PASS, 7.646–12.599 s; detailed phase trace; concurrent P1 profile visible to the global scratch counter, final residue 0 |
+| P1 isolated STOP/status/reload, first fault set | 10/10 PASS, null/partial/503/delay + bounded 503 burst; 0 JS errors, 0 scratch residue per run |
+| P1 with added connection disconnect | 10/10 PASS, 33.094–84.772 s, 34–39 status samples each; all saw `object:200`, `null:200`, `undefined:503`, `network_error:0`; 0 JS errors |
+| Final P1 phase/latency trace | PASS, exit0, 32.696 s, 38 samples, bounded 503 rejection **316 ms**, recovery PASS, scratch 0 |
+| P0 Chrome stream | PASS, final exit0; real HTTP fragments with fake engine |
+| Manager full source suite | 351 tests = 350 PASS / 1 existing SKIP, 0 FAIL/ERROR |
+| Client full source suite | 49 PASS, 0 FAIL/ERROR |
+| Five existing negative controls | PASS: pass0, assertion-fail1, exception-error1, empty-collection3, wrong-exact-ZIP1 |
+| Python AST, Node syntax, diff whitespace | PASS |
+
+Final P1 synthetic negative sequence after STOP: `data:null` during browser
+`refresh(true)` did not raise JS errors; direct probes observed null, partial
+control, HTTP 503, delayed success and a real TCP disconnect. The 503 burst
+rejected within the configured 250 ms poll budget (observed 316 ms including
+request/scheduling overhead), then a good status recovered. P1 still checked
+four simultaneous fake instances, two same-model CPU and two same-model CUDA,
+unique identities, STOP slot2 with slot3 READY, history after controller and
+browser reload, and risk cancel/confirm. The final sanitized trace contains
+only synthetic IDs/states/ports, response classes and times; no raw snapshot,
+token or private message.
+
+Two QA setup errors are retained: the first full Manager launch used a wrong
+helper-copy path and was interrupted before a valid suite result; one attempted
+repeat of Client/negative controls reused evidence filenames and the existing
+runner correctly rejected them (`Evidence must be a NEW file`). Fresh unique
+output paths then passed; neither setup error is counted as a product failure.
+
+Reproduce from a fresh SOURCE copy using:
+
+```powershell
+node Client_Ultra_LLM/test_browser_control_stream.mjs
+node Client_Ultra_LLM/test_browser_stream_source.mjs
+node Client_Ultra_LLM/test_browser_slots_source.mjs
+py -3.12 -X utf8 -B Manager_Ultra_LLM/test_gate2_hardening.py --suite Manager_Ultra_LLM --minimum 351 --output Test/results/manager-new.json
+py -3.12 -X utf8 -B Manager_Ultra_LLM/test_gate2_hardening.py --suite Client_Ultra_LLM --minimum 49 --output Test/results/client-new.json
+py -3.12 -X utf8 -B Manager_Ultra_LLM/test_gate2_hardening.py --negative-controls --output Test/results/controls-new.json
+```
+
+`--output` paths must be new and reside under the source-copy `Test` directory.
+The exact author evidence is in ignored local
+`Test/CODEX-UL-R5-CHROME-STABILITY-20261117-001/`: `baseline.json`,
+`archive_preflight.json`, `legacy-repeats.json`, `p1-repeats.json`,
+`p1-final.json` and stdout/stderr, `other-final-results.json`,
+`manager-final-run.json`, source-copy `Test/results/*.json` and `*.xml`,
+plus the local summary/manifest. The previous first F4 failure and unchanged
+rerun remain in `Test/CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001/`.
+
+### CI / PROBLEMS / QUESTIONS / DOC IMPACT / NEXT
+
+**GitHub Windows CI for this uncommitted diff: NOT RUN.** No new commit, push,
+published SHA or independent acceptance exists. Historic runs are comparison
+evidence only. REAL APP / installed Client / server / genuine LLM: NOT RUN.
+Manager R5 remains **RELEASE HOLD**; SAFE-CUTOVER C/D remain unauthorized.
+
+Open questions: the exact network/TLS/Manager error in the historic P1 run
+was not logged; the exact cause of the old F4 page delay cannot be recovered.
+Synthetic injection proves harness handling, not the cause of that old
+transient. A future hosted failure should preserve sanitized HTTP class and
+phase trace; any proven runtime issue needs a separately scoped task.
+
+DOC IMPACT: this append-only README report and local №07 rotation only; №000,
+№05, №09, №13, №18 and independent BLOCK4 unchanged. The prior F3 BLOCK1.1
+matched immutable №60 and was found in №09 before rotation. NEXT: owner
+reviews/publishes the local scoped diff by owner procedure; coordinator runs
+Windows CI on the new exact SHA and independently reviews F4/P1 evidence.
+No OWNER UX smoke was needed because visible product UI did not change.
+Stop after submission; do not proceed to LIVE or another task.
+
+### QA scratch cleanup note
+
+After the final tests, no `.chrome-qa-*` or `.slots-source-qa-*` profile and no
+task-tagged Chrome/Node/Python process remained. The ignored task-local
+`Test/.../tmp` still contains one Chrome BITS temporary file (two directories),
+and `Test/.../local` contains three empty directories. Automatic approval
+review blocked both recursive removal and removal of that exact verified file;
+no alternate deletion method was used. These files remain only inside the
+task's ignored QA scratch, with no tracked or production path affected.
