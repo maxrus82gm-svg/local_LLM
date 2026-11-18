@@ -87,12 +87,14 @@ try {
   mark('runtime_enabled');
   const evaluate=async expression=>{const r=await call('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});
     if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
-  async function until(expression){
+  async function until(expression,description=expression){
     const started=performance.now();
     do{if(await evaluate(expression))return;await delay(50);}while(performance.now()-started<12000);
     const diagnostic=await evaluate(`({ready:document.readyState,manager_cards:document.querySelectorAll('.manager').length,
+      chat_cards:document.querySelectorAll('.chat-choice').length,
+      ready_chat_models:Array.from(document.querySelectorAll('.chat-choice.is-ready b'),label=>label.textContent),
       asset_js:!!document.querySelector('script[src="/client.js"]')})`).catch(e=>({cdp_error:e.name}));
-    throw Error('DOM deadline: '+expression+' '+JSON.stringify({elapsed_ms:Math.round(performance.now()-started),
+    throw Error('DOM deadline: '+description+' '+JSON.stringify({elapsed_ms:Math.round(performance.now()-started),
       diagnostic,chrome_exit:chrome.exitCode,js_errors:errors.slice(-3)}));
   }
   await until('document.querySelectorAll(".manager").length===2');
@@ -116,8 +118,15 @@ try {
   assert.equal(lastControl.instance_id,'f'.repeat(32));
   results.push('PASS: STOPPING and stable owned instance_id');
   phase='READY';await evaluate('refresh();showChats()');
-  await until('document.querySelectorAll(".chat-choice").length===5');
-  await evaluate('[...document.querySelectorAll(".chat-choice")].find(x=>x.textContent.includes("kat")).click()');
+  await until(`(() => {
+    const cards = document.querySelectorAll('.chat-choice');
+    if (cards.length !== 5) return false;
+    const katCard = Array.from(cards).find(card => card.classList.contains('is-ready') &&
+      card.querySelector('b')?.textContent === 'ultra-slot2-kat-cpu');
+    if (!katCard) return false;
+    katCard.click();
+    return true;
+  })()`, 'five chat cards with READY KAT (ultra-slot2-kat-cpu)');
   await until('document.getElementById("chat-input").disabled===false');
   await delay(150);
   const started=performance.now();
