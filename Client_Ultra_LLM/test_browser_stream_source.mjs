@@ -6,7 +6,7 @@ import {spawn} from 'node:child_process';
 import assert from 'node:assert/strict';
 import {chromeSession,delay} from './browser_qa_helpers.mjs';
 const here=path.dirname(fileURLToPath(import.meta.url));
-const root=await fs.mkdtemp(path.join(here,'.stream-source-qa-'));
+const root=await fs.mkdtemp(path.join(process.env.UL_QA_ROOT || here,'.stream-source-qa-'));
 let fixture, browser;
 try{
   fixture=spawn('py',['-3.12','-X','utf8','-B',path.join(here,'offline_stream_host.py'),path.join(root,'fixture')],
@@ -22,6 +22,7 @@ try{
   const {evaluate,until}=browser;
   await until('document.querySelectorAll(".manager").length===1');
   await evaluate('showChats()');
+  await evaluate('document.getElementById("chat-new").click()');
   await until('document.getElementById("chat-send").disabled===false');
   const input='document.getElementById("chat-input")';
   const focus=()=>evaluate(input+'.focus()');
@@ -87,6 +88,7 @@ try{
   assert.equal(before.generation_options.max_tokens,2048);
   assert.equal(before.generation_options.reasoning_effort,'high');
   assert.equal(before.generation_options.stream_options.include_usage,true);
+  assert.equal(before.generation_options.context_compaction,'off');
   await fetch(host.upstream+'/__qa/done');
   await until('document.getElementById("chat-messages").textContent.includes("и завершение") && !document.getElementById("chat-send").disabled');
   assert.equal(await value(),'');
@@ -103,9 +105,11 @@ try{
   assert.match(metrics.throughput.basis,/provider_completion_tokens.*including_prefill/);
   assert.equal(await evaluate('document.querySelector(".reasoning-text").textContent'),'Отдельное рассуждение 🧠');
   await fetch(host.upstream+'/__qa/benchmark');
-  const saved=await(await fetch(host.url+'/api/chat/history?manager_id=qa-manager&slot_id=slot1&model_id=qa-model')).json();
-  const directPayload={model:'qa-model',messages:[...saved.messages,{role:'user',content:'QA comparison'}],
-    stream:true,stream_options:{include_usage:true},enable_thinking:true,reasoning_effort:'high',max_tokens:2048};
+  const chatId=await evaluate('chatSelected');
+  const saved=await(await fetch(host.url+'/api/chat/history?chat_id='+chatId)).json();
+  assert(saved.messages.some(row=>row.reasoning_content));
+  const directPayload={model:'qa-model',messages:[...saved.messages.map(({role,content})=>({role,content})),{role:'user',content:'QA comparison'}],
+    stream:true,context_compaction:'off',stream_options:{include_usage:true},enable_thinking:true,reasoning_effort:'high',max_tokens:2048};
   const directStart=performance.now();
   const directResponse=await fetch(host.upstream+'/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(directPayload)});
   let directFirst,buffer='';const decoder=new TextDecoder();
@@ -156,5 +160,5 @@ try{
 }finally{
   if(browser)await browser.close();
   if(fixture&&fixture.exitCode===null){fixture.stdin.write('stop\n');for(let i=0;i<40&&fixture.exitCode===null;i++)await delay(100);if(fixture.exitCode===null)fixture.kill();}
-  for(let i=0;i<10;i++){try{assert(path.resolve(root).startsWith(path.resolve(here)+path.sep));await fs.rm(root,{recursive:true,force:true});break;}catch{await delay(200);}}
+  if(!process.env.UL_QA_ROOT)for(let i=0;i<10;i++){try{assert(path.resolve(root).startsWith(path.resolve(here)+path.sep));await fs.rm(root,{recursive:true,force:true});break;}catch{await delay(200);}}
 }

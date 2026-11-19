@@ -187,6 +187,14 @@
   },
   "active": "b830a0ae8b2d0ac5",
   "lastOpenFiles": [
+    "Reports/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/WorkEvidence/manifest.json",
+    "Reports/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/WorkEvidence/colibri-ab.py",
+    "Reports/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/WorkEvidence/summary.json",
+    "Reports/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/WorkEvidence",
+    "Reports/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/Final/report.md",
+    "Reports/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/Final",
+    "Reports/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001",
+    "Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/Final/coordinator-client-production-deploy-20261119.md",
     "Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/Final/owner-cpu-addendum.md",
     "Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/WorkEvidence/owner-cpu.json",
     "Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/WorkEvidence/evidence-manifest.json",
@@ -195,11 +203,6 @@
     "Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/Final/source-pins.json",
     "Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/Final/REPRODUCE.md",
     "Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/Final/report.md",
-    "Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/WorkEvidence/summary.json",
-    "Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/WorkEvidence/portable-bootstrap.mjs",
-    "Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/WorkEvidence/source.diff",
-    "Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/WorkEvidence",
-    "Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/Final",
     "07_Задачи Codex.md",
     "Reports/CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001/p1_browser.png",
     "Reports/CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001/p1_browser.png",
@@ -222,9 +225,6 @@
     "17_KAT-Coder-V2.5.md",
     "16_МАЯК-47_эталон.md",
     "14.10_KAT-Coder-V2.5_МАЯК-47.md",
-    "14.02_МАЯК-47_эталон.md",
-    "14.01_Шаблон_карточки_теста.md",
-    "14_Тестирование_LLM.md",
-    "14.12_KAT-Coder-V2.5_МАЯК-47_ответ_раунд1.md"
+    "14.02_МАЯК-47_эталон.md"
   ]
 }

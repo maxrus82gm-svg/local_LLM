@@ -9,9 +9,10 @@ import assert from 'node:assert/strict';
 
 const here=path.dirname(fileURLToPath(import.meta.url));
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
-const tmp=await fs.mkdtemp(path.join(here,'.chrome-qa-'));
+const tmp=await fs.mkdtemp(path.join(process.env.UL_QA_ROOT || here,'.chrome-qa-'));
 let chrome,ws,server,release;
 let phase='STOPPED', lastControl=null, streamBody=null;
+const chats=[];
 const errors=[];
 const results=[];
 const phaseTrace=[];
@@ -36,7 +37,18 @@ try {
     if(req.url==='/api/session')return json({csrf:'QA-CSRF'});
     if(req.url==='/api/config')return json({configured:true});
     if(req.url==='/api/status'){markOnce('first_status_request');return json(snapshot());}
+    if(req.url==='/api/chats'){
+      if(req.method==='GET')return json({chats});
+      const command=JSON.parse(raw);
+      if(command.op==='create'){
+        const row={chat_id:'a'.repeat(32),title:'Новый чат',settings:{}};
+        chats.push(row);return json(row);
+      }
+      Object.assign(chats[0],command.target);
+      return json(chats[0]);
+    }
     if(req.url.startsWith('/api/chat/history?'))return json({messages:[]});
+    if(req.url.startsWith('/api/chat/metrics?'))return json({results:[]});
     if(req.url==='/api/control'){
       lastControl=JSON.parse(raw);phase=lastControl.op==='start'?'STARTING':'STOPPING';
       return json({state:phase,slot_id:'slot2',instance_id:'f'.repeat(32)});
@@ -117,17 +129,11 @@ try {
   await until('document.querySelector(".manager-model-scroll").textContent.includes("STOPPING")');
   assert.equal(lastControl.instance_id,'f'.repeat(32));
   results.push('PASS: STOPPING and stable owned instance_id');
-  phase='READY';await evaluate('refresh();showChats()');
-  await until(`(() => {
-    const cards = document.querySelectorAll('.chat-choice');
-    if (cards.length !== 5) return false;
-    const katCard = Array.from(cards).find(card => card.classList.contains('is-ready') &&
-      card.querySelector('b')?.textContent === 'ultra-slot2-kat-cpu');
-    if (!katCard) return false;
-    katCard.click();
-    return true;
-  })()`, 'five chat cards with READY KAT (ultra-slot2-kat-cpu)');
-  await until('document.getElementById("chat-input").disabled===false');
+  phase='READY';await evaluate('refresh().then(showChats)');
+  await evaluate('byId("chat-new").click()');
+  await until('document.querySelectorAll(".chat-choice").length===1');
+  await evaluate('(() => { const select=byId("chat-target"); select.value=[...select.options].find(o=>o.text.includes("ultra-slot2-kat-cpu")).value; select.dispatchEvent(new Event("change")); })()');
+  await until('byId("chat-send").disabled===false');
   await delay(150);
   const started=performance.now();
   await evaluate('document.getElementById("chat-input").value="Привет";document.getElementById("chat-form").requestSubmit()');
@@ -137,7 +143,7 @@ try {
   assert.equal(await evaluate('document.getElementById("chat-messages").textContent.includes("и конец")'),false);
   assert.equal(streamBody.manager_id,'manager-b');assert.equal(streamBody.model_id,'ultra-slot2-kat-cpu');
   release();release=null;
-  await until('document.getElementById("chat-messages").textContent.includes("Первый фрагмент и конец")');
+  await until('byId("chat-messages").textContent.includes("Первый фрагмент и конец") && !byId("chat-send").disabled');
   results.push(`PASS: visible real HTTP fragments before completion, browser_first_fragment_ms=${firstMs} (fake model)`);
   await evaluate('document.getElementById("chat-stream").checked=false;document.getElementById("chat-input").value="Обычный";document.getElementById("chat-form").requestSubmit()');
   await until('document.getElementById("chat-messages").textContent.includes("Обычный ответ")');
@@ -154,5 +160,5 @@ try {
   if(ws)ws.close();
   if(chrome&&chrome.exitCode===null){await delay(500);if(chrome.exitCode===null)chrome.kill();}
   if(server)await new Promise(r=>server.close(r));
-  for(let i=0;i<10;i++){try{assert(path.resolve(tmp).startsWith(path.resolve(here)+path.sep));await fs.rm(tmp,{recursive:true,force:true});break;}catch{await delay(200);}}
+  if(!process.env.UL_QA_ROOT)for(let i=0;i<10;i++){try{assert(path.resolve(tmp).startsWith(path.resolve(here)+path.sep));await fs.rm(tmp,{recursive:true,force:true});break;}catch{await delay(200);}}
 }

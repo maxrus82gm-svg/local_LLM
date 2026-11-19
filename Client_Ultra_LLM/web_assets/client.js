@@ -7,6 +7,8 @@ const adminDialog = byId("admin-dialog");
 let csrf = "";
 let isRefreshing = false;
 let refreshQueued = false;
+let statusRequest = 0;
+let appliedStatusRequest = 0;
 let firstSetup = false;
 let lastEnrolledManagerId = "";
 let adminManagers = [];
@@ -78,6 +80,9 @@ function controlReason(reason) {
     cuda_measurement_unverified:"Потребление VRAM этой моделью ещё не измерено",
     model_already_managed:"Для модели уже зарезервирован экземпляр",
     no_free_authorized_slot:"Нет свободного разрешённого слота",
+    context_length_exceeded:"Модель отклонила длину контекста. Уменьшите историю или сбросьте контекст этого чата",
+    colibri_context_length_exceeded:"Модель отклонила длину контекста. Уменьшите историю или сбросьте контекст этого чата",
+    slot_chat_in_progress:"Слот занят запросом",
     model_not_authorized:"Эта модель не разрешена клиенту",
     instance_not_authorized:"Экземпляр принадлежит другому клиенту или слот не разрешён",
     instance_not_stoppable:"Остановка недоступна до подтверждения состояния экземпляра",
@@ -111,6 +116,11 @@ function workspaces(container,manager) {
   }
   container.append(catalog);
   const area=node("section","working-slots");
+  if (control.control_models === false || control.enabled === false) {
+    area.append(node("p","manager-pairing-note",control.control_models === false ?
+      "Manager разрешает просмотр слотов. Для управления моделями нужно отдельное разрешение." :
+      "Управление моделями выключено на Manager."));
+  }
   const heading=node("div","manager-model-head");
   heading.append(node("h3","","РАБОЧИЕ СЛОТЫ · "+control.slots.length));
   const add=node("button","btn secondary small","＋ Добавить слот");
@@ -355,6 +365,7 @@ function makeManager(row) {
   return card;
 }
 function render(payload) {
+  unknownSlots.clear();
   chatSnapshot = payload;
   const all = Array.isArray(payload.managers) ? payload.managers : [];
   const online = all.filter(x => x.status === "online");
@@ -403,13 +414,21 @@ async function refresh(force=false) {
   isRefreshing = true;
   const button = byId("refresh"); button.disabled = true;
   try {
-    render(await api("/api/status"));
+    await readStatus();
   } catch (err) {
     setNotice("Не удалось обновить данные: " + err.message);
   } finally {
     isRefreshing = false;
     button.disabled = false;
     if(refreshQueued){refreshQueued=false;await refresh(true);}
+  }
+}
+async function readStatus(options) {
+  const id = ++statusRequest;
+  const status = await api("/api/status", options);
+  if (id > appliedStatusRequest) {
+    appliedStatusRequest = id;
+    render(status);
   }
 }
 async function init() {
@@ -621,8 +640,8 @@ byId("setup-form").addEventListener("submit", async event => {
 });
 init();
 setInterval(refresh, 25000);
-setInterval(() => { if (chatSnapshot && chatSnapshot.managers.some(m =>
-  m.data && m.data.control && m.data.control.instances.some(i => ["STARTING","STOPPING"].includes(i.state)))) refresh(); }, 2000);
+setInterval(() => { if (chatSnapshot?.managers?.some(m =>
+  m.data?.control?.instances?.some(i => ["STARTING","STOPPING"].includes(i.state)))) refresh(); }, 2000);
 
 /* CHAT-01: model slots are discovered dynamically from live Manager snapshots.
    They are never predefined as "three" or tied to hard-coded IP addresses. */
@@ -630,11 +649,19 @@ let chatSnapshot = null;
 let chatOpen = false;
 let chatItems = [];
 let chatSelected = "";
-let chatBusy = false;
-let chatAbort = null;
-let chatRetry = null;
-let activeChatKey = "";
+let chatTargets = [];
+let streamMetrics = {};
+let historyRevision = 0;
+let chatMutation = false;
+let loadingChats = false;
+const conversations = new Map();
+const releasingSlots = new Map();
+const unknownSlots = new Set();
 
+function conversation(id) {
+  if (!conversations.has(id)) conversations.set(id, {messages:[], draft:"", notice:"", metrics:{}});
+  return conversations.get(id);
+}
 function showOverview(event) {
   if (event) event.preventDefault();
   chatOpen = false;
@@ -643,30 +670,47 @@ function showOverview(event) {
   byId("nav-overview").classList.add("selected");
   byId("nav-chats").classList.remove("selected");
 }
-function showChats() {
+async function showChats() {
   chatOpen = true;
   byId("overview").classList.add("hidden");
   byId("chat-view").classList.remove("hidden");
   byId("nav-overview").classList.remove("selected");
   byId("nav-chats").classList.add("selected");
+  if (loadingChats) return;
+  loadingChats = true;
   renderChatList(chatSnapshot);
-  if (currentChat()) loadChatHistory();
+  try {
+    chatItems = (await api("/api/chats")).chats;
+    const saved = sessionStorage.getItem("ultra.chat");
+    selectChat([chatSelected, saved].find(id => chatItems.some(row => row.chat_id === id)) || chatItems[0]?.chat_id || "");
+  } catch (error) {
+    setChatNotice("Не удалось загрузить чаты: " + error.message);
+  } finally {
+    loadingChats = false;
+    renderChatControls();
+  }
 }
-
-function chatTargetKey(target) {
-  return JSON.stringify([target.manager_id, target.slot_id, target.model_id,
-    ...(target.instance_id && !target.instance_id.startsWith("legacy-") ? [target.instance_id] : [])]);
+function targetFields(target) {
+  return {manager_id:target.manager_id, slot_id:target.slot_id, model_id:target.model_id};
+}
+function targetKey(target) {
+  return JSON.stringify(Object.values(targetFields(target)));
+}
+function slotKey(target) {
+  return JSON.stringify([target.manager_id, target.slot_id]);
 }
 function currentChat() {
-  return chatItems.find(x => x.key === chatSelected) || null;
+  return chatItems.find(row => row.chat_id === chatSelected);
 }
-function chatTitle(target) {
-  return target.model_id || target.slot_id + " · модель не запущена";
+function liveTarget(chat) {
+  return chat && chatTargets.find(target => targetKey(target) === targetKey(chat));
 }
 function chatReady(target) {
-  return Boolean(target && target.model_id && target.online &&
-    target.engine_state === "ready" &&
-    target.availability === "ready_unreserved");
+  return target?.engine_state === "ready" && target.availability === "ready_unreserved" &&
+    !releasingSlots.has(slotKey(target)) && !unknownSlots.has(slotKey(target)) && !localSlotActive(target);
+}
+function localSlotActive(target) {
+  return [...conversations.values()].some(view => view.request && slotKey(view.request.target) === slotKey(target));
 }
 function setChatNotice(message) {
   const el = byId("chat-notice");
@@ -674,233 +718,457 @@ function setChatNotice(message) {
   el.classList.toggle("hidden", !message);
 }
 function renderChatList(payload) {
-  if (!chatOpen) return;
-  const list = byId("chat-list");
-  const before = chatSelected;
-  chatItems = [];
-  for (const manager of (payload && Array.isArray(payload.managers) ? payload.managers : [])) {
-    if (manager.status !== "online" || !manager.data) continue;
-    for (const slot of (manager.data.slots || [])) {
-      const names = Array.isArray(slot.models) && slot.models.length ? slot.models : [""];
-      for (const model of names) {
-        const target = {
+  chatTargets = [];
+  for (const manager of (Array.isArray(payload?.managers) ? payload.managers : [])) {
+    if (manager.status !== "online" || !Array.isArray(manager.data?.slots)) continue;
+    for (const slot of manager.data.slots) {
+      for (const model of (Array.isArray(slot.models) ? slot.models : [])) {
+        chatTargets.push({
           manager_id:manager.manager_id, manager_name:manager.name || manager.manager_id,
           slot_id:slot.slot_id, model_id:model, instance_id:slot.instance_id,
-          streaming:manager.data.chat ? manager.data.chat.streaming === true : false, engine_state:slot.engine_state,
-          availability:slot.availability, online:true
-        };
-        target.key = chatTargetKey(target);
-        chatItems.push(target);
+          streaming:manager.data.chat?.streaming === true, engine_state:slot.engine_state,
+          availability:slot.availability, transport:manager.data.chat?.transport_policy
+        });
       }
     }
   }
-  if (!chatItems.some(x => x.key === chatSelected)) {
-    chatSelected = chatItems.length ? chatItems[0].key : "";
-  }
+  if (!chatOpen) return;
+  const list = byId("chat-list");
+  const scroll = list.scrollTop;
   list.replaceChildren();
-  for (const item of chatItems) {
-    const card = node("button", "chat-choice" +
-      (item.key === chatSelected ? " active" : "") +
-      (chatReady(item) ? " is-ready" : ""));
+  for (const chat of chatItems) {
+    const view = conversation(chat.chat_id);
+    const card = node("button", "chat-choice" + (chat.chat_id === chatSelected ? " active" : "") +
+      (chatReady(liveTarget(chat)) ? " is-ready" : ""));
     card.type = "button";
-    card.append(node("b", "", chatTitle(item)),
-                node("small", "", item.manager_name + " · " + item.slot_id),
-                node("span", "chat-status", chatReady(item) ? "● Готова к переписке" :
-                   item.availability === "denied" ? "● Нет доступа" :
-                   item.engine_state === "not_running" ? "○ Не запущена" :
-                   "○ " + stateLabel(item.availability)));
-    card.addEventListener("click", () => {
-      const old = chatSelected;
-      chatSelected = item.key;
-      renderChatList(chatSnapshot);
-      if (old === item.key) loadChatHistory();
-    });
+    card.dataset.chatId = chat.chat_id;
+    card.append(node("b", "", chat.title), node("small", "", chat.model_id || "Без назначения"));
+    if (view.request) card.append(node("small", "", "Модель отвечает"));
+    card.addEventListener("click", () => selectChat(chat.chat_id));
     list.append(card);
   }
-  if (!chatItems.length) {
-    list.append(node("div", "placeholder", "Пока нет доступных слотов Manager."));
+  list.scrollTop = scroll;
+  renderChatControls();
+}
+function renderChatControls() {
+  const chat = currentChat();
+  const target = liveTarget(chat);
+  const active = chat && conversation(chat.chat_id).request;
+  const selector = byId("chat-target");
+  const value = chat?.model_id ? targetKey(chat) : "";
+  const choices = chatTargets.filter(item => item.availability !== "denied");
+  const options = [new Option("Без назначения", "")];
+  if (value && !choices.some(item => targetKey(item) === value)) {
+    options.push(new Option(chat.manager_id + " / " + chat.slot_id + " / " + chat.model_id + " · недоступна", value));
   }
-  const selected = currentChat();
-  byId("chat-title").textContent = selected ? chatTitle(selected) : "Нет доступных моделей";
-  byId("chat-subtitle").textContent = selected ?
-    selected.manager_name + " / " + selected.slot_id : "Подключите Manager на вкладке «Обзор»";
-  byId("chat-popout").disabled = !selected;
-  byId("chat-input").disabled = !chatReady(selected) || chatBusy;
-  byId("chat-send").disabled = !chatReady(selected) || chatBusy;
-  byId("chat-state").textContent = selected && !chatReady(selected) ?
-    "Слот сейчас недоступен. Отправка отключена; Client не запускает LLM автоматически." : "";
-  if (chatSelected !== before) {
-    loadChatHistory();
+  for (const item of choices) options.push(new Option(item.manager_name + " / " + item.slot_id + " / " + item.model_id, targetKey(item)));
+  selector.replaceChildren(...options);
+  selector.value = value;
+  selector.disabled = !chat || Boolean(active) || chatMutation;
+  byId("chat-title").textContent = chat?.title || "Выберите чат";
+  byId("chat-subtitle").textContent = chat?.context_after ? "Контекст начинается после сброса" : "";
+  byId("chat-popout").disabled = !chat;
+  byId("chat-new").disabled = chatMutation || loadingChats;
+  byId("chat-input").disabled = !chat || Boolean(active);
+  byId("chat-send").disabled = !chatReady(target) || Boolean(active) || chatMutation;
+  byId("chat-cancel").disabled = !active?.controller || active.cancelling;
+  for (const op of ["rename","reset","resume","clear","restore","delete"]) {
+    byId("chat-"+op).disabled = !chat || Boolean(active) || chatMutation ||
+      (op === "restore" && !chat.can_restore) || (op === "resume" && !chat.context_after);
+  }
+  const status = byId("chat-state");
+  if (active) status.textContent = active.cancelling ? "Отменяем запрос…" : "Модель отвечает";
+  else if (!chat) status.textContent = "";
+  else if (!chat.model_id) status.textContent = "Выберите Manager, слот и модель.";
+  else if (target && (releasingSlots.has(slotKey(target)) || target.availability === "busy" || localSlotActive(target))) {
+    status.textContent = "Модель занята. Ожидаем освобождения слота.";
+  } else status.textContent = chatReady(target) ? "" : "Назначенная модель сейчас недоступна.";
+}
+function selectChat(id) {
+  chatSelected = id;
+  sessionStorage.setItem("ultra.chat", id);
+  if (location.hash.startsWith("#chat=")) {
+    window.history.replaceState(null, "", id ? "#chat=" + encodeURIComponent(id) : location.pathname);
+  }
+  const chat = currentChat();
+  const view = chat ? conversation(id) : {messages:[], draft:"", metrics:{}};
+  byId("chat-input").value = view.draft;
+  byId("chat-history-messages").value = chat?.settings.max_messages ?? 100;
+  byId("chat-history-chars").value = chat?.settings.max_chars ?? 200000;
+  setChatNotice(view.notice);
+  followStream = true;
+  renderMessages(view.messages, view.request);
+  byId("chat-latest").classList.add("hidden");
+  renderChatList(chatSnapshot);
+  updateMetrics(view);
+  renderTimer();
+  renderStatistics([]);
+  if (chat && !view.request) loadChatHistory();
+  if (chat) loadStatistics(id);
+}
+async function changeChat(op, values = {}) {
+  if (chatMutation) return;
+  const id = chatSelected;
+  chatMutation = true;
+  renderChatControls();
+  try {
+    const row = await pairingPost("/api/chats", {op, ...(op === "create" ? {} : {chat_id:id}), ...values});
+    if (op === "create") {
+      chatItems.unshift(row);
+      selectChat(row.chat_id);
+    } else if (op === "delete") {
+      chatItems = chatItems.filter(item => item.chat_id !== id);
+      conversations.delete(id);
+      if (chatSelected === id) selectChat(chatItems[0]?.chat_id || "");
+    } else {
+      chatItems = chatItems.map(item => item.chat_id === id ? row : item);
+      if (chatSelected === id && ["clear", "restore"].includes(op)) await loadChatHistory();
+      if (chatSelected === id && op === "target" && conversation(id).messages.length) {
+        setChatNotice("Для новой модели будут использованы текстовые реплики этого чата. При несовместимости сбросьте контекст или уменьшите историю.");
+      }
+    }
+  } catch (error) {
+    if (chatSelected === id) {
+      setChatNotice("Не удалось изменить чат: " + controlReason(error.message));
+      const chat = currentChat();
+      if (op === "settings" && chat) {
+        byId("chat-history-messages").value = chat.settings.max_messages;
+        byId("chat-history-chars").value = chat.settings.max_chars;
+      }
+    }
+  } finally {
+    chatMutation = false;
+    renderChatList(chatSnapshot);
   }
 }
-function reasoningPanel(text) {
+function reasoningPanel(text, open) {
   const detail = node("details", "reasoning-panel");
-  detail.open = true;
+  detail.open = open;
   detail.classList.toggle("hidden", !byId("chat-show-reasoning").checked);
-  detail.append(node("summary", "", "Рассуждения · отдельный поток модели"), node("div", "reasoning-text", text || ""));
+  detail.append(node("summary", "", "Рассуждения"), node("div", "reasoning-text", text || ""));
+  detail.addEventListener("toggle", followBottom);
   return detail;
 }
-let streamMetrics = {};
-function updateMetrics(extra) {
-  streamMetrics = {...streamMetrics, ...extra};
-  byId("chat-metrics").textContent = JSON.stringify(streamMetrics, null, 2);
+const dateFormat = new Intl.DateTimeFormat("ru-RU", {day:"2-digit", month:"2-digit", year:"numeric"});
+const timeFormat = new Intl.DateTimeFormat("ru-RU", {hour:"2-digit", minute:"2-digit"});
+function timestamp(raw) {
+  const date = raw && new Date(raw);
+  const label = node("time", "chat-time", date && Number.isFinite(+date) ?
+    dateFormat.format(date) + " · " + timeFormat.format(date) : "Время неизвестно");
+  if (date && Number.isFinite(+date)) label.dateTime = date.toISOString();
+  return label;
 }
-function targetFields(target, history=false) {
-  const result = {manager_id:target.manager_id,slot_id:target.slot_id,model_id:target.model_id};
-  if (target.instance_id && (!history || !target.instance_id.startsWith("legacy-"))) result.instance_id=target.instance_id;
-  return result;
+function messageBubble(message, live = false) {
+  const bubble = node("div", "chat-bubble" + (message.role === "user" ? " user" : ""));
+  const label = node("small", "", message.role === "user" ? "Вы" : "LLM");
+  if (message.reasoning_content || live) {
+    const reasoning = reasoningPanel(message.reasoning_content, live);
+    if (!message.reasoning_content) reasoning.classList.add("hidden");
+    bubble.append(label, reasoning);
+  } else bubble.append(label);
+  bubble.append(node("div", "chat-text", message.content || ""));
+  if (!live) bubble.append(timestamp(message.created_at));
+  return bubble;
 }
-function generationFields() {
-  const maximum=byId("chat-max-tokens").value;
-  return {options:{thinking:byId("chat-thinking").value,reasoning_effort:byId("chat-effort").value,
-    ...(maximum ? {max_output_tokens:Number(maximum)} : {})},
-    context:{max_messages:Number(byId("chat-history-messages").value),max_chars:Number(byId("chat-history-chars").value)}};
+const chatHolder = byId("chat-messages");
+let followStream = true;
+let scrollFrame = 0;
+let lastScrollTop = 0;
+function scrollDistance() {
+  return chatHolder.scrollHeight - chatHolder.clientHeight - chatHolder.scrollTop;
 }
-function renderMessages(messages) {
-  const holder = byId("chat-messages");
-  holder.replaceChildren();
-  if (!Array.isArray(messages) || !messages.length) {
-    holder.append(node("div", "chat-empty",
-       "История пока пуста. Напишите сообщение, когда LLM будет готова."));
-  } else {
-    for (const message of messages) {
-      const bubble = node("div", "chat-bubble" + (message.role === "user" ? " user" : ""));
-      bubble.append(node("small", "", message.role === "user" ? "Вы" : "LLM"),
-                    node("div", "", message.content || ""));
-      if (message.reasoning_content) bubble.prepend(reasoningPanel(message.reasoning_content));
-      holder.append(bubble);
-    }
+function pinToBottom() {
+  chatHolder.scrollTop = chatHolder.scrollHeight;
+  lastScrollTop = chatHolder.scrollTop;
+}
+function updateFollow() {
+  const top = chatHolder.scrollTop;
+  // DOM growth changes scrollHeight without moving scrollTop. A delayed
+  // notification from our own scroll must not be treated as user movement.
+  if (Math.abs(top - lastScrollTop) > 0.5) {
+    followStream = scrollDistance() <= 48;
+    byId("chat-latest").classList.toggle("hidden", followStream);
   }
-  holder.scrollTop = holder.scrollHeight;
+  lastScrollTop = top;
+}
+function followBottom() {
+  if (!followStream || scrollFrame) return;
+  scrollFrame = requestAnimationFrame(() => {
+    scrollFrame = 0;
+    updateFollow();
+    if (followStream) pinToBottom();
+  });
+}
+chatHolder.addEventListener("scroll", updateFollow, {passive:true});
+byId("chat-latest").addEventListener("click", () => {
+  followStream = true;
+  byId("chat-latest").classList.add("hidden");
+  pinToBottom();
+});
+function renderMessages(messages, active) {
+  chatHolder.replaceChildren(...messages.map(message => messageBubble(message)));
+  if (active) chatHolder.append(active.user, active.assistant);
+  else if (!messages.length) chatHolder.append(node("div", "chat-empty",
+    currentChat() ? "История пока пуста." : "Выберите или создайте чат."));
+  if (followStream) pinToBottom();
 }
 async function loadChatHistory() {
-  const chosen = currentChat();
-  const key = chatSelected;
-  if (chatBusy && key === activeChatKey) return;
-  if (!chosen) { renderMessages([]); return; }
-  if (!chosen.model_id) { renderMessages([]); return; }
-  const params = new URLSearchParams(targetFields(chosen, true));
+  const id = chatSelected;
+  if (!id || conversation(id).request) return;
+  const revision = ++historyRevision;
   try {
-    const result = await api("/api/chat/history?" + params.toString());
-    if (chatSelected === key && !(chatBusy && key === activeChatKey)) renderMessages(result.messages);
+    const result = await api("/api/chat/history?" + new URLSearchParams({chat_id:id}));
+    if (chatSelected !== id || revision !== historyRevision || conversation(id).request) return;
+    const view = conversation(id);
+    if (JSON.stringify(view.messages) === JSON.stringify(result.messages)) return;
+    view.messages = result.messages;
+    renderMessages(view.messages);
   } catch (error) {
-    if (chatSelected === key) setChatNotice("Не удалось прочитать историю: " + error.message);
+    if (chatSelected === id && revision === historyRevision) setChatNotice("Не удалось прочитать историю: " + error.message);
+  }
+}
+function updateMetrics(view, extra = {}) {
+  view.metrics = {...view.metrics, ...extra};
+  if (!chatSelected || view !== conversation(chatSelected)) return;
+  streamMetrics = view.metrics;
+  byId("chat-metrics").textContent = Object.keys(streamMetrics).length ? JSON.stringify(streamMetrics, null, 2) : "Ещё нет измерений";
+}
+function seconds(ms) {
+  return Number.isFinite(ms) ? (ms/1000).toFixed(2) + " с" : "нет данных";
+}
+function renderTimer() {
+  const view = chatSelected && conversation(chatSelected);
+  const active = view?.request;
+  const snapshot = view?.metrics?.saved;
+  const data = view?.metrics || {};
+  let label = "";
+  if (active) {
+    const total = performance.now() - active.started;
+    label = active.first == null ? "Ожидание первого фрагмента " + seconds(total) :
+      "Первый фрагмент " + seconds(active.first) + " · Генерация " + seconds(total-active.first) + " · Всего " + seconds(total);
+  } else if (snapshot || data.browser_total_ms != null) {
+    const usage = data.usage || snapshot?.usage || {};
+    const first = data.browser_first_fragment_ms ?? snapshot?.first_fragment_ms;
+    const rate = (data.throughput || snapshot?.throughput)?.completion_tokens_per_second;
+    label = (data.error || snapshot?.state === "failed" ? "Ошибка · " :
+      snapshot?.state === "cancelled" || data.cancelled ? "Отменён · " : "") +
+      "Первый фрагмент " + seconds(first) + " · Генерация " + seconds(data.browser_generation_ms ?? snapshot?.generation_ms) +
+      " · Всего " + seconds(data.browser_total_ms ?? snapshot?.total_ms) +
+      " · Токены вход / выход " + (usage.prompt_tokens ?? "нет данных") + " / " + (usage.completion_tokens ?? "нет данных") +
+      (Number.isFinite(rate) ? " · Маршрут Colibri " + rate.toFixed(2) + " токенов/с с подготовкой prompt" : "");
+  }
+  byId("chat-timer").textContent = label;
+}
+let stats = [];
+async function loadStatistics(id) {
+  try {
+    const result = await api("/api/chat/metrics?" + new URLSearchParams({chat_id:id}));
+    if (chatSelected !== id) return;
+    renderStatistics(result.results);
+    const view = conversation(id);
+    if (!view.request && !Object.keys(view.metrics).length && result.results[0]) {
+      updateMetrics(view, {saved:result.results[0]});
+      renderTimer();
+    }
+  } catch (error) {
+    if (chatSelected === id) byId("chat-stat-results").textContent = "Не удалось загрузить измерения: " + error.message;
+  }
+}
+function renderStatistics(results) {
+  stats = results;
+  const models = byId("chat-stat-model");
+  const previous = models.value;
+  const names = [...new Set(results.map(row => row.target.model_id))];
+  models.replaceChildren(new Option("Все", ""), ...names.map(name => new Option(name, name)));
+  if (names.includes(previous)) models.value = previous;
+  filterStatistics();
+}
+function filterStatistics() {
+  const model = byId("chat-stat-model").value;
+  const mode = byId("chat-stat-mode").value;
+  const results = stats.filter(row => (!model || row.target.model_id === model) && (!mode || (row.execution_mode || "unknown") === mode));
+  byId("chat-stat-results").replaceChildren(...results.map(row => node("div", "chat-stat-row",
+    timestamp(row.finished_at).textContent + " · " + row.target.model_id + " · " +
+    (row.execution_mode?.toUpperCase() || "режим неизвестен") + " · " +
+    ({complete:"Завершён", failed:"Ошибка", cancelled:"Отменён"}[row.state]) + " · " + seconds(row.total_ms) + " · " +
+    (row.usage?.prompt_tokens ?? "нет данных") + " / " + (row.usage?.completion_tokens ?? "нет данных") + " токенов")));
+}
+
+function generationFields(target) {
+  const maximum = byId("chat-max-tokens").value;
+  const policy = target.transport || {};
+  return {options:{thinking:byId("chat-thinking").value, reasoning_effort:byId("chat-effort").value,
+      ...(maximum ? {max_output_tokens:Number(maximum)} : {})},
+    context:{max_bytes:Math.min(policy.request_bytes || 1048576, 1048576),
+      max_messages:Math.min(Number(byId("chat-history-messages").value), (policy.history_messages || 1024)-1),
+      max_chars:Math.min(Number(byId("chat-history-chars").value),
+        Math.max(0, (policy.history_chars || 1048576)-byId("chat-input").value.trim().length))}};
+}
+async function readChatStream(body, request, onEvent) {
+  const response = await fetch("/api/chat/stream", {method:"POST", signal:request.controller.signal,
+    headers:{"Content-Type":"application/json","X-Ultra-CSRF":csrf}, body:JSON.stringify(body)});
+  if (!response.ok) throw Error((await response.json()).error || String(response.status));
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder("utf-8", {fatal:true});
+  let pending = "", received = 0;
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) throw Error("stream_truncated");
+      received += chunk.value.byteLength;
+      if (received > 64*1024*1024) throw Error("stream_too_large");
+      pending += decoder.decode(chunk.value, {stream:true});
+      let end;
+      while ((end = pending.indexOf("\n")) >= 0) {
+        const event = JSON.parse(pending.slice(0, end));
+        pending = pending.slice(end+1);
+        if (event.type === "error") throw Error(event.error);
+        onEvent(event);
+        if (event.type === "done") return event;
+      }
+      if (pending.length > 2*1024*1024) throw Error("stream_frame_too_large");
+    }
+  } finally {
+    try { await reader.cancel(); } finally { reader.releaseLock(); }
+  }
+}
+function renderFragment(view, request, event) {
+  if (event.timing) updateMetrics(view, {route:event.timing});
+  if (event.type === "meta") {
+    updateMetrics(view, {engine_limits:event.engine_limits || {}, transport_policy:event.transport_policy || {}, context:event.context || {}});
+    if (event.context?.omitted_messages) {
+      view.notice = "В контекст не вошло сообщений: " + event.context.omitted_messages;
+      if (view === conversation(chatSelected)) setChatNotice(view.notice);
+    }
+  }
+  if (!["delta", "reasoning"].includes(event.type) || !event.text) return;
+  if (request.first == null) {
+    request.first = performance.now() - request.started;
+    updateMetrics(view, {browser_first_fragment_ms:request.first, browser_first_dom_update_unix_ms:performance.timeOrigin+performance.now()});
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (view.request === request || view.metrics.browser_request_unix_ms === performance.timeOrigin+request.started) {
+        updateMetrics(view, {browser_first_paint_opportunity_unix_ms:performance.timeOrigin+performance.now()});
+      }
+    }));
+  }
+  if (event.type === "reasoning") {
+    const detail = request.assistant.querySelector(".reasoning-panel");
+    detail.querySelector(".reasoning-text").textContent += event.text;
+    detail.classList.toggle("hidden", !byId("chat-show-reasoning").checked);
+  } else request.assistant.querySelector(".chat-text").textContent += event.text;
+  if (chatSelected === request.chatId) followBottom();
+}
+async function waitForSlot(target, view, request) {
+  const key = slotKey(target);
+  const release = {};
+  releasingSlots.set(key, release);
+  renderChatList(chatSnapshot);
+  let observed = false;
+  const checks = [];
+  try {
+    for (const pause of [0, 120, 300, 650, 1250]) {
+      if (pause) await new Promise(resolve => setTimeout(resolve, pause));
+      try { await readStatus({signal:AbortSignal.timeout(1800)}); } catch {
+        checks.push("unknown");
+        continue;
+      }
+      if (releasingSlots.get(key) !== release) return;
+      observed = true;
+      const live = liveTarget(target);
+      checks.push(live?.availability || "offline");
+      if (live?.availability === "ready_unreserved" && live.engine_state === "ready") {
+        if (view.metrics.browser_request_unix_ms === performance.timeOrigin+request.started) {
+          updateMetrics(view, {browser_slot_ready_ms:performance.now()-request.started});
+        }
+        break;
+      }
+      if (live && !["busy", "ready_unreserved"].includes(live.availability)) break;
+    }
+  } finally {
+    if (!observed) unknownSlots.add(key);
+    updateMetrics(view, {browser_slot_checks:checks});
+    if (releasingSlots.get(key) === release) releasingSlots.delete(key);
+    renderChatList(chatSnapshot);
   }
 }
 async function submitChat(event) {
   event.preventDefault();
-  if (chatBusy) return;
-  const target = currentChat();
+  const chat = currentChat();
+  const target = liveTarget(chat);
   const input = byId("chat-input");
   const message = input.value.trim();
-  if (!chatReady(target) || !message || message.length > 131072) return;
-  const restoreInputFocus = document.activeElement === input;
-  chatBusy = true;
-  const started=performance.now();
-  streamMetrics={browser_request_unix_ms:performance.timeOrigin+started};
-  const targetKey = chatSelected;
-  activeChatKey = targetKey;
-  byId("chat-send").disabled = true;
-  input.disabled = true;
-  byId("chat-state").textContent = "Запрос выполняется на сервере. Ожидаем настоящий ответ модели…";
+  if (!chatReady(target) || chatMutation || !message || message.length > 131072) return;
+  const id = chat.chat_id;
+  const view = conversation(id);
+  if (view.request) return;
+  const streaming = byId("chat-stream").checked && target.streaming;
+  const generation = generationFields(target);
+  if (!target.streaming) delete generation.options;
+  const parameters = JSON.stringify([targetKey(target), target.instance_id, message, generation, streaming]);
+  const requestId = view.retry?.parameters === parameters ? view.retry.id : crypto.randomUUID().replaceAll("-", "");
+  const request = {chatId:id, target, id:requestId, started:performance.now(),
+    controller:streaming ? new AbortController() : null,
+    user:messageBubble({role:"user", content:message, created_at:new Date().toISOString()}),
+    assistant:messageBubble({role:"assistant"}, true)};
+  const restoreFocus = document.activeElement === input;
+  view.draft = input.value;
+  view.retry = {parameters, id:requestId};
+  view.notice = "";
+  view.request = request;
+  view.metrics = {};
   setChatNotice("");
+  updateMetrics(view, {browser_request_unix_ms:performance.timeOrigin+request.started});
+  chatHolder.querySelector(".chat-empty")?.remove();
+  chatHolder.append(request.user, request.assistant);
+  followBottom();
+  renderChatControls();
+  renderTimer();
+  let completed = false;
   try {
-    const streaming = byId("chat-stream").checked && target.streaming !== false;
-    const generation = generationFields();
-    if(target.streaming===false)delete generation.options;
-    if (!chatRetry || chatRetry.key !== targetKey || chatRetry.message !== message || chatRetry.parameters !== JSON.stringify(generation)) {
-      chatRetry = {key:targetKey,message,parameters:JSON.stringify(generation),id:crypto.randomUUID().replaceAll("-", "")};
-    }
-    let result;
-    if (!streaming) {
-      result = await pairingPost("/api/chat/send", {
-        ...targetFields(target), ...generation, message,
-        request_id:chatRetry.id
-      });
-    } else {
-      chatAbort = new AbortController();
-      byId("chat-cancel").disabled = false;
-      const response = await fetch("/api/chat/stream", {method:"POST", signal:chatAbort.signal,
-        headers:{"Content-Type":"application/json","X-Ultra-CSRF":csrf},
-        body:JSON.stringify({...targetFields(target), ...generation, message,request_id:chatRetry.id})});
-      if (!response.ok) {
-        const failure = await response.json();
-        throw Error(failure.error || String(response.status));
-      }
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder("utf-8", {fatal:true});
-      let pending = "", answer = "", reasoning = "", received = 0, firstVisible = false;
-      const bubble = node("div", "chat-bubble");
-      const text = node("div", "");
-      const reasoningDetail = reasoningPanel("");
-      reasoningDetail.classList.add("hidden");
-      bubble.append(node("small", "", "LLM · поток"), reasoningDetail, text);
-      const holder = byId("chat-messages");
-      holder.append(bubble);
-      try {
-        while (true) {
-          const chunk = await reader.read();
-          if (chunk.done) { pending += decoder.decode(); if (pending.trim()) throw Error("stream_truncated"); break; }
-          received += chunk.value.byteLength;
-          if (received > 64*1024*1024) throw Error("stream_too_large");
-          pending += decoder.decode(chunk.value, {stream:true});
-          let end;
-          while ((end = pending.indexOf("\n")) >= 0) {
-            const event = JSON.parse(pending.slice(0, end));
-            pending = pending.slice(end+1);
-            if (event.timing) updateMetrics({route:event.timing});
-            if (event.type === "meta") {
-              updateMetrics({engine_limits:event.engine_limits || {},transport_policy:event.transport_policy || {},context:event.context || {}});
-              if (event.context && event.context.omitted_messages) setChatNotice("В контекст не вошло сообщений: " + event.context.omitted_messages + ". Настройки истории доступны выше.");
-            }
-            if (event.type === "reasoning") {
-              reasoning += event.text;
-              reasoningDetail.querySelector(".reasoning-text").textContent = reasoning;
-              reasoningDetail.classList.toggle("hidden", !byId("chat-show-reasoning").checked);
-            }
-            if (event.type === "delta") {
-              answer += event.text;
-              if (chatSelected === targetKey) {
-                text.textContent = answer;
-                holder.scrollTop = holder.scrollHeight;
-                byId("chat-state").textContent = "Получаем ответ модели…";
-              }
-            }
-            if (!firstVisible && chatSelected===targetKey &&
-                (event.type==="delta" || (event.type==="reasoning" && byId("chat-show-reasoning").checked))) {
-              firstVisible=true;
-              updateMetrics({browser_first_dom_update_unix_ms:performance.timeOrigin+performance.now(),browser_first_fragment_ms:performance.now()-started});
-              requestAnimationFrame(() => requestAnimationFrame(() => updateMetrics({browser_first_paint_opportunity_unix_ms:performance.timeOrigin+performance.now()})));
-            }
-            if (event.type === "error") throw Error(event.error);
-            if (event.type === "done") { result = event; updateMetrics({usage:event.usage || {},throughput:event.throughput || {},browser_total_ms:performance.now()-started}); }
-          }
-        }
-        if (!result) throw Error("stream_truncated");
-      } finally {
-        await reader.cancel();
-        reader.releaseLock();
-      }
-    }
-    chatRetry = null;
-    if (result.history_reload) {
-      result = await api("/api/chat/history?" + new URLSearchParams(targetFields(target,true)));
-    }
-    if (chatSelected === targetKey) {
+    const body = {...targetFields(target), ...generation, chat_id:id, message, request_id:requestId,
+      ...(target.instance_id ? {instance_id:target.instance_id} : {})};
+    let result = streaming ? await readChatStream(body, request, frame => renderFragment(view, request, frame)) :
+      await pairingPost("/api/chat/send", body);
+    const total = performance.now()-request.started;
+    updateMetrics(view, {usage:result.usage || {}, throughput:result.throughput || {}, context:result.context || view.metrics.context,
+      saved:result.metrics, browser_total_ms:total, browser_generation_ms:request.first == null ? null : total-request.first});
+    if (result.history_reload) result = await api("/api/chat/history?" + new URLSearchParams({chat_id:id}));
+    view.messages = result.messages;
+    view.draft = "";
+    completed = true;
+    view.retry = null;
+    if (chatSelected === id) {
       input.value = "";
-      renderMessages(result.messages);
-      byId("chat-state").textContent = "Ответ получен от " + target.model_id;
+      const rendered = chatHolder.querySelectorAll(".chat-bubble");
+      if (!result.cached && rendered.length === view.messages.length && view.messages.length >= 2) {
+        const [user, assistant] = view.messages.slice(-2);
+        request.user.querySelector("time").replaceWith(timestamp(user.created_at));
+        request.assistant.append(timestamp(assistant.created_at));
+        request.assistant.querySelector(".chat-text").textContent = assistant.content;
+        const detail = request.assistant.querySelector(".reasoning-panel");
+        detail.querySelector(".reasoning-text").textContent = assistant.reasoning_content || "";
+        detail.classList.toggle("hidden", !assistant.reasoning_content || !byId("chat-show-reasoning").checked);
+        followBottom();
+      } else renderMessages(view.messages);
     }
   } catch (error) {
-    byId("chat-state").textContent = "";
-    setChatNotice(error.name === "AbortError" ? "Поток отменён; неполный ответ не сохранён." : "Ошибка ответа: " + controlReason(error.message));
+    const cancelled = request.cancelling || error.name === "AbortError";
+    if (error.name !== "TypeError" || cancelled) view.retry = null;
+    view.notice = cancelled ? "Запрос отменён." : "Ошибка ответа: " + controlReason(error.message);
+    updateMetrics(view, {error:cancelled ? undefined : error.message, cancelled, browser_total_ms:performance.now()-request.started});
+    if (chatSelected === id) setChatNotice(view.notice);
   } finally {
-    chatBusy = false;
-    chatAbort = null;
-    byId("chat-cancel").disabled = true;
-    renderChatList(chatSnapshot);
-    if (restoreInputFocus && chatOpen && chatSelected === targetKey &&
-        document.activeElement === document.body && !input.disabled) {
+    view.request = null;
+    if (!completed) {
+      request.user.remove();
+      request.assistant.remove();
+      if (chatSelected === id && !chatHolder.children.length) renderMessages(view.messages);
+    }
+    const recheck = waitForSlot(target, view, request);
+    renderTimer();
+    if (chatSelected === id && byId("chat-statistics").open) loadStatistics(id);
+    await recheck;
+    if (restoreFocus && chatOpen && chatSelected === id && document.activeElement === document.body && !input.disabled) {
       input.focus({preventScroll:true});
     }
   }
@@ -908,30 +1176,71 @@ async function submitChat(event) {
 
 byId("nav-overview").addEventListener("click", showOverview);
 byId("nav-chats").addEventListener("click", showChats);
-byId("chat-reload").addEventListener("click", refresh);
+byId("chat-reload").addEventListener("click", () => refresh(true));
+byId("chat-new").addEventListener("click", () => {
+  const target = liveTarget(currentChat()) || (chatTargets.length === 1 ? chatTargets[0] : null);
+  changeChat("create", target ? {target:targetFields(target)} : {});
+});
+byId("chat-target").addEventListener("change", event => {
+  const target = chatTargets.find(item => targetKey(item) === event.target.value);
+  changeChat("target", {target:target ? targetFields(target) : null});
+});
+byId("chat-rename").addEventListener("click", () => {
+  const title = prompt("Название чата", currentChat()?.title);
+  if (title?.trim()) changeChat("rename", {title});
+});
+for (const op of ["reset","resume","restore"]) byId("chat-"+op).addEventListener("click", () => changeChat(op));
+byId("chat-clear").addEventListener("click", () => {
+  if (confirm("Очистить переписку этого чата? Её можно вернуть через «Восстановить переписку».")) changeChat("clear", {confirm:true});
+});
+byId("chat-delete").addEventListener("click", () => {
+  if (confirm("Удалить выбранный чат, всю его переписку и измерения? Восстановить чат через Client нельзя.")) changeChat("delete", {confirm:true});
+});
+for (const field of ["chat-history-messages","chat-history-chars"]) byId(field).addEventListener("change", () => {
+  changeChat("settings", {context:{max_messages:Number(byId("chat-history-messages").value),
+                                   max_chars:Number(byId("chat-history-chars").value)}});
+});
+byId("chat-statistics").addEventListener("toggle", event => {
+  if (event.target.open && chatSelected) loadStatistics(chatSelected);
+});
+byId("chat-stat-model").addEventListener("change", filterStatistics);
+byId("chat-stat-mode").addEventListener("change", filterStatistics);
+setInterval(() => { if (chatOpen) renderTimer(); }, 150);
 byId("chat-form").addEventListener("submit", submitChat);
+byId("chat-input").addEventListener("input", event => {
+  if (chatSelected) conversation(chatSelected).draft = event.target.value;
+});
 byId("chat-input").addEventListener("keydown", event => {
-  // Chromium can report keyCode 229 on an IME commit with isComposing=false.
   if (event.key !== "Enter" || event.shiftKey || event.ctrlKey || event.altKey ||
       event.metaKey || event.isComposing || event.keyCode === 229) return;
   event.preventDefault();
   if (event.repeat || byId("chat-send").disabled || !event.currentTarget.value.trim()) return;
   event.currentTarget.form.requestSubmit();
 });
-byId("chat-show-reasoning").addEventListener("change", () => { document.querySelectorAll(".reasoning-panel").forEach(x => x.classList.toggle("hidden", !byId("chat-show-reasoning").checked)); });
+byId("chat-show-reasoning").addEventListener("change", () => {
+  document.querySelectorAll(".reasoning-panel").forEach(detail => detail.classList.toggle("hidden",
+    !byId("chat-show-reasoning").checked || !detail.querySelector(".reasoning-text").textContent));
+  followBottom();
+});
 byId("chat-cancel").addEventListener("click", async () => {
-  if (!chatAbort || !chatRetry) return;
-  const abort = chatAbort;
-  const [manager_id,slot_id,model_id] = JSON.parse(chatRetry.key);
+  const request = chatSelected && conversation(chatSelected).request;
+  if (!request?.controller || request.cancelling) return;
+  request.cancelling = true;
+  renderChatControls();
   try {
-    await pairingPost("/api/chat/cancel", {manager_id,slot_id,model_id,request_id:chatRetry.id});
-  } finally { abort.abort(); }
+    await api("/api/chat/cancel", {method:"POST", signal:AbortSignal.timeout(5500),
+      headers:{"Content-Type":"application/json","X-Ultra-CSRF":csrf},
+      body:JSON.stringify({...targetFields(request.target), request_id:request.id})});
+  } catch {
+    // Closing the local stream also signals disconnection to the relay.
+  } finally {
+    request.controller.abort();
+  }
 });
 byId("chat-popout").addEventListener("click", () => {
-  const target = currentChat();
-  if (!target) return;
+  if (!chatSelected) return;
   const url = new URL(window.location.href);
-  url.hash = "chat=" + encodeURIComponent(target.key);
+  url.hash = "chat=" + encodeURIComponent(chatSelected);
   window.open(url.toString(), "_blank", "noopener");
 });
-window.addEventListener("focus", () => { if (chatOpen && !chatBusy) loadChatHistory(); });
+window.addEventListener("focus", () => { if (chatOpen) loadChatHistory(); });

@@ -92,6 +92,12 @@ jobs:
         run: |
           node Client_Ultra_LLM/test_browser_slots_source.mjs
           exit $LASTEXITCODE
+      - name: Chrome independent chats and request lifecycle
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: |
+          node Client_Ultra_LLM/test_browser_independent_chats.mjs
+          exit $LASTEXITCODE
       - name: Document exact ZIP and hosted-runner scope
         if: always()
         shell: pwsh

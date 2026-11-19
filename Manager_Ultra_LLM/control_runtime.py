@@ -138,15 +138,15 @@ class ModelControl:
             if row and row[0] != "READY":
                 raise ControlError("instance_not_ready")
 
-    def chat_binding(self, slot_id):
+    def chat_binding(self, slot_id, *, with_mode=False):
         if self.db_path:
             with self.db() as db:
-                row = db.execute("SELECT id,state FROM instances WHERE slot=? AND released=0", (slot_id,)).fetchone()
+                row = db.execute("SELECT id,state,mode FROM instances WHERE slot=? AND released=0", (slot_id,)).fetchone()
             if row:
                 if row[1] != "READY":
                     raise ControlError("instance_not_ready")
-                return row[0]
-        return None
+                return (row[0], row[2]) if with_mode else row[0]
+        return (None, None) if with_mode else None
 
     def effective_principal(self, principal):
         if not self.db_path:return principal

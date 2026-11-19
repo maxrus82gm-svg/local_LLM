@@ -1,0 +1,2713 @@
+{
+  "task_id": "CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001",
+  "base_head": "b553445eed7127998261c2cb67b333bdd8bcb69e",
+  "scope": "LOCAL ONLY; OFFLINE source and portable; LIVE inspection only",
+  "environment": {
+    "platform": "Windows",
+    "python": "3.12.10",
+    "chrome": "157.0.8103.79",
+    "node": "22.20.0",
+    "pyinstaller": "6.16.0"
+  },
+  "colibri": {
+    "runtime": {
+      "resolved": true,
+      "source_found": true,
+      "path_is_210": true,
+      "launcher_uses_gateway": true,
+      "sha256": "3F6C8C199468D43B24C97CC1EAC1AB222782E1C3EDB6ED1AC6223D63FF0522A5",
+      "compaction_field": true
+    },
+    "health": {
+      "context_tokens": 16384,
+      "max_tokens": 16384,
+      "arch": "qwen36"
+    },
+    "gateway_source": "openai_server.py chat_completion L9581, compaction_requested L5228, conversation_cache_slot L5166, usage L9575",
+    "engine_source": "qwen36.c q36 first prompt L8234, kv_prefix_reuse L8284, STAT L8437, TOK_ONLY L9532",
+    "engine_source_sha256": "1ec64bf5c0e24e4cdfcf7756df78f276f5d434161954a546ded17793921a825e",
+    "offline_inputs": [
+      {
+        "relative_local_path": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/offline-tokenizer/coli_cuda.dll",
+        "bytes": 72550912,
+        "sha256": "4e290e7123aa76c03df78a54c98b2fdac56af5346197a29f2cc2a258a161cc26"
+      },
+      {
+        "relative_local_path": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/offline-tokenizer/cudart64_12.dll",
+        "bytes": 573952,
+        "sha256": "c2c9a9c22a9bcba90e261825968836787b331038047a26770cffb7a583c28344"
+      },
+      {
+        "relative_local_path": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/offline-tokenizer/qwen36.exe",
+        "bytes": 4288882,
+        "sha256": "e288e9913271bdd717b2ef8d5d5258015da6038245098ffb3e0a9d8628357cc9"
+      },
+      {
+        "relative_local_path": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/offline-tokenizer/tokenizer.json",
+        "bytes": 9839484,
+        "sha256": "aef33b834eb88f4b341793dea22e04777dad152cc02a144ffb238d15e4d14e10"
+      }
+    ],
+    "ab": {
+      "name": "P0-native-tokenizer",
+      "command": "py -3.12 -B <colibri-ab.py> <verified Colibri c> <offline-tokenizer>",
+      "exit": 0,
+      "seconds": 3.4621067,
+      "pass": 1,
+      "fail": 0,
+      "skip": 0,
+      "evidence": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/P0-native-tokenizer.log",
+      "details": [
+        {
+          "attempt": 1,
+          "scope": "deployed gateway source; optional copied native tokenizer; no inference",
+          "cases": {
+            "A": {
+              "prompt_chars": 75,
+              "gateway_render_ms": 0.053,
+              "native_token_count": 16,
+              "prompt_sha256": "43ceb99420eeda3706d7156e65a5433c1ea8c13889ba37a759cf6c283a4b4377"
+            },
+            "B": {
+              "prompt_chars": 75,
+              "gateway_render_ms": 0.017,
+              "native_token_count": 16,
+              "prompt_sha256": "43ceb99420eeda3706d7156e65a5433c1ea8c13889ba37a759cf6c283a4b4377"
+            },
+            "C": {
+              "prompt_chars": 905,
+              "gateway_render_ms": 0.024,
+              "native_token_count": 256,
+              "prompt_sha256": "c300c352567b07eacfca329821dcb90664a1ce35e174ad2cd3129a8b6f98b3a7"
+            },
+            "D": {
+              "prompt_chars": 11965,
+              "gateway_render_ms": 0.032,
+              "native_token_count": 3516,
+              "prompt_sha256": "8779b6a2dce5411b562b8712438f2356fa6f9b73ac0781de79612890649be0e7"
+            },
+            "E": {
+              "prompt_chars": 75,
+              "gateway_render_ms": 0.007,
+              "native_token_count": 16,
+              "prompt_sha256": "43ceb99420eeda3706d7156e65a5433c1ea8c13889ba37a759cf6c283a4b4377"
+            },
+            "F": {
+              "prompt_chars": 86,
+              "gateway_render_ms": 0.005,
+              "native_token_count": 18,
+              "prompt_sha256": "6f549c05248b42c8e923800a21e5d606954d7b9848e45043589818e0e7e18f40"
+            }
+          }
+        },
+        {
+          "attempt": 2,
+          "scope": "deployed gateway source; optional copied native tokenizer; no inference",
+          "cases": {
+            "A": {
+              "prompt_chars": 75,
+              "gateway_render_ms": 0.034,
+              "native_token_count": 16,
+              "prompt_sha256": "43ceb99420eeda3706d7156e65a5433c1ea8c13889ba37a759cf6c283a4b4377"
+            },
+            "B": {
+              "prompt_chars": 75,
+              "gateway_render_ms": 0.008,
+              "native_token_count": 16,
+              "prompt_sha256": "43ceb99420eeda3706d7156e65a5433c1ea8c13889ba37a759cf6c283a4b4377"
+            },
+            "C": {
+              "prompt_chars": 905,
+              "gateway_render_ms": 0.016,
+              "native_token_count": 256,
+              "prompt_sha256": "c300c352567b07eacfca329821dcb90664a1ce35e174ad2cd3129a8b6f98b3a7"
+            },
+            "D": {
+              "prompt_chars": 11965,
+              "gateway_render_ms": 0.024,
+              "native_token_count": 3516,
+              "prompt_sha256": "8779b6a2dce5411b562b8712438f2356fa6f9b73ac0781de79612890649be0e7"
+            },
+            "E": {
+              "prompt_chars": 75,
+              "gateway_render_ms": 0.005,
+              "native_token_count": 16,
+              "prompt_sha256": "43ceb99420eeda3706d7156e65a5433c1ea8c13889ba37a759cf6c283a4b4377"
+            },
+            "F": {
+              "prompt_chars": 86,
+              "gateway_render_ms": 0.004,
+              "native_token_count": 18,
+              "prompt_sha256": "6f549c05248b42c8e923800a21e5d606954d7b9848e45043589818e0e7e18f40"
+            }
+          }
+        }
+      ]
+    },
+    "live_inference": "NOT RUN"
+  },
+  "A": [
+    {
+      "name": "A-package-client",
+      "command": "py -3.12 -B Manager_Ultra_LLM/test_gate2_hardening.py --suite Client_Ultra_LLM --minimum 57 --output <json>",
+      "exit": 0,
+      "seconds": 28.961,
+      "pass": 57,
+      "fail": 0,
+      "skip": 0,
+      "evidence": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/A-package-client.log"
+    },
+    {
+      "name": "A-package-manager",
+      "command": "py -3.12 -B Manager_Ultra_LLM/test_gate2_hardening.py --suite Manager_Ultra_LLM --minimum 330 --output <json>",
+      "exit": 0,
+      "seconds": 74.623,
+      "pass": 352,
+      "fail": 0,
+      "skip": 1,
+      "evidence": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/A-package-manager.log"
+    },
+    {
+      "name": "syntax",
+      "command": "node --check <JS/MJS>; compile(<Python>); PowerShell ParseFile",
+      "exit": 0,
+      "seconds": 0.5532626,
+      "pass": 1,
+      "fail": 0,
+      "skip": 0,
+      "evidence": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/syntax.result.txt"
+    },
+    {
+      "name": "negative-controls",
+      "command": "py -3.12 -B Manager_Ultra_LLM/test_gate2_hardening.py --negative-controls --output <json>",
+      "exit": 0,
+      "seconds": 1.3330351,
+      "pass": 1,
+      "fail": 0,
+      "skip": 0,
+      "evidence": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/negative-controls.log",
+      "details": {
+        "status": "NEGATIVE CONTROLS PASS",
+        "controls": [
+          {
+            "mode": "pass",
+            "observed_exit": 0,
+            "expected_exit": 0,
+            "status": "PASS"
+          },
+          {
+            "mode": "fail",
+            "observed_exit": 1,
+            "expected_exit": 1,
+            "status": "FAIL"
+          },
+          {
+            "mode": "error",
+            "observed_exit": 1,
+            "expected_exit": 1,
+            "status": "FAIL"
+          },
+          {
+            "mode": "empty",
+            "observed_exit": 3,
+            "expected_exit": 3,
+            "status": "COLLECTION_ERROR"
+          },
+          {
+            "mode": "wrong-exact-zip",
+            "observed_exit": 1,
+            "expected_exit": 1,
+            "status": "EXPECTED HASH REJECTION"
+          }
+        ]
+      }
+    }
+  ],
+  "B": [
+    {
+      "name": "B-package-1",
+      "command": "node Client_Ultra_LLM/test_browser_independent_chats.mjs",
+      "exit": 0,
+      "seconds": 24.5616484,
+      "pass": 1,
+      "fail": 0,
+      "skip": 0,
+      "evidence": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/B-package-1.log",
+      "details": {
+        "status": "PASS",
+        "scope": "Chrome / SOURCE Client / TLS SOURCE Manager / synthetic Colibri",
+        "seconds": 24.478867499999996,
+        "results": {
+          "scroll": {
+            "reasoning": {
+              "top": 1988.1817626953125,
+              "height": 2410,
+              "client": 422,
+              "distance": -0.1817626953125
+            },
+            "answer": {
+              "top": 4130.9091796875,
+              "height": 4553,
+              "client": 422,
+              "distance": 0.0908203125
+            },
+            "paused": {
+              "top": 10,
+              "height": 6696,
+              "client": 422,
+              "distance": 6264
+            }
+          },
+          "scheduler_release_ms": 1326.5999999940395,
+          "scheduler_checks": [
+            "busy",
+            "busy",
+            "busy",
+            "ready_unreserved"
+          ],
+          "synthetic_usage": {
+            "prompt_tokens": 17,
+            "completion_tokens": 8
+          },
+          "independence_and_history": true,
+          "terminal_paths": [
+            "done",
+            "cancelled",
+            "truncated",
+            "no usage"
+          ],
+          "restart_and_time": true,
+          "offline_and_validation": true,
+          "closed_ports": [
+            true,
+            true,
+            true
+          ]
+        }
+      }
+    },
+    {
+      "name": "B-package-2",
+      "command": "node Client_Ultra_LLM/test_browser_independent_chats.mjs",
+      "exit": 0,
+      "seconds": 26.9253985,
+      "pass": 1,
+      "fail": 0,
+      "skip": 0,
+      "evidence": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/B-package-2.log",
+      "details": {
+        "status": "PASS",
+        "scope": "Chrome / SOURCE Client / TLS SOURCE Manager / synthetic Colibri",
+        "seconds": 26.851220299999998,
+        "results": {
+          "scroll": {
+            "reasoning": {
+              "top": 1988.1817626953125,
+              "height": 2410,
+              "client": 422,
+              "distance": -0.1817626953125
+            },
+            "answer": {
+              "top": 4130.9091796875,
+              "height": 4553,
+              "client": 422,
+              "distance": 0.0908203125
+            },
+            "paused": {
+              "top": 10,
+              "height": 6696,
+              "client": 422,
+              "distance": 6264
+            }
+          },
+          "scheduler_release_ms": 1377.800000011921,
+          "scheduler_checks": [
+            "busy",
+            "busy",
+            "busy",
+            "ready_unreserved"
+          ],
+          "synthetic_usage": {
+            "prompt_tokens": 17,
+            "completion_tokens": 8
+          },
+          "independence_and_history": true,
+          "terminal_paths": [
+            "done",
+            "cancelled",
+            "truncated",
+            "no usage"
+          ],
+          "restart_and_time": true,
+          "offline_and_validation": true,
+          "closed_ports": [
+            true,
+            true,
+            true
+          ]
+        }
+      }
+    },
+    {
+      "name": "B-package-3",
+      "command": "node Client_Ultra_LLM/test_browser_independent_chats.mjs",
+      "exit": 0,
+      "seconds": 26.5931129,
+      "pass": 1,
+      "fail": 0,
+      "skip": 0,
+      "evidence": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/B-package-3.log",
+      "details": {
+        "status": "PASS",
+        "scope": "Chrome / SOURCE Client / TLS SOURCE Manager / synthetic Colibri",
+        "seconds": 26.5147976,
+        "results": {
+          "scroll": {
+            "reasoning": {
+              "top": 1988.1817626953125,
+              "height": 2410,
+              "client": 422,
+              "distance": -0.1817626953125
+            },
+            "answer": {
+              "top": 4130.9091796875,
+              "height": 4553,
+              "client": 422,
+              "distance": 0.0908203125
+            },
+            "paused": {
+              "top": 10,
+              "height": 6696,
+              "client": 422,
+              "distance": 6264
+            }
+          },
+          "scheduler_release_ms": 2632.9000000059605,
+          "scheduler_checks": [
+            "busy",
+            "busy",
+            "busy",
+            "busy",
+            "ready_unreserved"
+          ],
+          "synthetic_usage": {
+            "prompt_tokens": 17,
+            "completion_tokens": 8
+          },
+          "independence_and_history": true,
+          "terminal_paths": [
+            "done",
+            "cancelled",
+            "truncated",
+            "no usage"
+          ],
+          "restart_and_time": true,
+          "offline_and_validation": true,
+          "closed_ports": [
+            true,
+            true,
+            true
+          ]
+        }
+      }
+    }
+  ],
+  "C": [
+    {
+      "name": "C-package-source",
+      "command": "node Client_Ultra_LLM/test_browser_independent_chats.mjs",
+      "exit": 0,
+      "seconds": 28.8220577,
+      "pass": 1,
+      "fail": 0,
+      "skip": 0,
+      "evidence": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/C-package-source.log",
+      "details": {
+        "status": "PASS",
+        "scope": "Chrome / SOURCE Client / TLS SOURCE Manager / synthetic Colibri",
+        "seconds": 28.7455725,
+        "results": {
+          "scroll": {
+            "reasoning": {
+              "top": 1988.1817626953125,
+              "height": 2410,
+              "client": 422,
+              "distance": -0.1817626953125
+            },
+            "answer": {
+              "top": 4130.9091796875,
+              "height": 4553,
+              "client": 422,
+              "distance": 0.0908203125
+            },
+            "paused": {
+              "top": 10,
+              "height": 6696,
+              "client": 422,
+              "distance": 6264
+            }
+          },
+          "scheduler_release_ms": 1377.9000000059605,
+          "scheduler_checks": [
+            "busy",
+            "busy",
+            "busy",
+            "ready_unreserved"
+          ],
+          "synthetic_usage": {
+            "prompt_tokens": 17,
+            "completion_tokens": 8
+          },
+          "independence_and_history": true,
+          "terminal_paths": [
+            "done",
+            "cancelled",
+            "truncated",
+            "no usage"
+          ],
+          "restart_and_time": true,
+          "offline_and_validation": true,
+          "closed_ports": [
+            true,
+            true,
+            true
+          ]
+        }
+      }
+    },
+    {
+      "name": "C-regression-control_stream",
+      "command": "node Client_Ultra_LLM/test_browser_control_stream.mjs",
+      "exit": 0,
+      "seconds": 7.4030089,
+      "pass": 1,
+      "fail": 0,
+      "skip": 0,
+      "evidence": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/C-regression-control_stream.log",
+      "details": {
+        "status": "PASS",
+        "browser": "Chrome headless (separate temporary profile)",
+        "tests": [
+          "PASS: two Manager identities, five slots, one model list per Manager",
+          "PASS: CPU/disabled CUDA reason, STARTING, correct Manager identity",
+          "PASS: STOPPING and stable owned instance_id",
+          "PASS: visible real HTTP fragments before completion, browser_first_fragment_ms=63 (fake model)",
+          "PASS: ordinary chat independent from streaming"
+        ],
+        "phase_trace": [
+          {
+            "stage": "fixture_listening",
+            "ms": 1795110890823
+          },
+          {
+            "stage": "chrome_spawned",
+            "ms": 1795110890831
+          },
+          {
+            "stage": "devtools_port_ready",
+            "ms": 1795110891187
+          },
+          {
+            "stage": "cdp_connected",
+            "ms": 1795110891219
+          },
+          {
+            "stage": "runtime_enabled",
+            "ms": 1795110891369
+          },
+          {
+            "stage": "client_script_requested",
+            "ms": 1795110896678
+          },
+          {
+            "stage": "first_status_request",
+            "ms": 1795110896776
+          },
+          {
+            "stage": "manager_cards_ready",
+            "ms": 1795110896828
+          }
+        ],
+        "console_errors": []
+      }
+    },
+    {
+      "name": "C-regression-stream_source",
+      "command": "node Client_Ultra_LLM/test_browser_stream_source.mjs",
+      "exit": 0,
+      "seconds": 11.4991035,
+      "pass": 1,
+      "fail": 0,
+      "skip": 0,
+      "evidence": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/C-regression-stream_source.log",
+      "details": {
+        "status": "PASS",
+        "chain": "Chrome / SOURCE Client / verified TLS SOURCE Manager / fake Colibri",
+        "first_before_done": true,
+        "fragmented_utf8_json": true,
+        "separate_reasoning": true,
+        "thinking_controls": true,
+        "persisted_reasoning": true,
+        "requests": 3,
+        "metrics": {
+          "browser_request_unix_ms": 1795110905073.7002,
+          "route": {
+            "first_fragment_ms": 22.02,
+            "total_ms": 113.03,
+            "colibri_completed_unix_ms": 1795110905339.747,
+            "manager_received_unix_ms": 1795110905180.908,
+            "manager_preflight_ms": 45.89,
+            "colibri_request_started_unix_ms": 1795110905226.842,
+            "colibri_first_fragment_unix_ms": 1795110905247.5,
+            "manager_first_forward_unix_ms": 1795110905249.003,
+            "manager_first_forward_delay_ms": 0.246,
+            "manager_total_ms": 158.941,
+            "manager_emit_unix_ms": 1795110905339.747,
+            "client_token_read_ms": 0.107,
+            "client_tls_setup_ms": 1.08,
+            "client_http_headers_ms": 70.736,
+            "client_first_fragment_unix_ms": 1795110905249.511,
+            "client_first_fragment_elapsed_ms": 72.387,
+            "client_received_unix_ms": 1795110905339.747,
+            "client_elapsed_ms": 162.919,
+            "client_profile_load_ms": 0.593,
+            "client_sqlite_claim_ms": 98.946,
+            "client_history_load_ms": 1.353,
+            "client_prepare_ms": 101.366,
+            "client_local_elapsed_ms": 264.293,
+            "client_persist_ms": 271.168,
+            "client_local_total_ms": 535.474,
+            "client_emit_unix_ms": 1795110905610.358
+          },
+          "engine_limits": {
+            "context_tokens": 32768,
+            "max_tokens": 8192
+          },
+          "transport_policy": {
+            "request_bytes": 1048576,
+            "message_chars": 131072,
+            "history_messages": 128,
+            "history_chars": 240000,
+            "response_chars": 1048576,
+            "stream_bytes": 8388608,
+            "timeout_seconds": 300
+          },
+          "context": {
+            "sent_history_messages": 0,
+            "history_char_budget": 200000,
+            "history_message_budget": 100,
+            "sent_history_chars": 0,
+            "units": "characters_not_tokens",
+            "available_messages": 0,
+            "omitted_messages": 0,
+            "sent_messages": 1,
+            "sent_chars": 68,
+            "sent_messages_json_bytes": 102,
+            "preparation_ms": 1.353
+          },
+          "browser_first_fragment_ms": 176.69999998807907,
+          "browser_first_dom_update_unix_ms": 1795110905250.4001,
+          "browser_first_paint_opportunity_unix_ms": 1795110905259.9001,
+          "usage": {
+            "prompt_tokens": 7,
+            "completion_tokens": 5
+          },
+          "throughput": {
+            "completion_tokens_per_second": 44.237,
+            "basis": "provider_completion_tokens / upstream_request_seconds_including_prefill",
+            "window_ms": 113.028
+          },
+          "saved": {
+            "started_at": "2026-11-19T17:55:05.075+00:00",
+            "target": {
+              "manager_id": "qa-manager",
+              "slot_id": "slot1",
+              "model_id": "qa-model"
+            },
+            "instance_id": "legacy-898c0f11fa03f1dfd2a3819648d9cc07",
+            "options": {
+              "thinking": "on",
+              "reasoning_effort": "high",
+              "max_output_tokens": 2048
+            },
+            "streaming": true,
+            "context": {
+              "sent_history_messages": 0,
+              "history_char_budget": 200000,
+              "history_message_budget": 100,
+              "sent_history_chars": 0,
+              "units": "characters_not_tokens",
+              "available_messages": 0,
+              "omitted_messages": 0,
+              "sent_messages": 1,
+              "sent_chars": 68,
+              "sent_messages_json_bytes": 102,
+              "preparation_ms": 1.353
+            },
+            "engine_limits": {
+              "context_tokens": 32768,
+              "max_tokens": 8192
+            },
+            "transport_policy": {
+              "request_bytes": 1048576,
+              "message_chars": 131072,
+              "history_messages": 128,
+              "history_chars": 240000,
+              "response_chars": 1048576,
+              "stream_bytes": 8388608,
+              "timeout_seconds": 300
+            },
+            "execution_mode": null,
+            "first_fragment_ms": 173.764,
+            "first_fragment_at": "2026-11-19T17:55:05.249+00:00",
+            "finished_at": "2026-11-19T17:55:05.339+00:00",
+            "total_ms": 264.297,
+            "state": "complete",
+            "generation_ms": 90.533,
+            "usage": {
+              "prompt_tokens": 7,
+              "completion_tokens": 5
+            },
+            "throughput": {
+              "completion_tokens_per_second": 44.237,
+              "basis": "provider_completion_tokens / upstream_request_seconds_including_prefill",
+              "window_ms": 113.028
+            }
+          },
+          "browser_total_ms": 541.0999999940395,
+          "browser_generation_ms": 364.40000000596046,
+          "browser_slot_ready_ms": 602.4000000059605,
+          "browser_slot_checks": [
+            "ready_unreserved"
+          ]
+        },
+        "comparison": {
+          "identical_upstream_payload": true,
+          "direct": {
+            "first_fragment_ms": 43.95650000000023,
+            "total_ms": 125.73369999999977
+          },
+          "routed_with_history": {
+            "browser_request_unix_ms": 1795110905950.4001,
+            "route": {
+              "first_fragment_ms": 78.56,
+              "total_ms": 160.05,
+              "colibri_completed_unix_ms": 1795110906305.102,
+              "manager_received_unix_ms": 1795110906093.391,
+              "manager_preflight_ms": 52.053,
+              "colibri_request_started_unix_ms": 1795110906144.816,
+              "colibri_first_fragment_unix_ms": 1795110906223.834,
+              "manager_first_forward_unix_ms": 1795110906223.834,
+              "manager_first_forward_delay_ms": 0.376,
+              "manager_total_ms": 212.127,
+              "manager_emit_unix_ms": 1795110906305.102,
+              "client_token_read_ms": 0.113,
+              "client_tls_setup_ms": 1.758,
+              "client_http_headers_ms": 154.018,
+              "client_first_fragment_unix_ms": 1795110906224.845,
+              "client_first_fragment_elapsed_ms": 156.511,
+              "client_received_unix_ms": 1795110906305.102,
+              "client_elapsed_ms": 237.295,
+              "client_profile_load_ms": 1.193,
+              "client_sqlite_claim_ms": 112.949,
+              "client_history_load_ms": 1.342,
+              "client_prepare_ms": 116.286,
+              "client_local_elapsed_ms": 353.588,
+              "client_persist_ms": 394.355,
+              "client_local_total_ms": 747.956,
+              "client_emit_unix_ms": 1795110906699.667
+            },
+            "engine_limits": {
+              "context_tokens": 32768,
+              "max_tokens": 8192
+            },
+            "transport_policy": {
+              "request_bytes": 1048576,
+              "message_chars": 131072,
+              "history_messages": 128,
+              "history_chars": 240000,
+              "response_chars": 1048576,
+              "stream_bytes": 8388608,
+              "timeout_seconds": 300
+            },
+            "context": {
+              "sent_history_messages": 2,
+              "history_char_budget": 200000,
+              "history_message_budget": 100,
+              "sent_history_chars": 105,
+              "units": "characters_not_tokens",
+              "available_messages": 2,
+              "omitted_messages": 0,
+              "sent_messages": 3,
+              "sent_chars": 118,
+              "sent_messages_json_bytes": 257,
+              "preparation_ms": 1.342
+            },
+            "browser_first_fragment_ms": 275.40000000596046,
+            "browser_first_dom_update_unix_ms": 1795110906225.8,
+            "browser_first_paint_opportunity_unix_ms": 1795110906238.4001,
+            "usage": {
+              "prompt_tokens": 7,
+              "completion_tokens": 5
+            },
+            "throughput": {
+              "completion_tokens_per_second": 31.239,
+              "basis": "provider_completion_tokens / upstream_request_seconds_including_prefill",
+              "window_ms": 160.055
+            },
+            "saved": {
+              "started_at": "2026-11-19T17:55:05.951+00:00",
+              "target": {
+                "manager_id": "qa-manager",
+                "slot_id": "slot1",
+                "model_id": "qa-model"
+              },
+              "instance_id": "legacy-898c0f11fa03f1dfd2a3819648d9cc07",
+              "options": {
+                "thinking": "on",
+                "reasoning_effort": "high",
+                "max_output_tokens": 2048
+              },
+              "streaming": true,
+              "context": {
+                "sent_history_messages": 2,
+                "history_char_budget": 200000,
+                "history_message_budget": 100,
+                "sent_history_chars": 105,
+                "units": "characters_not_tokens",
+                "available_messages": 2,
+                "omitted_messages": 0,
+                "sent_messages": 3,
+                "sent_chars": 118,
+                "sent_messages_json_bytes": 257,
+                "preparation_ms": 1.342
+              },
+              "engine_limits": {
+                "context_tokens": 32768,
+                "max_tokens": 8192
+              },
+              "transport_policy": {
+                "request_bytes": 1048576,
+                "message_chars": 131072,
+                "history_messages": 128,
+                "history_chars": 240000,
+                "response_chars": 1048576,
+                "stream_bytes": 8388608,
+                "timeout_seconds": 300
+              },
+              "execution_mode": null,
+              "first_fragment_ms": 272.809,
+              "first_fragment_at": "2026-11-19T17:55:06.224+00:00",
+              "finished_at": "2026-11-19T17:55:06.305+00:00",
+              "total_ms": 353.592,
+              "state": "complete",
+              "generation_ms": 80.783,
+              "usage": {
+                "prompt_tokens": 7,
+                "completion_tokens": 5
+              },
+              "throughput": {
+                "completion_tokens_per_second": 31.239,
+                "basis": "provider_completion_tokens / upstream_request_seconds_including_prefill",
+                "window_ms": 160.055
+              }
+            },
+            "browser_total_ms": 750.5,
+            "browser_generation_ms": 475.09999999403954,
+            "browser_slot_ready_ms": 804.5,
+            "browser_slot_checks": [
+              "ready_unreserved"
+            ]
+          },
+          "kind": "fake-model-only"
+        },
+        "keyboard": {
+          "plain_enter_once": true,
+          "shift_newline": true,
+          "ime_composition": true,
+          "ime_229": true,
+          "blank": true,
+          "repeat": true,
+          "busy_and_duplicate": true,
+          "multiline_input": true,
+          "restored_focus": true,
+          "history_after_reload": true,
+          "accessibility_live_region": true,
+          "blocked_request_retains_draft": true,
+          "send_button_recovery": true,
+          "total_upstream_requests": 4
+        },
+        "console_errors": []
+      }
+    },
+    {
+      "name": "C-regression-slots_source",
+      "command": "node Client_Ultra_LLM/test_browser_slots_source.mjs",
+      "exit": 0,
+      "seconds": 35.5437768,
+      "pass": 1,
+      "fail": 0,
+      "skip": 0,
+      "evidence": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/C-regression-slots_source.log",
+      "details": {
+        "status": "PASS",
+        "scope": "SOURCE API + SQLite + TLS + Chrome; fake engines/resources",
+        "default_slots": 3,
+        "persisted_slots": 5,
+        "simultaneous_same_model_cpu": 2,
+        "simultaneous_same_model_cuda": 2,
+        "unique_instance_ids": true,
+        "ipv6_listener_skipped": true,
+        "concurrent_chats_isolated": true,
+        "stop_one_preserves_other": true,
+        "controller_and_browser_reload": true,
+        "history_preserved": true,
+        "risk_cancel_and_confirm": true,
+        "status_faults": [
+          "null",
+          "partial",
+          "503",
+          "delay",
+          "disconnect",
+          "bounded_503_burst"
+        ],
+        "status_samples": 34,
+        "status_classes": [
+          "object:200",
+          "null:200",
+          "undefined:409",
+          "undefined:503",
+          "network_error:0"
+        ],
+        "phase_trace": [
+          {
+            "stage": "fixture_spawned",
+            "ms": 1795110909695
+          },
+          {
+            "stage": "fixture_ready",
+            "ms": 1795110910861
+          },
+          {
+            "stage": "chrome_ready",
+            "ms": 1795110911461
+          },
+          {
+            "stage": "default_slots_rendered",
+            "ms": 1795110915795
+          },
+          {
+            "stage": "slot2_stop_requested",
+            "ms": 1795110929071
+          },
+          {
+            "stage": "slot2_stopped",
+            "ms": 1795110936976
+          },
+          {
+            "stage": "page_reloaded",
+            "ms": 1795110938340
+          },
+          {
+            "stage": "status_recovered",
+            "ms": 1795110939715
+          }
+        ],
+        "bounded_failure_ms": 329,
+        "status_trace": [
+          {
+            "ms": 1795110916539,
+            "elapsed_ms": 742,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": null,
+                "mode": "cpu",
+                "port": 38001
+              }
+            ]
+          },
+          {
+            "ms": 1795110916791,
+            "elapsed_ms": 191,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": null,
+                "mode": "cpu",
+                "port": 38001
+              }
+            ]
+          },
+          {
+            "ms": 1795110917660,
+            "elapsed_ms": 767,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot2",
+                "state": "READY",
+                "released": false
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": null,
+                "mode": "cpu",
+                "port": 38001
+              }
+            ]
+          },
+          {
+            "ms": 1795110918627,
+            "elapsed_ms": 635,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot2",
+                "state": "READY",
+                "released": false
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38001
+              }
+            ]
+          },
+          {
+            "ms": 1795110919971,
+            "elapsed_ms": 1037,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot2",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot3",
+                "state": "READY",
+                "released": false
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38001
+              }
+            ]
+          },
+          {
+            "ms": 1795110921011,
+            "elapsed_ms": 856,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot2",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot3",
+                "state": "READY",
+                "released": false
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38001
+              }
+            ]
+          },
+          {
+            "ms": 1795110922664,
+            "elapsed_ms": 788,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot2",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot3",
+                "state": "READY",
+                "released": false
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38001
+              },
+              {
+                "slot": "slot4",
+                "model": "qwen36",
+                "mode": "cpu",
+                "port": 38003
+              }
+            ]
+          },
+          {
+            "ms": 1795110923071,
+            "elapsed_ms": 287,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot2",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot3",
+                "state": "READY",
+                "released": false
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38001
+              },
+              {
+                "slot": "slot4",
+                "model": "qwen36",
+                "mode": "cpu",
+                "port": 38003
+              }
+            ]
+          },
+          {
+            "ms": 1795110924138,
+            "elapsed_ms": 954,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot2",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot3",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot4",
+                "state": "READY",
+                "released": false
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38001
+              },
+              {
+                "slot": "slot4",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38003
+              }
+            ]
+          },
+          {
+            "ms": 1795110925332,
+            "elapsed_ms": 433,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot2",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot3",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot4",
+                "state": "READY",
+                "released": false
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38001
+              },
+              {
+                "slot": "slot4",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38003
+              },
+              {
+                "slot": "slot5",
+                "model": "qwen36",
+                "mode": "cpu",
+                "port": 38004
+              }
+            ]
+          },
+          {
+            "ms": 1795110925875,
+            "elapsed_ms": 368,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot2",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot3",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot4",
+                "state": "READY",
+                "released": false
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38001
+              },
+              {
+                "slot": "slot4",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38003
+              },
+              {
+                "slot": "slot5",
+                "model": "qwen36",
+                "mode": "cpu",
+                "port": 38004
+              }
+            ]
+          },
+          {
+            "ms": 1795110927013,
+            "elapsed_ms": 1029,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot2",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot3",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot4",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot5",
+                "state": "READY",
+                "released": false
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38001
+              },
+              {
+                "slot": "slot4",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38003
+              },
+              {
+                "slot": "slot5",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38004
+              }
+            ]
+          },
+          {
+            "ms": 1795110927827,
+            "elapsed_ms": 694,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot2",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot3",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot4",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot5",
+                "state": "READY",
+                "released": false
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38001
+              },
+              {
+                "slot": "slot4",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38003
+              },
+              {
+                "slot": "slot5",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38004
+              }
+            ]
+          },
+          {
+            "ms": 1795110933939,
+            "elapsed_ms": 4866,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot3",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot4",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot5",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot2",
+                "state": "STOPPED",
+                "released": true
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38001
+              },
+              {
+                "slot": "slot4",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38003
+              },
+              {
+                "slot": "slot5",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38004
+              }
+            ]
+          },
+          {
+            "ms": 1795110934599,
+            "elapsed_ms": 342,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot3",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot4",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot5",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot2",
+                "state": "STOPPED",
+                "released": true
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38001
+              },
+              {
+                "slot": "slot4",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38003
+              },
+              {
+                "slot": "slot5",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38004
+              }
+            ]
+          },
+          {
+            "ms": 1795110934602,
+            "elapsed_ms": 2,
+            "http": 200,
+            "manager_status": "unreachable",
+            "error_class": "connection_or_config_error",
+            "kind": "null",
+            "control": false,
+            "instances": null,
+            "slots": null
+          },
+          {
+            "ms": 1795110934934,
+            "elapsed_ms": 331,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot3",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot4",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot5",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot2",
+                "state": "STOPPED",
+                "released": true
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38001
+              },
+              {
+                "slot": "slot4",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38003
+              },
+              {
+                "slot": "slot5",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38004
+              }
+            ]
+          },
+          {
+            "ms": 1795110934936,
+            "elapsed_ms": 2,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": false,
+            "instances": null,
+            "slots": null
+          },
+          {
+            "ms": 1795110934938,
+            "elapsed_ms": 2,
+            "http": 409,
+            "manager_status": null,
+            "error_class": "qa_probe_unarmed",
+            "kind": "undefined",
+            "control": false,
+            "instances": null,
+            "slots": null
+          },
+          {
+            "ms": 1795110935220,
+            "elapsed_ms": 280,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot3",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot4",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot5",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot2",
+                "state": "STOPPED",
+                "released": true
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38001
+              },
+              {
+                "slot": "slot4",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38003
+              },
+              {
+                "slot": "slot5",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38004
+              }
+            ]
+          },
+          {
+            "ms": 1795110935223,
+            "elapsed_ms": 3,
+            "http": 503,
+            "manager_status": null,
+            "error_class": "synthetic_status_unavailable",
+            "kind": "undefined",
+            "control": false,
+            "instances": null,
+            "slots": null
+          },
+          {
+            "ms": 1795110935608,
+            "elapsed_ms": 382,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot3",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot4",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot5",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot2",
+                "state": "STOPPED",
+                "released": true
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38001
+              },
+              {
+                "slot": "slot4",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38003
+              },
+              {
+                "slot": "slot5",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38004
+              }
+            ]
+          },
+          {
+            "ms": 1795110936327,
+            "elapsed_ms": 719,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot3",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot4",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot5",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot2",
+                "state": "STOPPED",
+                "released": true
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38001
+              },
+              {
+                "slot": "slot4",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38003
+              },
+              {
+                "slot": "slot5",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38004
+              }
+            ]
+          },
+          {
+            "ms": 1795110936652,
+            "elapsed_ms": 323,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot3",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot4",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot5",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot2",
+                "state": "STOPPED",
+                "released": true
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38001
+              },
+              {
+                "slot": "slot4",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38003
+              },
+              {
+                "slot": "slot5",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38004
+              }
+            ]
+          },
+          {
+            "ms": 1795110936654,
+            "elapsed_ms": 2,
+            "http": 0,
+            "kind": "network_error",
+            "error_class": "TypeError"
+          },
+          {
+            "ms": 1795110936976,
+            "elapsed_ms": 322,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot3",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot4",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot5",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot2",
+                "state": "STOPPED",
+                "released": true
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38001
+              },
+              {
+                "slot": "slot4",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38003
+              },
+              {
+                "slot": "slot5",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38004
+              }
+            ]
+          },
+          {
+            "ms": 1795110937525,
+            "elapsed_ms": 324,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot3",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot4",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot5",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot2",
+                "state": "STOPPED",
+                "released": true
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38001
+              },
+              {
+                "slot": "slot4",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38003
+              },
+              {
+                "slot": "slot5",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38004
+              }
+            ]
+          },
+          {
+            "ms": 1795110938716,
+            "elapsed_ms": 376,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot3",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot4",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot5",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot2",
+                "state": "STOPPED",
+                "released": true
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38001
+              },
+              {
+                "slot": "slot4",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38003
+              },
+              {
+                "slot": "slot5",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38004
+              }
+            ]
+          },
+          {
+            "ms": 1795110939019,
+            "elapsed_ms": 2,
+            "http": 503,
+            "manager_status": null,
+            "error_class": "synthetic_status_unavailable",
+            "kind": "undefined",
+            "control": false,
+            "instances": null,
+            "slots": null
+          },
+          {
+            "ms": 1795110939129,
+            "elapsed_ms": 3,
+            "http": 503,
+            "manager_status": null,
+            "error_class": "synthetic_status_unavailable",
+            "kind": "undefined",
+            "control": false,
+            "instances": null,
+            "slots": null
+          },
+          {
+            "ms": 1795110939237,
+            "elapsed_ms": 2,
+            "http": 503,
+            "manager_status": null,
+            "error_class": "synthetic_status_unavailable",
+            "kind": "undefined",
+            "control": false,
+            "instances": null,
+            "slots": null
+          },
+          {
+            "ms": 1795110939715,
+            "elapsed_ms": 369,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot3",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot4",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot5",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot2",
+                "state": "STOPPED",
+                "released": true
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38001
+              },
+              {
+                "slot": "slot4",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38003
+              },
+              {
+                "slot": "slot5",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38004
+              }
+            ]
+          },
+          {
+            "ms": 1795110940803,
+            "elapsed_ms": 649,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot3",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot4",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot5",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot2",
+                "state": "STOPPED",
+                "released": true
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38001
+              },
+              {
+                "slot": "slot4",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38003
+              },
+              {
+                "slot": "slot5",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38004
+              }
+            ]
+          },
+          {
+            "ms": 1795110941888,
+            "elapsed_ms": 734,
+            "http": 200,
+            "manager_status": "online",
+            "error_class": null,
+            "kind": "object",
+            "control": true,
+            "instances": [
+              {
+                "slot": "slot3",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot4",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot5",
+                "state": "READY",
+                "released": false
+              },
+              {
+                "slot": "slot2",
+                "state": "READY",
+                "released": false
+              }
+            ],
+            "slots": [
+              {
+                "slot": "slot1",
+                "model": null,
+                "mode": "cpu",
+                "port": 65351
+              },
+              {
+                "slot": "slot2",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38000
+              },
+              {
+                "slot": "slot3",
+                "model": "kat",
+                "mode": "cpu",
+                "port": 38001
+              },
+              {
+                "slot": "slot4",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38003
+              },
+              {
+                "slot": "slot5",
+                "model": "qwen36",
+                "mode": "cuda",
+                "port": 38004
+              }
+            ]
+          }
+        ],
+        "console_errors": []
+      }
+    },
+    {
+      "name": "build-review",
+      "command": "Client_Ultra_LLM/Build-Portable.ps1 -BuilderPython <pinned> -OutputRoot <Test/portable> -ReleaseName UltraLLM_Client_Chat_Win64_Review",
+      "exit": 0,
+      "seconds": 14.7372946,
+      "pass": 1,
+      "fail": 0,
+      "skip": 0,
+      "evidence": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/build-review.log"
+    },
+    {
+      "name": "C-package-portable",
+      "command": "UL_QA_PORTABLE=<verified EXE>; node Client_Ultra_LLM/test_browser_independent_chats.mjs",
+      "exit": 0,
+      "seconds": 27.1680541,
+      "pass": 1,
+      "fail": 0,
+      "skip": 0,
+      "evidence": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/C-package-portable.log",
+      "details": {
+        "status": "PASS",
+        "scope": "Chrome / portable EXE / TLS SOURCE Manager / synthetic Colibri",
+        "seconds": 27.089767,
+        "results": {
+          "scroll": {
+            "reasoning": {
+              "top": 1988.1817626953125,
+              "height": 2410,
+              "client": 422,
+              "distance": -0.1817626953125
+            },
+            "answer": {
+              "top": 4130.9091796875,
+              "height": 4553,
+              "client": 422,
+              "distance": 0.0908203125
+            },
+            "paused": {
+              "top": 10,
+              "height": 6696,
+              "client": 422,
+              "distance": 6264
+            }
+          },
+          "scheduler_release_ms": 2656,
+          "scheduler_checks": [
+            "busy",
+            "busy",
+            "busy",
+            "busy",
+            "ready_unreserved"
+          ],
+          "synthetic_usage": {
+            "prompt_tokens": 17,
+            "completion_tokens": 8
+          },
+          "independence_and_history": true,
+          "terminal_paths": [
+            "done",
+            "cancelled",
+            "truncated",
+            "no usage"
+          ],
+          "restart_and_time": true,
+          "offline_and_validation": true,
+          "closed_ports": [
+            true,
+            true,
+            true,
+            true
+          ]
+        }
+      }
+    }
+  ],
+  "package": {
+    "entries_verified": 75,
+    "zip": {
+      "relative_local_path": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/portable/UltraLLM_Client_Chat_Win64_Review.zip",
+      "bytes": 10859179,
+      "sha256": "8516d1f7f8fdae28603d3076038fbfe5e81bd33191324e46b4e15dbc69f1057a"
+    },
+    "exe": {
+      "relative_local_path": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/portable/UltraLLM_Client_Chat_Win64_Review/UltraLLMClient.exe",
+      "bytes": 2372670,
+      "sha256": "c2f848de7808c4d7a0551d89c4e15c0d29774ee3631ee1d00b01d3a08a56c427"
+    },
+    "source_assets": {
+      "web_assets/client.js": "6660d002ee3ff2ac6656f646ccf67e098b5f15f2bb832ab0ae3a80fb10624123",
+      "web_assets/client.css": "da02fc08b8f4941fa65e9ebdb94f7480f5d704c2ebfbb08ca1ddc45d733ba28b",
+      "web_assets/index.html": "9565fe484f706d7a728262547c07f02f4fa0cd52eac16a9a6a9aac14f88678d9",
+      "Prepare-ClientPrivate.ps1": "230bbe0a7c1e58bfeca197362c1575c3c50db7c1fdabd3137e15ad2b37e1e568"
+    }
+  },
+  "diagnostic_comparison": {
+    "scope": "portable Client SQLite, synthetic Colibri",
+    "metrics": {
+      "long_zero_history": {
+        "state": "complete",
+        "context": {
+          "sent_history_messages": 0,
+          "history_char_budget": 200000,
+          "history_message_budget": 100,
+          "sent_history_chars": 0,
+          "units": "characters_not_tokens",
+          "available_messages": 0,
+          "omitted_messages": 0,
+          "sent_messages": 1,
+          "sent_chars": 7,
+          "sent_messages_json_bytes": 40,
+          "preparation_ms": 1.382
+        },
+        "first_fragment_ms": 293.17,
+        "generation_ms": 325.101,
+        "total_ms": 618.271,
+        "usage": {
+          "prompt_tokens": 17,
+          "completion_tokens": 8
+        },
+        "throughput": {
+          "completion_tokens_per_second": 22.475,
+          "basis": "provider_completion_tokens / upstream_request_seconds_including_prefill",
+          "window_ms": 355.949
+        }
+      },
+      "short_with_history": {
+        "state": "complete",
+        "context": {
+          "sent_history_messages": 2,
+          "history_char_budget": 200000,
+          "history_message_budget": 100,
+          "sent_history_chars": 4007,
+          "units": "characters_not_tokens",
+          "available_messages": 2,
+          "omitted_messages": 0,
+          "sent_messages": 3,
+          "sent_chars": 4017,
+          "sent_messages_json_bytes": 7721,
+          "preparation_ms": 1.157
+        },
+        "first_fragment_ms": 182.732,
+        "generation_ms": 0.129,
+        "total_ms": 182.861,
+        "usage": {
+          "prompt_tokens": 17,
+          "completion_tokens": 8
+        },
+        "throughput": {
+          "completion_tokens_per_second": 352.592,
+          "basis": "provider_completion_tokens / upstream_request_seconds_including_prefill",
+          "window_ms": 22.689
+        }
+      },
+      "short_history_zero": {
+        "state": "complete",
+        "context": {
+          "sent_history_messages": 0,
+          "history_char_budget": 200000,
+          "history_message_budget": 0,
+          "sent_history_chars": 0,
+          "units": "characters_not_tokens",
+          "available_messages": 4,
+          "omitted_messages": 4,
+          "sent_messages": 1,
+          "sent_chars": 7,
+          "sent_messages_json_bytes": 40,
+          "preparation_ms": 1.096
+        },
+        "first_fragment_ms": 200.599,
+        "generation_ms": 0.183,
+        "total_ms": 200.782,
+        "usage": {
+          "prompt_tokens": 17,
+          "completion_tokens": 8
+        },
+        "throughput": {
+          "completion_tokens_per_second": 342.016,
+          "basis": "provider_completion_tokens / upstream_request_seconds_including_prefill",
+          "window_ms": 23.391
+        }
+      },
+      "short_after_reset": {
+        "state": "complete",
+        "context": {
+          "sent_history_messages": 0,
+          "history_char_budget": 200000,
+          "history_message_budget": 0,
+          "sent_history_chars": 0,
+          "units": "characters_not_tokens",
+          "available_messages": 6,
+          "omitted_messages": 6,
+          "sent_messages": 1,
+          "sent_chars": 8,
+          "sent_messages_json_bytes": 41,
+          "preparation_ms": 1.04
+        },
+        "first_fragment_ms": 179.075,
+        "generation_ms": 0.121,
+        "total_ms": 179.196,
+        "usage": {
+          "prompt_tokens": 17,
+          "completion_tokens": 8
+        },
+        "throughput": {
+          "completion_tokens_per_second": 232.456,
+          "basis": "provider_completion_tokens / upstream_request_seconds_including_prefill",
+          "window_ms": 34.415
+        }
+      },
+      "cancel": {
+        "state": "cancelled",
+        "context": {
+          "sent_history_messages": 0,
+          "history_char_budget": 200000,
+          "history_message_budget": 0,
+          "sent_history_chars": 0,
+          "units": "characters_not_tokens",
+          "available_messages": 8,
+          "omitted_messages": 8,
+          "sent_messages": 1,
+          "sent_chars": 9,
+          "sent_messages_json_bytes": 42,
+          "preparation_ms": 2.263
+        },
+        "first_fragment_ms": 176.571,
+        "generation_ms": null,
+        "total_ms": 197.369
+      },
+      "truncated": {
+        "state": "failed",
+        "context": {
+          "sent_history_messages": 0,
+          "history_char_budget": 200000,
+          "history_message_budget": 0,
+          "sent_history_chars": 0,
+          "units": "characters_not_tokens",
+          "available_messages": 8,
+          "omitted_messages": 8,
+          "sent_messages": 1,
+          "sent_chars": 12,
+          "sent_messages_json_bytes": 45,
+          "preparation_ms": 2.106
+        },
+        "first_fragment_ms": 296.265,
+        "generation_ms": null,
+        "total_ms": 296.445
+      },
+      "nonstream_no_usage": {
+        "state": "complete",
+        "context": {
+          "sent_history_messages": 0,
+          "history_char_budget": 200000,
+          "history_message_budget": 0,
+          "sent_history_chars": 0,
+          "units": "characters_not_tokens",
+          "available_messages": 8,
+          "omitted_messages": 8,
+          "sent_messages": 1,
+          "sent_chars": 11,
+          "sent_messages_json_bytes": 44,
+          "preparation_ms": 1.468
+        },
+        "generation_ms": null,
+        "total_ms": 174.704,
+        "usage": {},
+        "throughput": {}
+      }
+    }
+  },
+  "terminal_process_audit": {
+    "task_process_count": 0,
+    "utc": "2026-11-19T17:56:43.4704902Z",
+    "audit": "Win32_Process by exact local task path"
+  },
+  "earlier_failures": {
+    "A-client-initial": "failed legacy send created SQLite; static detached-key assertion",
+    "A-client": "static history assertion reflected prior UI",
+    "A-verified-manager": "WinError 10053 in test_admin_permission_and_explicit_slot_grant during concurrent QA",
+    "C-ux-portable": "ACL installer used standard profile path instead of explicit --config-dir",
+    "B-final-2": "queued scroll after switching to an active chat",
+    "B-repeat-2": "queued programmatic scroll event misread as user movement after content growth"
+  },
+  "archive": "{'equal': True, 'working_sha256': '73f0afcca28ae02d2c28003819b5f9d871d453d99e1a84a9c661162560bb3aed', 'baseline_sha256': '73f0afcca28ae02d2c28003819b5f9d871d453d99e1a84a9c661162560bb3aed', 'permanent_original_in_baseline': True}",
+  "rotated_task_original": "Moved task block SHA-256 38d3f33302e52e795659c5cd62aa684aa264f310173d9edd02e4cfe350b18a9b",
+  "publish_status": "LOCAL ONLY",
+  "cleanup_state": "CLEANUP PENDING"
+}

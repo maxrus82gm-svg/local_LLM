@@ -40,15 +40,29 @@
   </header>
   <div id="chat-notice" role="status" class="notice hidden"></div>
   <div class="chat-layout">
-    <aside class="chat-sources"><div class="eyebrow">ПОДКЛЮЧЁННЫЕ СЛОТЫ</div>
-      <div id="chat-list" class="chat-list"><div class="placeholder">Загружаем слоты…</div></div>
+    <aside class="chat-sources">
+      <button id="chat-new" class="btn primary small" type="button">＋ Новый чат</button>
+      <div id="chat-list" class="chat-list"></div>
     </aside>
     <section class="chat-panel" aria-label="Переписка с LLM">
-      <div class="chat-panel-header"><div><h2 id="chat-title">Выберите модель</h2>
-        <p id="chat-subtitle">Доступные экземпляры появятся слева</p></div>
+      <div class="chat-panel-header"><div><h2 id="chat-title">Выберите чат</h2>
+        <p id="chat-subtitle"></p></div>
         <button class="btn secondary small" type="button" id="chat-popout" disabled>↗ Открепить окно</button></div>
-      <div id="chat-messages" class="chat-messages" aria-live="polite"><div class="chat-empty">Выберите слот для переписки.</div></div>
+      <div class="chat-tools">
+        <label>Модель <select id="chat-target" aria-label="Назначение чата"></select></label>
+        <details id="chat-actions"><summary>Управление чатом</summary>
+          <button class="btn secondary small" type="button" id="chat-rename">Переименовать</button>
+          <button class="btn secondary small" type="button" id="chat-reset">Сбросить контекст</button>
+          <button class="btn secondary small" type="button" id="chat-resume">Вернуть полный контекст</button>
+          <button class="btn secondary small" type="button" id="chat-clear">Очистить переписку</button>
+          <button class="btn secondary small" type="button" id="chat-restore">Восстановить переписку</button>
+          <button class="btn secondary small" type="button" id="chat-delete">Удалить чат</button>
+        </details>
+      </div>
+      <div id="chat-messages" class="chat-messages" aria-live="polite"><div class="chat-empty">Выберите или создайте чат.</div></div>
+      <button type="button" id="chat-latest" class="btn secondary small hidden">↓ К последнему сообщению</button>
       <div id="chat-state" class="chat-state" role="status"></div>
+      <div id="chat-timer" class="chat-state"></div>
       <div class="chat-stream-options"><label><input type="checkbox" id="chat-stream" checked> Потоковый ответ</label> <button type="button" id="chat-cancel" class="btn secondary small" disabled>Отменить поток</button></div>
           <details class="chat-settings"><summary>Параметры генерации и истории</summary>
         <label>Thinking <select id="chat-thinking"><option value="auto">Как настроено в Colibri</option><option value="on">Включить, если модель поддерживает</option><option value="off">Выключить</option></select></label>
@@ -60,7 +74,13 @@
         <p>Auto сохраняет настройки Colibri. Возможности thinking зависят от модели. Сокращение истории будет показано перед ответом.</p>
         <p>Защита локального Client: запрос до 1 MiB, сообщение до 131072 символов, ответ и reasoning по 1 Mi символов, поток до 64 MiB, кадр до 2 MiB, ожидание до 330 с. Политика Manager и реальные лимиты движка показаны в измерениях; действует наиболее строгий предел. История хранится полностью; окно просмотра — последние 100 сообщений.</p>
       </details>
-      <details class="chat-settings"><summary>Измерения текущего запроса</summary><p>Интервалы измеряются локальными точными таймерами. Метки времени разных компьютеров требуют синхронизации часов и сами по себе не означают сетевую задержку.</p><pre id="chat-metrics">Ещё нет измерений</pre></details>
+      <details id="chat-statistics" class="chat-settings"><summary>Измерения и запросы этого чата</summary>
+        <p>Время браузера и Client измеряется отдельно. Скорость маршрута включает подготовку prompt на стороне Colibri.</p>
+        <pre id="chat-metrics">Ещё нет измерений</pre>
+        <label>Модель <select id="chat-stat-model"><option value="">Все</option></select></label>
+        <label>Режим <select id="chat-stat-mode"><option value="">Все</option><option value="cpu">CPU</option><option value="cuda">CUDA</option><option value="unknown">Нет данных</option></select></label>
+        <div id="chat-stat-results"></div>
+      </details>
       <form id="chat-form" class="chat-form">
         <textarea id="chat-input" maxlength="131072" rows="3" placeholder="Сообщение выбранной LLM…" aria-label="Сообщение" disabled></textarea>
         <button type="submit" class="btn primary" id="chat-send" disabled>Отправить</button>

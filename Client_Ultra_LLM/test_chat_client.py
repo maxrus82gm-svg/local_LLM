@@ -116,9 +116,9 @@ class ChatWebTests(unittest.TestCase):
         # Detached chat selection uses a URL fragment, not a chat query
         # argument. The homepage now tolerates unrelated tracking queries.
         self.assertIn('window.location.hash.slice(1)', js)
-        self.assertIn('url.hash = "chat=" + encodeURIComponent(target.key)', js)
+        self.assertIn('url.hash = "chat=" + encodeURIComponent(chatSelected)', js)
         self.assertNotIn('url.searchParams.set("chat"', js)
-        self.assertIn('if (currentChat()) loadChatHistory();', js)
+        self.assertIn('if (chat && !view.request) loadChatHistory();', js)
         self.assertNotIn('stateLabel(item.availability).textContent', js)
         self.assertEqual(self.req("/api/chat/history?manager_id=../etc&slot_id=s&model_id=m")[0], 400)
         with self.assertRaises(ValueError):

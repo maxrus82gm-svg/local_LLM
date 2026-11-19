@@ -593,7 +593,7 @@ def make_handler(config_file, config, inbox, *, controller=None):
                             current, principal, snapshot, slot_id, model_id)
                         try:
                             controller.assert_chat_allowed(slot_id)
-                            owned = controller.chat_binding(slot_id)
+                            owned, execution_mode = controller.chat_binding(slot_id, with_mode=True)
                         except ControlError as error:
                             raise ChatError(error.reason, error.status) from None
                         identity = owned or snapshot["slots"][0]["instance_id"]
@@ -621,7 +621,8 @@ def make_handler(config_file, config, inbox, *, controller=None):
                             try:
                                 return self._stream_chat(port, model_id, messages, current, slot_id, cancelled,
                                     instance_id=identity, options=body.get("options"), policy=policy,
-                                    timing=timing, engine_limits=snapshot.get("engine_limits", {}))
+                                    timing=timing, engine_limits=snapshot.get("engine_limits", {}),
+                                    execution_mode=execution_mode)
                             finally:
                                 with streams_guard:
                                     active_streams.pop(stream_key, None)
@@ -630,7 +631,9 @@ def make_handler(config_file, config, inbox, *, controller=None):
                         return self._reply(200, {
                             "schema": "ultra.manager.chat.v1",
                             "manager_id": current["manager_id"],
-                            "slot_id": slot_id, "instance_id": identity, "model_id": model_id, **response})
+                            "slot_id": slot_id, "instance_id": identity, "model_id": model_id,
+                            "engine_limits":snapshot.get("engine_limits", {}), "transport_policy":policy,
+                            "execution_mode":execution_mode, **response})
                     finally:
                         lock.release()
                 except ChatError as error:
@@ -673,7 +676,8 @@ def make_handler(config_file, config, inbox, *, controller=None):
                 return self._reply(200, inbox.deny(body["ticket_id"]))
             except ValueError:
                 return self._reply(409, {"error": "not_pending"})
-        def _stream_chat(self, port, model_id, messages, current, slot_id, cancelled, *, instance_id, options, policy, timing, engine_limits):
+        def _stream_chat(self, port, model_id, messages, current, slot_id, cancelled, *, instance_id, options,
+                         policy, timing, engine_limits, execution_mode=None):
             events = proxy_stream(port, model_id, messages, cancelled=cancelled, options=options,
                                   policy=policy, timing=timing, timeout=policy["timeout_seconds"])
             try:
@@ -702,7 +706,7 @@ def make_handler(config_file, config, inbox, *, controller=None):
             try:
                 emit({"type": "meta", "schema":"ultra.manager.stream.v2", "manager_id": current["manager_id"],
                       "slot_id": slot_id, "instance_id": instance_id, "model_id": model_id,
-                      "transport_policy": policy, "engine_limits":engine_limits,
+                      "transport_policy": policy, "engine_limits":engine_limits, "execution_mode":execution_mode,
                       "options": options or {"thinking":"auto"}})
                 emit(first)
                 for event in events:

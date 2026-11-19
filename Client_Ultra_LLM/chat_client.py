@@ -187,7 +187,8 @@ def send_chat(profile, slot_id, model_id, messages, *, timeout=330, instance_id=
         if instance_id is not None and result.get("instance_id")!=instance_id:
             raise ChatClientError("chat_identity_mismatch")
         return {"reply":result["reply"],"finish_reason":result.get("finish_reason"),
-                "usage":result.get("usage",{}),"reasoning":result.get("reasoning","")}
+                "usage":result.get("usage",{}),"reasoning":result.get("reasoning",""),
+                **{k:result[k] for k in ("instance_id","execution_mode","engine_limits","transport_policy") if k in result}}
     except ChatClientError:raise
     except (OSError,ValueError,KeyError,TypeError,IndexError,AttributeError):
         raise ChatClientError("invalid_chat_response") from None

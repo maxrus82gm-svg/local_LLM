@@ -121,7 +121,7 @@ def proxy_chat(port, model_id, messages, *, timeout=300, options=None, policy=No
     """One actual non-streaming request; no fabricated output or retries."""
     body = json.dumps({
         "model": model_id, "messages": messages,
-        "stream": False, **upstream_options(options),
+        "stream": False, "context_compaction": "off", **upstream_options(options),
     }, ensure_ascii=False).encode("utf-8")
     req = Request(
         f"http://127.0.0.1:{port}/v1/chat/completions", method="POST",
@@ -178,7 +178,8 @@ def proxy_stream(port, model_id, messages, *, timeout=300, cancelled=None, optio
     req = Request(f"http://127.0.0.1:{port}/v1/chat/completions", method="POST",
         headers={"Content-Type": "application/json", "Accept": "text/event-stream"},
         data=json.dumps({"model": model_id, "messages": messages, "stream": True,
-                         "stream_options": {"include_usage": True}, **upstream_options(options)}).encode("utf-8"))
+                         "context_compaction": "off", "stream_options": {"include_usage": True},
+                         **upstream_options(options)}, ensure_ascii=False).encode("utf-8"))
     total = output = reasoning = 0
     first = None
     sequence = 0

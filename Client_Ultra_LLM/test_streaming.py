@@ -39,7 +39,9 @@ class HistoryStreamTests(unittest.TestCase):
         import sqlite3
         from contextlib import closing
         with closing(sqlite3.connect(self.folder/"chat_history.sqlite3")) as db:
-            db.execute(chat_store._SCHEMA)
+            db.execute("""CREATE TABLE messages (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                       manager_id TEXT NOT NULL, slot_id TEXT NOT NULL, model_id TEXT NOT NULL,
+                       role TEXT NOT NULL CHECK(role IN ('user','assistant')),content TEXT NOT NULL)""")
             db.execute("INSERT INTO messages(manager_id,slot_id,model_id,role,content) VALUES('m','slot2','kat','user','old')")
             db.commit()
         self.assertEqual(chat_store.history(self.folder,"m","slot2","kat"),[{"role":"user","content":"old"}])

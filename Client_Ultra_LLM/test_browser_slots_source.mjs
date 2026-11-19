@@ -6,7 +6,7 @@ import {spawn} from 'node:child_process';
 import assert from 'node:assert/strict';
 import {chromeSession,delay} from './browser_qa_helpers.mjs';
 const here=path.dirname(fileURLToPath(import.meta.url));
-const root=await fs.mkdtemp(path.join(here,'.slots-source-qa-'));
+const root=await fs.mkdtemp(path.join(process.env.UL_QA_ROOT || here,'.slots-source-qa-'));
 let fixture,browser;
 const statusTrace=[];
 const phaseTrace=[];
@@ -198,7 +198,7 @@ try{
   const layout=await browser.call('Page.getLayoutMetrics');
   const screenshot=await browser.call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,
     clip:{x:0,y:0,width:1440,height:Math.ceil(layout.cssContentSize.height),scale:1}});
-  await fs.writeFile(path.join(here,'stream_slots_browser.png'),Buffer.from(screenshot.data,'base64'));
+  await fs.writeFile(path.join(process.env.UL_QA_ROOT || here,'stream_slots_browser.png'),Buffer.from(screenshot.data,'base64'));
   console.log(JSON.stringify({status:'PASS',scope:'SOURCE API + SQLite + TLS + Chrome; fake engines/resources',
     default_slots:3,persisted_slots:5,simultaneous_same_model_cpu:2,simultaneous_same_model_cuda:2,
     unique_instance_ids:true,ipv6_listener_skipped:true,concurrent_chats_isolated:true,
@@ -214,5 +214,5 @@ try{
 }finally{
   if(browser)await browser.close();
   if(fixture&&fixture.exitCode===null){fixture.stdin.write('stop\n');for(let i=0;i<80&&fixture.exitCode===null;i++)await delay(100);if(fixture.exitCode===null)fixture.kill();}
-  for(let i=0;i<10;i++){try{assert(path.resolve(root).startsWith(path.resolve(here)+path.sep));await fs.rm(root,{recursive:true,force:true});break;}catch{await delay(200);}}
+  if(!process.env.UL_QA_ROOT)for(let i=0;i<10;i++){try{assert(path.resolve(root).startsWith(path.resolve(here)+path.sep));await fs.rm(root,{recursive:true,force:true});break;}catch{await delay(200);}}
 }

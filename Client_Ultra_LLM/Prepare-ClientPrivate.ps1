@@ -1,7 +1,8 @@
 # Owner-run once, on the computer where Ultra LLM Client will be installed.
 # Does not create tokens, connect to a server, or open a network port.
+param([string]$TargetDirectory = (Join-Path $env:LOCALAPPDATA 'UltraLLM\Client'))
 $ErrorActionPreference = 'Stop'
-$target = Join-Path $env:LOCALAPPDATA 'UltraLLM\Client'
+$target = [IO.Path]::GetFullPath($TargetDirectory)
 if (Test-Path -LiteralPath $target) {
     $items = @(Get-ChildItem -LiteralPath $target -Force)
     if ($items.Count -gt 0) {

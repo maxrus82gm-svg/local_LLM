@@ -45,6 +45,10 @@ def main():
     # Synthetic faults are claimed only by the browser request carrying their probe ID.
     status_faults={}
     status_fault_lock=threading.Lock()
+    chat_ux = "--chat-ux" in sys.argv[2:]
+    streaming_busy = threading.Event()
+    release_until = [0.0]
+    wave = threading.Event()
     class Colibri(BaseHTTPRequestHandler):
         model_id="qa-model"
         def do_GET(self):
@@ -73,16 +77,34 @@ def main():
                 allow_answer.set(); self.send_response(204); self.end_headers(); return
             if self.path == "/__qa/done":
                 allow_done.set(); self.send_response(204); self.end_headers(); return
-            if self.path == "/__qa/metrics":
+            if self.path == "/__qa/wave" and chat_ux:
+                wave.set(); self.send_response(204); self.end_headers(); return
+            if self.path == "/__qa/stop_model" and chat_ux:
+                self.model_id = None
+                type(self).model_id = None
+                self.send_response(204); self.end_headers(); return
+            if self.path == "/__qa/change_model" and chat_ux:
+                type(self).model_id = "qa-other"
+                self.send_response(204); self.end_headers(); return
+            if self.path == "/__qa/manager_down" and chat_ux:
+                manager.shutdown()
+                manager.server_close()
+                self.send_response(204); self.end_headers(); return
+            if self.path == "/__qa/payload" and chat_ux:
+                data = request_bodies[-1] if request_bodies else {}
+            elif self.path == "/__qa/metrics":
                 data={"requests":len(received),"generation_options":received[-1] if received else {},
                       "done_released":allow_done.is_set(),
                       "max_parallel_normal":normal_active[1],
                       "same_last_two_requests":len(request_bodies)>=2 and request_bodies[-1]==request_bodies[-2]}
             elif self.path == "/health":
+                if self.model_id is None:
+                    self.send_response(503); self.end_headers(); return
+                busy = streaming_busy.is_set() or time.monotonic() < release_until[0]
                 data={"status":"ok","context_tokens":32768,"max_tokens":8192,
-                      "scheduler":{"active":0,"queued":0,"capacity":1}}
+                      "scheduler":{"active":int(busy),"queued":0,"capacity":1}}
             elif self.path == "/v1/models":
-                data={"data":[{"id":self.model_id}]}
+                data={"data":[{"id":self.model_id}] if self.model_id else []}
             else:
                 self.send_response(404);self.end_headers();return
             encoded=json.dumps(data).encode()
@@ -91,14 +113,17 @@ def main():
             body=json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             received.append({k:v for k,v in body.items() if k not in ("messages","model")})
             request_bodies.append(body)
+            marker = body["messages"][-1]["content"]
             if body.get("stream") is not True:
                 with normal_lock:
                     normal_active[0]+=1;normal_active[1]=max(normal_active)
                     if normal_active[0]>=2:normal_pair.set()
                 if control_fixture:normal_pair.wait(3)
                 try:
-                    raw=json.dumps({"choices":[{"message":{"content":"Фиктивный ответ экземпляра", "reasoning_content":"Отдельное рассуждение"},"finish_reason":"stop"}],
-                                    "usage":{"prompt_tokens":7,"completion_tokens":5}},ensure_ascii=False).encode()
+                    reply = {"choices":[{"message":{"content":"Фиктивный ответ экземпляра", "reasoning_content":"Отдельное рассуждение"},"finish_reason":"stop"}]}
+                    if marker != "qa-no-usage":
+                        reply["usage"] = {"prompt_tokens":7,"completion_tokens":5}
+                    raw=json.dumps(reply,ensure_ascii=False).encode()
                     self.send_response(200);self.send_header("Content-Type","application/json");self.send_header("Content-Length",str(len(raw)));self.end_headers();self.wfile.write(raw)
                 finally:
                     with normal_lock:normal_active[0]-=1
@@ -109,6 +134,32 @@ def main():
                 # Split JSON and multibyte UTF-8 at arbitrary byte boundaries.
                 for start in range(0,len(raw),7):
                     self.wfile.write(raw[start:start+7]);self.wfile.flush()
+            if chat_ux:
+                streaming_busy.set()
+                try:
+                    emit({"reasoning_content":"Фрагмент рассуждения\n"*100 if marker == "qa-long" else "Фрагмент рассуждения"})
+                    if marker == "qa-cancel":
+                        for _ in range(300):
+                            time.sleep(0.02)
+                            emit({"reasoning_content":"."})
+                    if marker == "qa-truncated":
+                        return
+                    if marker == "qa-long":
+                        allow_answer.wait(20)
+                        emit({"content":"Первая часть ответа\n"*100})
+                        wave.wait(20)
+                        emit({"content":"Вторая часть ответа\n"*100})
+                        allow_done.wait(20)
+                    else:
+                        emit({"content":"Ответ " + marker})
+                    release_until[0] = time.monotonic() + 1.45
+                    self.wfile.write(b'data: {"choices":[],"usage":{"prompt_tokens":17,"completion_tokens":8}}\n\ndata: [DONE]\n\n')
+                    self.wfile.flush()
+                except OSError:
+                    pass
+                finally:
+                    streaming_busy.clear()
+                return
             try:
                 if benchmark.is_set():time.sleep(0.04)
                 emit({"reasoning_content":"Отдельное рассуждение 🧠"})
@@ -225,13 +276,25 @@ def main():
     local.RequestHandlerClass=LocalQA
     serve(local)
     print(json.dumps({"url":f"http://127.0.0.1:{local_port}","upstream":f"http://127.0.0.1:{upstream_port}",
+                      "manager":f"https://127.0.0.1:{manager_port}",
                       "ipv6_occupied_port":ipv6.getsockname()[1] if ipv6 else None}),flush=True)
     try:
         for line in sys.stdin:
             if line.strip()=="stop":break
+            if line.strip()=="restart-client" and chat_ux:
+                local.shutdown()
+                local.server_close()
+                servers.remove(local)
+                class RestartableClient(ThreadingHTTPServer):
+                    allow_reuse_address = True
+                local = RestartableClient(("127.0.0.1",local_port), web_client.make_handler(root, lambda:local_port, "QA-CSRF"))
+                serve(local)
+                print("client-restarted", flush=True)
     finally:
-        allow_answer.set();allow_done.set()
-        for server in reversed(servers):server.shutdown();server.server_close()
+        allow_answer.set();allow_done.set();wave.set()
+        for server in reversed(servers):
+            if server.fileno() >= 0:
+                server.shutdown(); server.server_close()
         if ipv6:ipv6.close()
 
 
