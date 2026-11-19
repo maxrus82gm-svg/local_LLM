@@ -24,7 +24,6 @@ import re
 import secrets
 import sqlite3
 import ssl
-import subprocess
 import sys
 import tempfile
 import threading
@@ -32,7 +31,7 @@ from urllib.parse import urlsplit
 import webbrowser
 
 from live_client import fetch_all, load_profiles
-from pairing_client import _require_private_acl, enroll
+from pairing_client import _require_private_acl, _run_windows_powershell, enroll
 from chat_client import ChatClientError, send_chat, stream_chat, control_request, cancel_chat
 from chat_store import (validate_key, history as load_chat_history,
                         context_for, append_exchange, claim_request, fail_request)
@@ -68,14 +67,8 @@ def ensure_private_dir(folder: Path) -> Path:
     if not folder.exists():
         if os.name == "nt":
             installer = HERE / "Prepare-ClientPrivate.ps1"
-            ps = Path(os.environ.get("SystemRoot") or
-                      os.environ.get("WINDIR") or r"C:\Windows") / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
-            cmd = [str(ps), "-NoProfile", "-NonInteractive",
-                   "-ExecutionPolicy", "Bypass", "-File", str(installer)]
-            result = subprocess.run(
-                cmd, capture_output=True, timeout=25,
-                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-                check=False)
+            result = _run_windows_powershell(
+                ["-ExecutionPolicy", "Bypass", "-File", str(installer)], timeout=25)
             if result.returncode:
                 raise PermissionError("Unable to create protected Client directory")
         else:

@@ -1,0 +1,52 @@
+{
+  "task_id": "CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001",
+  "created_utc": "2026-11-19T09:30:56.695525+00:00",
+  "cleanup_state": "CLEANUP PENDING",
+  "requires": [
+    "independent ACCEPTED",
+    "explicit OWNER cleanup",
+    "Final/report.md retained; verify final hashes",
+    "all child processes closed"
+  ],
+  "delete_roots": [
+    "Test/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001",
+    "Documents/Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/WorkEvidence"
+  ],
+  "retain_roots": [
+    "Documents/Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/Final",
+    "Production/",
+    "Backups/",
+    "Releases/",
+    "other task Test directories"
+  ],
+  "local_manifest": "Test/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/evidence_raw/local-manifest.json",
+  "dry_run": {
+    "performed_utc": "2026-11-19T14:23:13.311564+00:00",
+    "deleted_count": 0,
+    "canonical_inside_workspace": true,
+    "root_reparse_or_persistent_hardlinks": false,
+    "expected_test_file_count": 4572,
+    "expected_test_file_paths_sha256": "804d3cc9b8e20b5e1cdbd1e0d59cd9bacb3ed65035b5898a7bdfd52d5d4cb95d",
+    "expected_work_evidence_files": [
+      "Documents/Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/WorkEvidence/cleanup-plan.json",
+      "Documents/Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/WorkEvidence/document-proof.json",
+      "Documents/Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/WorkEvidence/evidence-manifest.json",
+      "Documents/Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/WorkEvidence/owner-cpu.json",
+      "Documents/Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/WorkEvidence/portable-bootstrap.mjs",
+      "Documents/Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/WorkEvidence/source.diff",
+      "Documents/Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/WorkEvidence/summary.json"
+    ]
+  },
+  "verify_before_deletion": [
+    "Resolve each exact path and ancestors under this workspace; reject any reparse or unrelated files.",
+    "Compare file names, retained hashes and counts against local-manifest.",
+    "A copy of the permanent report must remain; preserve rollback material.",
+    "If unknown files exist or the acceptance and grant differ, stop cleanup."
+  ],
+  "git_cleanup": "Owner or authorized coordinator removes only this task's WorkEvidence directory from the current Git tree under the approved scope. Source, Final and Git history are retained. No Codex Git mutation.",
+  "reviewed_remote_stage": {
+    "disposition": "Retained in protected approved server directory",
+    "server_stage_deletion_authorized": false,
+    "server_stage_outside_local_cleanup_roots": true
+  }
+}

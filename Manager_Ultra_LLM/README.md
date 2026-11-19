@@ -1769,3 +1769,21 @@ independent verdict was written.
 - Авторский журнал в `Documents/13_Тактический_контекст.md`. Полный текст ACTIVE из №76 перенесён в БЛОК 1.1 и отмечен как SUBMITTED / PARTIAL. БЛОК 1 свободен. Исходный архив F4/P1 остался в №65. Байты БЛОКА 4 совпадают с исходными.
 - Evidence в `Test/CODEX-UL-R5-RELEASE-ROLLOUT-20261118-001/s5-autonomous-review/`. Основные файлы `s5-76-live-checkpoint.json`, `s5-r5-live-readback.json`, `s5-r5-client-source-negative.json`, `s6-live-qa.json`, `s6-76-postflight.json` и `s7-final-evidence.json`. Приватный backup и секреты остаются в исходном защищённом хранилище.
 - Запрошена одна финальная независимая приёмка. В её scope входят точный LIVE rollout, реальные метрики и ограничения S6. Для отдельной проверки новых моделей потребуется согласованный доступ к model control.
+
+
+## CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001 — авторская сдача 19.11.2026
+
+**PARTIAL / INDEPENDENT REVIEW PENDING.** На №79 воспроизведены две гонки START/STOP и ошибка отправки по Enter. Локально защищены подтверждение supervisor при STOP и переход STOPPING. Client отправляет Enter через существующую форму. Диагностика portable выявила конфликт загружаемых типов Windows PowerShell Security при унаследованном PSModulePath. Дочерний WinPS использует системные модули, существующие ACL-проверки сохранены.
+
+Manager 352 PASS + 1 SKIP, Client 50 PASS. Chrome legacy 1/1, P0/Enter 5/5, P1 3/3, изолированный portable EXE/Chrome 1/1, негативные контроли 5/5. ZIP Client 73 файла, SHA-256 `ee89df4ae6c200d5ad3fe65a36a61a1b3c3958722491067cfc9215dd89f85263`.
+
+READ-ONLY на сервере подтвердил Manager 342152, Qwen 138268/139516, Valheim 248800 и прежний Client 35708 ONLINE. Реальная генерация и смена ролей ожидают OWNER GO, обновление Production ожидает независимой CI. WorkEvidence подготовлено локально, CLEANUP PENDING.
+
+[Авторский отчёт, проверки и материалы](../Documents/Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/Final/report.md)
+
+
+### CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001 / OWNER GO CPU — LIVE PASS в изоляции
+
+Два CPU-экземпляра KAT-Coder V2.5 Dev через отдельные Manager R5, Client и Chrome на сервере. READY 60,218 и 62,703 с, параллельные чаты пересеклись на 12,882 с. Отдельные reasoning-события, upstream cancel без записи неполного ответа, STOP одного с продолжением работы второго — PASS. Оба экземпляра штатно остановлены. Постпроверка защитных служб, SHA и существующего Client ONLINE — PASS. Порты теста свободны, процессы теста завершены. Raw evidence хранится под закрытым ACL. CUDA, рабочий Manager control и развёртывание Client вне этого CPU-прогона. CLEANUP PENDING.
+
+[Дополнение к авторскому отчёту](../Documents/Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/Final/owner-cpu-addendum.md)

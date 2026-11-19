@@ -29,6 +29,19 @@ def _validate_id(value: str, kind: str):
     return value
 
 
+def _run_windows_powershell(args, *, timeout):
+    system = Path(os.environ.get("SystemRoot") or os.environ.get("WINDIR") or r"C:\Windows")
+    ps_home = system / "System32" / "WindowsPowerShell" / "v1.0"
+    # Inherited module directories can break the built-in Security module's
+    # type data. Both ACL operations need Windows PowerShell's own modules.
+    env = {key: value for key, value in os.environ.items() if key.upper() != "PSMODULEPATH"}
+    env["PSModulePath"] = str(ps_home / "Modules")
+    return subprocess.run(
+        [str(ps_home / "powershell.exe"), "-NoProfile", "-NonInteractive", *args],
+        env=env, capture_output=True, timeout=timeout, check=False,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+
+
 def _require_private_acl(parent: Path):
     if os.name != "nt":
         if parent.stat().st_mode & (stat.S_IRWXG | stat.S_IRWXO):
@@ -49,12 +62,7 @@ def _require_private_acl(parent: Path):
         "if($bad -contains $sid){exit 10}"
         "}};exit 0"
     )
-    ps = Path(os.environ.get("SystemRoot") or
-              os.environ.get("WINDIR") or r"C:\Windows") / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
-    command = [str(ps), "-NoProfile", "-NonInteractive",
-               "-Command", check]
-    result = subprocess.run(command, capture_output=True,
-                            timeout=10, check=False)
+    result = _run_windows_powershell(["-Command", check], timeout=10)
     if result.returncode:
         raise PermissionError("Client private directory ACL is not protected")
 

@@ -1,0 +1,10 @@
+{
+  "head": "9023f3fdf485a120d05b2d4554612fa655a679f0",
+  "prior_archive_sha": "c004d395dc42f7cd91a7eb432a5d699352548e71",
+  "prior_archive_present_and_indexed": true,
+  "task_text_exact_sha256": "fa815d29ea8d08bc6a8ecb86e6be90263e988c5193b5a6b1ada82424bc45a457",
+  "card_after_sha256": "1f98cc3135f0b9f60684a7afd3ee709ae5338bf089b8f92c8a18978bccc7110f",
+  "block4_before_sha256": "1eb407070df7bce762c24b628803262b0e83a5a449f2762c87b3306e95e3deff",
+  "block4_after_sha256": "1eb407070df7bce762c24b628803262b0e83a5a449f2762c87b3306e95e3deff",
+  "readme_append_only": true
+}

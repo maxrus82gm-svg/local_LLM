@@ -255,6 +255,38 @@ class AdmissionTests(unittest.TestCase):
         self.assertEqual(self.core.catalog(self.alice)["instances"][0]["state"],"STOPPED")
         self.assertEqual(len(self.backend.stops),1)
 
+    def test_stop_is_not_accepted_before_start_has_a_verified_supervisor(self):
+        instance = self.start()["instance_id"]
+        with self.assertRaisesRegex(ControlError, "instance_not_stoppable"):
+            self.operation("stop", instance_id=instance)
+        self.assertEqual(len(self.pending), 1)
+        self.assertEqual(self.backend.stops, [])
+        self.settle()
+        self.assertEqual(self.core.catalog(self.alice)["instances"][0]["state"], "READY")
+
+    def test_late_start_result_and_catalog_leave_accepted_stop_in_progress(self):
+        start_backend = self.backend.start
+        start = self.start()
+        instance = start["instance_id"]
+
+        def start_then_accept_stop(spec, identity):
+            start_backend(spec, identity)
+            self.assertEqual(self.operation("stop", instance_id=identity)["state"], "STOPPING")
+
+        self.backend.start = start_then_accept_stop
+        self.pending.pop(0)()
+        with self.assertRaisesRegex(ControlError, "instance_not_ready"):
+            self.core.assert_chat_allowed(start["slot_id"])
+        # A verified supervisor can still report READY while STOP waits.
+        with self.core.db() as db:
+            db.execute("UPDATE instances SET created=? WHERE id=?", (time.time() - 15, instance))
+            db.commit()
+        self.assertEqual(self.core.catalog(self.alice)["instances"][0]["state"], "STOPPING")
+        self.settle()
+        stopped = self.core.catalog(self.alice)["instances"][0]
+        self.assertEqual((stopped["state"], stopped["released"]), ("STOPPED", True))
+        self.assertEqual(self.backend.stops, [instance])
+
     def test_unknown_telemetry_catalog_is_fail_closed(self):
         self.backend.verified=False
         catalog=self.core.catalog(self.alice)

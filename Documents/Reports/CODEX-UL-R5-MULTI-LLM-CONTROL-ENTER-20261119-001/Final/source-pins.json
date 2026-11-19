@@ -1,0 +1,48 @@
+{
+  "base_head": "9023f3fdf485a120d05b2d4554612fa655a679f0",
+  "source_diff_sha256": "2384889cb4bc1efbb857280b774787b881f8b3e5024991e3cd464515781a4aac",
+  "qa_sources": [
+    {
+      "path": "Client_Ultra_LLM/pairing_client.py",
+      "working_tree_sha256": "fe09f29c81a46a3620e01e5a823bc4e722bab4d68347087552f35b64f4812a5e",
+      "lf_sha256": "0ae21c3193d063b86bf019137470cc2eb0f7cd80213c61ca40fdfd41fa8f2660",
+      "base_git_blob_sha256": "686094b9585191a97a914a80e403a360d87a01cfd30cbd8d00d07745ac08607d"
+    },
+    {
+      "path": "Client_Ultra_LLM/test_browser_stream_source.mjs",
+      "working_tree_sha256": "7c9afe3447d9b2d8461a0089ff5cd29d53bd2399a2173fb1e285accd703e0188",
+      "lf_sha256": "7c9afe3447d9b2d8461a0089ff5cd29d53bd2399a2173fb1e285accd703e0188",
+      "base_git_blob_sha256": "26702884f44a2555c777e30a494811f093326fcdf0abbb7895735987e0aacaac"
+    },
+    {
+      "path": "Client_Ultra_LLM/test_pairing_client.py",
+      "working_tree_sha256": "4e1a28c79b080c0100b1ffe1a716d5aefbe56aa1bac61c40b45c8d6369f4791a",
+      "lf_sha256": "5ad9e1b19e7f507c532c68eaafa950de1de5d7f1213c2b1256a2693dfa8226a2",
+      "base_git_blob_sha256": "a2d9ded51ade27f7218d37bea4b38d540db45d20d96c5465de8a363985d17797"
+    },
+    {
+      "path": "Client_Ultra_LLM/web_assets/client.js",
+      "working_tree_sha256": "85eec8af97fb236a0f57c0466329da9ed2b08f1dbf29369ad0dd6658451e3856",
+      "lf_sha256": "85eec8af97fb236a0f57c0466329da9ed2b08f1dbf29369ad0dd6658451e3856",
+      "base_git_blob_sha256": "193b21ddca48d39d3b0af4cf1ce0c95831a25757db8c1985476fb313af17f3b7"
+    },
+    {
+      "path": "Client_Ultra_LLM/web_client.py",
+      "working_tree_sha256": "c8623ee201c18a72abde39aaa9d455109c4cf24dfc1ff6777fed4154b918b30b",
+      "lf_sha256": "c8623ee201c18a72abde39aaa9d455109c4cf24dfc1ff6777fed4154b918b30b",
+      "base_git_blob_sha256": "5e0eab07649b494548f0cb7f08b681cc7270db2fcac2f52c7d3e939a8b31ebff"
+    },
+    {
+      "path": "Manager_Ultra_LLM/control_runtime.py",
+      "working_tree_sha256": "d963a2ebbd39fc0509c400328c84ca28860a8e1c8b2ca40ab4fffe9238bf6dd1",
+      "lf_sha256": "d963a2ebbd39fc0509c400328c84ca28860a8e1c8b2ca40ab4fffe9238bf6dd1",
+      "base_git_blob_sha256": "0f24c5a411846f407f11f49aac20caf90bd41dfe4aae49c1dd24529a75996b5f"
+    },
+    {
+      "path": "Manager_Ultra_LLM/test_control_runtime.py",
+      "working_tree_sha256": "f5e4d47e47608e87b958e537693304f7284e55a264d1c8e078cc2f4faaf1f408",
+      "lf_sha256": "f5e4d47e47608e87b958e537693304f7284e55a264d1c8e078cc2f4faaf1f408",
+      "base_git_blob_sha256": "71256c5008e4845a646a59a43abb0a32d7efa8f6ed104f393916362433d9b66f"
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "task_id": "CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001",
+  "base_head": "9023f3fdf485a120d05b2d4554612fa655a679f0",
+  "entries": [
+    {
+      "relative_local_path": "Documents/Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/WorkEvidence/cleanup-plan.json",
+      "bytes": 2724,
+      "created_utc": "2026-11-19T09:30:59.560404+00:00",
+      "sha256": "16f1f814363f8c80b522c62c6cedb7985a69868678ff2f71709eb2191f7bdaa5",
+      "task_id": "CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001",
+      "kind": "cleanup guard",
+      "sanitized": true,
+      "publish_status": "LOCAL ONLY / PREPARED FOR OWNER PUBLICATION",
+      "cleanup_state": "CLEANUP PENDING"
+    },
+    {
+      "relative_local_path": "Documents/Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/WorkEvidence/document-proof.json",
+      "bytes": 573,
+      "created_utc": "2026-11-19T09:30:56.752195+00:00",
+      "sha256": "daf95acfd0ba05ee06138dcc99cbdfc9213fefaf50bc2b3be49fc49bfb627a00",
+      "task_id": "CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001",
+      "kind": "rotation integrity",
+      "sanitized": true,
+      "publish_status": "LOCAL ONLY / PREPARED FOR OWNER PUBLICATION",
+      "cleanup_state": "CLEANUP PENDING"
+    },
+    {
+      "relative_local_path": "Documents/Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/WorkEvidence/owner-cpu.json",
+      "bytes": 18410,
+      "created_utc": "2026-11-19T14:22:14.326021+00:00",
+      "sha256": "05d7e74cf93d76143f57859e8c56f58ae8e5422e4e1693c3023c7deae21bf783",
+      "task_id": "CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001",
+      "kind": "owner approved isolated live CPU result",
+      "sanitized": true,
+      "publish_status": "LOCAL ONLY / PREPARED FOR OWNER PUBLICATION",
+      "cleanup_state": "CLEANUP PENDING"
+    },
+    {
+      "relative_local_path": "Documents/Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/WorkEvidence/portable-bootstrap.mjs",
+      "bytes": 3207,
+      "created_utc": "2026-11-19T09:25:03.595563+00:00",
+      "sha256": "15c595fd541f4784aee4b102811a440511442fa3ed7e0f5112ac3a1ba5299fe5",
+      "task_id": "CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001",
+      "kind": "isolated QA helper",
+      "sanitized": true,
+      "publish_status": "LOCAL ONLY / PREPARED FOR OWNER PUBLICATION",
+      "cleanup_state": "CLEANUP PENDING"
+    },
+    {
+      "relative_local_path": "Documents/Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/WorkEvidence/source.diff",
+      "bytes": 22921,
+      "created_utc": "2026-11-19T09:25:03.595563+00:00",
+      "sha256": "2384889cb4bc1efbb857280b774787b881f8b3e5024991e3cd464515781a4aac",
+      "task_id": "CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001",
+      "kind": "review patch",
+      "sanitized": true,
+      "publish_status": "LOCAL ONLY / PREPARED FOR OWNER PUBLICATION",
+      "cleanup_state": "CLEANUP PENDING"
+    },
+    {
+      "relative_local_path": "Documents/Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/WorkEvidence/summary.json",
+      "bytes": 14991,
+      "created_utc": "2026-11-19T09:25:03.697227+00:00",
+      "sha256": "c28f0ba3febce5ba148d0ce25a4954f24c4c7099b36ac274b81125b42d5c49d5",
+      "task_id": "CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001",
+      "kind": "verified QA snapshot",
+      "sanitized": true,
+      "publish_status": "LOCAL ONLY / PREPARED FOR OWNER PUBLICATION",
+      "cleanup_state": "CLEANUP PENDING"
+    }
+  ],
+  "self_entry": "Manifest digest listed in task-local local-manifest.json.",
+  "privacy_review": "Sanitized field allowlist and restricted pattern scan PASS",
+  "publish_status": "LOCAL ONLY / PREPARED FOR OWNER PUBLICATION",
+  "cleanup_state": "CLEANUP PENDING"
+}

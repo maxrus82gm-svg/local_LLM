@@ -2,6 +2,7 @@
 import hashlib
 import io
 import json
+import os
 from pathlib import Path
 import tempfile
 from unittest.mock import patch
@@ -53,6 +54,20 @@ class PairingClientTests(unittest.TestCase):
             self._create(endpoint="http://localhost:8443")
         self.assertFalse((self.private / "manager-a.client-home.token").exists())
         self.assertFalse((self.private / "managers.json").exists())
+
+    def test_acl_subprocess_uses_only_its_own_system_module_path(self):
+        ps_home = Path(r"C:\Windows") / "System32" / "WindowsPowerShell" / "v1.0"
+        inherited = str(self.root / "incompatible-modules")
+        with patch.dict(os.environ, {"SystemRoot":r"C:\Windows", "PSModulePath":inherited}):
+            with patch.object(pairing_client.subprocess, "run") as run:
+                pairing_client._run_windows_powershell(["-Command", "Get-Acl"], timeout=10)
+            self.assertEqual(os.environ["PSModulePath"], inherited)
+        args, options = run.call_args
+        self.assertEqual(args[0], [str(ps_home / "powershell.exe"),
+                                  "-NoProfile", "-NonInteractive", "-Command", "Get-Acl"])
+        module_paths = [value for key, value in options["env"].items() if key.upper() == "PSMODULEPATH"]
+        self.assertEqual(module_paths, [str(ps_home / "Modules")])
+        self.assertEqual(options["timeout"], 10)
 
 
 if __name__ == "__main__":

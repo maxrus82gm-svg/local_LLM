@@ -188,9 +188,10 @@ class ModelControl:
 
     def _sync(self, db):
         for row in self._rows(db):
-            # Worker owns transition until it returns; a grace interval prevents
-            # treating supervisor boot as a stale lease. No automatic retry.
-            if row["released"] or (row["state"] in ("STARTING", "STOPPING") and time.time()-row["created"] < 10):
+            # Keep an accepted STOP exclusive during the runner's 60s wait,
+            # including a margin for dispatch and final identity verification.
+            grace = {"STARTING": 10, "STOPPING": 70}.get(row["state"], 0)
+            if row["released"] or time.time() - row["created"] < grace:
                 continue
             try:
                 status = self.backend.status(RunnerSpec(**json.loads(row["spec"])), row["instance_id"])
@@ -383,22 +384,34 @@ class ModelControl:
                     raise ControlError("instance_not_stoppable")
                 spec = RunnerSpec(**json.loads(row["spec"]))
                 identity = row["instance_id"]
+                if row["state"] == "STARTING":
+                    # A reservation can precede the supervisor and its stop
+                    # event. Accept STOP only after the backend verifies them.
+                    try:
+                        status = self.backend.status(spec, identity)
+                    except Exception:
+                        raise ControlError("instance_not_stoppable") from None
+                    if status["state"] not in ("STARTING", "READY") or status.get("released") is not False:
+                        raise ControlError("instance_not_stoppable")
                 row["state"] = "STOPPING"
                 db.execute("UPDATE instances SET state='STOPPING',created=? WHERE id=?", (time.time(), identity))
             db.execute("INSERT INTO requests VALUES(?,?,?,?)", (owner, payload["request_id"], fingerprint, identity))
             db.commit()
         def perform():
+            expected_state = "STARTING" if op == "start" else "STOPPING"
             try:
                 getattr(self.backend, op)(spec, identity)
                 status=self.backend.status(spec,identity)
                 with self.db() as db:
-                    db.execute("UPDATE instances SET state=?,reason=?,released=? WHERE id=?",
-                        (status["state"],status.get("reason"),int(status.get("released") is True),identity))
+                    # A late START result must not overwrite an accepted STOP.
+                    db.execute("UPDATE instances SET state=?,reason=?,released=? WHERE id=? AND state=? AND released=0",
+                        (status["state"],status.get("reason"),int(status.get("released") is True),identity,expected_state))
                     db.commit()
             except Exception:
                 # Never release a slot on an ambiguous launch/stop result.
                 with self.db() as db:
-                    db.execute("UPDATE instances SET state='ERROR',reason='runner_action_unconfirmed' WHERE id=?", (identity,))
+                    db.execute("UPDATE instances SET state='ERROR',reason='runner_action_unconfirmed' WHERE id=? AND state=? AND released=0",
+                        (identity,expected_state))
                     db.commit()
         self.dispatch(perform)
         return {"manager_id": self.config["manager_id"], **self._public(row, principal)}

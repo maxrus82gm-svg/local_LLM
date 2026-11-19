@@ -13,6 +13,8 @@
 
 ## 1. Рабочие правила Codex
 
+
+**Workspace / evidence (DEC-UL-20261119-WORKSPACE-EVIDENCE-ENTER-015).** Каноническое правило — [№000, «Не выходить за корень Workspace»](000_Задачи%20для%20агента.md). Для всех проектных записей, TEMP/TMP, профилей и сборок использовать назначенный корень и проверенное место внутри него. Любая внешняя запись требует личного разрешения владельца с точным путём и операцией. Артефакты задачи хранятся в task-local `Test/<TASK-ID>/`; локальный манифест и санитизированный `WorkEvidence/` доступны для независимой проверки. Публикация и удаление в Git выполняются владельцем или уполномоченным координатором. Очистка только после независимого ACCEPTED, сохранения итогового отчёта и явного OWNER cleanup.
 **OWNER RULE 15.11:** Codex работает **ТОЛЬКО ЛОКАЛЬНО**, любые `git add/commit/push` и иные Git write запрещены даже при ошибочном старом разрешении. Владелец делает локальный commit/push, ChatGPT только по отдельному поручению меняет `GPT_2_local`, независимо проверяет и пишет БЛОК 4. При сдаче DONE/PARTIAL Codex архивирует старую БЛОК 1.1 и переносит полный БЛОК 1 с AMENDMENT в 1.1, освобождает БЛОК 1. Входной STOP без работы не ротировать. №000/№06.
 
 
@@ -47,6 +49,18 @@ Codex работает **на компьютере владельца**, поэ�
 **БЛОК 1** — действующая дословная постановка (её сюда помещает владелец); **БЛОК 1.1** — последняя сданная дословная постановка для проверки, только после сохранения предыдущих материалов; **БЛОК 2** — краткий фактический результат; **БЛОК 3** — реальные OPEN и предложения NEXT; **БЛОК 4** — отдельное заключение независимого координатора. Это **структура Markdown**, не автоматизированная система переключения слотов.
 
 ### БЛОК 1 — ТЕКУЩАЯ ЗАДАЧА
+
+Свободен. Готов к получению следующей задачи от владельца.
+
+---
+
+### БЛОК 1.1 — ПОСЛЕДНЯЯ СДАННАЯ ЗАДАЧА (ДОСЛОВНЫЙ ОРИГИНАЛ)
+
+**Статус — PARTIAL / INDEPENDENT REVIEW PENDING.**
+
+Локальный офлайн-цикл и изолированный portable Client PASS. Реальные CPU/CUDA и два LIVE-чата ожидают внешнего OWNER GO, обновление установленного Client ожидает независимой приёмки. Evidence подготовлено локально, CLEANUP PENDING.
+
+Прежний полный оригинал R5 rollout и OWNER AMENDMENT хранятся в №78 `c004d395dc42f7cd91a7eb432a5d699352548e71` и отражены в №05/09. Постоянный отчёт — [Final/report.md](Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/Final/report.md).
 
 # CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001 — R5 MULTI-LLM LIVE + Client Enter + Workspace evidence lifecycle
 
@@ -109,106 +123,6 @@ Codex работает **на компьютере владельца**, поэ�
 
 
 
----
-
-### БЛОК 1.1 — ПОСЛЕДНЯЯ СДАННАЯ ЗАДАЧА (ДОСЛОВНЫЙ ОРИГИНАЛ)
-
-**Статус. SUBMITTED / PARTIAL / INDEPENDENT REVIEW PENDING.**
-
-S5 LIVE PASS по фактическим проверкам R5 и Client. S6 Qwen streaming, cancel и история PASS. Новые CPU/CUDA экземпляры, parallel chat и stop-one NOT RUN при отключённом control_models. S7 сдан на финальную независимую приёмку.
-
-Дословный оригинал вместе с OWNER AMENDMENT получен из №76 `3ceaa8603b67ae09219ac2bb06cf6f2f8ee72c93`. Предыдущий архив F4/P1 целиком сохранён в [№65](https://github.com/maxrus82gm-svg/local_LLM/blob/86880240df0f5a96d147f61d8246697c14bc4380/Documents/07_%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B8%20Codex.md). Отчёт добавлен в `Manager_Ultra_LLM/README.md`.
-
-# CODEX-UL-R5-RELEASE-ROLLOUT-20261118-001 — комплексный R5 release → gated server rollout → реальные LLM
-
-**TASK ID:** `CODEX-UL-R5-RELEASE-ROLLOUT-20261118-001`  
-**Дата:** 18.11.2026  
-**Исполнитель:** Sol/Max (локальный инженерный агент, действует по правилам Codex из №000/№07); режим Max рекомендован владельцем, но не является заменой тестов  
-**Проект:** `maxrus82gm-svg/local_LLM`; единственный dev workspace `M:\GitHub\local_LLM`  
-**Приоритет:** P0 — как можно скорее получить рабочий R5 Manager, несколько реальных LLM и затем мост к Web Alarm Ultra; мост и Electron НЕ входят в эту TASK  
-**Стадия назначения:** OWNER ASSIGNED / AWAITING OWNER ACTIVATION, никаких серверных операций от записи карточки не происходит.
-
-### OWNER AMENDMENT 19.11.2026 — ЕДИНЫЙ АВТОНОМНЫЙ ФИНИШ S5→S6→S7 (ПРИОРИТЕТ НАД ПРЕЖНИМИ GATE)
-
-**TASK НЕ МЕНЯЕТСЯ:** `CODEX-UL-R5-RELEASE-ROLLOUT-20261118-001`. Владелец прямо поручил **одним исполнением довести проект до S7**, без дробления на микрозадачи, без промежуточного обязательного запроса GO на каждом этапе, с **полным циклом самостоятельной инженерной работы и одной итоговой приёмкой**. Это расширение полномочий внутри уже существующей TASK, не новая TASK; изначальный текст ниже сохранён как исторический регламент, конфликтующие по частоте handoff/GO и временным окнам правила на S5–S7 **заменены этим AMENDMENT**.
-
-**Независимая приёмка кандидата уже дана ChatGPT:** S5 launcher SHA-256 `3ca6875ecf31c8dbaa1c7285fd37203c6d743e35f6cc9074181c8ef6b4bb3258`; server runner SHA-256 `90831ae0bf831c6521150e2f753ab030a9e843882ad935678f4b52f2eb265bb7`. На доступном `DESKTOP-SC96D3U` координатор прочитал исходники/diff/evidence, проверил exact SHA и сам повторил 39/39 launcher QA на x64 PowerShell 7.6.9, 27/27 Stop/WaitFree на PowerShell 7.6.9 и 27/27 на Windows PowerShell 5.1 = **83/83 PASS**. Авторский серверный read-only preflight 43 PASS, Client ONLINE, backup/stage ZIP/23 files TLS Qwen/Valheim verified по представленным evidence; coordinator independent server execution **NOT RUN**. Это **independent offline-scope acceptance** финального кандидата, а не подтверждение реального rollout. Авторские exact evidence `Test/CODEX-UL-R5-RELEASE-ROLLOUT-20261118-001/s5-launcher-review/`; на `main` №75 `8bac7c14a6eb242b7655018e2dd2cdd5566cf2c8` изменён только №13. Старый GO `S5-20261119-OWNER-003` закончился BLOCKED и **не должен повторно проигрываться**.
-
-**OWNER AUTHORIZATION (прямое решение владельца, одна TASK):** исполнитель сам вправе после свежих preflight/identity/backup-проверок провести предусмотренный **S5 Manager-only cutover и безопасный rollback** на `DESKTOP-KT4G5SM`, выполнить после успешного S5 **S6 ограниченные реальные тесты моделей и Client/Manager CPU/CUDA/stream/parallel**, затем **S7 финальную сдачу**, без запроса нового промежуточного GO в чат. В рамках S6 разрешены только короткие запросы к текущей Qwen без остановки/переконфигурации её процесса и **новые собственные изолированные экземпляры** моделей по свободным RAM/VRAM/портам, их Start/Stop и очистка; не подбирать и не переносить пользовательские GGUF на других машинах без отдельного обращения. Соблюдать реальные ресурсы; невозможное честно отметить PARTIAL/NOT RUN, а не ломать систему.
-
-**Временной guard:** владельцем **снят обязательный именно 15-минутный срок OWNER GO**. Старые timestamp-based разрешения не продлевать/переиспользовать; заменить техническую модель gate на однозначную авторизацию **текущей TASK и точно ограниченного scope**, свежие SHA/HEAD/PID/server state и при необходимости разумные технические тайм-ауты, которые исполнитель подбирает сам. Код S5 сейчас проверяет 15 минут и даже запрещает `rollback` после истечения — это **технический дефект безопасности** для длительного rollout. Перед новым live-выполнением минимально исправить авторизационный механизм, испытать отрицательные сценарии и **обеспечить возможность контролируемого безопасного rollback после тайм-аута**. Нельзя просто отключить все проверки или притворяться, что старый GO действителен. Если при изменениях затронут только локальный launcher/server-runner, повторить точные offline QA/identity/hashes, при этом не менять автоматически immutable production R5 ZIP. При необходимости изменения source R5 — pin/release/QA и отдельный фактический source verification обязательны.
-
-**Порядок самостоятельного исполнения:**
-1. Сохранить уже накопленные checkpoints, фиксировать coordinator verdict в №13; конфликт локальных правок/нового Git HEAD разрешать **без потери чужих данных**, Git write от Codex по-прежнему запрещён; при необходимости owner сводит документы.
-2. Обновить локальный S5 launcher/runner только насколько нужно для **task-scoped, а не 15-min wall-clock** разрешения; не упрощать Stop/WaitFree, TLS/auth/ACL/backup проверки. Доказать отрицательные тесты unauthorized/wrong SHA/head/host/stale baseline and fail-closed; отдельно rollback after expiry/race/transport loss.
-3. Снова проверить действительные Manager task/PID/port 8443, Client authenticated ONLINE, exact ZIP/stage 23/23 and trusted backup, Qwen/Colibri1, Valheim. При PASS **самостоятельно осуществить S5** и доказать real R5/Client API; при неоднозначном состоянии безопасно остановиться/восстановить по фактической identity, не убивать чужие процессы.
-4. После **S5 LIVE PASS** перейти к S6 сам, без нового OWNER GO: короткий real Qwen prompt через Client→Manager, измерение TTFT/tokens, reasoning if available, streaming/cancel/history; затем аккуратно запустить/остановить только новые owned CPU/CUDA models, проверить два parallel chats, stop-one isolation. Если hardware/credentials/capacity недостаточны — не отключать защиты, честный PARTIAL; не трогать Qwen и Valheim.
-5. S7: привести тестовые экземпляры в согласованное безопасное конечное состояние; проверить Client/Manager/Qwen/Valheim; один полный отчет, evidence, SHA/фактические метрики/изменённые файлы, документация, ротация БЛОК1→1.1 по №07 только после содержательной сдачи; попросить **одну финальную независимую приёмку владельцем/координатором**. Исполнитель не делает Git add/commit/push.
-
-**Коммуникация:** **НЕ ждать подтверждения/отвечать в чат после каждого этапа**; собственные технические checkpoints для восстановления при сбое допускаются/полезны, но не становятся искусственным gate. Достаточно **одной итоговой сдачи**. Связаться с владельцем только при реальном новом риске/необходимости расширить границы доступа либо в неустранимом BLOCKED; не создавать отдельные новые TASK, не дробить на микрозадачи.
-
-**Безусловные границы:** защищённые Qwen/Colibri1/Valheim и Client Production не останавливать, не переустанавливать, не менять пользовательские веса, внешние сети, firewall, private keys/config/TLS/ACL/permissions; private backup only protected; не менять `.gitignore`, не перестраивать деревья Test/Releases/Production. Никаких слепых Stop/kill-by-name, опасного rollback в unknown state, автозапуска больших моделей при нехватке RAM/VRAM. При настоящей несовместимости/потере доверенного состояния честный BLOCKED допустим; **автономия ≠ отказ от fail-closed**. `RELEASE HOLD` до подтверждённого S5 LIVE PASS; после S5 S6 выполняется в согласованных рамках без нового GO, финальный FULL LIVE PASS только по реальным проверкам.
-
----
-## 0. Цель, факты и неприкосновенные границы
-
-Одна **комплексная задача с последовательными остановочными GATE**, не «всё разом»: (A) сверить текущий baseline → (B) собрать новый воспроизводимый R5 из проверенного source → (C) independently check archive + synthetic CI/negative/rollback → (D) read-only server preflight и проверенный protected backup → (E) адресный server-only stage → (F) только по новому явному OWNER GO переключить **только Manager** с готовым rollback → (G) проверить настоящий Client/API → (H) только по отдельному OWNER GO выполнить небольшую серию реальных LLM CPU/CUDA/parallel, не затрагивая legacy процессы. Если gate не пройден или GO отсутствует — **BLOCKED с готовым handoff**, не подменять PASS гипотезой.
-
-**Доказанный baseline:** в `main` и `GPT_2_local` на постановке HEAD №65 `86880240df0f5a96d147f61d8246697c14bc4380`; Windows CI `44326513557` PASS в main; исходники Manager/Client офлайн проверены, Manager350 PASS / 1 existing SKIP, Client49 PASS, Chrome legacy/P0/P1 PASS; отдельно independent hosted rerun №64 `44321179202` attempt2 PASS. **Это не доказательство работы на установленном сервере.** Старый 21-file ZIP `R5-compat-20261113.1` / SHA-256 `ba4ebf65af7a0693cf4dce045eb08254434a4475fd4f79e031424c905d661ce2` устарел (содержит прежние исходники/validator). Его НЕЛЬЗЯ ставить. Новый ZIP обязан содержать текущие принятые source fixes F1/F2/F3, новый hash, новый version/name/manifest. Старый release/backup только read-only reference.
-
-**Защита production:** сервер `DESKTOP-KT4G5SM` (подтвердить свежей проверкой), серверный runtime `C:\Server\Ultra_LLM`, Manager `C:\Server\Ultra_LLM\Manager_Live`, task `UltraLLM_Manager_LIVE` (всё сверить, не доверять строке). Клиентский агент на домашнем ПК, сетевой UNC `\\192.168.0.77\Server\Ultra_LLM` — это НЕ способ удалённого выполнения; команды, запущенные с UNC дома, исполняются дома. Требуется доказанный server-side execution context для live. Действующие Qwen/Colibri1, Valheim, другие Colibri/службы, TLS/auth/config, firewall, task definition, сеть, модели/веса, installed Client/ярлык и личные данные — не трогать, если отсутствует отдельное точное OWNER GO. Нельзя открывать Internet/порты, увеличивать разрешения, выключать ACL/backup/safety gates ради теста.
-
-**ВЛАДЕЛЕЦ РАЗРЕШАЕТ В РАМКАХ ЭТОГО ПОРУЧЕНИЯ:** локальный read-only audit и проверки, безопасные изменения approved release/test helpers только при необходимости, новый пакет/стейдж внутри рабочего root, синтетические тесты, read-only server preflight и подготовку плана/проверок резервирования. Фактическая запись в protected server private backup или публичный sibling staging допускается лишь при подтверждённом праве/свежем baseline и безопасном разрешённом способе, без изменения активных файлов; **перед первым реальным server write запросить подтверждение владельца с точным путём и действием, если действующие полномочия не покрывают его явно.** Остановка/restart/switch Manager (SAFE-CUTOVER C/D) и настоящие POST inference/control/Start/Stop моделей — не автоматически разрешены данным текстом: перед ними отдельно запросить OWNER GO. При отсутствии GO подготовить всё возможное и остановиться без изменения live.
-
-## 1. READ MATRIX — только нужное для конкретного этапа
-
-- Обязательно до любых изменений: `Documents/000_Задачи для агента.md` §§3.1/3.2/3.3/4/5.1/5.3; `Documents/07_Задачи Codex.md` §1 и БЛОК1; `Documents/00_Старт.md` NOW; `Documents/03_Архитектура.md` актуализация 13/12.11; `Documents/05_Реестр_задач.md` NOW+R5 followups; `Documents/06_Журнал_решений.md` latest owner gates; `Documents/09_История_задач.md` latest; `Documents/13_Тактический_контекст.md` NOW; `Documents/18_Техническая_документация.md` §§18.31–18.37 и targeted release/cutover; `Manager_Ultra_LLM/README.md` R5 release, SAFE-CUTOVER A/B, restore/rollback, F3 and recent QA reports.
-- Code/read only as needed: `Manager_Ultra_LLM/manager_release.py`, `backup_provenance.py`, `rollback_qa.py`, `live_manager.py`, `chat_runtime.py`, `test_manager_release.py`, `stage_b_complete_readonly.py`, release tests; `Client_Ultra_LLM/web_client.py` and `web_assets` only to establish API compatibility; `.github/workflows/ultra-offline-ci.yml` only for offline CI verification.
-- Historical immutable exact original of SAFE-CUTOVER A/B in №07.00 / №09 / Git №54; old release manifest; prior F3 evidence. Do NOT overwrite old originals. **Если документы противоречат друг другу, текущие OWNER rules и свежая server readback имеют приоритет, конфликт фиксировать и останавливать опасный этап.**
-- Secret values не читать, не копировать в отчёт, не публиковать. Для private provenance только безопасные digest/metadata и защищённый storage без логирования raw data.
-
-## 2. WRITE / TEST SCOPE и Git
-
-- Локально можно писать **только по делу этой TASK** в существующие `Manager_Ultra_LLM/manager_release.py`, release/check/rollback/backup verification/test helpers, `Manager_Ultra_LLM/README.md` (append-only report), `Test/<TASK-ID>/` (санитизированные evidence, временные профили/fixtures), `Releases/Manager/<НОВОЕ_УНИКАЛЬНОЕ_ИМЯ>/` (ZIP/manifest), `Backups/Manager/<TASK-ID>/` (только допустимые локальные публичные reference), `Documents/13_Тактический_контекст.md` (обязательные stage checkpoints), `Documents/07_Задачи Codex.md` (только регламентная ротация ПОСЛЕ содержательной сдачи). Любые product changes, новый документ, изменения Client, CI workflow, `Documents/000/05/06/09/18` или безопасность — сначала запросить расширение scope. Координатор закроет остальные реестры и БЛОК 4 после публикации.
-- Никаких вторых рабочих корней, соседних клонов/worktree, релизов на произвольном диске и секретов в Git. Системные model weights и server protected backup — только на ранее согласованных защищённых местах.
-- Исполнитель **НИКОГДА** не делает `git add/commit/push/merge/rebase/reset/checkout` и не двигает refs. Только read-only `git status/diff/log/show`. Все обычные commit/push делает владелец. **Одна итоговая TASK = один owner commit**, не коммит на этап; если до deployment потребуются новые source changes, фиксировать их и до live-stage запросить owner publication + независимый CI на точном immutable SHA. Никаких неподтверждённых кодовых diff на сервер.
-- Рабочий сервер не является тестовым стендом. Запрещён force-delete, taskkill по имени, переустановка task, сохранение private backups в открытой SMB/Git папке, раскатывание старого ZIP. Любой unknown PID/version/ACL/TLS/backup/Valheim/Qwen health, потеря доступа или неоднозначный контроль ресурса => STOP/BLOCKED.
-
-## 3. ЭТАПЫ И ОБЯЗАТЕЛЬНЫЕ GATE
-
-**S0 — baseline и доступ (только чтение).** Установить фактические device/agent/target identities; чистоту локальной рабочей копии, SHA source/CI, текущую версию установленного Manager по разрешённым read-only методам; зафиксировать сравнение R5 API vs legacy (stream v2, cancel, catalog, control, slots). Проверить, что №65 уже локально получен; если нет доступа/HEAD diverged/незавершённые пользовательские правки — STOP, не переписывать. **PASS:** известны source SHA, topology, разрешения и конкретные границы.
-
-**S1 — свежий пакет из проверенного SOURCE (LOCAL).** Собрать **новый versioned source ZIP** из точно названного исходного HEAD; allowlist, 21-member schema или документированное обоснованное изменение, SHA256SUMS.txt, RELEASE.json, exact source hashes, отсутствие любых private files/absolute machine dependencies. Старый ZIP оставить нетронутым. Проверить дважды build/verify/stage в независимый новый local Test target (не в active server). Никакой «тихой» подмены source HEAD или старого hash. **PASS:** воспроизводимый, закрытый immutable digest candidate+manifest; строгие негативные ZIP tests.
-
-**S2 — независимый offline verification и rollback readiness (LOCAL).** Полный Windows-safe Manager/Client test suite, Chrome legacy/P0/P1, 5 negative controls, release/tamper/path/symlink/duplicate/rollback tests, Python/JS syntax. Результаты `PASS/FAIL/SKIP/NOT RUN`; 1 existing optional installed Colibri SKIP честно указан. Сравнить новый архив с точным принятым SHA и code/test matrix; **в случае изменения исходников** STOP для owner commit + independent GitHub CI на новом SHA прежде чем идти к server. Если код не менялся, использовать уже подтверждённый CI №65 и отдельные локальные package-specific checks; hosted CI на exact new source при возможности и согласовании. **PASS:** проверено, что архив содержит все принятые исправления и не нарушает legacy.
-
-**S3 — физический server preflight (только чтение).** Только проверенный server-side context: свежий PID/creation time/exe/owner/command line, listener 8443, task XML/action/principal/restart policy, TLS public fingerprint, protected config presence+ACL (без раскрытия), resource/disk/CPU/VRAM, manager old hashes, SQLite/WAL and owned instances; Qwen/Colibri1 port8000 health/models и Valheim baseline. Протоколировать не конфиденциальные identities и времена. Не запускать chat/control, не трогать процессы. При невозможности доказать identity либо несоответствии ожиданиям — BLOCKED. **PASS:** есть свежий preflight + решение какие точные действия безопасны.
-
-**S4 — protected backup и public-only staging (server, gated write).** Только после адресного разрешения на конкретные server writes: создать уникальную защищённую **полную** копию старого `Manager_Live` (включая unknown files), task XML, private config/auth/TLS, согласованный consistent SQLite backup с учётом WAL и ACL; фиксировать инвентарь/внешний trusted SHA/provenance и readback, проверить процедуру восстановления не повреждая active environment. Исторические backup/manifest сами себя не аутентифицируют. Новый ZIP сверить с trusted SHA; скопировать **только публичные релизные файлы** в новую sibling staging на том же server volume, выполнить imports и `--check-config` под утверждённой identity (без listener и Start/Stop). Existing private paths не изменять. **PASS:** backup restore-readiness подтверждена, stage exact, preflight всё ещё актуален; иначе BLOCKED, не писать в runtime.
-
-**GATE S5 — OWNER GO перед live cutover (MANDATORY STOP AND ASK).** Предъявить владельцу короткое сведение: old/new SHA, backup provenance/restore PASS, exact task/PID, старое/новое listener/config/TLS fingerprint, fresh Qwen/Valheim health, staging verification и rollback plan. Попросить **отдельное явное `OWNER GO: Manager-only switch+rollback`** для конкретного host/task/time window. До GO ничего не останавливать/переименовывать. Сам факт этого TASK или успешной сборки не есть GO.
-
-**S5 — controlled manager-only switch (только после GO).** Штатно остановить ИМЕННО подтверждённую `UltraLLM_Manager_LIVE`, ждать освобождения ровно её listener; в случае рестарта/race/unknown PID — STOP/BLOCKED. Переименовать старую полную runtime folder в retained rollback, staging→`Manager_Live` (две неатомарные операции, отдельно проверяемые), запустить старую scheduled task без переустановки/изменения XML/firewall. За конечный срок проверить real PID/TLS pinned handshake/auth snapshot/catalog/capabilities, Client ONLINE, сохранность Qwen/Valheim identities и private config/ACL/task hashes; не включать `owner_go/control_models` по умолчанию. На первом подтверждённом failure => `ROLLBACK_REQUIRED` по документированному rollback с собственной проверкой старого PID/listener; если невозможно безопасно откатить, немедленно BLOCKED и доклад владельцу — никаких широких kill/сбросов. **PASS:** реальный сервер отвечает R5 API, существующие сервисы и protected state не изменены.
-
-**GATE S6 — OWNER GO перед реальными LLM (MANDATORY STOP AND ASK).** Выдать владельцу список доступных уже установленных моделей, оценку RAM/VRAM, CPU/CUDA, исходные PID/порты и точный тест-план; запросить отдельное разрешение на конкретные LLM START/STOP и bounded real prompts. Не отключать RAM/VRAM warnings, owner_go, auth, capacity checks, safety/ACL; если control права не назначены — не повышать их самостоятельно.
-
-**S6 — ограниченные LIVE-интеграционные тесты (только после GO).** Сначала короткий реальный запрос через Client→Manager→уже запущенную Qwen (если разрешён); проверить текст по фрагментам, TTFT, отдельно доступный reasoning, cancel, history/reload и connection recovery. Затем запуск и остановка только **новых принадлежащих тесту экземпляров** CPU/CUDA в отдельных безопасных слотах (1→2, далее больше ТОЛЬКО если есть ресурсы и явный approval), 2 параллельных чата, stop-one не затрагивает другой, memory/port/PID isolation, рестарт Client не теряет историю; отсутствие тайного auto-START. Если нехватка ресурсов — предупреждение и отказ/пропуск с `NOT RUN`, а не насильственный запуск. После тестов подтвердить исходный baseline Qwen/Valheim и оставить ровно согласованное конечное состояние; чужие процессы не останавливать. **PASS:** end-to-end для разрешённых реальных моделей, без регрессий и утечек; иначе honest PARTIAL.
-
-**S7 — финальная сдача.** Полный handoff `DONE/CHANGED/DIFF/TESTS/LIVE/NEGATIVE/ROLLBACK/PROBLEMS/QUESTIONS/DOC IMPACT/NEXT`, SHA source/ZIP/backups (не секреты), снимки статусов и owner GOs, direct URL CI, разделение AUTHOR vs INDEPENDENT. Сохранить append-only `Manager_Ultra_LLM/README.md` report и sanitized `Test/<TASK-ID>`. После содержательного DONE/PARTIAL/BLOCKED с результатами — проверить старый immutable BLOCK1.1, ротация полного БЛОКА1→1.1, освободить БЛОК1, не писать БЛОК4; report owner for commit/push → coordinator independent review/Windows CI/real UX as needed. **Без реального GO на S5/S6 возможно завершение `PARTIAL / STAGED READY`, но не `LIVE PASS`.**
-
-## 4. КРИТИЧЕСКОЕ ТРЕБОВАНИЕ ВЛАДЕЛЬЦА: тактический контекст после КАЖДОГО этапа
-
-**Обязательно в конце S0, S1, S2, S3, S4, GATE S5, S5, GATE S6, S6, S7, и при любом BLOCKED/interrupt:** сразу (до следующего действия) сохранить в существующем локальном `Documents/13_Тактический_контекст.md` датированный/временной **checkpoint** новой TASK. Новые записи размещать вверху раздела NOW, без удаления старых; текущий статус, точный этап, previous PASS/FAIL, SHA/bundle ID, физическая машина, действия (только безопасная сводка), результаты/логи/evidence paths, процессы/сервисы touched/untouched, backup/rollback verified, owner GO ID/границы, risks/blockers, `NEXT EXACT ACTION` и критерий продолжения. **Checkpoint писать атомарно, читабельно, после каждого этапа**, не откладывая до конца и не считать документный статус самостоятельной приёмкой.
-
-**После каждого checkpoint** также отправить в этот чат 5–10 строк `TASK | stage | PASS/PARTIAL/BLOCKED | source SHA | completed evidence | server touched? | next | need OWNER GO?`. Это необходимо для продолжения другим агентом/координатором, когда локальный тактический файл ещё не опубликован на GitHub. Локальные записи НЕ появляются автоматически в удалённом репозитории. **Не делать промежуточных Git-коммитов**; для продолжения с другого агента владелец передаёт свежий `13`/handoff или даёт read-only доступ к локальной копии. Публикация только владельцем по регламенту.
-
-**Resume protocol:** при смене агента/потере соединения сперва читать последние фактические S-checkpoint в №13 + last chat handoff, сверить текущие PID/listener/versions и actual state read-only, проверить artifact/backup SHA; **не повторять опасную операцию по предположению**, не доверять устаревшим baseline, не считать незавершённый шаг PASS. Несовпадение с записанным состоянием => STOP и новый OWNER decision. Нельзя запускать stage N+1 при незавершённом gate N.
-
-## 5. CRITERIA FOR ACCEPTANCE / CLOSEOUT
-
-Вердикт `FULL LIVE PASS` возможен только после S0–S6 реально подтверждённых на конкретном сервере/Client и owner-permitted real LLM tests; отделять model availability от факта двух одновременно работающих независимых instances, измерения потока от synthetic. Исторический live `data:null` мониторить; не скрывать. Если gate не получен, состояние `PARTIAL/STAGED READY/WAITING OWNER GO` с checkpoint считается честной сдачей, не неудачей.
-
-**НЕЛЬЗЯ:** объявлять новую систему «Colibri» (это сторонний движок), перерисовывать UI или начинать Web Alarm Ultra bridge/Electron в этой TASK, менять доступы/сети/secret formats, перестраивать runtime. Переход к мосту — следующая самостоятельная согласованная задача после работающих реальных моделей.
 
 ### БЛОК 2 — ПОСЛЕДНИЕ ПЯТЬ ЗАДАЧ (КОРОТКИЙ ИНДЕКС)
 

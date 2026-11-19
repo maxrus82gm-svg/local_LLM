@@ -80,6 +80,7 @@ function controlReason(reason) {
     no_free_authorized_slot:"Нет свободного разрешённого слота",
     model_not_authorized:"Эта модель не разрешена клиенту",
     instance_not_authorized:"Экземпляр принадлежит другому клиенту или слот не разрешён",
+    instance_not_stoppable:"Остановка недоступна до подтверждения состояния экземпляра",
     runner_action_unconfirmed:"Результат операции не подтверждён; слот защищён от повторного запуска",
     supervisor_unverified:"Владение процессом не подтверждено",
     runtime_or_telemetry_unverified:"Runtime или состояние сервера не подтверждены"
@@ -790,15 +791,17 @@ async function submitChat(event) {
   event.preventDefault();
   if (chatBusy) return;
   const target = currentChat();
-  const message = byId("chat-input").value.trim();
+  const input = byId("chat-input");
+  const message = input.value.trim();
   if (!chatReady(target) || !message || message.length > 131072) return;
+  const restoreInputFocus = document.activeElement === input;
   chatBusy = true;
   const started=performance.now();
   streamMetrics={browser_request_unix_ms:performance.timeOrigin+started};
   const targetKey = chatSelected;
   activeChatKey = targetKey;
   byId("chat-send").disabled = true;
-  byId("chat-input").disabled = true;
+  input.disabled = true;
   byId("chat-state").textContent = "Запрос выполняется на сервере. Ожидаем настоящий ответ модели…";
   setChatNotice("");
   try {
@@ -884,7 +887,7 @@ async function submitChat(event) {
       result = await api("/api/chat/history?" + new URLSearchParams(targetFields(target,true)));
     }
     if (chatSelected === targetKey) {
-      byId("chat-input").value = "";
+      input.value = "";
       renderMessages(result.messages);
       byId("chat-state").textContent = "Ответ получен от " + target.model_id;
     }
@@ -896,6 +899,10 @@ async function submitChat(event) {
     chatAbort = null;
     byId("chat-cancel").disabled = true;
     renderChatList(chatSnapshot);
+    if (restoreInputFocus && chatOpen && chatSelected === targetKey &&
+        document.activeElement === document.body && !input.disabled) {
+      input.focus({preventScroll:true});
+    }
   }
 }
 
@@ -903,6 +910,14 @@ byId("nav-overview").addEventListener("click", showOverview);
 byId("nav-chats").addEventListener("click", showChats);
 byId("chat-reload").addEventListener("click", refresh);
 byId("chat-form").addEventListener("submit", submitChat);
+byId("chat-input").addEventListener("keydown", event => {
+  // Chromium can report keyCode 229 on an IME commit with isComposing=false.
+  if (event.key !== "Enter" || event.shiftKey || event.ctrlKey || event.altKey ||
+      event.metaKey || event.isComposing || event.keyCode === 229) return;
+  event.preventDefault();
+  if (event.repeat || byId("chat-send").disabled || !event.currentTarget.value.trim()) return;
+  event.currentTarget.form.requestSubmit();
+});
 byId("chat-show-reasoning").addEventListener("change", () => { document.querySelectorAll(".reasoning-panel").forEach(x => x.classList.toggle("hidden", !byId("chat-show-reasoning").checked)); });
 byId("chat-cancel").addEventListener("click", async () => {
   if (!chatAbort || !chatRetry) return;

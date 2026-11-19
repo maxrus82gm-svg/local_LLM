@@ -1,0 +1,390 @@
+diff --git a/Client_Ultra_LLM/pairing_client.py b/Client_Ultra_LLM/pairing_client.py
+index 807a497..86aa3b5 100644
+--- a/Client_Ultra_LLM/pairing_client.py
++++ b/Client_Ultra_LLM/pairing_client.py
+@@ -29,6 +29,19 @@ def _validate_id(value: str, kind: str):
+     return value
+ 
+ 
++def _run_windows_powershell(args, *, timeout):
++    system = Path(os.environ.get("SystemRoot") or os.environ.get("WINDIR") or r"C:\Windows")
++    ps_home = system / "System32" / "WindowsPowerShell" / "v1.0"
++    # Inherited module directories can break the built-in Security module's
++    # type data. Both ACL operations need Windows PowerShell's own modules.
++    env = {key: value for key, value in os.environ.items() if key.upper() != "PSMODULEPATH"}
++    env["PSModulePath"] = str(ps_home / "Modules")
++    return subprocess.run(
++        [str(ps_home / "powershell.exe"), "-NoProfile", "-NonInteractive", *args],
++        env=env, capture_output=True, timeout=timeout, check=False,
++        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
++
++
+ def _require_private_acl(parent: Path):
+     if os.name != "nt":
+         if parent.stat().st_mode & (stat.S_IRWXG | stat.S_IRWXO):
+@@ -49,12 +62,7 @@ def _require_private_acl(parent: Path):
+         "if($bad -contains $sid){exit 10}"
+         "}};exit 0"
+     )
+-    ps = Path(os.environ.get("SystemRoot") or
+-              os.environ.get("WINDIR") or r"C:\Windows") / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+-    command = [str(ps), "-NoProfile", "-NonInteractive",
+-               "-Command", check]
+-    result = subprocess.run(command, capture_output=True,
+-                            timeout=10, check=False)
++    result = _run_windows_powershell(["-Command", check], timeout=10)
+     if result.returncode:
+         raise PermissionError("Client private directory ACL is not protected")
+ 
+diff --git a/Client_Ultra_LLM/test_browser_stream_source.mjs b/Client_Ultra_LLM/test_browser_stream_source.mjs
+index 195b5f4..0865998 100644
+--- a/Client_Ultra_LLM/test_browser_stream_source.mjs
++++ b/Client_Ultra_LLM/test_browser_stream_source.mjs
+@@ -23,8 +23,56 @@ try{
+   await until('document.querySelectorAll(".manager").length===1');
+   await evaluate('showChats()');
+   await until('document.getElementById("chat-send").disabled===false');
+-  await evaluate('document.getElementById("chat-thinking").value="on";document.getElementById("chat-effort").value="high";document.getElementById("chat-max-tokens").value="2048";document.getElementById("chat-input").value="QA fixture prompt";document.getElementById("chat-form").requestSubmit()');
++  const input='document.getElementById("chat-input")';
++  const focus=()=>evaluate(input+'.focus()');
++  const value=()=>evaluate(input+'.value');
++  const typeText=text=>browser.call('Input.insertText',{text});
++  const pressEnter=async (modifiers=0,autoRepeat=false)=>{
++    const key={key:'Enter',code:'Enter',windowsVirtualKeyCode:13,modifiers};
++    await browser.call('Input.dispatchKeyEvent',{...key,type:'keyDown',text:'\r',unmodifiedText:'\r',autoRepeat});
++    await browser.call('Input.dispatchKeyEvent',{...key,type:'keyUp'});
++  };
++  const metricsFromUpstream=async ()=>(await fetch(host.upstream+'/__qa/metrics')).json();
++  await evaluate(`window.qaSubmits=0;
++    document.getElementById("chat-form").addEventListener("submit",()=>window.qaSubmits++);
++    ${input}.focus()`);
++  await typeText('   ');
++  await pressEnter();
++  assert.equal(await value(),'   ','Blank Enter must keep the draft');
++  await evaluate(input+'.select()');
++  await typeText('QA repeated key');
++  await pressEnter(0,true);
++  assert.equal(await value(),'QA repeated key','Auto-repeat must not insert a newline or submit');
++  await pressEnter(8);
++  assert.equal(await value(),'QA repeated key\n','Shift+Enter must insert a newline');
++  await evaluate(input+'.select()');
++  await browser.call('Input.imeSetComposition',{text:'かな',selectionStart:2,selectionEnd:2});
++  await pressEnter();
++  await typeText('仮名');
++  assert.match(await value(),/仮名/,'IME-confirmed text must stay in the draft');
++  const legacyIME=await evaluate(`${input}.dispatchEvent(new KeyboardEvent("keydown",{
++    key:"Enter",code:"Enter",keyCode:229,bubbles:true,cancelable:true
++  }))`);
++  assert.equal(legacyIME,true,'Chromium IME commit fallback must keep the native event');
++  assert.equal(await evaluate('window.qaSubmits'),0,'Blank, repeat, Shift and IME must not submit');
++  assert.equal((await metricsFromUpstream()).requests,0);
++  assert.equal(await evaluate(`document.activeElement===${input}`),true);
++  await evaluate(`document.getElementById("chat-thinking").value="on";
++    document.getElementById("chat-effort").value="high";
++    document.getElementById("chat-max-tokens").value="2048";
++    ${input}.select()`);
++  const pasted='QA fixture prompt\nMultiline text inserted in one browser input event';
++  await typeText(pasted);
++  assert.equal(await value(),pasted);
++  await pressEnter();
++  assert.equal(await evaluate('window.qaSubmits'),1,'Plain Enter must submit the form exactly once');
+   await until('document.querySelector(".reasoning-text")?.textContent.includes("Отдельное рассуждение 🧠")');
++  assert.equal(await evaluate(input+'.disabled'),true);
++  await pressEnter();
++  await pressEnter(0,true);
++  // A direct duplicate submit must hit the same busy guard as the button.
++  await evaluate('document.getElementById("chat-form").requestSubmit()');
++  assert.equal((await metricsFromUpstream()).requests,1,'Busy or double submit must not reach the engine');
+   assert.equal(await evaluate('[...document.querySelectorAll(".chat-bubble > div")].some(x=>x.textContent.includes("Отдельное рассуждение"))'),false);
+   assert.equal(await evaluate('document.querySelectorAll(".reasoning-panel.hidden").length'),0);
+   await evaluate('document.getElementById("chat-show-reasoning").click()');
+@@ -41,6 +89,8 @@ try{
+   assert.equal(before.generation_options.stream_options.include_usage,true);
+   await fetch(host.upstream+'/__qa/done');
+   await until('document.getElementById("chat-messages").textContent.includes("и завершение") && !document.getElementById("chat-send").disabled');
++  assert.equal(await value(),'');
++  assert.equal(await evaluate(`document.activeElement===${input}`),true,'Keyboard focus must return to the chat input');
+   await delay(100);
+   const metrics=await evaluate('streamMetrics');
+   for(const key of ['manager_received_unix_ms','manager_preflight_ms','colibri_request_started_unix_ms',
+@@ -67,11 +117,42 @@ try{
+   const comparison=await(await fetch(host.upstream+'/__qa/metrics')).json();
+   assert.equal(comparison.requests,3);
+   assert.equal(comparison.same_last_two_requests,true,'Direct and routed Colibri payloads must be identical');
++
++  const timeOrigin=await evaluate('performance.timeOrigin');
++  await browser.call('Page.reload');
++  await until(`performance.timeOrigin > ${timeOrigin} && typeof showChats === "function" &&
++    document.querySelectorAll(".manager").length===1`);
++  await evaluate('showChats()');
++  await until('!document.getElementById("chat-send").disabled && document.getElementById("chat-messages").textContent.includes("QA comparison")');
++  assert.equal(await evaluate(`document.getElementById("chat-messages").textContent.includes(${JSON.stringify(pasted)})`),true);
++  assert.equal(await evaluate('document.getElementById("chat-messages").getAttribute("aria-live")'),'polite');
++
++  const retryDraft='QA text kept on network error';
++  await focus();
++  await typeText(retryDraft);
++  await browser.call('Network.enable');
++  await browser.call('Network.setBlockedURLs',{urls:[host.url+'/api/chat/stream']});
++  try{
++    await pressEnter();
++    await until('document.getElementById("chat-notice").textContent.startsWith("Ошибка ответа:") && !document.getElementById("chat-send").disabled');
++    assert.equal(await value(),retryDraft,'Network error must keep the exact draft');
++    assert.equal(await evaluate(`document.activeElement===${input}`),true,'Network error must restore keyboard focus');
++    assert.equal((await metricsFromUpstream()).requests,3);
++  }finally{await browser.call('Network.setBlockedURLs',{urls:[]});}
++  await evaluate('document.getElementById("chat-send").click()');
++  await until(`document.getElementById("chat-messages").textContent.includes(${JSON.stringify(retryDraft)})
++    && !document.getElementById("chat-send").disabled`);
++  assert.equal(await value(),'');
++  assert.equal((await metricsFromUpstream()).requests,4,'Clicking Send must recover with exactly one request');
+   assert.deepEqual(browser.errors,[]);
+   console.log(JSON.stringify({status:'PASS',chain:'Chrome / SOURCE Client / verified TLS SOURCE Manager / fake Colibri',
+     first_before_done:true,fragmented_utf8_json:true,separate_reasoning:true,thinking_controls:true,
+     persisted_reasoning:true,requests:comparison.requests,metrics,
+-    comparison:{identical_upstream_payload:true,direct,routed_with_history:warmMetrics,kind:'fake-model-only'},console_errors:browser.errors},null,2));
++    comparison:{identical_upstream_payload:true,direct,routed_with_history:warmMetrics,kind:'fake-model-only'},
++    keyboard:{plain_enter_once:true,shift_newline:true,ime_composition:true,ime_229:true,blank:true,repeat:true,
++      busy_and_duplicate:true,multiline_input:true,restored_focus:true,history_after_reload:true,
++      accessibility_live_region:true,blocked_request_retains_draft:true,send_button_recovery:true,total_upstream_requests:4},
++    console_errors:browser.errors},null,2));
+ }finally{
+   if(browser)await browser.close();
+   if(fixture&&fixture.exitCode===null){fixture.stdin.write('stop\n');for(let i=0;i<40&&fixture.exitCode===null;i++)await delay(100);if(fixture.exitCode===null)fixture.kill();}
+diff --git a/Client_Ultra_LLM/test_pairing_client.py b/Client_Ultra_LLM/test_pairing_client.py
+index 4320358..cf02619 100644
+--- a/Client_Ultra_LLM/test_pairing_client.py
++++ b/Client_Ultra_LLM/test_pairing_client.py
+@@ -2,6 +2,7 @@
+ import hashlib
+ import io
+ import json
++import os
+ from pathlib import Path
+ import tempfile
+ from unittest.mock import patch
+@@ -54,6 +55,20 @@ class PairingClientTests(unittest.TestCase):
+         self.assertFalse((self.private / "manager-a.client-home.token").exists())
+         self.assertFalse((self.private / "managers.json").exists())
+ 
++    def test_acl_subprocess_uses_only_its_own_system_module_path(self):
++        ps_home = Path(r"C:\Windows") / "System32" / "WindowsPowerShell" / "v1.0"
++        inherited = str(self.root / "incompatible-modules")
++        with patch.dict(os.environ, {"SystemRoot":r"C:\Windows", "PSModulePath":inherited}):
++            with patch.object(pairing_client.subprocess, "run") as run:
++                pairing_client._run_windows_powershell(["-Command", "Get-Acl"], timeout=10)
++            self.assertEqual(os.environ["PSModulePath"], inherited)
++        args, options = run.call_args
++        self.assertEqual(args[0], [str(ps_home / "powershell.exe"),
++                                  "-NoProfile", "-NonInteractive", "-Command", "Get-Acl"])
++        module_paths = [value for key, value in options["env"].items() if key.upper() == "PSMODULEPATH"]
++        self.assertEqual(module_paths, [str(ps_home / "Modules")])
++        self.assertEqual(options["timeout"], 10)
++
+ 
+ if __name__ == "__main__":
+     unittest.main()
+diff --git a/Client_Ultra_LLM/web_assets/client.js b/Client_Ultra_LLM/web_assets/client.js
+index 04f1fb3..2802576 100644
+--- a/Client_Ultra_LLM/web_assets/client.js
++++ b/Client_Ultra_LLM/web_assets/client.js
+@@ -80,6 +80,7 @@ function controlReason(reason) {
+     no_free_authorized_slot:"Нет свободного разрешённого слота",
+     model_not_authorized:"Эта модель не разрешена клиенту",
+     instance_not_authorized:"Экземпляр принадлежит другому клиенту или слот не разрешён",
++    instance_not_stoppable:"Остановка недоступна до подтверждения состояния экземпляра",
+     runner_action_unconfirmed:"Результат операции не подтверждён; слот защищён от повторного запуска",
+     supervisor_unverified:"Владение процессом не подтверждено",
+     runtime_or_telemetry_unverified:"Runtime или состояние сервера не подтверждены"
+@@ -790,15 +791,17 @@ async function submitChat(event) {
+   event.preventDefault();
+   if (chatBusy) return;
+   const target = currentChat();
+-  const message = byId("chat-input").value.trim();
++  const input = byId("chat-input");
++  const message = input.value.trim();
+   if (!chatReady(target) || !message || message.length > 131072) return;
++  const restoreInputFocus = document.activeElement === input;
+   chatBusy = true;
+   const started=performance.now();
+   streamMetrics={browser_request_unix_ms:performance.timeOrigin+started};
+   const targetKey = chatSelected;
+   activeChatKey = targetKey;
+   byId("chat-send").disabled = true;
+-  byId("chat-input").disabled = true;
++  input.disabled = true;
+   byId("chat-state").textContent = "Запрос выполняется на сервере. Ожидаем настоящий ответ модели…";
+   setChatNotice("");
+   try {
+@@ -884,7 +887,7 @@ async function submitChat(event) {
+       result = await api("/api/chat/history?" + new URLSearchParams(targetFields(target,true)));
+     }
+     if (chatSelected === targetKey) {
+-      byId("chat-input").value = "";
++      input.value = "";
+       renderMessages(result.messages);
+       byId("chat-state").textContent = "Ответ получен от " + target.model_id;
+     }
+@@ -896,6 +899,10 @@ async function submitChat(event) {
+     chatAbort = null;
+     byId("chat-cancel").disabled = true;
+     renderChatList(chatSnapshot);
++    if (restoreInputFocus && chatOpen && chatSelected === targetKey &&
++        document.activeElement === document.body && !input.disabled) {
++      input.focus({preventScroll:true});
++    }
+   }
+ }
+ 
+@@ -903,6 +910,14 @@ byId("nav-overview").addEventListener("click", showOverview);
+ byId("nav-chats").addEventListener("click", showChats);
+ byId("chat-reload").addEventListener("click", refresh);
+ byId("chat-form").addEventListener("submit", submitChat);
++byId("chat-input").addEventListener("keydown", event => {
++  // Chromium can report keyCode 229 on an IME commit with isComposing=false.
++  if (event.key !== "Enter" || event.shiftKey || event.ctrlKey || event.altKey ||
++      event.metaKey || event.isComposing || event.keyCode === 229) return;
++  event.preventDefault();
++  if (event.repeat || byId("chat-send").disabled || !event.currentTarget.value.trim()) return;
++  event.currentTarget.form.requestSubmit();
++});
+ byId("chat-show-reasoning").addEventListener("change", () => { document.querySelectorAll(".reasoning-panel").forEach(x => x.classList.toggle("hidden", !byId("chat-show-reasoning").checked)); });
+ byId("chat-cancel").addEventListener("click", async () => {
+   if (!chatAbort || !chatRetry) return;
+diff --git a/Client_Ultra_LLM/web_client.py b/Client_Ultra_LLM/web_client.py
+index 808650a..b2dd5d4 100644
+--- a/Client_Ultra_LLM/web_client.py
++++ b/Client_Ultra_LLM/web_client.py
+@@ -24,7 +24,6 @@ import re
+ import secrets
+ import sqlite3
+ import ssl
+-import subprocess
+ import sys
+ import tempfile
+ import threading
+@@ -32,7 +31,7 @@ from urllib.parse import urlsplit
+ import webbrowser
+ 
+ from live_client import fetch_all, load_profiles
+-from pairing_client import _require_private_acl, enroll
++from pairing_client import _require_private_acl, _run_windows_powershell, enroll
+ from chat_client import ChatClientError, send_chat, stream_chat, control_request, cancel_chat
+ from chat_store import (validate_key, history as load_chat_history,
+                         context_for, append_exchange, claim_request, fail_request)
+@@ -68,14 +67,8 @@ def ensure_private_dir(folder: Path) -> Path:
+     if not folder.exists():
+         if os.name == "nt":
+             installer = HERE / "Prepare-ClientPrivate.ps1"
+-            ps = Path(os.environ.get("SystemRoot") or
+-                      os.environ.get("WINDIR") or r"C:\Windows") / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+-            cmd = [str(ps), "-NoProfile", "-NonInteractive",
+-                   "-ExecutionPolicy", "Bypass", "-File", str(installer)]
+-            result = subprocess.run(
+-                cmd, capture_output=True, timeout=25,
+-                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+-                check=False)
++            result = _run_windows_powershell(
++                ["-ExecutionPolicy", "Bypass", "-File", str(installer)], timeout=25)
+             if result.returncode:
+                 raise PermissionError("Unable to create protected Client directory")
+         else:
+diff --git a/Manager_Ultra_LLM/control_runtime.py b/Manager_Ultra_LLM/control_runtime.py
+index bbc26ee..4273cc6 100644
+--- a/Manager_Ultra_LLM/control_runtime.py
++++ b/Manager_Ultra_LLM/control_runtime.py
+@@ -188,9 +188,10 @@ class ModelControl:
+ 
+     def _sync(self, db):
+         for row in self._rows(db):
+-            # Worker owns transition until it returns; a grace interval prevents
+-            # treating supervisor boot as a stale lease. No automatic retry.
+-            if row["released"] or (row["state"] in ("STARTING", "STOPPING") and time.time()-row["created"] < 10):
++            # Keep an accepted STOP exclusive during the runner's 60s wait,
++            # including a margin for dispatch and final identity verification.
++            grace = {"STARTING": 10, "STOPPING": 70}.get(row["state"], 0)
++            if row["released"] or time.time() - row["created"] < grace:
+                 continue
+             try:
+                 status = self.backend.status(RunnerSpec(**json.loads(row["spec"])), row["instance_id"])
+@@ -383,22 +384,34 @@ class ModelControl:
+                     raise ControlError("instance_not_stoppable")
+                 spec = RunnerSpec(**json.loads(row["spec"]))
+                 identity = row["instance_id"]
++                if row["state"] == "STARTING":
++                    # A reservation can precede the supervisor and its stop
++                    # event. Accept STOP only after the backend verifies them.
++                    try:
++                        status = self.backend.status(spec, identity)
++                    except Exception:
++                        raise ControlError("instance_not_stoppable") from None
++                    if status["state"] not in ("STARTING", "READY") or status.get("released") is not False:
++                        raise ControlError("instance_not_stoppable")
+                 row["state"] = "STOPPING"
+                 db.execute("UPDATE instances SET state='STOPPING',created=? WHERE id=?", (time.time(), identity))
+             db.execute("INSERT INTO requests VALUES(?,?,?,?)", (owner, payload["request_id"], fingerprint, identity))
+             db.commit()
+         def perform():
++            expected_state = "STARTING" if op == "start" else "STOPPING"
+             try:
+                 getattr(self.backend, op)(spec, identity)
+                 status=self.backend.status(spec,identity)
+                 with self.db() as db:
+-                    db.execute("UPDATE instances SET state=?,reason=?,released=? WHERE id=?",
+-                        (status["state"],status.get("reason"),int(status.get("released") is True),identity))
++                    # A late START result must not overwrite an accepted STOP.
++                    db.execute("UPDATE instances SET state=?,reason=?,released=? WHERE id=? AND state=? AND released=0",
++                        (status["state"],status.get("reason"),int(status.get("released") is True),identity,expected_state))
+                     db.commit()
+             except Exception:
+                 # Never release a slot on an ambiguous launch/stop result.
+                 with self.db() as db:
+-                    db.execute("UPDATE instances SET state='ERROR',reason='runner_action_unconfirmed' WHERE id=?", (identity,))
++                    db.execute("UPDATE instances SET state='ERROR',reason='runner_action_unconfirmed' WHERE id=? AND state=? AND released=0",
++                        (identity,expected_state))
+                     db.commit()
+         self.dispatch(perform)
+         return {"manager_id": self.config["manager_id"], **self._public(row, principal)}
+diff --git a/Manager_Ultra_LLM/test_control_runtime.py b/Manager_Ultra_LLM/test_control_runtime.py
+index 97d2b7f..345b99b 100644
+--- a/Manager_Ultra_LLM/test_control_runtime.py
++++ b/Manager_Ultra_LLM/test_control_runtime.py
+@@ -255,6 +255,38 @@ class AdmissionTests(unittest.TestCase):
+         self.assertEqual(self.core.catalog(self.alice)["instances"][0]["state"],"STOPPED")
+         self.assertEqual(len(self.backend.stops),1)
+ 
++    def test_stop_is_not_accepted_before_start_has_a_verified_supervisor(self):
++        instance = self.start()["instance_id"]
++        with self.assertRaisesRegex(ControlError, "instance_not_stoppable"):
++            self.operation("stop", instance_id=instance)
++        self.assertEqual(len(self.pending), 1)
++        self.assertEqual(self.backend.stops, [])
++        self.settle()
++        self.assertEqual(self.core.catalog(self.alice)["instances"][0]["state"], "READY")
++
++    def test_late_start_result_and_catalog_leave_accepted_stop_in_progress(self):
++        start_backend = self.backend.start
++        start = self.start()
++        instance = start["instance_id"]
++
++        def start_then_accept_stop(spec, identity):
++            start_backend(spec, identity)
++            self.assertEqual(self.operation("stop", instance_id=identity)["state"], "STOPPING")
++
++        self.backend.start = start_then_accept_stop
++        self.pending.pop(0)()
++        with self.assertRaisesRegex(ControlError, "instance_not_ready"):
++            self.core.assert_chat_allowed(start["slot_id"])
++        # A verified supervisor can still report READY while STOP waits.
++        with self.core.db() as db:
++            db.execute("UPDATE instances SET created=? WHERE id=?", (time.time() - 15, instance))
++            db.commit()
++        self.assertEqual(self.core.catalog(self.alice)["instances"][0]["state"], "STOPPING")
++        self.settle()
++        stopped = self.core.catalog(self.alice)["instances"][0]
++        self.assertEqual((stopped["state"], stopped["released"]), ("STOPPED", True))
++        self.assertEqual(self.backend.stops, [instance])
++
+     def test_unknown_telemetry_catalog_is_fail_closed(self):
+         self.backend.verified=False
+         catalog=self.core.catalog(self.alice)

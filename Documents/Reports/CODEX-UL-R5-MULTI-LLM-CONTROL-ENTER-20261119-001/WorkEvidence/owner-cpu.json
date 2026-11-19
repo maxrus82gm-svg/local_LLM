@@ -1,0 +1,553 @@
+{
+  "task_id": "CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001",
+  "base_head": "9023f3fdf485a120d05b2d4554612fa655a679f0",
+  "status": "PASS / OWNER-APPROVED ISOLATED LIVE CPU",
+  "scope": "Real KAT on server. Separate R5, Client and Chrome on loopback.",
+  "started_utc": "2026-11-19T14:15:29.484845+00:00",
+  "finished_utc": "2026-11-19T14:18:40.027053+00:00",
+  "server_result_sha256": "082ab777f39df3919d55b05cd35a6fc0bc8b3d75f1ad61abc95ccdac0093c8e3",
+  "driver_os_exit_code": null,
+  "home_launcher_exit_code": 0,
+  "bundle": {
+    "staged_verified_files": 35,
+    "test_certificate_sha256": "ff74812ff990aba727059ec099ca236a4607b21d690cba41e7da14a7de101761",
+    "source_pins": [
+      {
+        "path": "manager/backup_provenance.py",
+        "sha256": "f9a98c5760b4fb631ffc3fc571c9f3e8b2615f5380fdfc9ffcc446badc791455",
+        "bytes": 10599
+      },
+      {
+        "path": "manager/chat_runtime.py",
+        "sha256": "17d65c18fb213c642e566eb523d58caf1ab242e3a087f2469a44ea2ea2bbebf8",
+        "bytes": 14584
+      },
+      {
+        "path": "manager/chat_settings.py",
+        "sha256": "63886f6ef58d37636da799f9240fb74f06e97dee95edbcace9b70964de769473",
+        "bytes": 2366
+      },
+      {
+        "path": "manager/colibri2_runner.py",
+        "sha256": "43a228abf1634575179c7d73b710f50d7609ff59d627428a07582aaa494b8b09",
+        "bytes": 36774
+      },
+      {
+        "path": "manager/control_runtime.py",
+        "sha256": "d963a2ebbd39fc0509c400328c84ca28860a8e1c8b2ca40ab4fffe9238bf6dd1",
+        "bytes": 24474
+      },
+      {
+        "path": "manager/launch_contract.py",
+        "sha256": "a255c3242435291df3ae10efcd1afe78130c907c8c140a02bcf2dda7daddc86f",
+        "bytes": 9415
+      },
+      {
+        "path": "manager/live_manager.py",
+        "sha256": "7dee682ad4fa5cf692a637d3b3a334b74a67dd5707273f9183a095a58e5a406e",
+        "bytes": 40162
+      },
+      {
+        "path": "manager/manager_core.py",
+        "sha256": "21473cb2babd8719a6223fd609c3e6f7b65b12ebecdd8741dbf0b9d296b42cd4",
+        "bytes": 9323
+      },
+      {
+        "path": "manager/manager_release.py",
+        "sha256": "806f6a7388e22cb2f8e4d95d16445f7a72983df59c076dd3910b2260b2cc03dc",
+        "bytes": 10848
+      },
+      {
+        "path": "manager/pairing_inbox.py",
+        "sha256": "a963c4dedef64a10109664903010d99057dc777fd26a3ec399a4e44d32543f18",
+        "bytes": 6020
+      },
+      {
+        "path": "manager/pairing_server.py",
+        "sha256": "0e1c390d455a52edba0e9eb538eae01c2e7db1953c7e9f5a9b9e811b5ca60943",
+        "bytes": 11798
+      },
+      {
+        "path": "manager/pairing_workflow.py",
+        "sha256": "51c33d9e7e64554059f7b36c22049d1caff53317c2cb535f09fbd6ed9d8a33aa",
+        "bytes": 1867
+      },
+      {
+        "path": "manager/resource_catalog.py",
+        "sha256": "3bc5e52f13af01c518e376fb450bc695ee6de2422eacd0475e78eb3636c3ab2b",
+        "bytes": 9740
+      },
+      {
+        "path": "manager/resource_policy.py",
+        "sha256": "318f15cc16a776c0e4546ea0ebe47bb93e0e84a4a81238d8e4a736c7f0622782",
+        "bytes": 4918
+      },
+      {
+        "path": "manager/server_preflight.py",
+        "sha256": "36083ae3671ac887efd744f64932e8903e18ba9e1931387c1b1e93820a49c548",
+        "bytes": 13645
+      },
+      {
+        "path": "manager/server_runner.py",
+        "sha256": "983bf6c46f0bf87230ca0b79c4118df366f7d239953a163c5bb43545afe0dbd1",
+        "bytes": 25226
+      },
+      {
+        "path": "manager/service_core.py",
+        "sha256": "7a2840d9eac3f0bd6f3fc97f1b851f755affad61a837367f3a08f1ecbe4319be",
+        "bytes": 9862
+      },
+      {
+        "path": "manager/slot_registry.py",
+        "sha256": "056efcae2d75a9572a279151bef5a38bc0fef89840d337f4794b1e98505f9e3a",
+        "bytes": 7207
+      },
+      {
+        "path": "manager/stage_b_complete_readonly.py",
+        "sha256": "75fac0837f5b05bb27f5095f7511a5841cf4421f68c061e2a5f5e7320586f940",
+        "bytes": 8084
+      },
+      {
+        "path": "manager/windows_process.py",
+        "sha256": "aeebedc4bbd3902ef87dc20052cf9399579a879decc97ed0cce1d4569dd0e77d",
+        "bytes": 12896
+      },
+      {
+        "path": "client/web_client.py",
+        "sha256": "c8623ee201c18a72abde39aaa9d455109c4cf24dfc1ff6777fed4154b918b30b",
+        "bytes": 34094
+      },
+      {
+        "path": "client/live_client.py",
+        "sha256": "916c137501de78901d7ded234c7b9fe713e2e24aa6dcacdaaf15dea958674efb",
+        "bytes": 6174
+      },
+      {
+        "path": "client/pairing_client.py",
+        "sha256": "fe09f29c81a46a3620e01e5a823bc4e722bab4d68347087552f35b64f4812a5e",
+        "bytes": 6991
+      },
+      {
+        "path": "client/pairing_live.py",
+        "sha256": "faaeea23001f5f1edbc7fb8e6bf256d68837008f2b21ba422f077da755586f5f",
+        "bytes": 6440
+      },
+      {
+        "path": "client/chat_client.py",
+        "sha256": "bfa672e6c30d63e09041a809df309d7af70c8882fde00e2e0a9f4654fa83af81",
+        "bytes": 9124
+      },
+      {
+        "path": "client/chat_store.py",
+        "sha256": "ac0fcdb63f414995655feb08cf0db69507dea5043035d1caa1d03670c1900455",
+        "bytes": 6281
+      },
+      {
+        "path": "client/Prepare-ClientPrivate.ps1",
+        "sha256": "d9ec208e39f380fe7ee41523d888de54afba2c029b2a1512e4c45efea6dae47a",
+        "bytes": 1133
+      },
+      {
+        "path": "client/web_assets/index.html",
+        "sha256": "f2e31264e224ec14bfa4774483f595844904a88f5a68a8313e4ea9bc3c85ec0e",
+        "bytes": 13527
+      },
+      {
+        "path": "client/web_assets/client.css",
+        "sha256": "b57db640f0987185ead7525446106436fa6d7ac47bbed2dc8eb81d2c1a7d0f13",
+        "bytes": 17297
+      },
+      {
+        "path": "client/web_assets/client.js",
+        "sha256": "85eec8af97fb236a0f57c0466329da9ed2b08f1dbf29369ad0dd6658451e3856",
+        "bytes": 50012
+      },
+      {
+        "path": "owner_cpu_trial.py",
+        "sha256": "257ac30fc744303e28c3ebaa89491091dc7e89cdb144417b9ff7cf1f7cf52a8e",
+        "bytes": 34209
+      },
+      {
+        "path": "loopback_chrome.py",
+        "sha256": "7c16112cd9caca93910b96556e6980f55b3d209ed3db9aab5be4737ad28f3eb2",
+        "bytes": 8737
+      }
+    ]
+  },
+  "tls_and_grants": {
+    "validated_tls": true,
+    "unauthenticated_http": 401,
+    "view_only_control_http": 403,
+    "protected_slot_excluded": true
+  },
+  "sidecar_processes": {
+    "manager": {
+      "created_utc": "2026-11-19T14:15:29.723394+00:00",
+      "pid": 354252
+    },
+    "client": {
+      "created_utc": "2026-11-19T14:15:30.596700+00:00",
+      "pid": 357560
+    },
+    "chrome": {
+      "created_utc": "2026-11-19T14:15:32.285831+00:00",
+      "pid": 358052
+    }
+  },
+  "manager_loopback_port": 18443,
+  "client_loopback_port": 63327,
+  "cpu_resource_policy": {
+    "job_cap_gib": 14,
+    "cpu_threads": 2,
+    "admission_reserve_gib": 11,
+    "abort_floor_gib": 10,
+    "free_ram_gib_preflight": 34.473,
+    "gpu_free_mib_preflight": 668,
+    "minimum_observed_free_ram_gib": 24.674,
+    "free_ram_gib_postflight": 34.444
+  },
+  "cpu_admission": [
+    {
+      "forecast": {
+        "estimate_evidence": "bounded_owner_trial",
+        "job_limit_gib": 14,
+        "ram_after_gib": 20.204181671142578,
+        "ram_estimate_gib": 14,
+        "ram_free_gib": 34.20418167114258,
+        "ram_reserved_gib": 0,
+        "ram_warning_gib": 11,
+        "vram_after_gib": null,
+        "vram_estimate_gib": 0,
+        "vram_free_gib": null,
+        "vram_reserved_gib": 0
+      },
+      "phase": "cpu_checked",
+      "slot": "slot2",
+      "utc": "2026-11-19T14:15:36.973201+00:00",
+      "warnings": [
+        "ram_estimate_unmeasured"
+      ]
+    },
+    {
+      "forecast": {
+        "estimate_evidence": "bounded_owner_trial",
+        "job_limit_gib": 14,
+        "ram_after_gib": 14.94454574584961,
+        "ram_estimate_gib": 14,
+        "ram_free_gib": 28.94454574584961,
+        "ram_reserved_gib": 0,
+        "ram_warning_gib": 11,
+        "vram_after_gib": null,
+        "vram_estimate_gib": 0,
+        "vram_free_gib": null,
+        "vram_reserved_gib": 0
+      },
+      "phase": "cpu_checked",
+      "slot": "slot3",
+      "utc": "2026-11-19T14:16:52.665536+00:00",
+      "warnings": [
+        "ram_estimate_unmeasured"
+      ]
+    }
+  ],
+  "ready_instances": [
+    {
+      "instance_id": "67177c9198ae4125aadd361d8df41606",
+      "phase": "cpu_ready",
+      "port": 18001,
+      "processes": [
+        {
+          "created_utc": "2026-11-19T14:15:41.187538+00:00",
+          "pid": 359156
+        },
+        {
+          "created_utc": "2026-11-19T14:15:46.875525+00:00",
+          "pid": 358972
+        },
+        {
+          "created_utc": "2026-11-19T14:15:47.591391+00:00",
+          "pid": 357916
+        }
+      ],
+      "ram_free_gib": 32.107,
+      "seconds": 60.218,
+      "slot": "slot2",
+      "utc": "2026-11-19T14:16:37.179732+00:00"
+    },
+    {
+      "instance_id": "54c2fd4d57124310bbf23d6e49052c7c",
+      "phase": "cpu_ready",
+      "port": 18002,
+      "processes": [
+        {
+          "created_utc": "2026-11-19T14:16:58.556284+00:00",
+          "pid": 358884
+        },
+        {
+          "created_utc": "2026-11-19T14:17:06.038614+00:00",
+          "pid": 358444
+        },
+        {
+          "created_utc": "2026-11-19T14:17:06.696542+00:00",
+          "pid": 354752
+        }
+      ],
+      "ram_free_gib": 26.996,
+      "seconds": 62.703,
+      "slot": "slot3",
+      "utc": "2026-11-19T14:17:55.366978+00:00"
+    }
+  ],
+  "complete_chats": [
+    {
+      "first_before_done": true,
+      "history_count": 2,
+      "reasoning_events": 0,
+      "slot": "slot2",
+      "stream_fragments": 9,
+      "timing": {
+        "browser_first_fragment_ms": 5209.5,
+        "browser_total_ms": 7667,
+        "route": {
+          "client_elapsed_ms": 7646.579,
+          "client_emit_unix_ms": 1795097806541.981,
+          "client_first_fragment_elapsed_ms": 5192.718,
+          "client_first_fragment_unix_ms": 1795097804082.381,
+          "client_history_load_ms": 1.346,
+          "client_http_headers_ms": 5190.65,
+          "client_local_elapsed_ms": 7659.506,
+          "client_local_total_ms": 7665.127,
+          "client_persist_ms": 5.613,
+          "client_prepare_ms": 12.914,
+          "client_profile_load_ms": 0.672,
+          "client_received_unix_ms": 1795097806535.996,
+          "client_sqlite_claim_ms": 10.823,
+          "client_tls_setup_ms": 1.299,
+          "client_token_read_ms": 0.105,
+          "colibri_completed_unix_ms": 1795097806535.996,
+          "colibri_first_fragment_unix_ms": 1795097804081.39,
+          "colibri_request_started_unix_ms": 1795097798968.79,
+          "first_fragment_ms": 5112.11,
+          "manager_emit_unix_ms": 1795097806535.996,
+          "manager_first_forward_delay_ms": 0.226,
+          "manager_first_forward_unix_ms": 1795097804081.39,
+          "manager_preflight_ms": 62.261,
+          "manager_received_unix_ms": 1795097798907.118,
+          "manager_total_ms": 7629.032,
+          "total_ms": 7566.74
+        },
+        "throughput": {
+          "basis": "provider_completion_tokens / upstream_request_seconds_including_prefill",
+          "completion_tokens_per_second": 1.189,
+          "window_ms": 7566.743
+        },
+        "usage": {
+          "completion_tokens": 9,
+          "prompt_tokens": 21
+        }
+      }
+    },
+    {
+      "first_before_done": true,
+      "history_count": 4,
+      "reasoning_events": 0,
+      "slot": "slot2",
+      "stream_fragments": 34,
+      "timing": {
+        "browser_first_fragment_ms": 4065.4000000953674,
+        "browser_total_ms": 13303.900000095367,
+        "route": {
+          "client_elapsed_ms": 13290.093,
+          "client_emit_unix_ms": 1795097890555.923,
+          "client_first_fragment_elapsed_ms": 4055.806,
+          "client_first_fragment_unix_ms": 1795097881316.883,
+          "client_history_load_ms": 1.816,
+          "client_http_headers_ms": 4053.513,
+          "client_local_elapsed_ms": 13296.917,
+          "client_local_total_ms": 13302.272,
+          "client_persist_ms": 5.349,
+          "client_prepare_ms": 6.812,
+          "client_profile_load_ms": 0.617,
+          "client_received_unix_ms": 1795097890550.937,
+          "client_sqlite_claim_ms": 4.35,
+          "client_tls_setup_ms": 1.347,
+          "client_token_read_ms": 0.137,
+          "colibri_completed_unix_ms": 1795097890550.937,
+          "colibri_first_fragment_unix_ms": 1795097881315.885,
+          "colibri_request_started_unix_ms": 1795097877325.065,
+          "first_fragment_ms": 3989.98,
+          "manager_emit_unix_ms": 1795097890550.937,
+          "manager_first_forward_delay_ms": 0.298,
+          "manager_first_forward_unix_ms": 1795097881315.885,
+          "manager_preflight_ms": 60.631,
+          "manager_received_unix_ms": 1795097877265.198,
+          "manager_total_ms": 13286.043,
+          "total_ms": 13225.39
+        },
+        "throughput": {
+          "basis": "provider_completion_tokens / upstream_request_seconds_including_prefill",
+          "completion_tokens_per_second": 2.571,
+          "window_ms": 13225.385
+        },
+        "usage": {
+          "completion_tokens": 34,
+          "prompt_tokens": 54
+        }
+      }
+    },
+    {
+      "first_before_done": true,
+      "history_count": 2,
+      "reasoning_events": 0,
+      "slot": "slot3",
+      "stream_fragments": 32,
+      "timing": {
+        "browser_first_fragment_ms": 4035.5999999046326,
+        "browser_total_ms": 12882.299999952316,
+        "route": {
+          "client_elapsed_ms": 12867.555,
+          "client_emit_unix_ms": 1795097890139.715,
+          "client_first_fragment_elapsed_ms": 4024.729,
+          "client_first_fragment_unix_ms": 1795097881290.95,
+          "client_history_load_ms": 1.501,
+          "client_http_headers_ms": 4022.503,
+          "client_local_elapsed_ms": 12874.179,
+          "client_local_total_ms": 12880.28,
+          "client_persist_ms": 6.089,
+          "client_prepare_ms": 6.608,
+          "client_profile_load_ms": 0.532,
+          "client_received_unix_ms": 1795097890133.758,
+          "client_sqlite_claim_ms": 4.557,
+          "client_tls_setup_ms": 1.314,
+          "client_token_read_ms": 0.105,
+          "colibri_completed_unix_ms": 1795097890133.758,
+          "colibri_first_fragment_unix_ms": 1795097881289.953,
+          "colibri_request_started_unix_ms": 1795097877340.996,
+          "first_fragment_ms": 3948.53,
+          "manager_emit_unix_ms": 1795097890133.758,
+          "manager_first_forward_delay_ms": 0.295,
+          "manager_first_forward_unix_ms": 1795097881289.953,
+          "manager_preflight_ms": 60.042,
+          "manager_received_unix_ms": 1795097877281.157,
+          "manager_total_ms": 12852.472,
+          "total_ms": 12792.4
+        },
+        "throughput": {
+          "basis": "provider_completion_tokens / upstream_request_seconds_including_prefill",
+          "completion_tokens_per_second": 2.501,
+          "window_ms": 12792.399
+        },
+        "usage": {
+          "completion_tokens": 32,
+          "prompt_tokens": 22
+        }
+      }
+    },
+    {
+      "first_before_done": true,
+      "history_count": 4,
+      "reasoning_events": 39,
+      "slot": "slot3",
+      "stream_fragments": 18,
+      "timing": {
+        "browser_first_fragment_ms": 7793.100000143051,
+        "browser_total_ms": 20771.700000047684,
+        "route": {
+          "client_elapsed_ms": 20758.732,
+          "client_emit_unix_ms": 1795097916147.727,
+          "client_first_fragment_elapsed_ms": 7785.178,
+          "client_first_fragment_unix_ms": 1795097903168.022,
+          "client_history_load_ms": 1.227,
+          "client_http_headers_ms": 7783.075,
+          "client_local_elapsed_ms": 20764.67,
+          "client_local_total_ms": 20770.287,
+          "client_persist_ms": 5.611,
+          "client_prepare_ms": 5.925,
+          "client_profile_load_ms": 0.572,
+          "client_received_unix_ms": 1795097916141.743,
+          "client_sqlite_claim_ms": 4.101,
+          "client_tls_setup_ms": 1.319,
+          "client_token_read_ms": 0.106,
+          "colibri_completed_unix_ms": 1795097916141.743,
+          "colibri_first_fragment_unix_ms": 1795097903167.052,
+          "colibri_request_started_unix_ms": 1795097895433.235,
+          "first_fragment_ms": 7733.62,
+          "manager_emit_unix_ms": 1795097916141.743,
+          "manager_first_forward_delay_ms": 0.227,
+          "manager_first_forward_unix_ms": 1795097903167.052,
+          "manager_preflight_ms": 29.381,
+          "manager_received_unix_ms": 1795097895404.507,
+          "manager_total_ms": 20737.392,
+          "total_ms": 20707.99
+        },
+        "throughput": {
+          "basis": "provider_completion_tokens / upstream_request_seconds_including_prefill",
+          "completion_tokens_per_second": 2.801,
+          "window_ms": 20707.985
+        },
+        "usage": {
+          "completion_tokens": 58,
+          "prompt_tokens": 76
+        }
+      }
+    }
+  ],
+  "parallel_overlap_ms": 12882.2,
+  "stop_one_preserved_second": true,
+  "cancel": {
+    "cancelled": true,
+    "history_unchanged": true,
+    "http": 200,
+    "upstream": true
+  },
+  "reasoning": {
+    "events": 39,
+    "http": 200,
+    "slot": "slot3",
+    "status": "EMITTED"
+  },
+  "cleanup": {
+    "chrome_graceful": true,
+    "client_graceful": true,
+    "manager_graceful": true,
+    "slot2": {
+      "job_cleanup_confirmed": true,
+      "port_free": true,
+      "state": "STOPPED"
+    },
+    "slot3": {
+      "job_cleanup_confirmed": true,
+      "port_free": true,
+      "state": "STOPPED"
+    },
+    "trial_ports_free": true
+  },
+  "protected_postflight": {
+    "sampled_utc": "2026-11-19T14:19:34.883617+00:00",
+    "manager_pid": 342152,
+    "qwen_gateway_pid": 138268,
+    "qwen_engine_pid": 139516,
+    "valheim_pid": 248800,
+    "valheim_udp": [
+      2456,
+      2457
+    ],
+    "qwen_health_http": 200,
+    "scheduled_task": "Running",
+    "manager_config_tls_backup_pins_match": true,
+    "production_client_pid": 35708,
+    "production_client_authenticated_online": true,
+    "production_roles_unchanged": true,
+    "remaining_trial_processes": 0,
+    "trial_ports_free": true,
+    "external_stage_retained_under_private_acl": true
+  },
+  "not_run": [
+    "CUDA",
+    "Production Manager control activation",
+    "Production Client replacement",
+    "Hosted Windows CI"
+  ],
+  "source_evidence": "LOCAL ONLY / PREPARED FOR OWNER PUBLICATION",
+  "cleanup_state": "CLEANUP PENDING"
+}
