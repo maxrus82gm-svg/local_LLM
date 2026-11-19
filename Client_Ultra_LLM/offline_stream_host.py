@@ -153,7 +153,9 @@ def main():
                     else:
                         emit({"content":"Ответ " + marker})
                     release_until[0] = time.monotonic() + 1.45
-                    self.wfile.write(b'data: {"choices":[],"usage":{"prompt_tokens":17,"completion_tokens":8}}\n\ndata: [DONE]\n\n')
+                    prompt, completion = (31, 4) if marker == "qa-context" else (17, 8)
+                    usage = {"choices": [], "usage": {"prompt_tokens": prompt, "completion_tokens": completion}}
+                    self.wfile.write(("data: " + json.dumps(usage) + "\n\ndata: [DONE]\n\n").encode())
                     self.wfile.flush()
                 except OSError:
                     pass

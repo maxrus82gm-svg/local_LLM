@@ -91,6 +91,7 @@ dialog{color:#ebf1fc;background:transparent;border:0;max-width:min(650px,calc(10
 .chat-messages{min-height:min(300px,38vh);overscroll-behavior:contain;overflow-anchor:none}
 .chat-bubble{flex:none}
 .chat-time{display:block;margin-top:4px;font-size:10px;color:#9bacbf}
+.chat-bubble .chat-message-metrics{display:block;margin-top:2px;font-size:11px;color:#d7bd89;line-height:1.4;white-space:normal}
 #chat-latest{align-self:flex-end;margin:3px 20px}
 .chat-stat-row{padding:5px 0;border-top:1px solid var(--line)}
 

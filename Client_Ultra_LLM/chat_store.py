@@ -59,9 +59,9 @@ def _connect(folder):
             yield db
 
 
-def _backup(db, path):
+def _backup(db, path, *, target_version):
     # Reserve a new name without overwriting an earlier recovery file.
-    backup = path.with_name(f"chat_history.pre-v2-{uuid.uuid4().hex}.sqlite3")
+    backup = path.with_name(f"chat_history.pre-v{target_version}-{uuid.uuid4().hex}.sqlite3")
     with backup.open("xb"):
         pass
     with closing(sqlite3.connect(backup)) as destination:
@@ -72,56 +72,87 @@ def _backup(db, path):
 
 def _migrate(db, path):
     version = db.execute("PRAGMA user_version").fetchone()[0]
-    if version == 2:
+    if version == 3:
         return
-    if version not in (0, 1):
+    if version not in (0, 1, 2):
         raise ValueError("unsupported_chat_schema")
     # A separate read connection supplies a consistent snapshot while this
     # connection reserves the writer across backup and migration.
     with db:
         db.execute("BEGIN IMMEDIATE")
-        if db.execute("PRAGMA user_version").fetchone()[0] == 2:
+        version = db.execute("PRAGMA user_version").fetchone()[0]
+        if version == 3:
             return
+        if version not in (0, 1, 2):
+            raise ValueError("unsupported_chat_schema")
         if db.execute("SELECT 1 FROM sqlite_master WHERE name='messages'").fetchone():
             with closing(sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True)) as source:
-                _backup(source, path)
-        db.execute("""CREATE TABLE IF NOT EXISTS messages (
+                _backup(source, path, target_version=3 if version == 2 else 2)
+        if version < 2:
+            _migrate_conversations(db)
+        _link_message_metrics(db)
+        db.execute("PRAGMA user_version=3")
+
+
+def _migrate_conversations(db):
+    db.execute("""CREATE TABLE IF NOT EXISTS messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT, manager_id TEXT NOT NULL,
             slot_id TEXT NOT NULL, model_id TEXT NOT NULL, role TEXT NOT NULL
             CHECK (role IN ('user','assistant')), content TEXT NOT NULL)""")
-        columns = {r[1] for r in db.execute("PRAGMA table_info(messages)")}
-        if "instance_id" not in columns:
-            db.execute("ALTER TABLE messages ADD COLUMN instance_id TEXT NOT NULL DEFAULT ''")
-        db.execute("""CREATE TABLE chats (
+    columns = {r[1] for r in db.execute("PRAGMA table_info(messages)")}
+    if "instance_id" not in columns:
+        db.execute("ALTER TABLE messages ADD COLUMN instance_id TEXT NOT NULL DEFAULT ''")
+    db.execute("""CREATE TABLE chats (
             chat_id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at TEXT,
             manager_id TEXT, slot_id TEXT, model_id TEXT, settings TEXT NOT NULL DEFAULT '{}',
             context_after INTEGER NOT NULL DEFAULT 0, cleared_through INTEGER NOT NULL DEFAULT 0,
             restore_to INTEGER,
             legacy INTEGER NOT NULL DEFAULT 0)""")
-        db.execute("""CREATE TABLE legacy_chats (
+    db.execute("""CREATE TABLE legacy_chats (
             manager_id TEXT NOT NULL, slot_id TEXT NOT NULL, model_id TEXT NOT NULL, instance_id TEXT NOT NULL,
             chat_id TEXT NOT NULL REFERENCES chats ON DELETE CASCADE,
             PRIMARY KEY(manager_id,slot_id,model_id,instance_id))""")
-        db.execute("ALTER TABLE messages ADD COLUMN chat_id TEXT REFERENCES chats ON DELETE CASCADE")
-        db.execute("ALTER TABLE messages ADD COLUMN created_at TEXT")
-        db.execute("CREATE INDEX messages_by_chat ON messages(chat_id,id)")
-        db.execute("""CREATE TABLE reasoning (
+    db.execute("ALTER TABLE messages ADD COLUMN chat_id TEXT REFERENCES chats ON DELETE CASCADE")
+    db.execute("ALTER TABLE messages ADD COLUMN created_at TEXT")
+    db.execute("CREATE INDEX messages_by_chat ON messages(chat_id,id)")
+    db.execute("""CREATE TABLE reasoning (
             message_id INTEGER PRIMARY KEY REFERENCES messages ON DELETE CASCADE, content TEXT NOT NULL)""")
-        if "reasoning_content" in columns:
-            db.execute("INSERT INTO reasoning SELECT id,reasoning_content FROM messages WHERE reasoning_content<>''")
-            db.execute("ALTER TABLE messages DROP COLUMN reasoning_content")
-        for *key, instance in db.execute("SELECT DISTINCT manager_id,slot_id,model_id,instance_id FROM messages"):
-            chat_id = _legacy_id(db, key, instance, create=True)
-            db.execute("""UPDATE messages SET chat_id=? WHERE
+    if "reasoning_content" in columns:
+        db.execute("INSERT INTO reasoning SELECT id,reasoning_content FROM messages WHERE reasoning_content<>''")
+        db.execute("ALTER TABLE messages DROP COLUMN reasoning_content")
+    for *key, instance in db.execute("SELECT DISTINCT manager_id,slot_id,model_id,instance_id FROM messages"):
+        chat_id = _legacy_id(db, key, instance, create=True)
+        db.execute("""UPDATE messages SET chat_id=? WHERE
                        manager_id=? AND slot_id=? AND model_id=? AND instance_id=?""", (chat_id, *key, instance))
-        db.execute("""CREATE TABLE IF NOT EXISTS chat_requests (
+    db.execute("""CREATE TABLE IF NOT EXISTS chat_requests (
             request_id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, state TEXT NOT NULL)""")
-        db.execute("""CREATE TABLE request_metrics (
+    db.execute("""CREATE TABLE request_metrics (
             request_id TEXT PRIMARY KEY, chat_id TEXT NOT NULL REFERENCES chats ON DELETE CASCADE,
             started_at TEXT NOT NULL, finished_at TEXT NOT NULL, state TEXT NOT NULL,
             metrics TEXT NOT NULL)""")
-        db.execute("CREATE INDEX metrics_by_chat ON request_metrics(chat_id,started_at DESC)")
-        db.execute("PRAGMA user_version=2")
+    db.execute("CREATE INDEX metrics_by_chat ON request_metrics(chat_id,started_at DESC)")
+
+
+def _link_message_metrics(db):
+    db.execute("ALTER TABLE messages ADD COLUMN request_id TEXT REFERENCES request_metrics ON DELETE SET NULL")
+    db.execute("CREATE INDEX messages_by_request ON messages(request_id) WHERE request_id IS NOT NULL")
+    # v2 saved each pair in one transaction using the measured start and finish UTC
+    # timestamps. Import only one-to-one matches, including when timestamps collide.
+    db.execute("""WITH candidates AS (
+        SELECT u.id AS user_id, a.id AS assistant_id, r.request_id,
+               COUNT(*) OVER (PARTITION BY r.request_id) AS request_matches,
+               COUNT(*) OVER (PARTITION BY u.id) AS exchange_matches
+        FROM messages u JOIN messages a ON a.id=u.id+1 AND a.chat_id=u.chat_id
+        JOIN request_metrics r ON r.chat_id=u.chat_id AND r.started_at=u.created_at AND r.finished_at=a.created_at
+        WHERE u.role='user' AND a.role='assistant' AND r.state='complete'
+    ), matches AS (
+        SELECT user_id, assistant_id, request_id FROM candidates WHERE request_matches=1 AND exchange_matches=1
+    ), links AS (
+        SELECT user_id AS message_id, request_id FROM matches
+        UNION ALL
+        SELECT assistant_id AS message_id, request_id FROM matches
+    )
+    UPDATE messages SET request_id=links.request_id FROM links WHERE messages.id=links.message_id""")
 
 
 def _legacy_id(db, key, instance, *, create=False):
@@ -241,13 +272,25 @@ def _history(db, chat_id, limit, *, context=False, timestamps=False):
         cutoff = "c.cleared_through"
         archive = "r.content"
         join = "LEFT JOIN reasoning r ON r.message_id=m.id"
-    rows = db.execute(f"""SELECT m.role,m.content,{archive},m.created_at
+    metrics_column = "NULL"
+    if timestamps:
+        metrics_column = "measurement.metrics"
+        join += """ LEFT JOIN request_metrics measurement ON measurement.request_id=m.request_id
+                    AND measurement.chat_id=m.chat_id AND measurement.state='complete'"""
+    rows = db.execute(f"""SELECT m.role,m.content,{archive},m.created_at,{metrics_column}
         FROM messages m JOIN chats c ON c.chat_id=m.chat_id {join}
         WHERE m.chat_id=? AND m.id>{cutoff} ORDER BY m.id DESC LIMIT ?""",
         (chat_id, min(1024, max(1, limit)))).fetchall()
     return [{"role": role, "content": content, **({"reasoning_content": reasoning} if reasoning else {}),
-             **({"created_at": created_at} if timestamps else {})}
-            for role, content, reasoning, created_at in reversed(rows)]
+             **({"created_at": created_at} if timestamps else {}),
+             **({"metrics": _message_metrics(metrics)} if metrics else {})}
+            for role, content, reasoning, created_at, metrics in reversed(rows)]
+
+
+def _message_metrics(raw):
+    data = json.loads(raw)
+    return {key: data[key] for key in ("first_fragment_ms", "generation_ms", "total_ms", "usage", "throughput")
+            if key in data}
 
 
 def history(folder, manager_id=None, slot_id=None, model_id=None, *, instance_id=None,
@@ -337,17 +380,20 @@ def append_exchange(folder, manager_id, slot_id, model_id, user, reply, *, reque
             if row != ("pending",):
                 raise ValueError("chat_request_not_pending")
         selected = chat_id or _legacy_id(db, key, instance_id, create=True)
-        insert = """INSERT INTO messages(manager_id,slot_id,model_id,role,content,instance_id,chat_id,created_at)
-                    VALUES(?,?,?,?,?,?,?,?)"""
-        db.execute(insert, (*key, "user", user, instance_id or "", selected, (metrics or {}).get("started_at") or utc_now()))
+        linked_request = None
+        if request_id is not None and chat_id is not None and metrics is not None:
+            _save_metrics(db, request_id, chat_id, "complete", metrics)
+            linked_request = request_id
+        insert = """INSERT INTO messages(manager_id,slot_id,model_id,role,content,instance_id,chat_id,created_at,request_id)
+                    VALUES(?,?,?,?,?,?,?,?,?)"""
+        db.execute(insert, (*key, "user", user, instance_id or "", selected,
+                            (metrics or {}).get("started_at") or utc_now(), linked_request))
         assistant = db.execute(insert, (*key, "assistant", reply, instance_id or "", selected,
-                                        (metrics or {}).get("finished_at") or utc_now()))
+                                        (metrics or {}).get("finished_at") or utc_now(), linked_request))
         if reasoning:
             db.execute("INSERT INTO reasoning VALUES(?,?)", (assistant.lastrowid, reasoning))
         if request_id is not None:
             db.execute("UPDATE chat_requests SET state='complete' WHERE request_id=?", (request_id,))
-            if chat_id is not None and metrics is not None:
-                _save_metrics(db, request_id, chat_id, "complete", metrics)
         return _history(db, selected, 100, timestamps=chat_id is not None)
 
 

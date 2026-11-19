@@ -858,6 +858,17 @@ function timestamp(raw) {
   if (date && Number.isFinite(+date)) label.dateTime = date.toISOString();
   return label;
 }
+function messageFooter(message) {
+  const footer = node("div", "chat-message-footer");
+  footer.append(timestamp(message.created_at));
+  if (!message.pending) {
+    const details = node("small", "chat-message-metrics", message.metrics ?
+      requestMetricsLabel(message.metrics) : "Замеры запроса недоступны");
+    details.title = "Сохранённые замеры Client для этой пары сообщений";
+    footer.append(details);
+  }
+  return footer;
+}
 function messageBubble(message, live = false) {
   const bubble = node("div", "chat-bubble" + (message.role === "user" ? " user" : ""));
   const label = node("small", "", message.role === "user" ? "Вы" : "LLM");
@@ -867,7 +878,7 @@ function messageBubble(message, live = false) {
     bubble.append(label, reasoning);
   } else bubble.append(label);
   bubble.append(node("div", "chat-text", message.content || ""));
-  if (!live) bubble.append(timestamp(message.created_at));
+  if (!live) bubble.append(messageFooter(message));
   return bubble;
 }
 const chatHolder = byId("chat-messages");
@@ -936,6 +947,14 @@ function updateMetrics(view, extra = {}) {
 function seconds(ms) {
   return Number.isFinite(ms) ? (ms/1000).toFixed(2) + " с" : "нет данных";
 }
+function requestMetricsLabel(metrics) {
+  const usage = metrics.usage || {};
+  const rate = metrics.throughput?.completion_tokens_per_second;
+  return "Первый фрагмент " + seconds(metrics.first_fragment_ms) + " · Генерация " + seconds(metrics.generation_ms) +
+    " · Всего " + seconds(metrics.total_ms) +
+    " · Токены вход / выход " + (usage.prompt_tokens ?? "нет данных") + " / " + (usage.completion_tokens ?? "нет данных") +
+    (Number.isFinite(rate) ? " · Маршрут Colibri " + rate.toFixed(2) + " токенов/с с подготовкой prompt" : "");
+}
 function renderTimer() {
   const view = chatSelected && conversation(chatSelected);
   const active = view?.request;
@@ -947,15 +966,14 @@ function renderTimer() {
     label = active.first == null ? "Ожидание первого фрагмента " + seconds(total) :
       "Первый фрагмент " + seconds(active.first) + " · Генерация " + seconds(total-active.first) + " · Всего " + seconds(total);
   } else if (snapshot || data.browser_total_ms != null) {
-    const usage = data.usage || snapshot?.usage || {};
-    const first = data.browser_first_fragment_ms ?? snapshot?.first_fragment_ms;
-    const rate = (data.throughput || snapshot?.throughput)?.completion_tokens_per_second;
     label = (data.error || snapshot?.state === "failed" ? "Ошибка · " :
-      snapshot?.state === "cancelled" || data.cancelled ? "Отменён · " : "") +
-      "Первый фрагмент " + seconds(first) + " · Генерация " + seconds(data.browser_generation_ms ?? snapshot?.generation_ms) +
-      " · Всего " + seconds(data.browser_total_ms ?? snapshot?.total_ms) +
-      " · Токены вход / выход " + (usage.prompt_tokens ?? "нет данных") + " / " + (usage.completion_tokens ?? "нет данных") +
-      (Number.isFinite(rate) ? " · Маршрут Colibri " + rate.toFixed(2) + " токенов/с с подготовкой prompt" : "");
+      snapshot?.state === "cancelled" || data.cancelled ? "Отменён · " : "") + requestMetricsLabel({
+        first_fragment_ms:data.browser_first_fragment_ms ?? snapshot?.first_fragment_ms,
+        generation_ms:data.browser_generation_ms ?? snapshot?.generation_ms,
+        total_ms:data.browser_total_ms ?? snapshot?.total_ms,
+        usage:data.usage || snapshot?.usage,
+        throughput:data.throughput || snapshot?.throughput
+      });
   }
   byId("chat-timer").textContent = label;
 }
@@ -1108,7 +1126,7 @@ async function submitChat(event) {
   const requestId = view.retry?.parameters === parameters ? view.retry.id : crypto.randomUUID().replaceAll("-", "");
   const request = {chatId:id, target, id:requestId, started:performance.now(),
     controller:streaming ? new AbortController() : null,
-    user:messageBubble({role:"user", content:message, created_at:new Date().toISOString()}),
+    user:messageBubble({role:"user", content:message, created_at:new Date().toISOString(), pending:true}),
     assistant:messageBubble({role:"assistant"}, true)};
   const restoreFocus = document.activeElement === input;
   view.draft = input.value;
@@ -1132,6 +1150,7 @@ async function submitChat(event) {
     const total = performance.now()-request.started;
     updateMetrics(view, {usage:result.usage || {}, throughput:result.throughput || {}, context:result.context || view.metrics.context,
       saved:result.metrics, browser_total_ms:total, browser_generation_ms:request.first == null ? null : total-request.first});
+    const inlineExchange = !result.cached && !result.history_reload;
     if (result.history_reload) result = await api("/api/chat/history?" + new URLSearchParams({chat_id:id}));
     view.messages = result.messages;
     view.draft = "";
@@ -1140,10 +1159,10 @@ async function submitChat(event) {
     if (chatSelected === id) {
       input.value = "";
       const rendered = chatHolder.querySelectorAll(".chat-bubble");
-      if (!result.cached && rendered.length === view.messages.length && view.messages.length >= 2) {
+      if (inlineExchange && rendered.length === view.messages.length && view.messages.length >= 2) {
         const [user, assistant] = view.messages.slice(-2);
-        request.user.querySelector("time").replaceWith(timestamp(user.created_at));
-        request.assistant.append(timestamp(assistant.created_at));
+        request.user.querySelector(".chat-message-footer").replaceWith(messageFooter(user));
+        request.assistant.append(messageFooter(assistant));
         request.assistant.querySelector(".chat-text").textContent = assistant.content;
         const detail = request.assistant.querySelector(".reasoning-panel");
         detail.querySelector(".reasoning-text").textContent = assistant.reasoning_content || "";

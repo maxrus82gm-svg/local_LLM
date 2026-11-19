@@ -137,6 +137,11 @@ try {
   assert.equal(first.results[0].usage.completion_tokens,8);
   assert(first.results[0].first_fragment_ms > 0 && first.results[0].generation_ms > 0);
   assert.match(await evaluate('byId("chat-timer").textContent'),/17 \/ 8/);
+  const footnotes = () => evaluate('[...chatHolder.querySelectorAll(".chat-message-metrics")].map(el=>el.textContent)');
+  const firstFootnotes = await footnotes();
+  assert.equal(firstFootnotes.length,2);
+  assert.equal(firstFootnotes[0],firstFootnotes[1]);
+  assert.match(firstFootnotes[0],/Первый фрагмент .*Генерация .*Всего .*17 \/ 8.*Маршрут Colibri/);
   const readyMs = await evaluate('streamMetrics.browser_slot_ready_ms - streamMetrics.browser_total_ms');
   assert(readyMs > 0 && readyMs < 5000);
   const checks = await evaluate('streamMetrics.browser_slot_checks');
@@ -163,6 +168,10 @@ try {
   assert(forwarded.every(m => Object.keys(m).sort().join() === 'content,role'));
   assert(!JSON.stringify(forwarded).includes('Фрагмент рассуждения'));
   assert.equal((await query(b)).messages.length,2);
+  const afterContext = await footnotes();
+  assert.deepEqual(afterContext.slice(0,2),firstFootnotes);
+  assert.match(afterContext[2],/31 \/ 4/);
+  assert.equal(afterContext[2],afterContext[3]);
 
   await evaluate('byId("chat-history-messages").value=0; byId("chat-history-messages").dispatchEvent(new Event("change"))');
   await until('currentChat().settings.max_messages===0');
@@ -212,6 +221,9 @@ try {
   assert.deepEqual((await query(a,'metrics')).results[0].usage,{});
   const beforeRestart = (await query(a)).messages;
   assert(beforeRestart.every(m=>m.created_at && m.created_at.endsWith('+00:00')));
+  const beforeRestartFootnotes = await footnotes();
+  assert.equal(beforeRestartFootnotes.length,beforeRestart.length);
+  assert.match(beforeRestartFootnotes.at(-1),/Первый фрагмент нет данных.*Токены вход \/ выход нет данных \/ нет данных/);
   results.terminal_paths = ['done','cancelled','truncated','no usage'];
 
   if (portableExe) {
@@ -230,6 +242,8 @@ try {
   assert.equal(await evaluate('chatSelected'),a);
   assert.equal(await evaluate('byId("chat-title").textContent'),'QA archive A');
   assert.deepEqual((await query(a)).messages,beforeRestart);
+  assert.deepEqual(await footnotes(),beforeRestartFootnotes);
+  results.per_message_measurements = {rows:beforeRestartFootnotes.length, separate_exchanges:true, persisted:true};
   await evaluate('byId("chat-statistics").open=true');
   await until('byId("chat-stat-results").textContent.includes("Отменён")');
   results.restart_and_time = true;

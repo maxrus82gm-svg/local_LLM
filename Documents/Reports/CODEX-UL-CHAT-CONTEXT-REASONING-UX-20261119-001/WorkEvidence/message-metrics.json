@@ -1,0 +1,262 @@
+{
+  "task_id": "CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001",
+  "baseline": "42030f79a9f50598a7a54846678e364d4a63c69c",
+  "scope": "Local Windows; synthetic Colibri; no live inference",
+  "coverage": [
+    "per-exchange timing and token usage",
+    "v2 migration and backup",
+    "ambiguous matches stay unlinked",
+    "reload and Client restart",
+    "unknown usage",
+    "verified role/content-only upstream payload"
+  ],
+  "unit": {
+    "pass": 58,
+    "fail": 0,
+    "skip": 0
+  },
+  "runs": [
+    {
+      "run": "check",
+      "command": "node --check Client_Ultra_LLM/web_assets/client.js",
+      "exit": 0,
+      "seconds": 0.1487586,
+      "log": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/message-metrics/check.log"
+    },
+    {
+      "run": "unit",
+      "command": "py -3.12 -B Manager_Ultra_LLM/test_gate2_hardening.py --suite Client_Ultra_LLM --minimum 58 --output <scratch>/unit.json",
+      "exit": 0,
+      "seconds": 39.9094456,
+      "log": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/message-metrics/unit.log"
+    },
+    {
+      "run": "source",
+      "command": "node Client_Ultra_LLM/test_browser_independent_chats.mjs",
+      "exit": 0,
+      "seconds": 28.2739597,
+      "log": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/message-metrics/source.log"
+    },
+    {
+      "run": "source-final",
+      "command": "node Client_Ultra_LLM/test_browser_independent_chats.mjs",
+      "exit": 0,
+      "seconds": 24.778615,
+      "log": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/message-metrics/source-final.log"
+    },
+    {
+      "run": "stream-regression",
+      "command": "node Client_Ultra_LLM/test_browser_stream_source.mjs",
+      "exit": 0,
+      "seconds": 14.1243875,
+      "log": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/message-metrics/stream-regression.log"
+    },
+    {
+      "run": "portable-build",
+      "command": "Client_Ultra_LLM/Build-Portable.ps1 -BuilderPython <pinned Python> -OutputRoot <scratch>/portable -ReleaseName UltraLLM_Client_Message_Metrics_Win64",
+      "exit": 0,
+      "seconds": 12.2005274,
+      "log": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/message-metrics/portable-build.log"
+    },
+    {
+      "run": "portable-browser",
+      "command": "UL_QA_PORTABLE=<package EXE>; node Client_Ultra_LLM/test_browser_independent_chats.mjs",
+      "exit": 0,
+      "seconds": 26.6505322,
+      "log": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/message-metrics/portable-browser.log"
+    }
+  ],
+  "chrome": {
+    "source": {
+      "status": "PASS",
+      "scope": "Chrome / SOURCE Client / TLS SOURCE Manager / synthetic Colibri",
+      "seconds": 28.0727002,
+      "results": {
+        "scroll": {
+          "reasoning": {
+            "top": 1988.1817626953125,
+            "height": 2410,
+            "client": 422,
+            "distance": -0.1817626953125
+          },
+          "answer": {
+            "top": 4130.9091796875,
+            "height": 4553,
+            "client": 422,
+            "distance": 0.0908203125
+          },
+          "paused": {
+            "top": 10,
+            "height": 6696,
+            "client": 422,
+            "distance": 6264
+          }
+        },
+        "scheduler_release_ms": 1377.800000011921,
+        "scheduler_checks": [
+          "busy",
+          "busy",
+          "busy",
+          "ready_unreserved"
+        ],
+        "synthetic_usage": {
+          "prompt_tokens": 17,
+          "completion_tokens": 8
+        },
+        "independence_and_history": true,
+        "terminal_paths": [
+          "done",
+          "cancelled",
+          "truncated",
+          "no usage"
+        ],
+        "per_message_measurements": {
+          "rows": 10,
+          "separate_exchanges": true,
+          "persisted": true
+        },
+        "restart_and_time": true,
+        "offline_and_validation": true,
+        "closed_ports": [
+          true,
+          true,
+          true
+        ]
+      }
+    },
+    "source-final": {
+      "status": "PASS",
+      "scope": "Chrome / SOURCE Client / TLS SOURCE Manager / synthetic Colibri",
+      "seconds": 24.7059395,
+      "results": {
+        "scroll": {
+          "reasoning": {
+            "top": 1988.1817626953125,
+            "height": 2410,
+            "client": 422,
+            "distance": -0.1817626953125
+          },
+          "answer": {
+            "top": 4130.9091796875,
+            "height": 4553,
+            "client": 422,
+            "distance": 0.0908203125
+          },
+          "paused": {
+            "top": 10,
+            "height": 6696,
+            "client": 422,
+            "distance": 6264
+          }
+        },
+        "scheduler_release_ms": 1388.5,
+        "scheduler_checks": [
+          "busy",
+          "busy",
+          "busy",
+          "ready_unreserved"
+        ],
+        "synthetic_usage": {
+          "prompt_tokens": 17,
+          "completion_tokens": 8
+        },
+        "independence_and_history": true,
+        "terminal_paths": [
+          "done",
+          "cancelled",
+          "truncated",
+          "no usage"
+        ],
+        "per_message_measurements": {
+          "rows": 10,
+          "separate_exchanges": true,
+          "persisted": true
+        },
+        "restart_and_time": true,
+        "offline_and_validation": true,
+        "closed_ports": [
+          true,
+          true,
+          true
+        ]
+      }
+    },
+    "portable-browser": {
+      "status": "PASS",
+      "scope": "Chrome / portable EXE / TLS SOURCE Manager / synthetic Colibri",
+      "seconds": 26.570076999999998,
+      "results": {
+        "scroll": {
+          "reasoning": {
+            "top": 1988.1817626953125,
+            "height": 2410,
+            "client": 422,
+            "distance": -0.1817626953125
+          },
+          "answer": {
+            "top": 4130.9091796875,
+            "height": 4553,
+            "client": 422,
+            "distance": 0.0908203125
+          },
+          "paused": {
+            "top": 10,
+            "height": 6696,
+            "client": 422,
+            "distance": 6264
+          }
+        },
+        "scheduler_release_ms": 1351,
+        "scheduler_checks": [
+          "busy",
+          "busy",
+          "busy",
+          "ready_unreserved"
+        ],
+        "synthetic_usage": {
+          "prompt_tokens": 17,
+          "completion_tokens": 8
+        },
+        "independence_and_history": true,
+        "terminal_paths": [
+          "done",
+          "cancelled",
+          "truncated",
+          "no usage"
+        ],
+        "per_message_measurements": {
+          "rows": 10,
+          "separate_exchanges": true,
+          "persisted": true
+        },
+        "restart_and_time": true,
+        "offline_and_validation": true,
+        "closed_ports": [
+          true,
+          true,
+          true,
+          true
+        ]
+      }
+    }
+  },
+  "package": {
+    "verified_files": 75,
+    "zip": {
+      "relative_local_path": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/message-metrics/portable/UltraLLM_Client_Message_Metrics_Win64.zip",
+      "bytes": 10858998,
+      "sha256": "8e3b93a2cbf1743edd2a1e607c125913e058a3be694c2be5a2805a2a24377a93"
+    },
+    "exe": {
+      "relative_local_path": "Test/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/message-metrics/portable/UltraLLM_Client_Message_Metrics_Win64/UltraLLMClient.exe",
+      "bytes": 2373615,
+      "sha256": "032c06538a4df373ae7bf5c942203dd2a7139592e2eb848e38239645cf64a137"
+    }
+  },
+  "process_audit": {
+    "task_process_count": 0,
+    "utc": "2026-11-19T18:41:51.3904456Z"
+  },
+  "publish_status": "LOCAL ONLY",
+  "cleanup_state": "CLEANUP PENDING"
+}
