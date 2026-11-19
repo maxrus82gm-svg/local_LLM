@@ -1705,3 +1705,67 @@ SAFE-CUTOVER C/D were NOT RUN. Owner may publish this scoped local diff;
 coordinator should independently rerun Windows CI on the exact new SHA and
 review the negative trace. №07 stays as-is in BLOCK1.1; no second rotation or
 independent verdict was written.
+
+
+## CODEX-UL-R5-RELEASE-ROLLOUT-20261118-001 — итоговый отчёт S0–S7, 19.11.2026
+
+### DONE / LIVE
+
+**S5 LIVE PASS, S6 PARTIAL, S7 SUBMITTED / INDEPENDENT REVIEW PENDING.** На `DESKTOP-KT4G5SM` работает R5 через прежнюю задачу `UltraLLM_Manager_LIVE`. Реальная Qwen проверена через Chrome и отдельный экземпляр исходного Web Client с изолированной историей. Установленный Client подтвердил аутентифицированный snapshot и каталог.
+
+| Этап | Результат и доказательство |
+| --- | --- |
+| S0 | PASS. Машины, контекст WinRM и исходный baseline сверены. Пользовательский Obsidian workspace сохранён побайтово. |
+| S1 | PASS. ZIP подготовлен из №65 `86880240df0f5a96d147f61d8246697c14bc4380` и проверен в отдельном каталоге. |
+| S2 | PASS. Повтор Chrome и отрицательный контроль отсутствующей KAT закрыли гонку теста. Координатор проверил Windows CI для исходников №68 `4300108e1e72c53fd8f31a5c04e2caaa3f3d619f`. |
+| S3 | PASS. Перед S5 прошли 43 read-only проверки, PID, task XML, TLS, ACL, порты и ресурсы подтверждены. |
+| S4 | PASS. Защищённая копия содержит 26 файлов кода, 4 файла состояния и XML. F3 прошёл по внешнему pin, неверный pin отклонён. Репетиция восстановления выполнена в изоляции, staged ZIP и 23/23 файлов подтверждены. |
+| S5 | LIVE PASS по повторному чтению после переключения. PID `342512` остановлен в 01:55:28 +05:00. R5 PID `342152` запущен в 01:55:39 той же задачей. Listener `192.168.0.77:8443`, 23/23 live SHA и прежний TLS подтверждены. |
+| S6 | Qwen LIVE PASS по streaming, cancel, history reload, отдельному reasoning и повторному подключению. Новые CPU/CUDA экземпляры, параллельные независимые чаты и stop-one isolation NOT RUN при отключённом `control_models`. |
+| S7 | SUBMITTED. Изолированные Chrome и Client закрыты, активных потоков и процессов QA 0. Последний read-only postflight PASS, БЛОК 1.1 содержит полный текст №76. |
+
+### CHANGED / DIFF
+
+- Авторизация выполнения привязана к текущей задаче, №76 `3ceaa8603b67ae09219ac2bb06cf6f2f8ee72c93`, точным SHA, HEAD и прежнему PID. Прямой технический бюджет 360 с от подтверждённого preflight. Подтверждённое восстановление использует один отдельный бюджет 240 с. Защитные функции Stop/WaitFree и проверка путей сохранены.
+- Исходный diff исполнения находится в `s5-autonomous-review/s5-autonomous.diff`. SHA выполненного launcher `01c343e93be0db281c42f49c70bdccf9864dc45163cad33b5424e2ce75e091cf` и server runner `dd3868cd330a4de52496c90670014ae509a12158ab7eaec15d0e889079517c7d`.
+- Добавлены локальные проверки S6 с обычным browser UI в отдельном Chrome и отдельным хранилищем истории. Действующие production Client, TLS, ACL, firewall, Scheduled Task XML, модели и их пользовательские данные сохранены.
+- Два дефекта измерения и запуска recovery исправлены в `postflight-offline-fixes/s5-postflight-verification.diff`. SHA локального исправленного launcher `3acc29cbdcd456e026d7e708989f153e593203254be57a5d820b220876b5a6a6`, runner `d765fe548ecade8cdab182a7384be82541bae780e81bd229f29e8dc84c6f277c`. Исправленные копии прошли офлайн-тесты, повторного переключения с ними не было. Product source и immutable ZIP сохранены.
+
+### TESTS / NEGATIVE
+
+- Координатор проверил Windows CI для №68. Manager 350 PASS и 1 прежний SKIP, Client 49 PASS, Chrome legacy, P0/P1 и отрицательные контроли PASS. На финальный локальный diff hosted CI не запускался. [Windows CI 44344906742](https://github.com/maxrus82gm-svg/local_LLM/actions/runs/44344906742)
+- №76 фиксирует независимые 83/83 offline PASS для предыдущих точных SHA launcher/runner. После обновления авторский S5 QA дал 40/40 authorization tests и 31/31 Stop/WaitFree на PowerShell 7.6.9 и 31/31 на Windows PowerShell 5.1. Проверены неверные SHA, HEAD, host/PID, устаревшее подтверждение, lost ACK и восстановление после прямого тайм-аута.
+- Локальные исправления readback/recovery прошли 12/12 replay реальных записей и 31/31 повторно на каждом PowerShell. Анонимный 200 и произвольные ответы 403/503 отклоняются. Чужой transaction ID и неверная фаза восстановления отклоняются.
+- Реальный отрицательный контроль без токена дал на серверном источнике HTTP 403 `source_not_permitted`. На разрешённом домашнем источнике получен HTTP 401 `unauthorized`. Установленный Client получил HTTP 200 с действующей авторизацией. TLS fingerprint `6ffd03d256372ca5a96d47719e2d5bb48e58a0d49c377e3ca326b46fe756fef1`.
+
+### LIVE METRICS
+
+| Показатель | Фактический результат |
+| --- | ---: |
+| Chrome TTFT до первого DOM-фрагмента | 9057,1 мс |
+| Первый фрагмент Colibri | 8601,04 мс |
+| Пересылка первого фрагмента Manager | 0,291 мс |
+| Полное время ответа в Chrome | 12207,4 мс |
+| Prompt и completion по данным провайдера | 40 и 15 токенов |
+| Фрагменты текста | 15 |
+| Скорость completion с учётом prefill | 1,292 токена/с |
+| Второй запрос | 1 reasoning-событие, отмена подтверждена Client и upstream |
+| История | 2 тестовых сообщения до и после отмены, видны после reload |
+
+Метрики длительности измерены внутри соответствующего процесса. Unix timestamps разных машин не использованы для вычитания межхостовой задержки. Проверка реальных моделей ограничена Qwen в slot1. Каталог видит Qwen и KAT, но в slot2/slot3 новых процессов нет. После S6 прежние Qwen PID 138268/139516 health=ok, Valheim PID 248800 UDP 2456/2457, production Client PID 35708 ONLINE на 127.0.0.1:61761 с исходным SHA EXE.
+
+### ROLLBACK / PROBLEMS
+
+После запуска launcher пометил `FAIL:wire_invariants`, поскольку ожидал 401 с серверного источника. Точный повтор показал 403 `source_not_permitted`, а разрешённый источник дал 401 без токена и 200 с токеном. На первом recovery-запросе проверка часов отклонила переход до Stop R5. Домашняя метка начала опережала серверную метку решения примерно на 0,39 с. Повторное read-only состояние подтвердило точный новый PID, TLS, ACL, task XML, действующий Client и все 23 файла. Продуктового сбоя и утраты идентичности не обнаружено. R5 оставлен LIVE, откат в этом запуске NOT RUN. Архив прежнего runtime сохранён целиком.
+
+- Рабочий R5 `C:\Server\Ultra_LLM\Manager_Live`, `live_manager.py` SHA-256 `7dee682ad4fa5cf692a637d3b3a334b74a67dd5707273f9183a095a58e5a406e`.
+- Удержанный прежний runtime `C:\Server\Ultra_LLM\Manager_Live_RETAINED_20261118_1_001`, `live_manager.py` SHA-256 `e15ef6ccea34fc4a6d7ba2afc2a4a37d6739d9b48884dcd99d0a9baa4584da51`.
+- ZIP SHA-256 `9759b25689776f3e05698c4e821de71d130712ab17fe2ea2c1610bb854690b17`. Внешний F3 SHA-256 `a8ad8badb925e3941a2d49c4938779a05a801c7c0a03fc0bedf40e5857d18df3`.
+- На этапе подготовки Windows дважды отказала в атомарной замене №13. Запись №13 сохранена через эксклюзивный доступ к писателю, проверку исходных байтов и контрольную сверку записи.
+
+### DOC IMPACT / QUESTIONS / NEXT
+
+- HEAD локальной рабочей копии №75 `8bac7c14a6eb242b7655018e2dd2cdd5566cf2c8`. №76 был прочитан по неизменяемому GitHub SHA. Git add/commit/push отсутствуют.
+- Авторский журнал в `Documents/13_Тактический_контекст.md`. Полный текст ACTIVE из №76 перенесён в БЛОК 1.1 и отмечен как SUBMITTED / PARTIAL. БЛОК 1 свободен. Исходный архив F4/P1 остался в №65. Байты БЛОКА 4 совпадают с исходными.
+- Evidence в `Test/CODEX-UL-R5-RELEASE-ROLLOUT-20261118-001/s5-autonomous-review/`. Основные файлы `s5-76-live-checkpoint.json`, `s5-r5-live-readback.json`, `s5-r5-client-source-negative.json`, `s6-live-qa.json`, `s6-76-postflight.json` и `s7-final-evidence.json`. Приватный backup и секреты остаются в исходном защищённом хранилище.
+- Запрошена одна финальная независимая приёмка. В её scope входят точный LIVE rollout, реальные метрики и ограничения S6. Для отдельной проверки новых моделей потребуется согласованный доступ к model control.
