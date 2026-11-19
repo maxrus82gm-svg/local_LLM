@@ -173,6 +173,19 @@ S5 LIVE PASS по фактическим проверкам R5 и Client. S6 Qwe
 
 ### БЛОК 4 — НЕЗАВИСИМАЯ ПРОВЕРКА (ТОЛЬКО КООРДИНАТОР)
 
+**19.11.2026 — DOC-UL-R5-INDEPENDENT-LIVE-PARTIAL-CLOSEOUT-20261119-001 — independent R5 final acceptance.**
+
+**Проверка координатора 19.11.2026, 08:31 +05:** самостоятельно прочитана реальная Windows Scheduled Task `UltraLLM_Manager_LIVE` на `DESKTOP-KT4G5SM`: Running, Manager R5 PID `342152`, listener `192.168.0.77:8443` принадлежит ему, запущен из `C:\Server\Ultra_LLM\Manager_Live`; SHA256 установленного `live_manager.py` = `7dee682ad4fa5cf692a637d3b3a334b74a67dd5707273f9183a095a58e5a406e`. Удержанный прежний Manager SHA256 `e15ef6ccea34fc4a6d7ba2afc2a4a37d6739d9b48884dcd99d0a9baa4584da51`. Qwen gateway/engine PIDs `138268/139516`, Valheim PID `248800`, UDP `2456/2457` сохранялись. Только READ-ONLY, никаких серверных изменений координатором.
+**Client independently:** PID `35708`, listener `127.0.0.1:61761`, `/api/status`: manager `online`, `LIVE_HOST`, schema `ultra.manager.live.v1`, streaming/reasoning_events=true, 3 slots.
+**Собственные offline QA:** authorization `40/40 PASS` в PS 7.6.9, Stop/WaitFree `31/31 PASS` в PS 7.6.9 и `31/31 PASS` в Windows PS 5.1; **102/102 PASS**. Это не hosted CI и не повторный LIVE cutover.
+**S6 по авторскому evidence:** реальная Qwen через Chrome→изолированный Web Client→Manager R5→Colibri: 15 completion tokens / 15 fragments, Chrome TTFT `9057.1 ms`, Colibri first fragment `8601.04 ms`, cancel/reasoning/history-reload PASS. Сам координатор реальную генерацию повторно НЕ запускал. `control_models=false`: новые CPU/CUDA instances, две независимые LLM, parallel chats и stop-one **NOT RUN**. 
+**Технический caveat:** первый launcher после удачного switch дал `FAIL:wire_invariants` из-за HTTP 403 `source_not_permitted` вместо ожидавшегося 401. Подтверждённый LIVE read-back показал работающий R5, rollback не выполнялся. Postflight фиксы HTTP/часов recovery прошли 12/12 offline только по авторскому QA, LIVE повторно не проверялись. 
+**Документы:** опубликованный owner №77 `cc961accd2907439d015c24af1f9831045cd3cec` менял №07/№13/README. Полный оригинал TASK с amendment №76 дословно перенесён в БЛОК1.1; БЛОК1 свободен. Авторский локальный `Test/CODEX-UL-R5-RELEASE-ROLLOUT-20261118-001/s5-autonomous-review/` проигнорирован Git, координатор прочитал его напрямую; доказательства НЕ опубликованы в Git. Исходный ZIP SHA256 `9759b25689776f3e05698c4e821de71d130712ab17fe2ea2c1610bb854690b17`.
+**VERDICT:** `S5 LIVE PASS (INDEPENDENT HOST CHECK) / S6 PARTIAL (real Qwen evidence; multi-model NOT RUN) / S7 ARCHIVE ACCEPTED / TASK CLOSED AS PARTIAL`. HOLD для самого Manager R5 снят, модельные control-разрешения не включались и не подразумеваются.
+
+---
+
+
 **18.11.2026 — DOC-UL-R5-CHROME-INDEPENDENT-20261118-001: independent review `CODEX-UL-R5-CHROME-STABILITY-20261117-001`.** Owner №63 `7a3f7355` introduced synthetic FIFO fault misdelivery, P1 [run 44309630442 FAIL](https://github.com/maxrus82gm-svg/local_LLM/actions/runs/44309630442); owner №64 `1fa6ea9bbfcc` repairs only offline fixture/P1 and append-only README with addressed probe/409 replay. Coordinator reviewed exact diff and personally reran [CI attempt2](https://github.com/maxrus82gm-svg/local_LLM/actions/runs/44321179202/attempts/2) on same SHA: first/second CI PASS, Manager 351=350 PASS/1 SKIP, Client 49 PASS, Chrome legacy/P0/P1/5 negatives PASS. **OFFLINE SOURCE ACCEPTED / INDEPENDENT WINDOWS CI PASS / REAL NOT RUN / RELEASE HOLD**. Original P1 upstream transient reason UNKNOWN; original F4 delay unproven; no product/GUI changes, OWNER UX NOT REQUIRED. No live Manager/Client or SAFE-CUTOVER GO. БЛОК1 свободен, 1.1 original preserved.
 
 
