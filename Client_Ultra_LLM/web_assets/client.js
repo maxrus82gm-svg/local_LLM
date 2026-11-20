@@ -724,13 +724,13 @@ function modelName(id) {
 }
 function modelLabel(target) {
   const peers = chatTargets.filter(item => item.manager_id === target.manager_id &&
-    item.model_id === target.model_id);
+    modelName(item.model_id) === modelName(target.model_id));
   return modelName(target.model_id) + (peers.length > 1 ?
     ` · ${target.slot_id}${target.mode ? " · " + target.mode.toUpperCase() : ""}` : "");
 }
 function selectedManagerId(chat) {
   if (!chat) return "";
-  return sessionStorage.getItem("ultra.chat.manager." + chat.chat_id) || chat.manager_id || "";
+  return sessionStorage.getItem("ultra.chat.manager." + chat.chat_id) ?? chat.manager_id ?? "";
 }
 function slotKey(target) {
   return JSON.stringify([target.manager_id, target.slot_id]);
@@ -845,7 +845,10 @@ function renderChatControls() {
   const managerId = selectedManagerId(chat);
   const value = chat?.model_id && managerId === chat.manager_id ? targetKey(chat) : "";
   const choices = chatTargets.filter(item => item.availability !== "denied");
-  const managers = new Map(choices.map(item => [item.manager_id, item.manager_name]));
+  const managers = new Map((Array.isArray(chatSnapshot?.managers) ? chatSnapshot.managers : [])
+    .filter(item => typeof item.manager_id === "string")
+    .map(item => [item.manager_id, (item.name || item.manager_id) +
+      (item.status === "online" ? "" : " \u00b7 offline")]));
   if (managerId && !managers.has(managerId)) managers.set(managerId, managerId + " · недоступен");
   managerSelector.replaceChildren(new Option("Выберите Manager", ""),
     ...[...managers].map(([id, name]) => new Option(name, id)));
@@ -1260,7 +1263,8 @@ async function submitChat(event) {
   const target = liveTarget(chat);
   const input = byId("chat-input");
   const message = input.value.trim();
-  if (!chatReady(target) || chatMutation || !message || message.length > 131072) return;
+  if (!chatReady(target) || chatMutation || selectedManagerId(chat) !== chat.manager_id ||
+      !message || message.length > 131072) return;
   const id = chat.chat_id;
   const view = conversation(id);
   if (view.request) return;
@@ -1347,8 +1351,7 @@ byId("chat-new").addEventListener("click", () => {
 });
 byId("chat-manager").addEventListener("change", event => {
   if (!chatSelected) return;
-  if (event.target.value) sessionStorage.setItem("ultra.chat.manager." + chatSelected, event.target.value);
-  else sessionStorage.removeItem("ultra.chat.manager." + chatSelected);
+  sessionStorage.setItem("ultra.chat.manager." + chatSelected, event.target.value);
   renderChatControls();
 });
 byId("chat-model").addEventListener("change", event => {

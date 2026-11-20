@@ -50,6 +50,12 @@ Codex работает **на компьютере владельца**, поэ�
 
 ### БЛОК 1 — ТЕКУЩАЯ ЗАДАЧА
 
+Свободен. Готов к получению следующей задачи от владельца.
+
+### БЛОК 1.1 — ПОСЛЕДНЯЯ СДАННАЯ ЗАДАЧА (ДОСЛОВНЫЙ ОРИГИНАЛ)
+
+**SUBMITTED / REVIEW PENDING / LOCAL QA PASS / OWNER UX PENDING.** Original TASK preserved verbatim. Partial owner publication 85 fbc16a66ea9515523a5756f1028937481d1618f1; final local correction and evidence in Reports/CODEX-UL-CLIENT-CHAT-COMPOSER-UX-20261120-001/Final/report.md. Previous BLOCK 1.1 is immutable in commit 85 / Documents/07. No git write.
+
 # CODEX-UL-CLIENT-CHAT-COMPOSER-UX-20261120-001
 
 **TASK ID:** `CODEX-UL-CLIENT-CHAT-COMPOSER-UX-20261120-001`
@@ -276,128 +282,24 @@ Manager и Colibri в рамках этой задачи не изменять.
 
 Начать с P1 и последовательно выполнить всю TASK.
 
-### БЛОК 1.1 — ПОСЛЕДНЯЯ СДАННАЯ ЗАДАЧА (ДОСЛОВНЫЙ ОРИГИНАЛ)
-
-**SUBMITTED / REVIEW PENDING · LOCAL QA PASS · LIVE NOT RUN.** Дословная TASK перенесена из БЛОКА 1. Локальное evidence: `Test/CODEX-UL-R5-MODEL-CONTROL-UI-LIVE-GATE-20261120-001/WorkEvidence/summary.json`; итоги и OWNER GO — №05/№13.
-
-# CODEX-UL-R5-MODEL-CONTROL-UI-LIVE-GATE-20261120-001
-
-**TASK ID:** `CODEX-UL-R5-MODEL-CONTROL-UI-LIVE-GATE-20261120-001`  
-**Дата:** 20.11.2026  
-**Проект:** Ultra LLM Client / Manager R5 / Colibri  
-**Workspace:** `M:\GitHub\local_LLM`  
-**Репозиторий:** `maxrus82gm-svg/local_LLM`  
-**Baseline GitHub:** №82 `a89ac1352db07c3b553252867836efca14b4c4ad`. Сверить актуальный локальный HEAD и незакоммиченные изменения.
-
-**Цель:** пользователь из Ultra LLM Client самостоятельно выбирает установленную и разрешённую LLM, назначает её в слот, запускает на CPU или CUDA, общается с ней и останавливает без ручных команд и вмешательства в другие модели.
-
-## 1. Preflight и источники
-
-Перед реализацией изучить релевантные части:
-
-- `AGENTS.md`, `Documents/000_Задачи для агента.md`, `Documents/07_Задачи Codex.md`.
-- `Documents/00_Старт.md`, №13 (актуальный контекст), №05 (реестр), №18 (Client/Manager/control).
-- `Client_Ultra_LLM/` — интерфейс, настройки чата, выбор модели, API.
-- `Manager_Ultra_LLM/control_runtime.py`, `resource_catalog.py`, `slot_registry.py`, `live_manager.py`, `colibri2_runner.py` и связанные тесты.
-
-Выявить, что уже работает, что отключено политикой доступа и чего действительно не хватает.
-
-**Важно:** локально остались изменения интерфейса чатов и документации после №82. Не перезаписывать, не откатывать и не включать чужие изменения в собственную работу. Перед началом изменений сверить их сохранение и согласовать базовый снимок с владельцем.
-
-## 2. Реализовать полный сценарий управления LLM
-
-Пользователь должен иметь возможность выполнить последовательность:
-
-**Manager → каталог моделей → выбор модели → выбор слота → CPU/CUDA → Start → READY → назначение модели чату → переписка → Stop.**
-
-Требования:
-
-1. Показывать актуальный каталог установленных моделей, подтверждённый Manager. Не отображать произвольные файлы как готовые к запуску модели.
-2. Показывать три начальных слота и кнопку добавления новых слотов, если Manager это разрешает.
-3. Позволить выбрать модель и CPU/CUDA для каждого слота.
-4. Отображать состояние модели: не запущена, запускается, готова, занята, останавливается, ошибка.
-5. Корректно реализовать Start и Stop через существующий авторизованный API Manager.
-6. После запуска модель становится доступной для назначения любому независимому чату.
-7. При остановке модели история чатов остаётся доступной.
-8. Несколько экземпляров одной модели либо разные модели не должны мешать друг другу.
-9. При нехватке предполагаемой RAM/VRAM показывать предупреждения и реальные причины ограничений; не обходить обязательные защитные проверки Manager.
-10. При отсутствии прав показывать понятную причину и способ штатного предоставления разрешения владельцем, без скрытого обхода авторизации.
-
-Приоритет — **полностью рабочее управление**, а не косметическое обновление интерфейса.
-
-## 3. Разобраться с разрешениями Manager
-
-Проверить в реальной установленной конфигурации, почему могут быть выключены:
-
-- `control.enabled`;
-- `control_models`;
-- `can_add_slot`;
-- Start CPU / CUDA / Stop.
-
-Отличать отсутствие серверного механизма, отключённую конфигурацию, недостаточные права Client и ресурсные ограничения.
-
-Подготовить точную, минимальную и обратимую процедуру предоставления разрешений конкретному Client.
-
-**Запрещено самостоятельно менять LIVE-разрешения Manager, перезапускать сервер или запускать реальные LLM без отдельного OWNER GO.**
-
-## 4. Проверки
-
-Codex самостоятельно проводит:
-
-- Unit и интеграционные тесты Manager/Client.
-- Chrome: выбор модели, добавление слота, Start, Ready, чат, Stop.
-- Отрицательные сценарии: недостаточно прав, занятый слот, модель отсутствует, нехватка ресурсов, обрыв Manager, двойной Start, ошибочная остановка.
-- Два параллельных экземпляра: STOP одного не влияет на второй.
-- Сохранение чатов, привязки моделей и истории после F5 и перезапуска.
-- Контроль совместимости с новой прокруткой, закреплённым вводом и статистикой.
-- Полный доступный regression suite и GitHub CI после публикации владельцем.
-
-Если выявлена ошибка — исправлять и повторять проверки, а не сдавать после первого PASS.
-
-**LIVE-этап:** после успешной автономной проверки подготовить один конкретный запрос OWNER GO на безопасный тест реальных моделей с backup, rollback и проверкой защиты Qwen и Valheim. Выполнить только после разрешения.
-
-Не считать synthetic PASS доказательством реального управления несколькими LLM.
-
-## 5. Самостоятельность
-
-Codex получает свободу выбирать минимальную архитектурную реализацию в Client/Manager и тестах внутри разрешённого Workspace.
-
-Не создавать новые рабочие ветки, дополнительные Markdown-документы или узлы Obsidian. Не выполнять Git write.
-
-Не изменять чужие незакоммиченные файлы без согласования.
-
-Не менять работающие Manager, Qwen, Colibri, Valheim, системные службы, сертификаты, сетевые разрешения и Production без отдельного OWNER GO.
-
-Сохранять только необходимый task-local QA evidence, не содержащий секретов и пользовательской переписки.
-
-## 6. Документооборот
-
-Обязательно обновлять:
-
-- **№13 — Тактический контекст:** фактический прогресс, тесты, проблемы, следующий шаг.
-- **№05 — Реестр задач:** TASK ID, состояние, результаты и OPEN.
-- №18 и №06 — только если изменены технические контракты или принято архитектурное решение.
-- №07 — сдача и ротация по регламенту.
-
-Без самовольного `report.md` и без лишних связей Obsidian.
-
-Итоговый ответ: `DONE / CHANGED / TESTS / DIFF / PROBLEMS / OWNER GO / NEXT`.
-
-**Критерий завершения:** в тестовой среде весь путь от выбора модели до Stop доказан. Реальная эксплуатационная приёмка проводится отдельно с разрешения владельца. Невыполненные LIVE-проверки обозначаются `NOT RUN`, а не `PASS`.
-
 ### БЛОК 2 — ПОСЛЕДНИЕ ПЯТЬ ЗАДАЧ (КОРОТКИЙ ИНДЕКС)
 
-- **CODEX-UL-R5-MODEL-CONTROL-UI-LIVE-GATE-20261120-001 / 20.11:** AUTHOR LOCAL QA PASS, три regression-цикла Manager 354/Client 58/Chrome, LIVE/CI/OWNER UX OPEN; дословная TASK в БЛОКЕ 1.1, evidence в task-local Test, детали №05/№13.
+- **CODEX-UL-CLIENT-CHAT-COMPOSER-UX-20261120-001 / 20.11:** P1-P5 LOCAL QA PASS, Client 58/58, Chrome 4/4, local asset readback PASS; OWNER UX / final owner publication / CI OPEN. Original in BLOCK 1.1.
+
+
+- **CODEX-UL-R5-MODEL-CONTROL-UI-LIVE-GATE-20261120-001 / 20.11:** AUTHOR LOCAL QA PASS, три regression-цикла Manager 354/Client 58/Chrome, LIVE/CI/OWNER UX OPEN; дословная TASK в БЛОКЕ 1.1, evidence в task-local Test, детали №05/№13. Original in immutable commit 85 / Documents/07 (prior BLOCK 1.1).
 
 - **CODEX-UL-R5-CHROME-STABILITY-20261117-001 / 18.11:** OWNER №63 CI P1 FAIL → №64 fix → INDEPENDENT OFFLINE SOURCE ACCEPTED / Windows CI PASS twice; REAL RELEASE HOLD; DOC-UL-R5-CHROME-INDEPENDENT-20261118-001. Original in BLOCK1.1.
 
 - **CODEX-UL-R5-GATE2-REGRESSION-FIX-20261114-001 / 14.11:** OFFLINE source fix **SCOPED CLOSED / INDEPENDENT TECHNICAL+CI PASS**: №56 `d79e7fb0aeabb49c96cbbb643376ab910b4a6cb5`, [independent CI attempt 2](https://github.com/maxrus82gm-svg/local_LLM/actions/runs/43599309587/attempts/2) 336 Manager PASS/1 SKIP, Client49 PASS, Chrome/5 controls PASS. REAL/ZIP rebuild NOT RUN; RELEASE HOLD.
 - **CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001 / 14.11:** AUTHOR PARTIAL, independent code/CI review, четыре RED/Windows FAIL; оригинал [immutable №56](https://github.com/maxrus82gm-svg/local_LLM/blob/d79e7fb0aeabb49c96cbbb643376ab910b4a6cb5/Documents/07_%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B8%20Codex.md) → прежняя БЛОК 1.1; №54/README/№09.
-- **CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001 / 13.11:** SOURCE candidate/evidence PASS; immutable №52 оригинал; реальный deploy NOT RUN.
 
 **Дополнительные OPEN вне завершённой пятёрки:** `CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001` — A/B SUBMITTED, Stage B Gate2, C/D NOT RUN/OWNER GO absent; полная задача и AMENDMENT immutable №54. F3 backup provenance pin; F4 Chrome first-run; versioned R5 release/re-stage после source fixes. Все ранние задачи остаются в №09/immutable Git.
 
 ### БЛОК 3 — OPEN / NEXT
+
+- **NOW 20.11 / CODEX-UL-CLIENT-CHAT-COMPOSER-UX-20261120-001:** local P5 full QA PASS; owner F5 visual acceptance, publish remaining corrections, exact-SHA CI; release/cleanup pending.
+
 
 - **NOW 20.11 / CODEX-UL-R5-MODEL-CONTROL-UI-LIVE-GATE-20261120-001:** source/Chrome локально проверены; installed Manager `owner_go=false`, `home-rex.control_models=false`, reviews отсутствуют. Owner публикация и новый hosted Windows CI, затем отдельный OWNER GO на full Manager package/cutover, private control config и bounded реальный CPU/CUDA/две LLM, защита Qwen/Valheim. До этого LIVE NOT RUN, RELEASE HOLD. Процедура №13.
 
@@ -409,6 +311,9 @@ Codex получает свободу выбирать минимальную а
 - **История/согласование:** №05/07.00/09/13/18 и №00 обновлены одним doc-only №57 в `GPT_2_local`, `main` меняет только владелец. §5.3 publication guard / test protocol продолжают действовать, новых UI изменений нет, OWNER UX NOT REQUIRED.
 
 ### БЛОК 4 — НЕЗАВИСИМАЯ ПРОВЕРКА (ТОЛЬКО КООРДИНАТОР)
+
+**20.11.2026 - CODEX-UL-CLIENT-CHAT-COMPOSER-UX-20261120-001:** coordinator reviewed owner commit 85 and resumed P5; corrected model-label collisions and pending Manager submit/draft guards; 58 Python tests, 6 JS syntax checks and 4 Chrome regressions PASS. Local running Client HTML/CSS/JS byte match. Own corrections self-tested, not independent acceptance; user UX and final hosted CI NOT RUN. No production/Manager changes. Verdict: LOCAL SOURCE QA PASS / REVIEW PENDING / OWNER UX PENDING.
+
 
 **19.11.2026 — DOC-UL-R5-INDEPENDENT-LIVE-PARTIAL-CLOSEOUT-20261119-001 — independent R5 final acceptance.**
 

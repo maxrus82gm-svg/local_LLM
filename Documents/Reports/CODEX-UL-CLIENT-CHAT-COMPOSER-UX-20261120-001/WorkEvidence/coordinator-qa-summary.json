@@ -1,0 +1,131 @@
+{
+  "task_id": "CODEX-UL-CLIENT-CHAT-COMPOSER-UX-20261120-001",
+  "baseline_sha": "fbc16a66ea9515523a5756f1028937481d1618f1",
+  "status": "LOCAL SOURCE QA PASS; OWNER UX/CI PENDING",
+  "created_utc": "2026-11-20T08:32:37.186187+00:00",
+  "runs": [
+    {
+      "name": "client-unit",
+      "exit_code": 0,
+      "seconds": 32.69,
+      "log": "client-unit.log"
+    },
+    {
+      "name": "syntax-browser_qa_helpers.mjs",
+      "exit_code": 0,
+      "seconds": 0.05,
+      "log": "syntax-browser_qa_helpers.mjs.log"
+    },
+    {
+      "name": "syntax-test_browser_control_stream.mjs",
+      "exit_code": 0,
+      "seconds": 0.03,
+      "log": "syntax-test_browser_control_stream.mjs.log"
+    },
+    {
+      "name": "syntax-test_browser_independent_chats.mjs",
+      "exit_code": 0,
+      "seconds": 0.05,
+      "log": "syntax-test_browser_independent_chats.mjs.log"
+    },
+    {
+      "name": "syntax-test_browser_slots_source.mjs",
+      "exit_code": 0,
+      "seconds": 0.05,
+      "log": "syntax-test_browser_slots_source.mjs.log"
+    },
+    {
+      "name": "syntax-test_browser_stream_source.mjs",
+      "exit_code": 0,
+      "seconds": 0.03,
+      "log": "syntax-test_browser_stream_source.mjs.log"
+    },
+    {
+      "name": "syntax-client.js",
+      "exit_code": 0,
+      "seconds": 0.05,
+      "log": "syntax-client.js.log"
+    },
+    {
+      "name": "test_browser_control_stream",
+      "exit_code": 0,
+      "seconds": 8.55,
+      "log": "test_browser_control_stream.log"
+    },
+    {
+      "name": "test_browser_independent_chats",
+      "exit_code": 0,
+      "seconds": 25.77,
+      "log": "test_browser_independent_chats.log"
+    },
+    {
+      "name": "test_browser_slots_source",
+      "exit_code": 0,
+      "seconds": 45.11,
+      "log": "test_browser_slots_source.log"
+    },
+    {
+      "name": "test_browser_stream_source",
+      "exit_code": 0,
+      "seconds": 13.22,
+      "log": "test_browser_stream_source.log"
+    }
+  ],
+  "source_sha256": {
+    "Client_Ultra_LLM/web_assets/client.css": "f76dd5f28c3efabdd2b9f176e0cf6836891e0b02038d3ebf01a56a37507b4cee",
+    "Client_Ultra_LLM/web_assets/client.js": "b80b06c16fd3334a0534393ef4eb0c98cc50232e3c02bf85dbbb60e902382ddd",
+    "Client_Ultra_LLM/web_assets/index.html": "dd8485f48d8c5602e6f45f2e60342b813a3c6b7ccd029f7a00a6c21129d32978",
+    "Client_Ultra_LLM/browser_qa_helpers.mjs": "fb3c5620e7a69f1581ffa4545107a13ad62e18cf00c0ca475ce7bde03eaba178",
+    "Client_Ultra_LLM/test_browser_control_stream.mjs": "4bc70b4cb17516dda67e8030a1f30d7a8e2618e45eafeb959338eb2f8c1fdfce",
+    "Client_Ultra_LLM/test_browser_independent_chats.mjs": "c91c915eac00a8af9898093471537a1e70a8055e4cddb5279ec5b3e579500cc1",
+    "Client_Ultra_LLM/test_browser_slots_source.mjs": "760eb0f51f07c9c4e01d209ce0aa21809bf3b3f752fb9db84fcce54656617b19",
+    "Client_Ultra_LLM/test_browser_stream_source.mjs": "d1fc18adf65290b35684f16bf9a7fb50ee189421ec9643b99e95bd7f352f0067",
+    "Client_Ultra_LLM/chat_client.py": "58bfeb53c06d8cac400f7b1d2b93d8e4a12eb288099adde4c8d0102ce25136c0",
+    "Client_Ultra_LLM/chat_store.py": "19ec84319728103518da904d546cd937ae7d585a2f2dcaf50e580034bd8d095f",
+    "Client_Ultra_LLM/live_client.py": "916c137501de78901d7ded234c7b9fe713e2e24aa6dcacdaaf15dea958674efb",
+    "Client_Ultra_LLM/live_client_gui.py": "5a895525d7cd0593174f654285170c7cb99c1e59aa73ab19f6729b4b4284586a",
+    "Client_Ultra_LLM/offline_stream_host.py": "77c52d633d3cfafdb1e2ba4f3c7a57c652df270b9af64876d2e5a3c60d6f963d",
+    "Client_Ultra_LLM/pairing_client.py": "fe09f29c81a46a3620e01e5a823bc4e722bab4d68347087552f35b64f4812a5e",
+    "Client_Ultra_LLM/pairing_live.py": "faaeea23001f5f1edbc7fb8e6bf256d68837008f2b21ba422f077da755586f5f",
+    "Client_Ultra_LLM/test_chat_client.py": "6d8e6097c89a64ef1800e1435a9718d68d9050f363e906f8eed5950a1da5acbf",
+    "Client_Ultra_LLM/test_client_mock.py": "6f9e9f9b35f91d9d6db2913151848dbef37d21219de549d75afd36da103d3340",
+    "Client_Ultra_LLM/test_independent_chats.py": "e23037931187ec15ecd14be239b13368dd7da8e65a1ecdec2c79f47bd0662017",
+    "Client_Ultra_LLM/test_live_client.py": "5502bcfbda9b055aacb2c23f6b76fe52abe49c8fd1c20e5d9797b9037b7639cf",
+    "Client_Ultra_LLM/test_pairing_client.py": "4e1a28c79b080c0100b1ffe1a716d5aefbe56aa1bac61c40b45c8d6369f4791a",
+    "Client_Ultra_LLM/test_pairing_live.py": "4bf43e40699335a2c41b33a0d892cfb49c463415d7ffc9078fbb4909a1897ed0",
+    "Client_Ultra_LLM/test_streaming.py": "ac5a3912f1b02693c394aa9a2fffe4c11d54d410941c18c420c2d2d2fa1f2b37",
+    "Client_Ultra_LLM/test_web_client.py": "48a88e66a19a9fed9fa732f18c855dbb3d565a8b0baba604e090a1bdc640a1ae",
+    "Client_Ultra_LLM/web_client.py": "5ea6da09af9f08f4483aa060c9c98f80a086ea6c39e03eaeafcacaf74a5a428d"
+  },
+  "static_html_unique_ids_and_composer_controls": "PASS",
+  "browser_summary": {
+    "test_browser_control_stream": {
+      "status": "PASS",
+      "console_errors": []
+    },
+    "test_browser_independent_chats": {
+      "status": "PASS",
+      "console_errors": []
+    },
+    "test_browser_slots_source": {
+      "status": "PASS",
+      "console_errors": []
+    },
+    "test_browser_stream_source": {
+      "status": "PASS",
+      "console_errors": []
+    }
+  },
+  "live_assets": {
+    "index.html": "dd8485f48d8c5602e6f45f2e60342b813a3c6b7ccd029f7a00a6c21129d32978",
+    "client.js": "b80b06c16fd3334a0534393ef4eb0c98cc50232e3c02bf85dbbb60e902382ddd",
+    "client.css": "f76dd5f28c3efabdd2b9f176e0cf6836891e0b02038d3ebf01a56a37507b4cee"
+  },
+  "limitations": [
+    "No real inference or destructive user tests",
+    "No current hosted CI for unpublished changes",
+    "Own fixes self-tested, independent followup pending",
+    "No Production or Manager changes",
+    "No Git write"
+  ]
+}

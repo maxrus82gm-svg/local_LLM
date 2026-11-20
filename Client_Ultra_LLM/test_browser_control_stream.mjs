@@ -166,6 +166,13 @@ try {
   await evaluate('byId("chat-manager").value="manager-a";byId("chat-manager").dispatchEvent(new Event("change"))');
   assert.equal(await evaluate('byId("chat-send").disabled'),true);
   assert.equal(await evaluate('currentChat().manager_id'), 'manager-b');
+  // A pending Manager change must also block a native form submit, not only Enter/click.
+  const previousBody=JSON.stringify(streamBody);
+  await evaluate('byId("chat-stream").checked=true;byId("chat-input").value="QA pending target";byId("chat-form").requestSubmit()');
+  await delay(250);
+  assert.equal(JSON.stringify(streamBody),previousBody);
+  assert.equal(await evaluate('Boolean(conversation(chatSelected).request)'),false);
+  await evaluate('byId("chat-input").value=""');
   const draftOrigin=await evaluate('performance.timeOrigin');
   await call('Page.reload');
   await until('performance.timeOrigin>'+draftOrigin+' && document.querySelectorAll(".manager").length===2');
@@ -185,6 +192,44 @@ try {
   assert.equal(await evaluate('byId("chat-manager").value'),'manager-a');
   await evaluate('selectChat('+JSON.stringify(secondChat)+')');
   assert.equal(await evaluate('byId("chat-manager").value'),'manager-b');
+  // Real instances of one model have distinct generated model IDs. Use the same DOM
+  // renderer with a synthetic third slot and an idle Manager.
+  const duplicateResult=await evaluate(`(() => {
+    const original=chatSnapshot;
+    try {
+      const payload=structuredClone(original);
+      const m=payload.managers.find(x=>x.manager_id==="manager-b");
+      const s=m.data.slots.find(x=>x.slot_id==="slot2");
+      s.instance_id="f".repeat(32);
+      const duplicate="ultra-slot3-kat-cuda-"+"d".repeat(32);
+      Object.assign(m.data.slots.find(x=>x.slot_id==="slot3"),{
+        models:[duplicate],instance_id:"d".repeat(32),engine_state:"ready",availability:"ready_unreserved"
+      });
+      m.data.control.instances.push({instance_id:"d".repeat(32),slot_id:"slot3",model_key:"kat",
+        model_id:duplicate,mode:"cuda",state:"READY"});
+      payload.managers.push({manager_id:"manager-idle",name:"Idle Manager",status:"online",data:{slots:[]}});
+      chatSnapshot=payload;renderChatList(payload);
+      const options=[...byId("chat-model").options].map(o=>o.text);
+      const idle=[...byId("chat-manager").options].some(o=>o.value==="manager-idle");
+      return {options,idle};
+    } finally {chatSnapshot=original;renderChatList(original);}
+  })()`);
+  assert(duplicateResult.options.some(x=>x.includes("slot2")&&x.includes("CPU")));
+  assert(duplicateResult.options.some(x=>x.includes("slot3")&&x.includes("CUDA")));
+  assert(!duplicateResult.options.some(x=>x.includes("dddddddd")));
+  assert.equal(duplicateResult.idle,true);
+  results.push('PASS: distinct runtime IDs share one display name; slot/mode distinguish duplicates; idle Manager visible');
+  await evaluate('byId("chat-manager").value="";byId("chat-manager").dispatchEvent(new Event("change"))');
+  assert.equal(await evaluate('byId("chat-manager").value'),'');
+  assert.equal(await evaluate('byId("chat-send").disabled'),true);
+  assert.equal(await evaluate('currentChat().manager_id'),'manager-b');
+  const blankOrigin=await evaluate('performance.timeOrigin');
+  await call('Page.reload');
+  await until('performance.timeOrigin>'+blankOrigin+' && document.querySelectorAll(".manager").length===2');
+  await evaluate('showChats()');
+  await until('byId("chat-manager").value==="" && byId("chat-send").disabled');
+  assert.equal(await evaluate('currentChat().manager_id'),'manager-b');
+  results.push('PASS: explicitly empty Manager choice remains a draft after F5; direct submit blocked');
   results.push('PASS: dependent Manager/model lists, no silent switch, per-chat F5 persistence');
   assert.deepEqual(errors,[]);
   console.log(JSON.stringify({status:'PASS',browser:'Chrome headless (separate temporary profile)',tests:results,
