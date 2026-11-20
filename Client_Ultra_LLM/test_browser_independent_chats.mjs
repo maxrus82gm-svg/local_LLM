@@ -96,7 +96,7 @@ try {
     return evaluate('chatSelected');
   };
   const select = async id => evaluate('selectChat('+JSON.stringify(id)+')');
-  const geometry = () => evaluate('({top:chatHolder.scrollTop,height:chatHolder.scrollHeight,client:chatHolder.clientHeight,distance:scrollDistance()})');
+  const geometry = () => evaluate('({top:window.scrollY,height:document.documentElement.scrollHeight,client:window.innerHeight,distance:scrollDistance(),innerOverflow:getComputedStyle(chatHolder).overflowY,composerBottom:Math.round(byId("chat-form").getBoundingClientRect().bottom)})');
 
   await activate();
   const a = await create(1);
@@ -105,7 +105,9 @@ try {
   await send('qa-long');
   await until('document.querySelector(".reasoning-text")?.textContent.length>500 && scrollDistance()<=3');
   const reasoning = await geometry();
-  assert(reasoning.height > reasoning.client * 3 && reasoning.top > 0);
+  assert(reasoning.height > reasoning.client * 2 && reasoning.top > 0);
+  assert.equal(reasoning.innerOverflow,'visible');
+  assert(Math.abs(reasoning.composerBottom - 620) < 3);
   await evaluate('refresh(true)');
   assert.equal(await evaluate('byId("chat-state").textContent'),'Модель отвечает');
   assert.equal(await evaluate('byId("chat-send").disabled'),true);
@@ -121,17 +123,34 @@ try {
   await until('chatHolder.textContent.includes("Первая часть ответа") && scrollDistance()<=3');
   const answer = await geometry();
   assert(answer.height > reasoning.height);
-  await evaluate('chatHolder.scrollTop=10');
+  await evaluate('window.scrollTo(0,10)');
   await until('!followStream');
   await command('wave');
   await until('chatHolder.textContent.includes("Вторая часть ответа")');
   const paused = await geometry();
   assert(paused.top <= 12 && paused.height > answer.height && paused.distance > 500);
+  assert.equal(paused.innerOverflow,'visible');
   await evaluate('byId("chat-latest").click()');
   await until('scrollDistance()<=3');
   await command('done');
   await until('streamMetrics.browser_total_ms != null && byId("chat-state").textContent.includes("занята")');
   await ready();
+  // Desktop layout: the page owns vertical scrolling, the chat list sticks,
+  // and the composer remains fixed to the actual chat column.
+  await call('Emulation.setDeviceMetricsOverride',{width:1440,height:800,deviceScaleFactor:1,mobile:false});
+  await evaluate('updateComposerPosition(); pinToBottom()');
+  await until('Math.abs(byId("chat-form").getBoundingClientRect().bottom-window.innerHeight)<3');
+  const desktop = await evaluate('({form:getComputedStyle(byId("chat-form")).position,side:getComputedStyle(document.querySelector(".chat-sources")).position,inside:getComputedStyle(chatHolder).overflowY,formLeft:byId("chat-form").getBoundingClientRect().left,panelLeft:chatPanel.getBoundingClientRect().left,formWidth:byId("chat-form").getBoundingClientRect().width,panelWidth:chatPanel.getBoundingClientRect().width})');
+  assert.deepEqual([desktop.form,desktop.side,desktop.inside],['fixed','sticky','visible']);
+  assert(Math.abs(desktop.formLeft-desktop.panelLeft)<2 && Math.abs(desktop.formWidth-desktop.panelWidth)<2);
+  await evaluate('window.scrollTo(0,document.querySelector(".chat-layout").getBoundingClientRect().top+window.scrollY+110)');
+  await until('window.scrollY>100');
+  const sideTop = await evaluate('document.querySelector(".chat-sources").getBoundingClientRect().top');
+  assert(sideTop>=14 && sideTop<=18,'Chat sidebar should remain sticky while reading');
+  await evaluate('byId("chat-latest").click()');
+  await until('scrollDistance()<=3');
+  await call('Emulation.setDeviceMetricsOverride',{width:780,height:620,deviceScaleFactor:1,mobile:false});
+  await evaluate('updateComposerPosition(); pinToBottom()');
   const first = await query(a,'metrics');
   assert.equal(first.results[0].usage.prompt_tokens,17);
   assert.equal(first.results[0].usage.completion_tokens,8);
@@ -239,6 +258,7 @@ try {
   await until('performance.timeOrigin>'+before+' && document.querySelectorAll(".manager").length===1');
   await activate();
   await saved('qa-no-usage');
+  await until('scrollDistance()<=3'); // reload opens at the latest message without manual scrolling
   assert.equal(await evaluate('chatSelected'),a);
   assert.equal(await evaluate('byId("chat-title").textContent'),'QA archive A');
   assert.deepEqual((await query(a)).messages,beforeRestart);

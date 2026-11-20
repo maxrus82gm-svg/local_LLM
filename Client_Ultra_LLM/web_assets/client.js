@@ -676,6 +676,7 @@ async function showChats() {
   byId("chat-view").classList.remove("hidden");
   byId("nav-overview").classList.remove("selected");
   byId("nav-chats").classList.add("selected");
+  requestAnimationFrame(updateComposerPosition);
   if (loadingChats) return;
   loadingChats = true;
   renderChatList(chatSnapshot);
@@ -797,6 +798,7 @@ function selectChat(id) {
   byId("chat-history-chars").value = chat?.settings.max_chars ?? 200000;
   setChatNotice(view.notice);
   followStream = true;
+  updateComposerPosition();
   renderMessages(view.messages, view.request);
   byId("chat-latest").classList.add("hidden");
   renderChatList(chatSnapshot);
@@ -882,35 +884,70 @@ function messageBubble(message, live = false) {
   return bubble;
 }
 const chatHolder = byId("chat-messages");
+const chatPanel = document.querySelector("#chat-view .chat-panel");
+const chatComposer = byId("chat-form");
 let followStream = true;
 let scrollFrame = 0;
-let lastScrollTop = 0;
+let lastScrollTop = window.scrollY;
+function composerHeight() {
+  return chatComposer.getBoundingClientRect().height || 126;
+}
+// The conversation uses the browser's ONLY main scrollbar. The composer
+// stays at the viewport bottom and follows the chat panel's real width.
+function updateComposerPosition() {
+  if (!chatOpen || byId("chat-view").classList.contains("hidden")) return;
+  const box = chatPanel.getBoundingClientRect();
+  if (!box.width) return;
+  // CSS zoom scales DOMRect but also scales fixed-position CSS lengths.
+  // Divide visual geometry by that scale before writing CSS custom properties.
+  const zoom = Number.parseFloat(getComputedStyle(document.body).zoom) || 1;
+  const left = Math.max(0, box.left / zoom);
+  const width = Math.max(0, Math.min(box.width / zoom, window.innerWidth / zoom - left));
+  const height = Math.ceil(composerHeight() / zoom);
+  const view = byId("chat-view");
+  view.style.setProperty("--chat-composer-left", left + "px");
+  view.style.setProperty("--chat-composer-width", width + "px");
+  view.style.setProperty("--chat-composer-right", Math.max(10, window.innerWidth-left-width+12) + "px");
+  view.style.setProperty("--chat-composer-height", height + "px");
+}
+function lastConversationEdge() {
+  const latest = chatHolder.querySelector(".chat-bubble:last-of-type") || chatHolder.lastElementChild || chatHolder;
+  return latest.getBoundingClientRect().bottom;
+}
 function scrollDistance() {
-  return chatHolder.scrollHeight - chatHolder.clientHeight - chatHolder.scrollTop;
+  return lastConversationEdge() - (window.innerHeight - composerHeight() - 18);
 }
 function pinToBottom() {
-  chatHolder.scrollTop = chatHolder.scrollHeight;
-  lastScrollTop = chatHolder.scrollTop;
+  if (!chatOpen) return;
+  updateComposerPosition();
+  const desired = window.scrollY + scrollDistance();
+  window.scrollTo({top:Math.max(0,desired),behavior:"instant"});
+  lastScrollTop = window.scrollY;
 }
 function updateFollow() {
-  const top = chatHolder.scrollTop;
-  // DOM growth changes scrollHeight without moving scrollTop. A delayed
-  // notification from our own scroll must not be treated as user movement.
-  if (Math.abs(top - lastScrollTop) > 0.5) {
-    followStream = scrollDistance() <= 48;
-    byId("chat-latest").classList.toggle("hidden", followStream);
+  if (!chatOpen) return;
+  const top = window.scrollY;
+  if (top < lastScrollTop - 4) {
+    followStream = false; // user scrolled up to read; do not steal position
+  } else if (top > lastScrollTop + 1) {
+    followStream = scrollDistance() <= 64;
   }
+  byId("chat-latest").classList.toggle("hidden", followStream);
   lastScrollTop = top;
 }
 function followBottom() {
-  if (!followStream || scrollFrame) return;
+  if (!followStream || scrollFrame || !chatOpen) return;
   scrollFrame = requestAnimationFrame(() => {
     scrollFrame = 0;
-    updateFollow();
     if (followStream) pinToBottom();
   });
 }
-chatHolder.addEventListener("scroll", updateFollow, {passive:true});
+window.addEventListener("scroll", updateFollow, {passive:true});
+window.addEventListener("resize", () => { updateComposerPosition(); followBottom(); }, {passive:true});
+if (typeof ResizeObserver !== "undefined") {
+  new ResizeObserver(updateComposerPosition).observe(chatPanel);
+  new ResizeObserver(() => { updateComposerPosition(); followBottom(); }).observe(chatComposer);
+}
 byId("chat-latest").addEventListener("click", () => {
   followStream = true;
   byId("chat-latest").classList.add("hidden");
@@ -921,7 +958,10 @@ function renderMessages(messages, active) {
   if (active) chatHolder.append(active.user, active.assistant);
   else if (!messages.length) chatHolder.append(node("div", "chat-empty",
     currentChat() ? "История пока пуста." : "Выберите или создайте чат."));
-  if (followStream) pinToBottom();
+  if (followStream) {
+    pinToBottom();
+    requestAnimationFrame(pinToBottom);
+  }
 }
 async function loadChatHistory() {
   const id = chatSelected;
