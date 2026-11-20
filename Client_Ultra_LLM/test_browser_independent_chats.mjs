@@ -97,6 +97,7 @@ try {
   };
   const select = async id => evaluate('selectChat('+JSON.stringify(id)+')');
   const geometry = () => evaluate('({top:window.scrollY,height:document.documentElement.scrollHeight,client:window.innerHeight,distance:scrollDistance(),innerOverflow:getComputedStyle(chatHolder).overflowY,composerBottom:Math.round(byId("chat-form").getBoundingClientRect().bottom)})');
+  const cardAction = (id, op) => evaluate(`document.querySelector('.chat-choice[data-chat-id=${JSON.stringify(id)}] [data-action=${JSON.stringify(op)}]').click()`);
 
   await activate();
   const a = await create(1);
@@ -123,7 +124,7 @@ try {
   await until('chatHolder.textContent.includes("Первая часть ответа") && scrollDistance()<=3');
   const answer = await geometry();
   assert(answer.height > reasoning.height);
-  await evaluate('window.scrollTo(0,10)');
+  await evaluate('window.dispatchEvent(new WheelEvent("wheel",{deltaY:-500,bubbles:true}));window.scrollTo(0,10)');
   await until('!followStream');
   await command('wave');
   await until('chatHolder.textContent.includes("Вторая часть ответа")');
@@ -208,16 +209,33 @@ try {
   await evaluate('changeChat("resume")');
 
   browser.setDialogAcceptance(false);
-  await evaluate('byId("chat-actions").open=true; byId("chat-clear").click()');
+  await cardAction(a, 'clear');
   assert.equal((await query(a)).messages.length,8);
   browser.setDialogAcceptance(true);
-  await evaluate('byId("chat-clear").click()');
+  await cardAction(a, 'clear');
   await until('currentChat().can_restore && !chatHolder.querySelector(".chat-bubble")');
   assert.equal((await query(b)).messages.length,2);
-  await evaluate('byId("chat-restore").click()');
+  await cardAction(a, 'restore');
   await saved('Ответ qa-reset');
   await evaluate('changeChat("rename",{title:"QA archive A"})');
   await until('byId("chat-title").textContent==="QA archive A"');
+  const aBeforeInactive = (await query(a)).messages.length;
+  await evaluate('window.__qaPrompt=window.prompt;window.prompt=()=>"QA B renamed"');
+  await cardAction(b, 'rename');
+  await until('chatItems.find(c=>c.chat_id==='+JSON.stringify(b)+').title==="QA B renamed"');
+  await evaluate('window.prompt=window.__qaPrompt;delete window.__qaPrompt');
+  await cardAction(b, 'reset');
+  await until('chatItems.find(c=>c.chat_id==='+JSON.stringify(b)+').context_after>0');
+  await cardAction(b, 'resume');
+  await until('chatItems.find(c=>c.chat_id==='+JSON.stringify(b)+').context_after===0');
+  await cardAction(b, 'clear');
+  await until('chatItems.find(c=>c.chat_id==='+JSON.stringify(b)+').can_restore');
+  assert.equal((await query(a)).messages.length,aBeforeInactive);
+  assert.equal((await query(b)).messages.length,0);
+  assert.equal(await evaluate('chatSelected'),a);
+  await cardAction(b, 'restore');
+  await until('!chatItems.find(c=>c.chat_id==='+JSON.stringify(b)+').can_restore');
+  assert.equal((await query(b)).messages.length,2);
   results.independence_and_history = true;
 
   await send('qa-cancel');
@@ -244,6 +262,25 @@ try {
   assert.equal(beforeRestartFootnotes.length,beforeRestart.length);
   assert.match(beforeRestartFootnotes.at(-1),/Первый фрагмент нет данных.*Токены вход \/ выход нет данных \/ нет данных/);
   results.terminal_paths = ['done','cancelled','truncated','no usage'];
+  const grip=await evaluate('(() => {const r=byId("chat-input-resize").getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2,height:byId("chat-input").getBoundingClientRect().height}})()');
+  assert.equal(await evaluate(`document.elementFromPoint(${grip.x},${grip.y})?.closest('#chat-input-resize')?.id`),'chat-input-resize');
+  await call('Input.dispatchMouseEvent',{type:'mousePressed',x:grip.x,y:grip.y,button:'left',clickCount:1});
+  assert.equal(await evaluate('inputResizeStart !== null'),true);
+  for (let step=1;step<=5;step++) {
+    await call('Input.dispatchMouseEvent',{type:'mouseMoved',x:grip.x,y:grip.y-20*step,button:'left',buttons:1});
+    await new Promise(resolve=>setTimeout(resolve,20));
+  }
+  await call('Input.dispatchMouseEvent',{type:'mouseReleased',x:grip.x,y:grip.y-100,button:'left',clickCount:1});
+  const resizeProbe=await evaluate('({height:byId("chat-input").getBoundingClientRect().height,style:byId("chat-input").style.height,start:inputResizeStart})');
+  assert(resizeProbe.height>grip.height+40,JSON.stringify({grip,resizeProbe}));
+  await until('byId("chat-input").getBoundingClientRect().height>'+String(grip.height+40));
+  results.mouse_resize = true;
+  await evaluate('byId("chat-input").style.height="200px"');
+  await until('composerHeight()>190 && Math.abs(byId("chat-form").getBoundingClientRect().bottom-window.innerHeight)<3');
+  await until('scrollDistance()<=3');
+  assert.equal(await evaluate('getComputedStyle(chatHolder).overflowY'), 'visible');
+  assert.equal(await evaluate('document.documentElement.scrollHeight>window.innerHeight'),true);
+  await evaluate('byId("chat-input").style.height=""');
 
   if (portableExe) {
     await stopPortable(host.url);
@@ -259,10 +296,30 @@ try {
   await activate();
   await saved('qa-no-usage');
   await until('scrollDistance()<=3'); // reload opens at the latest message without manual scrolling
+  await until('Math.abs(window.scrollY-(document.documentElement.scrollHeight-window.innerHeight))<3');
   assert.equal(await evaluate('chatSelected'),a);
   assert.equal(await evaluate('byId("chat-title").textContent'),'QA archive A');
   assert.deepEqual((await query(a)).messages,beforeRestart);
   assert.deepEqual(await footnotes(),beforeRestartFootnotes);
+  const popoutPoint=await evaluate('(() => {const b=byId("chat-popout");b.scrollIntoView({block:"center"});const r=b.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2}})()');
+  await call('Input.dispatchMouseEvent',{type:'mousePressed',...popoutPoint,button:'left',clickCount:1});
+  await call('Input.dispatchMouseEvent',{type:'mouseReleased',...popoutPoint,button:'left',clickCount:1});
+  let popped;
+  for (let i=0;i<60 && !popped;i++) {
+    popped=(await call('Target.getTargets')).targetInfos.find(t=>t.type==='page' && t.url.endsWith('#chat='+a));
+    if (!popped) await new Promise(resolve=>setTimeout(resolve,50));
+  }
+  assert(popped,'Detached chat window did not open');
+  const attached=await call('Target.attachToTarget',{targetId:popped.targetId,flatten:true});
+  await call('Runtime.enable',{},attached.sessionId);
+  let detachedChat;
+  for (let i=0;i<60;i++) {
+    detachedChat=(await call('Runtime.evaluate',{expression:'typeof chatSelected === "undefined" ? "" : chatSelected',returnByValue:true},attached.sessionId)).result.value;
+    if (detachedChat===a) break;
+    await new Promise(resolve=>setTimeout(resolve,50));
+  }
+  assert.equal(detachedChat,a,'Detached window must open the same chat_id');
+  results.popout_chat_id = true;
   results.per_message_measurements = {rows:beforeRestartFootnotes.length, separate_exchanges:true, persisted:true};
   await evaluate('byId("chat-statistics").open=true');
   await until('byId("chat-stat-results").textContent.includes("Отменён")');
@@ -282,9 +339,13 @@ try {
   await until('byId("chat-send").disabled && byId("chat-state").textContent.includes("недоступна")');
   await select(b);
   await until('chatHolder.textContent.includes("Ответ qa-b")');
-  await evaluate('byId("chat-delete").click()');
+  await until('Math.abs(window.scrollY-(document.documentElement.scrollHeight-window.innerHeight))<3');
+  await select(a);
+  await until('Math.abs(window.scrollY-(document.documentElement.scrollHeight-window.innerHeight))<3');
+  await cardAction(b, 'delete');
   await until('document.querySelectorAll(".chat-choice").length===1');
   assert.equal((await fetch(host.url+'/api/chat/history?chat_id='+b)).status,404);
+  assert.equal(await evaluate('chatSelected'),a);
   const denied = await fetch(host.url+'/api/chats',{method:'POST',headers:{'Content-Type':'application/json'},body:'{"op":"create"}'});
   assert.equal(denied.status,403);
   const invalidContext = await evaluate('pairingPost("/api/chats",{op:"settings",chat_id:chatSelected,context:{max_messages:-1,max_chars:100}}).then(()=>null,e=>e.message)');

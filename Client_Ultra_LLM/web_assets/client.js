@@ -717,6 +717,21 @@ function targetFields(target) {
 function targetKey(target) {
   return JSON.stringify(Object.values(targetFields(target)));
 }
+function modelName(id) {
+  if (/kat[-_ ]?coder|(^|[-_ ])kat($|[-_ ])/i.test(id || "")) return "KAT-Coder V2.5 Dev";
+  if (/qwen[-_ ]?3[._-]?6|qwen36/i.test(id || "")) return "Qwen 3.6";
+  return /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(id || "") ? "Модель" : String(id || "Модель").slice(0, 40);
+}
+function modelLabel(target) {
+  const peers = chatTargets.filter(item => item.manager_id === target.manager_id &&
+    item.model_id === target.model_id);
+  return modelName(target.model_id) + (peers.length > 1 ?
+    ` · ${target.slot_id}${target.mode ? " · " + target.mode.toUpperCase() : ""}` : "");
+}
+function selectedManagerId(chat) {
+  if (!chat) return "";
+  return sessionStorage.getItem("ultra.chat.manager." + chat.chat_id) || chat.manager_id || "";
+}
 function slotKey(target) {
   return JSON.stringify([target.manager_id, target.slot_id]);
 }
@@ -738,6 +753,45 @@ function setChatNotice(message) {
   el.textContent = message || "";
   el.classList.toggle("hidden", !message);
 }
+const chatActionIcons = {
+  rename:'<path d="m3 17 1 4 4-1L19 9l-4-4L4 16l-1 1Z"/><path d="m13 7 4 4"/>',
+  reset:'<path d="M3 11a9 9 0 1 1 2.6 6.4"/><path d="M3 4v7h7"/>',
+  clear:'<path d="m4 16 9-12 7 6-9 12H5l-1-6Z"/><path d="m8 11 8 6"/>',
+  delete:'<path d="M4 7h16M9 7V4h6v3m3 0-1 14H7L6 7m4 4v6m4-6v6"/>',
+  resume:'<path d="M20 12H6m0 0 5-5m-5 5 5 5"/><path d="M3 5v14"/>',
+  restore:'<path d="M3 12a9 9 0 1 0 2.6-6.4"/><path d="M3 4v7h7"/><path d="M12 7v5l3 2"/>'
+};
+const chatActionNames = {
+  rename:"Переименовать чат",reset:"Сбросить контекст",clear:"Очистить переписку",
+  delete:"Удалить чат",resume:"Вернуть полный контекст",restore:"Восстановить переписку"
+};
+function chatActionButton(op, chat) {
+  const button = node("button", "chat-action chat-action-" + op);
+  button.type = "button";
+  button.title = chatActionNames[op];
+  button.setAttribute("aria-label", chatActionNames[op]);
+  button.dataset.action = op;
+  button.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${chatActionIcons[op]}</svg>`;
+  button.disabled = chatMutation || Boolean(conversation(chat.chat_id).request) ||
+    (op === "resume" && !chat.context_after) || (op === "restore" && !chat.can_restore);
+  button.addEventListener("click", () => runChatAction(op, chat.chat_id));
+  return button;
+}
+function runChatAction(op, id) {
+  const chat = chatItems.find(item => item.chat_id === id);
+  if (!chat || chatMutation || conversation(id).request) return;
+  if (op === "resume" && !chat.context_after || op === "restore" && !chat.can_restore) return;
+  if (op === "rename") {
+    const title = prompt("Название чата", chat.title);
+    if (title?.trim()) changeChat(op, {title}, id);
+  } else if (op === "clear") {
+    if (confirm(`Очистить переписку чата «${chat.title}»? Её можно вернуть через «Восстановить переписку».`))
+      changeChat(op, {confirm:true}, id);
+  } else if (op === "delete") {
+    if (confirm(`Удалить чат «${chat.title}», всю его переписку и измерения? Восстановить чат через Client нельзя.`))
+      changeChat(op, {confirm:true}, id);
+  } else changeChat(op, {}, id);
+}
 function renderChatList(payload) {
   chatTargets = [];
   for (const manager of (Array.isArray(payload?.managers) ? payload.managers : [])) {
@@ -747,6 +801,7 @@ function renderChatList(payload) {
         chatTargets.push({
           manager_id:manager.manager_id, manager_name:manager.name || manager.manager_id,
           slot_id:slot.slot_id, model_id:model, instance_id:slot.instance_id,
+          mode:manager.data.control?.instances?.find(row => row.instance_id === slot.instance_id)?.mode || "",
           streaming:manager.data.chat?.streaming === true, engine_state:slot.engine_state,
           availability:slot.availability, transport:manager.data.chat?.transport_policy
         });
@@ -759,13 +814,23 @@ function renderChatList(payload) {
   list.replaceChildren();
   for (const chat of chatItems) {
     const view = conversation(chat.chat_id);
-    const card = node("button", "chat-choice" + (chat.chat_id === chatSelected ? " active" : "") +
+    const card = node("div", "chat-choice" + (chat.chat_id === chatSelected ? " active" : "") +
       (chatReady(liveTarget(chat)) ? " is-ready" : ""));
-    card.type = "button";
     card.dataset.chatId = chat.chat_id;
-    card.append(node("b", "", chat.title), node("small", "", chat.model_id || "Без назначения"));
+    const select = node("button", "chat-choice-select");
+    select.type = "button";
+    select.setAttribute("aria-label", "Открыть чат " + chat.title);
+    select.append(node("b", "", chat.title), node("small", "",
+      chat.model_id ? (liveTarget(chat) ? modelLabel(liveTarget(chat)) : modelName(chat.model_id) + " · недоступна") : "Без назначения"));
     if (view.request) card.append(node("small", "", "Модель отвечает"));
-    card.addEventListener("click", () => selectChat(chat.chat_id));
+    select.addEventListener("click", () => selectChat(chat.chat_id));
+    const actions = node("div", "chat-action-row");
+    const primary = node("div", "chat-action-group");
+    const recovery = node("div", "chat-action-group chat-action-recovery");
+    for (const op of ["rename","reset","clear","delete"]) primary.append(chatActionButton(op, chat));
+    for (const op of ["resume","restore"]) recovery.append(chatActionButton(op, chat));
+    actions.append(primary, recovery);
+    card.append(select, actions);
     list.append(card);
   }
   list.scrollTop = scroll;
@@ -775,32 +840,38 @@ function renderChatControls() {
   const chat = currentChat();
   const target = liveTarget(chat);
   const active = chat && conversation(chat.chat_id).request;
-  const selector = byId("chat-target");
-  const value = chat?.model_id ? targetKey(chat) : "";
+  const managerSelector = byId("chat-manager");
+  const modelSelector = byId("chat-model");
+  const managerId = selectedManagerId(chat);
+  const value = chat?.model_id && managerId === chat.manager_id ? targetKey(chat) : "";
   const choices = chatTargets.filter(item => item.availability !== "denied");
-  const options = [new Option("Без назначения", "")];
+  const managers = new Map(choices.map(item => [item.manager_id, item.manager_name]));
+  if (managerId && !managers.has(managerId)) managers.set(managerId, managerId + " · недоступен");
+  managerSelector.replaceChildren(new Option("Выберите Manager", ""),
+    ...[...managers].map(([id, name]) => new Option(name, id)));
+  managerSelector.value = managerId;
+  managerSelector.disabled = !chat || Boolean(active) || chatMutation;
+  const options = [new Option("Выберите модель", ""), new Option("Без назначения", "__none__")];
   if (value && !choices.some(item => targetKey(item) === value)) {
-    options.push(new Option(chat.manager_id + " / " + chat.slot_id + " / " + chat.model_id + " · недоступна", value));
+    options.push(new Option(modelName(chat.model_id) + ` · ${chat.slot_id} · недоступна`, value));
   }
-  for (const item of choices) options.push(new Option(item.manager_name + " / " + item.slot_id + " / " + item.model_id, targetKey(item)));
-  selector.replaceChildren(...options);
-  selector.value = value;
-  selector.disabled = !chat || Boolean(active) || chatMutation;
+  for (const item of choices.filter(item => item.manager_id === managerId)) {
+    options.push(new Option(modelLabel(item), targetKey(item)));
+  }
+  modelSelector.replaceChildren(...options);
+  modelSelector.value = value;
+  modelSelector.disabled = !chat || !managerId || Boolean(active) || chatMutation;
   byId("chat-title").textContent = chat?.title || "Выберите чат";
   byId("chat-subtitle").textContent = chat?.context_after ? "Контекст начинается после сброса" : "";
   byId("chat-popout").disabled = !chat;
   byId("chat-new").disabled = chatMutation || loadingChats;
   byId("chat-input").disabled = !chat || Boolean(active);
-  byId("chat-send").disabled = !chatReady(target) || Boolean(active) || chatMutation;
+  byId("chat-send").disabled = !chatReady(target) || Boolean(active) || chatMutation || managerId !== chat.manager_id;
   byId("chat-cancel").disabled = !active?.controller || active.cancelling;
-  for (const op of ["rename","reset","resume","clear","restore","delete"]) {
-    byId("chat-"+op).disabled = !chat || Boolean(active) || chatMutation ||
-      (op === "restore" && !chat.can_restore) || (op === "resume" && !chat.context_after);
-  }
   const status = byId("chat-state");
   if (active) status.textContent = active.cancelling ? "Отменяем запрос…" : "Модель отвечает";
   else if (!chat) status.textContent = "";
-  else if (!chat.model_id) status.textContent = "Выберите Manager, слот и модель.";
+  else if (managerId !== chat.manager_id || !chat.model_id) status.textContent = "Выберите Manager и модель.";
   else if (target && (releasingSlots.has(slotKey(target)) || target.availability === "busy" || localSlotActive(target))) {
     status.textContent = "Модель занята. Ожидаем освобождения слота.";
   } else status.textContent = chatReady(target) ? "" : "Назначенная модель сейчас недоступна.";
@@ -828,11 +899,10 @@ function selectChat(id) {
   if (chat && !view.request) loadChatHistory();
   if (chat) loadStatistics(id);
 }
-async function changeChat(op, values = {}) {
-  if (chatMutation) return;
-  const id = chatSelected;
+async function changeChat(op, values = {}, id = chatSelected) {
+  if (chatMutation || (op !== "create" && (!chatItems.some(item => item.chat_id === id) || conversation(id).request))) return;
   chatMutation = true;
-  renderChatControls();
+  renderChatList(chatSnapshot);
   try {
     const row = await pairingPost("/api/chats", {op, ...(op === "create" ? {} : {chat_id:id}), ...values});
     if (op === "create") {
@@ -841,9 +911,11 @@ async function changeChat(op, values = {}) {
     } else if (op === "delete") {
       chatItems = chatItems.filter(item => item.chat_id !== id);
       conversations.delete(id);
+      sessionStorage.removeItem("ultra.chat.manager." + id);
       if (chatSelected === id) selectChat(chatItems[0]?.chat_id || "");
     } else {
       chatItems = chatItems.map(item => item.chat_id === id ? row : item);
+      if (chatSelected !== id && ["clear", "restore"].includes(op)) conversation(id).messages = [];
       if (chatSelected === id && ["clear", "restore"].includes(op)) await loadChatHistory();
       if (chatSelected === id && op === "target" && conversation(id).messages.length) {
         setChatNotice("Для новой модели будут использованы текстовые реплики этого чата. При несовместимости сбросьте контекст или уменьшите историю.");
@@ -909,6 +981,18 @@ const chatComposer = byId("chat-form");
 let followStream = true;
 let scrollFrame = 0;
 let lastScrollTop = window.scrollY;
+let userScrollIntentUntil = 0;
+window.addEventListener("wheel", event => {
+  if (event.deltaY < 0) userScrollIntentUntil = performance.now() + 700;
+}, {passive:true});
+window.addEventListener("touchmove", () => { userScrollIntentUntil = performance.now() + 700; }, {passive:true});
+window.addEventListener("keydown", event => {
+  if (["ArrowUp", "PageUp", "Home"].includes(event.key)) userScrollIntentUntil = performance.now() + 700;
+});
+window.addEventListener("pointerdown", event => {
+  if (event.clientX >= document.documentElement.clientWidth - 18)
+    userScrollIntentUntil = performance.now() + 1500;
+}, {passive:true});
 function composerHeight() {
   return chatComposer.getBoundingClientRect().height || 126;
 }
@@ -940,17 +1024,17 @@ function scrollDistance() {
 function pinToBottom() {
   if (!chatOpen) return;
   updateComposerPosition();
-  const desired = window.scrollY + scrollDistance();
+  const desired = Math.max(window.scrollY + scrollDistance(),
+    document.documentElement.scrollHeight - window.innerHeight);
   window.scrollTo({top:Math.max(0,desired),behavior:"instant"});
   lastScrollTop = window.scrollY;
 }
 function updateFollow() {
   if (!chatOpen) return;
   const top = window.scrollY;
-  if (top < lastScrollTop - 4) {
-    followStream = false; // user scrolled up to read; do not steal position
-  } else if (top > lastScrollTop + 1) {
-    followStream = scrollDistance() <= 64;
+  if (performance.now() < userScrollIntentUntil) {
+    if (top < lastScrollTop - 4) followStream = false;
+    else if (top > lastScrollTop + 1) followStream = scrollDistance() <= 64;
   }
   byId("chat-latest").classList.toggle("hidden", followStream);
   lastScrollTop = top;
@@ -967,6 +1051,7 @@ window.addEventListener("resize", () => { updateComposerPosition(); followBottom
 if (typeof ResizeObserver !== "undefined") {
   new ResizeObserver(updateComposerPosition).observe(chatPanel);
   new ResizeObserver(() => { updateComposerPosition(); followBottom(); }).observe(chatComposer);
+  new ResizeObserver(followBottom).observe(chatHolder);
 }
 byId("chat-latest").addEventListener("click", () => {
   followStream = true;
@@ -1260,20 +1345,16 @@ byId("chat-new").addEventListener("click", () => {
   const target = liveTarget(currentChat()) || (chatTargets.length === 1 ? chatTargets[0] : null);
   changeChat("create", target ? {target:targetFields(target)} : {});
 });
-byId("chat-target").addEventListener("change", event => {
+byId("chat-manager").addEventListener("change", event => {
+  if (!chatSelected) return;
+  if (event.target.value) sessionStorage.setItem("ultra.chat.manager." + chatSelected, event.target.value);
+  else sessionStorage.removeItem("ultra.chat.manager." + chatSelected);
+  renderChatControls();
+});
+byId("chat-model").addEventListener("change", event => {
+  if (!event.target.value) return;
   const target = chatTargets.find(item => targetKey(item) === event.target.value);
-  changeChat("target", {target:target ? targetFields(target) : null});
-});
-byId("chat-rename").addEventListener("click", () => {
-  const title = prompt("Название чата", currentChat()?.title);
-  if (title?.trim()) changeChat("rename", {title});
-});
-for (const op of ["reset","resume","restore"]) byId("chat-"+op).addEventListener("click", () => changeChat(op));
-byId("chat-clear").addEventListener("click", () => {
-  if (confirm("Очистить переписку этого чата? Её можно вернуть через «Восстановить переписку».")) changeChat("clear", {confirm:true});
-});
-byId("chat-delete").addEventListener("click", () => {
-  if (confirm("Удалить выбранный чат, всю его переписку и измерения? Восстановить чат через Client нельзя.")) changeChat("delete", {confirm:true});
+  if (event.target.value === "__none__" || target) changeChat("target", {target:target ? targetFields(target) : null});
 });
 for (const field of ["chat-history-messages","chat-history-chars"]) byId(field).addEventListener("change", () => {
   changeChat("settings", {context:{max_messages:Number(byId("chat-history-messages").value),
@@ -1288,6 +1369,37 @@ setInterval(() => { if (chatOpen) renderTimer(); }, 150);
 byId("chat-form").addEventListener("submit", submitChat);
 byId("chat-input").addEventListener("input", event => {
   if (chatSelected) conversation(chatSelected).draft = event.target.value;
+});
+const inputResizeHandle = byId("chat-input-resize");
+let inputResizeStart = null;
+function resizeChatInput(height) {
+  const input = byId("chat-input");
+  const zoom = Number.parseFloat(getComputedStyle(document.body).zoom) || 1;
+  const maxHeight = Math.min(280, window.innerHeight * 0.42 / zoom);
+  input.style.height = Math.round(Math.max(52, Math.min(maxHeight, height))) + "px";
+  updateComposerPosition();
+  followBottom();
+}
+inputResizeHandle.addEventListener("pointerdown", event => {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  const zoom = Number.parseFloat(getComputedStyle(document.body).zoom) || 1;
+  inputResizeStart = {y:event.clientY, height:byId("chat-input").getBoundingClientRect().height / zoom};
+  inputResizeHandle.setPointerCapture(event.pointerId);
+});
+inputResizeHandle.addEventListener("pointermove", event => {
+  if (!inputResizeStart) return;
+  const zoom = Number.parseFloat(getComputedStyle(document.body).zoom) || 1;
+  resizeChatInput(inputResizeStart.height + (inputResizeStart.y - event.clientY) / zoom);
+});
+for (const eventName of ["pointerup", "pointercancel"]) inputResizeHandle.addEventListener(eventName, () => {
+  inputResizeStart = null;
+});
+inputResizeHandle.addEventListener("keydown", event => {
+  if (!["ArrowUp", "ArrowDown"].includes(event.key)) return;
+  event.preventDefault();
+  resizeChatInput(byId("chat-input").getBoundingClientRect().height /
+    (Number.parseFloat(getComputedStyle(document.body).zoom) || 1) + (event.key === "ArrowUp" ? 16 : -16));
 });
 byId("chat-input").addEventListener("keydown", event => {
   if (event.key !== "Enter" || event.shiftKey || event.ctrlKey || event.altKey ||

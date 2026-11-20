@@ -27,7 +27,9 @@ function snapshot(){
       engine_state:i===0||i===1&&phase==='READY'?'ready':'not_running',availability:i===0||i===1&&phase==='READY'?'ready_unreserved':'not_running'})),
     control:{models:[{...model,modes:{...model.modes,cpu:{available:phase==='STOPPED'}}}],
       instances:phase==='STOPPED'?[]:[{instance_id:'f'.repeat(32),model_key:'kat',model_id:'ultra-slot2-kat-cpu',mode:'cpu',slot_id:'slot2',state:phase,can_stop:phase==='READY'}]}}},
-    {manager_id:'manager-a',name:'Manager A',status:'online',data:{host:'QA A',memory:{state:'unknown'},models:[],slots:[],
+    {manager_id:'manager-a',name:'Manager A',status:'online',data:{host:'QA A',memory:{state:'unknown'},models:[],chat:{streaming:true},
+      slots:[{slot_id:'slot1',models:['ultra-slot2-kat-cpu'],instance_id:'e'.repeat(32),
+        engine_state:'ready',availability:'ready_unreserved'}],
       control:{models:[],instances:[]}}}]};
 }
 try {
@@ -41,11 +43,13 @@ try {
       if(req.method==='GET')return json({chats});
       const command=JSON.parse(raw);
       if(command.op==='create'){
-        const row={chat_id:'a'.repeat(32),title:'Новый чат',settings:{}};
+        const row={chat_id:String.fromCharCode(97+chats.length).repeat(32),title:'Новый чат',settings:{}};
         chats.push(row);return json(row);
       }
-      Object.assign(chats[0],command.target);
-      return json(chats[0]);
+      const row=chats.find(item=>item.chat_id===command.chat_id);
+      if(!row)return json({error:'chat_not_found'},404);
+      if(command.op==='target')Object.assign(row,command.target || {manager_id:null,slot_id:null,model_id:null});
+      return json(row);
     }
     if(req.url.startsWith('/api/chat/history?'))return json({messages:[]});
     if(req.url.startsWith('/api/chat/metrics?'))return json({results:[]});
@@ -111,9 +115,9 @@ try {
   }
   await until('document.querySelectorAll(".manager").length===2');
   mark('manager_cards_ready');
-  assert.equal(await evaluate('document.querySelectorAll(".manager-model-row").length'),2);
+  assert.equal(await evaluate('document.querySelectorAll(".manager-model-row").length'),3);
   assert.equal(await evaluate('document.querySelectorAll("#slot-table").length'),0);
-  results.push('PASS: two Manager identities, five slots, one model list per Manager');
+  results.push('PASS: two Manager identities, duplicate model IDs, one model list per Manager');
   const buttons='[...document.querySelectorAll(".manager-model-row")].find(x=>x.textContent.includes("KAT-Coder")).querySelectorAll("button")';
   assert.deepEqual(await evaluate(`Array.from(${buttons}).map(b=>b.disabled)`),[false,true,true]);
   assert.match(await evaluate(`${buttons}[1].title`),/vram_telemetry_unknown/);
@@ -123,7 +127,7 @@ try {
   assert.match(lastControl.request_id,/^[a-f0-9]{32}$/);
   results.push('PASS: CPU/disabled CUDA reason, STARTING, correct Manager identity');
   phase='READY';await evaluate('refresh()');
-  assert.equal(await evaluate('document.querySelectorAll(".manager-model-row").length'),2,'Owned API model must not duplicate catalog row');
+  assert.equal(await evaluate('document.querySelectorAll(".manager-model-row").length'),3,'Owned API model must not duplicate catalog row');
   assert.equal(await evaluate(`${buttons}[2].disabled`),false);
   await evaluate(`${buttons}[2].click()`);
   await until('document.querySelector(".manager-model-scroll").textContent.includes("STOPPING")');
@@ -132,7 +136,12 @@ try {
   phase='READY';await evaluate('refresh().then(showChats)');
   await evaluate('byId("chat-new").click()');
   await until('document.querySelectorAll(".chat-choice").length===1');
-  await evaluate('(() => { const select=byId("chat-target"); select.value=[...select.options].find(o=>o.text.includes("ultra-slot2-kat-cpu")).value; select.dispatchEvent(new Event("change")); })()');
+  assert.deepEqual(await evaluate('[...byId("chat-manager").options].map(o=>o.text)'),
+    ['Выберите Manager','Manager B','Manager A']);
+  await evaluate('byId("chat-manager").value="manager-a";byId("chat-manager").dispatchEvent(new Event("change"))');
+  assert.match(await evaluate('byId("chat-model").options[2].text'),/^KAT-Coder V2.5 Dev/);
+  assert.equal(await evaluate('byId("chat-model").textContent.includes("eeeeeeee")'),false);
+  await evaluate('(() => { const manager=byId("chat-manager"); manager.value="manager-b"; manager.dispatchEvent(new Event("change")); const select=byId("chat-model"); select.value=targetKey(chatTargets.find(t=>t.model_id==="ultra-slot2-kat-cpu")); select.dispatchEvent(new Event("change")); })()');
   await until('byId("chat-send").disabled===false');
   await delay(150);
   const started=performance.now();
@@ -148,6 +157,35 @@ try {
   await evaluate('document.getElementById("chat-stream").checked=false;document.getElementById("chat-input").value="Обычный";document.getElementById("chat-form").requestSubmit()');
   await until('document.getElementById("chat-messages").textContent.includes("Обычный ответ")');
   results.push('PASS: ordinary chat independent from streaming');
+  const previousOrigin=await evaluate('performance.timeOrigin');
+  await call('Page.reload');
+  await until('performance.timeOrigin>'+previousOrigin+' && document.querySelectorAll(".manager").length===2');
+  await evaluate('showChats()');
+  await until('byId("chat-manager").value==="manager-b" && byId("chat-model").value!==""');
+  assert.match(await evaluate('document.querySelector(".chat-choice small").textContent'),/^KAT-Coder V2.5 Dev/);
+  await evaluate('byId("chat-manager").value="manager-a";byId("chat-manager").dispatchEvent(new Event("change"))');
+  assert.equal(await evaluate('byId("chat-send").disabled'),true);
+  assert.equal(await evaluate('currentChat().manager_id'), 'manager-b');
+  const draftOrigin=await evaluate('performance.timeOrigin');
+  await call('Page.reload');
+  await until('performance.timeOrigin>'+draftOrigin+' && document.querySelectorAll(".manager").length===2');
+  await evaluate('showChats()');
+  await until('byId("chat-manager").value==="manager-a" && byId("chat-send").disabled');
+  await evaluate('{const select=byId("chat-model");select.value=targetKey(chatTargets.find(t=>t.manager_id==="manager-a"));select.dispatchEvent(new Event("change"))}');
+  await until('currentChat().manager_id==="manager-a" && !byId("chat-send").disabled');
+  const firstChat=await evaluate('chatSelected');
+  await evaluate('byId("chat-new").click()');
+  await until('document.querySelectorAll(".chat-choice").length===2');
+  const secondChat=await evaluate('chatSelected');
+  assert.notEqual(firstChat,secondChat);
+  await evaluate('byId("chat-manager").value="manager-b";byId("chat-manager").dispatchEvent(new Event("change"))');
+  await evaluate('{const select=byId("chat-model");select.value=targetKey(chatTargets.find(t=>t.manager_id==="manager-b" && t.model_id==="ultra-slot2-kat-cpu"));select.dispatchEvent(new Event("change"))}');
+  await until('currentChat().manager_id==="manager-b" && !byId("chat-send").disabled');
+  await evaluate('selectChat('+JSON.stringify(firstChat)+')');
+  assert.equal(await evaluate('byId("chat-manager").value'),'manager-a');
+  await evaluate('selectChat('+JSON.stringify(secondChat)+')');
+  assert.equal(await evaluate('byId("chat-manager").value'),'manager-b');
+  results.push('PASS: dependent Manager/model lists, no silent switch, per-chat F5 persistence');
   assert.deepEqual(errors,[]);
   console.log(JSON.stringify({status:'PASS',browser:'Chrome headless (separate temporary profile)',tests:results,
     phase_trace:phaseTrace,console_errors:errors},null,2));

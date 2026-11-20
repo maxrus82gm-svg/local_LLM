@@ -22,9 +22,9 @@ export async function chromeSession(url,folder){
       if(m.error)p.reject(Error(m.error.message));else p.resolve(m.result);}
       if(m.method==='Runtime.exceptionThrown')errors.push(m.params.exceptionDetails.text);
       if(m.method==='Page.javascriptDialogOpening'){dialogs.push(m.params.message);call('Page.handleJavaScriptDialog',{accept:acceptDialogs});}};
-    const call=(method,params={})=>new Promise((resolve,reject)=>{const n=++id;
+    const call=(method,params={},sessionId)=>new Promise((resolve,reject)=>{const n=++id;
       const timer=setTimeout(()=>{pending.delete(n);reject(Error(`CDP deadline: ${method}`));},15000);
-      pending.set(n,{resolve,reject,timer});ws.send(JSON.stringify({id:n,method,params}));});
+      pending.set(n,{resolve,reject,timer});ws.send(JSON.stringify({id:n,method,params,...(sessionId?{sessionId}:{})}));});
     await call('Runtime.enable');
     await call('Page.enable');
     const evaluate=async expression=>{const r=await call('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});

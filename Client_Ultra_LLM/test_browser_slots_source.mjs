@@ -154,7 +154,8 @@ try{
     await until(`document.querySelectorAll('.chat-choice').length===${count}`);
     const chatId=await evaluate('chatSelected');
     await evaluate(`{const target=chatTargets.find(t=>t.slot_id===${JSON.stringify(slot)});
-      const select=byId('chat-target');select.value=targetKey(target);select.dispatchEvent(new Event('change'));}`);
+      const manager=byId('chat-manager');manager.value=target.manager_id;manager.dispatchEvent(new Event('change'));
+      const select=byId('chat-model');select.value=targetKey(target);select.dispatchEvent(new Event('change'));}`);
     await until('!byId("chat-send").disabled');
     await evaluate(`byId('chat-stream').checked=false;byId('chat-input').value=${JSON.stringify(message)};byId('chat-form').requestSubmit()`);
     await until(`byId('chat-messages').textContent.includes(${JSON.stringify(message)}) &&

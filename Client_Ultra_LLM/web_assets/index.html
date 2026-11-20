@@ -48,19 +48,12 @@
       <div class="chat-panel-header"><div><h2 id="chat-title">Выберите чат</h2>
         <p id="chat-subtitle"></p></div>
         <button class="btn secondary small" type="button" id="chat-popout" disabled>↗ Открепить окно</button></div>
-      <div class="chat-tools">
-        <label>Модель <select id="chat-target" aria-label="Назначение чата"></select></label>
-        <details id="chat-actions"><summary>Управление чатом</summary>
-          <button class="btn secondary small" type="button" id="chat-rename">Переименовать</button>
-          <button class="btn secondary small" type="button" id="chat-reset">Сбросить контекст</button>
-          <button class="btn secondary small" type="button" id="chat-resume">Вернуть полный контекст</button>
-          <button class="btn secondary small" type="button" id="chat-clear">Очистить переписку</button>
-          <button class="btn secondary small" type="button" id="chat-restore">Восстановить переписку</button>
-          <button class="btn secondary small" type="button" id="chat-delete">Удалить чат</button>
-        </details>
-      </div>
       <div id="chat-messages" class="chat-messages" aria-live="polite"><div class="chat-empty">Выберите или создайте чат.</div></div>
       <button type="button" id="chat-latest" class="btn secondary small hidden">↓ К последнему сообщению</button>
+      <form id="chat-form" class="chat-form">
+      <div class="chat-composer-controls">
+      <label class="chat-composer-target">Manager <select id="chat-manager" aria-label="Manager чата"></select></label>
+      <label class="chat-composer-target">Модель <select id="chat-model" aria-label="Модель чата"></select></label>
       <div id="chat-state" class="chat-state" role="status"></div>
       <div id="chat-timer" class="chat-state"></div>
       <div class="chat-stream-options"><label><input type="checkbox" id="chat-stream" checked> Потоковый ответ</label> <button type="button" id="chat-cancel" class="btn secondary small" disabled>Отменить поток</button></div>
@@ -81,9 +74,14 @@
         <label>Режим <select id="chat-stat-mode"><option value="">Все</option><option value="cpu">CPU</option><option value="cuda">CUDA</option><option value="unknown">Нет данных</option></select></label>
         <div id="chat-stat-results"></div>
       </details>
-      <form id="chat-form" class="chat-form">
+      </div>
+      <div class="chat-composer-input">
+        <div class="chat-input-wrap">
+        <button type="button" id="chat-input-resize" class="chat-input-resize" aria-label="Изменить высоту поля ввода" title="Потяните вверх, чтобы увеличить поле ввода"><span aria-hidden="true"></span></button>
         <textarea id="chat-input" maxlength="131072" rows="3" placeholder="Сообщение выбранной LLM…" aria-label="Сообщение" disabled></textarea>
+        </div>
         <button type="submit" class="btn primary" id="chat-send" disabled>Отправить</button>
+      </div>
       </form>
     </section>
   </div>
