@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import socket
 import ssl
+import struct
 import subprocess
 import sys
 import threading
@@ -194,6 +195,26 @@ def main():
     control_fixture=len(sys.argv)>2 and sys.argv[2]=="--control"
     controller_factory=None
     if control_fixture:
+        # Real catalogue validation over tiny synthetic model metadata and headers.
+        # The fake backend still owns all starts; no model weights are loaded.
+        kat = root / "qa-kat"
+        kat.mkdir()
+        (kat / "config.json").write_text(json.dumps({"model_type":"qwen3_5_moe_text"}))
+        (kat / "qwen36_meta.json").write_text(json.dumps({"expert_gs":64,"ebits":4,"n_layers":40}))
+        header = json.dumps({"qa_tensor":{"data_offsets":[0,1]}}).encode()
+        shard = struct.pack("<Q",len(header)) + header + b"x"
+        for name in [*(f"model-{i:05d}.safetensors" for i in range(40)),"model-globals.safetensors"]:
+            (kat / name).write_bytes(shard)
+        qwen = root / "qa-qwen"
+        qwen.mkdir()
+        (qwen / "config.json").write_text(json.dumps({"model_type":"qwen3_5_moe_text"}))
+        weights = qwen / "Qwen3.6-35B-A3B-UD-Q4_K_M.gguf"
+        weights.write_bytes(b"GGUF")
+        (qwen / "gguf.json").write_text(json.dumps({"mode":"link","arch":"qwen35moe",
+            "parts":1,"gguf":str(weights),"size":4}))
+        (root / "ULTRA-CONTROL.py").write_text("PROFILES = " + repr({
+            "kat":{"folder":"qa-kat","model_id":"qa-kat"},
+            "qwen36":{"folder":"qa-qwen","model_id":"qa-qwen"}}))
         import socket
         from windows_process import NativeWindows
         from control_runtime import ModelControl

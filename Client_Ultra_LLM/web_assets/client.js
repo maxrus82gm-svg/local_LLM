@@ -12,6 +12,7 @@ let appliedStatusRequest = 0;
 let firstSetup = false;
 let lastEnrolledManagerId = "";
 let adminManagers = [];
+let controlError = "";
 
 function node(tag, className, text) {
   const x = document.createElement(tag);
@@ -72,11 +73,16 @@ function controlReason(reason) {
     owner_go_required:"Владелец ещё не разрешил управление на сервере",
     control_models_required:"Клиенту не выдано право управления моделями",
     runtime_review_required:"Совместимость runtime и ресурсный профиль ещё не подтверждены",
+    model_files_unverified:"Файлы и метаданные установленной модели не подтверждены Manager",
     runtime_or_model_changed:"Файлы runtime или метаданные модели изменились после проверки",
     resource_telemetry_unknown:"Нет достоверных данных о памяти и процессах сервера",
     vram_telemetry_unknown:"Нет достоверных данных о свободной VRAM",
     insufficient_ram:"Недостаточно свободной RAM с учётом резерва",
     insufficient_vram:"Недостаточно свободной VRAM с учётом резерва",
+    ram_estimate_unknown:"Оценка потребления RAM неизвестна",
+    ram_estimate_unmeasured:"Оценка потребления RAM ещё не измерена",
+    low_ram_forecast:"После запуска останется мало свободной RAM",
+    job_cap_below_estimate:"Лимит процесса ниже оценки потребления",
     cuda_measurement_unverified:"Потребление VRAM этой моделью ещё не измерено",
     model_already_managed:"Для модели уже зарезервирован экземпляр",
     no_free_authorized_slot:"Нет свободного разрешённого слота",
@@ -93,33 +99,28 @@ function controlReason(reason) {
   return labels[reason] ? labels[reason] + " (" + reason + ")" : reason;
 }
 const slotPending=new Set();
+function modelInstalled(model) { return model?.installation_checked === true && model?.files_present === true; }
 function workspaces(container,manager) {
   const control=manager.data.control;
   const catalog=node("section","slot-catalog");
-  catalog.append(node("h3","","КАТАЛОГ МОДЕЛЕЙ"));
-  const known=new Set();
+  catalog.append(node("h3","","МОДЕЛИ ИЗ ПРОФИЛЕЙ MANAGER"));
   for(const model of control.models || []) {
-    if(model.directory_name)known.add(model.directory_name);
     const entry=node("div","catalog-entry");
     entry.append(node("strong","",model.name),node("small","",
-      [model.files_present ? "Файлы обнаружены" : "Наличие файлов не подтверждено",
-       model.runtime_checked ? "Runtime проверен" : "Совместимость требует проверки",
+      [modelInstalled(model) ? "Файлы и метаданные подтверждены" :
+       model.installation_checked === true ? "Установка модели не подтверждена" : "Manager не подтвердил установку; требуется обновление Manager",
+       model.runtime_checked ? "Предыдущая проверка runtime пройдена" : "Совместимость требует проверки",
        "Доступен старт: "+["cpu","cuda"].filter(mode=>model.modes?.[mode]?.available).map(mode=>mode.toUpperCase()).join(" / ")+(Object.values(model.modes || {}).some(m=>m.available) ? "" : "требуется допуск"),
        "Работает экземпляров: "+(model.running_instances || 0)].join(" · ")));
     catalog.append(entry);
   }
-  for(const disk of manager.data.models || []) {
-    if(known.has(disk.directory_name))continue;
-    const entry=node("div","catalog-entry");
-    entry.append(node("strong","",disk.directory_name),node("small","","Файлы обнаружены · управляемый профиль не подтверждён"));
-    catalog.append(entry);
-  }
+  if(!(control.models || []).length)catalog.append(node("p","manager-model-empty","Нет установленных моделей, разрешённых этому Client в Manager."));
   container.append(catalog);
   const area=node("section","working-slots");
   if (control.control_models === false || control.enabled === false) {
     area.append(node("p","manager-pairing-note",control.control_models === false ?
-      "Manager разрешает просмотр слотов. Для управления моделями нужно отдельное разрешение." :
-      "Управление моделями выключено на Manager."));
+      "Просмотр разрешён. Для Start/Stop владелец Manager выдаёт этому зарегистрированному Client право control_models штатной командой set-control-models." :
+      "Управление отключено на Manager: владелец проверяет control.owner_go, защищённый журнал и resource reviews перед штатным включением."));
   }
   const heading=node("div","manager-model-head");
   heading.append(node("h3","","РАБОЧИЕ СЛОТЫ · "+control.slots.length));
@@ -128,45 +129,63 @@ function workspaces(container,manager) {
   add.title=control.can_add_slot ? "Manager назначит слот и свободный порт" : "Необходимо разрешение управления на Manager";
   add.addEventListener("click",async()=>{add.disabled=true;try{
     await pairingPost("/api/control",{manager_id:manager.manager_id,op:"add_slot",request_id:crypto.randomUUID().replaceAll("-","")});
+    controlError="";
     await refresh(true);
-  }catch(e){setNotice(controlReason(e.message));add.disabled=!control.can_add_slot;}});
+  }catch(e){controlError=controlReason(e.message);setNotice(controlError);add.disabled=!control.can_add_slot;}});
   heading.append(add);area.append(heading);
   const list=node("div","manager-model-scroll");
   for(const slot of control.slots) {
     const key=manager.manager_id+":"+slot.slot_id;
     const item=(control.instances || []).find(i=>i.slot_id===slot.slot_id&&!i.released);
+    const previous=(control.instances || []).find(i=>i.slot_id===slot.slot_id&&i.released);
     const live=(manager.data.slots || []).find(i=>i.slot_id===slot.slot_id)||{};
     const line=node("div","manager-model-row working-slot");line.dataset.slotId=slot.slot_id;
     const info=node("div","manager-model-info");
     info.append(node("strong","",slot.slot_id+(slot.protected ? " · защищённый" : "")));
     const select=node("select","slot-model");select.setAttribute("aria-label","Модель "+slot.slot_id);
     select.append(node("option","","Выберите модель"));select.options[0].value="";
-    for(const model of control.models || []){const option=node("option","",model.name);option.value=model.key;select.append(option);}
+    for(const model of control.models || []){const option=node("option","",model.name+(modelInstalled(model) ? "" : " · не подтверждена"));option.value=model.key;option.disabled=!modelInstalled(model);select.append(option);}
     if(slot.protected) {
       const names=(live.models || []).join(", ");
       if(names){const option=node("option","",names);option.value="legacy";select.append(option);select.value="legacy";}
     }else select.value=slot.model_key || "";
     select.disabled=slot.protected||!slot.authorized||!control.control_models||!control.enabled||Boolean(item)||slotPending.has(key);
-    const status=node("small","slot-state",item ? item.state+" · "+item.mode+" · "+item.instance_id :
-      slot.protected ? stateLabel(live.engine_state)+" · внешний экземпляр" : "Остановлен · выбран "+slot.mode);
+    const shown=item || (previous?.state==="ERROR" ? previous : null);
+    const stateNames={STARTING:"Запускается",READY:live.availability==="busy" ? "Занята" : "Готова",STOPPING:"Останавливается",ERROR:"Ошибка",STOPPED:"Остановлена"};
+    const status=node("small","slot-state",shown ? shown.state+" · "+(stateNames[shown.state] || "Состояние неизвестно")+
+      " · "+shown.mode+(shown.reason ? " · "+controlReason(shown.reason) : "") :
+      slot.protected ? stateLabel(live.engine_state)+" · внешний экземпляр" : "Остановлена · выбран "+slot.mode);
     info.append(select,status);line.append(info);
+    const selectedModel=(control.models || []).find(m=>m.key===select.value);
+    if(selectedModel && !slot.protected)for(const mode of ["cpu","cuda"]){
+      const capability=selectedModel.modes?.[mode];
+      if(!capability)continue;
+      const forecast=capability.forecast;
+      const warnings=(capability.warnings || []).map(controlReason);
+      const detail=capability.available ?
+        "Прогноз RAM после: "+(forecast?.ram_after_gib===null || forecast?.ram_after_gib===undefined ? "—" : formatNumber(forecast.ram_after_gib)+" GiB")+
+        (mode==="cuda" ? "; VRAM после: "+(forecast?.vram_after_gib===null || forecast?.vram_after_gib===undefined ? "—" : formatNumber(forecast.vram_after_gib)+" GiB") : "")+
+        (warnings.length ? "; предупреждения: "+warnings.join(", ") : "") : controlReason(capability.reason);
+      info.append(node("small","slot-resource",mode.toUpperCase()+": "+detail));
+    }
     select.addEventListener("change",async()=>{
       if(!select.value)return;
       slotPending.add(key);select.disabled=true;
       try{await pairingPost("/api/control",{manager_id:manager.manager_id,op:"select",slot_id:slot.slot_id,
-        model_key:select.value,mode:slot.mode,expected_revision:slot.revision,request_id:crypto.randomUUID().replaceAll("-","")});}
-      catch(e){status.textContent=controlReason(e.message);}
+        model_key:select.value,mode:slot.mode,expected_revision:slot.revision,request_id:crypto.randomUUID().replaceAll("-","")});controlError="";}
+      catch(e){controlError=controlReason(e.message);status.textContent=controlError;}
       finally{slotPending.delete(key);await refresh(true);}
     });
+    const canStop=item?.can_stop===true && ["STARTING","READY"].includes(item.state);
     for(const title of ["Старт CPU", "Старт CUDA", "Стоп"]) {
       const mode=title==="Старт CPU" ? "cpu" : "cuda";
       const button=node("button","btn secondary small manager-model-action",title);button.type="button";
       const model=(control.models || []).find(m=>m.key===select.value);
       const capability=model?.modes?.[mode];
-      button.disabled=slotPending.has(key)||(title==="Стоп" ? !item?.can_stop :
-        Boolean(item)||slot.protected||!slot.authorized||!control.control_models||!control.enabled||!model||!capability?.available);
-      button.title=title==="Стоп" ? (item?.can_stop ? "Остановить только этот экземпляр" : "Нет собственного управляемого экземпляра") :
-        (controlReason(capability?.reason)||"Проверить запуск в этом слоте");
+      button.disabled=slotPending.has(key)||(title==="Стоп" ? !canStop :
+        Boolean(item)||slot.protected||!slot.authorized||!control.control_models||!control.enabled||!modelInstalled(model)||!capability?.available||live.engine_state!=="not_running");
+      button.title=title==="Стоп" ? (canStop ? "Остановить только этот экземпляр" : "Остановка недоступна в текущем состоянии экземпляра") :
+        (!modelInstalled(model) ? "Установка модели не подтверждена Manager" : controlReason(capability?.reason)||"Проверить запуск в этом слоте");
       if(title!=="Стоп" && capability?.forecast) {
         const forecast=capability.forecast;
         button.title+=" · Ожидаемый остаток RAM: "+(forecast.ram_after_gib===null ? "неизвестен" : formatNumber(forecast.ram_after_gib)+" GiB")+
@@ -196,8 +215,9 @@ function workspaces(container,manager) {
             body={op:"start",...target,...(ack ? {risk_ack:true,risk_token:checked.risk_token} : {})};
           }
           const response=await pairingPost("/api/control",{manager_id:manager.manager_id,...body,request_id:crypto.randomUUID().replaceAll("-","")});
+          controlError="";
           status.textContent=response.state;
-        }catch(e){status.textContent=controlReason(e.message);setNotice(controlReason(e.message));}
+        }catch(e){controlError=controlReason(e.message);status.textContent=controlError;setNotice(controlError);}
         finally{slotPending.delete(key);await refresh(true);}
       });
       line.append(button);
@@ -406,7 +426,7 @@ function render(payload) {
   stat("server-count", all.length + " серверов");
   stat("last-update", new Date().toLocaleTimeString("ru-RU", {hour:"2-digit",minute:"2-digit"}));
   setNotice(all.some(m => m.status !== "online") ?
-      "Не все Manager доступны. Проверьте сеть, сертификат и регистрацию этого компьютера." : "");
+      "Не все Manager доступны. Проверьте сеть, сертификат и регистрацию этого компьютера." : controlError);
   if (chatOpen) renderChatList(payload);
 }
 async function refresh(force=false) {

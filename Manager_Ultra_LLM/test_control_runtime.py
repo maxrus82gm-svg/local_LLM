@@ -51,6 +51,29 @@ class AdmissionTests(unittest.TestCase):
         self.assertEqual(sum(type(r) is dict for r in results),1)
         self.assertIn("no_free_authorized_slot",results)
 
+    def test_catalog_requires_verified_profile_metadata_and_weight_header(self):
+        profile={"qwen36":{"folder":"qa-qwen","model_id":"qa-qwen"}}
+        (self.folder/"ULTRA-CONTROL.py").write_text("PROFILES = "+repr(profile),encoding="utf-8")
+        model=self.folder/"qa-qwen"
+        model.mkdir()
+        def row():
+            return next(item for item in self.core.catalog(self.alice)["models"] if item["key"]=="qwen36")
+        self.assertFalse(row()["files_present"],"A directory alone is not an installed model")
+        self.assertTrue(row()["installation_checked"])
+        self.assertEqual(row()["modes"]["cpu"]["reason"],"model_files_unverified")
+        (model/"config.json").write_text(json.dumps({"model_type":"qwen3_5_moe_text"}))
+        weight=model/"Qwen3.6-35B-A3B-UD-Q4_K_M.gguf"
+        weight.write_bytes(b"GGUF")
+        (model/"gguf.json").write_text(json.dumps({"mode":"link","arch":"qwen35moe",
+            "parts":1,"gguf":str(weight),"size":4}))
+        self.assertTrue(row()["files_present"])
+        self.assertTrue(row()["modes"]["cpu"]["available"])
+        weight.write_bytes(b"BAD!")
+        self.assertFalse(row()["files_present"],"A changed weight header revokes catalogue readiness")
+        weight.write_bytes(b"GGUF")
+        (model/"config.json").write_text("[]")
+        self.assertFalse(row()["files_present"],"Malformed metadata must not break the whole catalogue")
+
     def test_two_identical_models_have_isolated_specs_and_stop_one_only(self):
         first=self.start();second=self.start()
         self.settle()

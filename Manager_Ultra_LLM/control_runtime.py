@@ -186,6 +186,23 @@ class ModelControl:
         return sum(reviews.get(r["model_key"], {}).get("cuda", {}).get("vram_gib", 0)
                    for r in rows if r.get("mode") == "cuda" and not r.get("released", False))
 
+    def _installed_model(self, key, profiles):
+        """Read the trusted profile and model metadata; never infer installation from a folder."""
+        profile = profiles.get(initial_catalogue()[key].profile)
+        if (type(profile) is not dict or type(profile.get("folder")) is not str
+                or not profile["folder"] or type(profile.get("subfolder", "")) is not str):
+            return False, None
+        try:
+            root = Path(self.config["models_root"]).resolve()
+            folder = (root / profile["folder"]).resolve()
+            model = (folder / profile.get("subfolder", "")).resolve()
+            if not folder.is_relative_to(root) or not model.is_relative_to(folder) or not model.is_dir():
+                return False, profile["folder"]
+            runner.validate_model(model, root, profile, model_key=key)
+            return True, profile["folder"]
+        except (OSError, ValueError, KeyError, TypeError, AttributeError, runner.StartDenied):
+            return False, profile["folder"]
+
     def _sync(self, db):
         for row in self._rows(db):
             # Keep an accepted STOP exclusive during the runner's 60s wait,
@@ -239,10 +256,13 @@ class ModelControl:
         for key, choice in initial_catalogue().items() if principal["allowed_slots"] else ():
             if principal.get("allowed_models") is not None and key not in principal["allowed_models"]:
                 continue
+            present, directory_name = self._installed_model(key, profiles)
             modes = {}
             for mode in ("cpu", "cuda"):
                 try:
                     self._auth(principal)
+                    if not present:
+                        raise ControlError("model_files_unverified")
                     if telemetry is None:
                         telemetry = self.backend.telemetry()
                     t = telemetry
@@ -259,16 +279,13 @@ class ModelControl:
                 except Exception:
                     modes[mode] = {"available": False, "reason": "runtime_or_telemetry_unverified"}
             profile = profiles.get(choice.profile, {})
-            folder=Path(self.config.get("models_root","."))/str(profile.get("folder","__missing__"))
-            root=Path(self.config.get("models_root",".")).resolve()
-            present=bool(profile) and folder.resolve().is_relative_to(root) and folder.is_dir()
             checked={mode:checks.get((key,mode)) for mode in ("cpu","cuda")}
             reviewed=self.config.get("control",{}).get("reviews",{}).get(key,{})
-            compatible=any(value and value[0]==json.dumps(reviewed.get(mode,{}),sort_keys=True) for mode,value in checked.items())
+            compatible=present and any(value and value[0]==json.dumps(reviewed.get(mode,{}),sort_keys=True) for mode,value in checked.items())
             models.append({"key": key, "name": choice.display_name, "modes": modes,
-                "files_present":present,"runtime_checked":compatible,
+                "files_present":present,"installation_checked":True,"runtime_checked":compatible,
                 "running_instances":sum(r["model_key"]==key and r["state"]=="READY" and not r["released"] for r in all_rows),
-                "directory_name": profile.get("folder"), "api_ids": [profile["model_id"]] if profile.get("model_id") else []})
+                "directory_name": directory_name, "api_ids": [profile["model_id"]] if type(profile) is dict and profile.get("model_id") else []})
         return {"manager_id": self.config["manager_id"], "models": models, "instances": instances,
                 "enabled":self.db_path is not None,
                 "control_models": principal.get("control_models") is True,

@@ -174,11 +174,12 @@ def verify_review(plan):
         if vram["free_gib"]<review["vram_gib"]:raise StartDenied("insufficient_vram")
 
 
-def validate_model(model, root, profile):
+def validate_model(model, root, profile, *, model_key=None):
+    model_key = setting("model_key") if model_key is None else model_key
     config = json.loads((model / "config.json").read_text(encoding="utf-8-sig"))
     if config.get("model_type") != "qwen3_5_moe_text":
         raise StartDenied("Unsupported model architecture")
-    if setting("model_key") == "kat":
+    if model_key == "kat":
         from server_preflight import inspect_kat
         evidence = inspect_kat(model)
         if not evidence["structural_integrity"]:

@@ -96,6 +96,7 @@ try{
   };
   await until('document.querySelectorAll(".working-slot").length===3');
   mark('default_slots_rendered');
+  assert.equal((await data()).control.models.every(m=>m.installation_checked===true&&m.files_present===true),true);
   assert.equal(await evaluate('Boolean(document.querySelector(".slot-catalog").compareDocumentPosition(document.querySelector(".working-slots")) & Node.DOCUMENT_POSITION_FOLLOWING)'),true);
   assert.equal(await evaluate('document.querySelector("[data-slot-id=slot1] select").disabled'),true);
   const row=slot=>`document.querySelector('[data-slot-id="${slot}"]')`;
@@ -116,6 +117,58 @@ try{
   let state=await data();
   const twins=state.control.instances.filter(i=>!i.released&&i.model_key==='kat');
   assert.equal(twins.length,2);assert.notEqual(twins[0].instance_id,twins[1].instance_id);assert.notEqual(twins[0].model_id,twins[1].model_id);
+  const uiStates=await evaluate(`(() => {
+    const manager=structuredClone(chatSnapshot.managers.find(m=>m.manager_id==='qa-manager'));
+    const slot=manager.data.slots.find(s=>s.slot_id==='slot2');
+    const instance=manager.data.control.instances.find(i=>i.slot_id==='slot2');
+    const shown=()=>{const host=document.createElement('div');workspaces(host,manager);return host;};
+    slot.availability='busy';
+    const busy=shown().querySelector('[data-slot-id=slot2] .slot-state').textContent;
+    instance.state='ERROR';instance.reason='runner_action_unconfirmed';
+    const errorHost=shown();
+    const error=errorHost.querySelector('[data-slot-id=slot2] .slot-state').textContent;
+    const stopDisabled=[...errorHost.querySelector('[data-slot-id=slot2]').querySelectorAll('button')].find(b=>b.textContent==='Стоп').disabled;
+    manager.data.control.control_models=false;manager.data.control.can_add_slot=false;
+    const denied=shown().querySelector('.manager-pairing-note').textContent;
+    manager.data.control.control_models=true;
+    manager.data.control.instances=[];slot.engine_state='not_running';slot.availability='not_running';
+    for(const model of manager.data.control.models)delete model.installation_checked;
+    const staleHost=shown();
+    const staleStart=[...staleHost.querySelector('[data-slot-id=slot2]').querySelectorAll('button')].find(b=>b.textContent==='Старт CPU').disabled;
+    return {busy,error,stopDisabled,denied,staleStart};
+  })()`);
+  assert.match(uiStates.busy,/Занята/);
+  assert.match(uiStates.error,/Ошибка.*runner_action_unconfirmed/);
+  assert.equal(uiStates.stopDisabled,true);
+  assert.match(uiStates.denied,/set-control-models/);
+  assert.equal(uiStates.staleStart,true,'Old folder-only Manager catalogue must not enable Start');
+  const rejected=async body=>evaluate(`pairingPost('/api/control',${JSON.stringify({manager_id:'qa-manager',...body})})
+    .then(()=>'unexpected',error=>error.message)`);
+  assert.match(await rejected({op:'start',slot_id:'slot2',model_key:'kat',mode:'cpu',request_id:'d'.repeat(32)}),/no_free_authorized_slot/);
+  assert.match(await rejected({op:'start',slot_id:'slot3',model_key:'not-installed',mode:'cpu',request_id:'e'.repeat(32)}),/invalid_model_or_mode/);
+  assert.match(await rejected({op:'stop',instance_id:'0'.repeat(32),request_id:'f'.repeat(32)}),/instance_not_authorized/);
+  await evaluate('showChats()');
+  await until('!byId("chat-new").disabled');
+  async function uiChat(slot,message,count){
+    await evaluate('byId("chat-new").click()');
+    await until(`document.querySelectorAll('.chat-choice').length===${count}`);
+    const chatId=await evaluate('chatSelected');
+    await evaluate(`{const target=chatTargets.find(t=>t.slot_id===${JSON.stringify(slot)});
+      const select=byId('chat-target');select.value=targetKey(target);select.dispatchEvent(new Event('change'));}`);
+    await until('!byId("chat-send").disabled');
+    await evaluate(`byId('chat-stream').checked=false;byId('chat-input').value=${JSON.stringify(message)};byId('chat-form').requestSubmit()`);
+    await until(`byId('chat-messages').textContent.includes(${JSON.stringify(message)}) &&
+      byId('chat-messages').textContent.includes('Фиктивный ответ экземпляра') && !byId('chat-send').disabled`);
+    assert.equal(await evaluate('document.querySelectorAll(".chat-message-metrics").length'),2);
+    return chatId;
+  }
+  const chatA=await uiChat('slot2','qa-ui-one',1);
+  const chatB=await uiChat('slot3','qa-ui-two',2);
+  assert.notEqual(chatA,chatB);
+  await evaluate(`selectChat(${JSON.stringify(chatA)})`);
+  await until('byId("chat-messages").textContent.includes("qa-ui-one")');
+  assert.equal(await evaluate('byId("chat-messages").textContent.includes("qa-ui-two")'),false);
+  await evaluate('showOverview()');
   for(const slot of ['slot4','slot5']){
     await evaluate('document.querySelector(".add-slot").click()');
     await until(`document.querySelector('[data-slot-id="${slot}"]')!==null`);
@@ -172,6 +225,22 @@ try{
   mark('page_reloaded');
   state=await data();assert.equal(state.control.slots.find(s=>s.slot_id==='slot3').model_key,'kat');
   assert.equal(state.control.slots.find(s=>s.slot_id==='slot5').mode,'cuda');
+  const storedA=await(await fetch(host.url+'/api/chat/history?chat_id='+chatA)).json();
+  const storedB=await(await fetch(host.url+'/api/chat/history?chat_id='+chatB)).json();
+  assert(storedA.messages.some(m=>m.content==='qa-ui-one'));
+  assert(!storedA.messages.some(m=>m.content==='qa-ui-two'));
+  assert(storedB.messages.some(m=>m.content==='qa-ui-two'));
+  assert(!storedB.messages.some(m=>m.content==='qa-ui-one'));
+  await evaluate('showChats()');
+  await until(`chatItems.some(c=>c.chat_id===${JSON.stringify(chatA)}) &&
+    chatItems.some(c=>c.chat_id===${JSON.stringify(chatB)})`);
+  await evaluate(`selectChat(${JSON.stringify(chatA)})`);
+  await until('byId("chat-messages").textContent.includes("qa-ui-one")');
+  assert.equal(await evaluate('byId("chat-send").disabled'),true,'Stopped model must not accept a chat');
+  await evaluate(`selectChat(${JSON.stringify(chatB)})`);
+  await until('byId("chat-messages").textContent.includes("qa-ui-two")');
+  assert.equal(await evaluate('byId("chat-send").disabled'),false,'Other model remains available');
+  await evaluate('showOverview()');
   // A burst of unavailable snapshots must hit a finite deadline, never READY.
   const burstProbe=await armFault('503',12);
   const boundedStart=performance.now();
@@ -183,6 +252,7 @@ try{
   assert.equal(history.messages[0].content,'instance two');
   // Risk cancellation is a user decision, not a capability/role escalation.
   await fetch(host.upstream+'/__qa/low_ram');await evaluate('refresh()');
+  assert.match(await evaluate(`${row('slot2')}.querySelector('.slot-resource').textContent`),/RAM после/);
   await click('slot2','Старт CPU');
   await until('!slotPending.has("qa-manager:slot2")');
   state=await data();assert(!state.control.instances.some(i=>i.slot_id==='slot2'&&!i.released));
@@ -203,6 +273,7 @@ try{
     default_slots:3,persisted_slots:5,simultaneous_same_model_cpu:2,simultaneous_same_model_cuda:2,
     unique_instance_ids:true,ipv6_listener_skipped:true,concurrent_chats_isolated:true,
     stop_one_preserves_other:true,controller_and_browser_reload:true,history_preserved:true,
+    two_ui_chats_bound_and_persisted:true,per_message_metrics_visible:true,
     risk_cancel_and_confirm:true,status_faults:['null','partial','503','delay','disconnect','bounded_503_burst'],
     status_samples:statusTrace.length,status_classes:[...new Set(statusTrace.map(s=>s.kind+':'+s.http))],
     phase_trace:phaseTrace,bounded_failure_ms:boundedFailureMs,status_trace:statusTrace,
