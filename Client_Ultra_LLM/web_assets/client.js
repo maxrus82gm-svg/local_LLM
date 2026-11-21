@@ -985,8 +985,7 @@ function renderChatControls() {
   else if (slotChatOwner(chat)?.chat_id!==chat.chat_id) status.textContent = "Слот уже назначен другому чату.";
   else if (target && (releasingSlots.has(slotKey(target)) || target.availability === "busy" || localSlotActive(target))) {
     status.textContent = "Модель занята. Ожидаем освобождения слота.";
-  } else if (contextPending(chat,target) && chatReady(target)) status.textContent = "Контекст ожидает перезапуска слота (фактически: "+(target.context_tokens ?? "не подтверждён")+").";
-  else status.textContent = chatReady(target) ? "" : "Назначенная модель сейчас недоступна.";
+  } else status.textContent = chatReady(target) ? "" : "Назначенная модель сейчас недоступна.";
 }
 const CONTEXT_PRESETS = ["2048","4096","8192","16384","32768","65536"];
 let contextCustomDraft = false;

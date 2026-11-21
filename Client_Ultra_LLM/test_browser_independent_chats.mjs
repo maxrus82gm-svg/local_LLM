@@ -106,6 +106,11 @@ try {
   assert.equal(await evaluate('document.querySelector(".chat-stream-options").contains(byId("chat-context-preset"))'),true);
   await evaluate('byId("chat-context-preset").value="16384";byId("chat-context-preset").dispatchEvent(new Event("change"))');
   await until('!chatMutation && currentChat().context_tokens===16384');
+  await until('chatReady(liveTarget(currentChat())) && byId("chat-context-tip").classList.contains("pending")');
+  assert.equal(await evaluate('liveTarget(currentChat()).context_tokens'),32768);
+  assert.equal(await evaluate('byId("chat-state").textContent'),"");
+  assert.equal(await evaluate('getComputedStyle(byId("chat-state")).display'),"none");
+  assert.match(await evaluate('byId("chat-context-tip").dataset.tip'), /32768/);
   assert((await evaluate('byId("chat-context-preset").getBoundingClientRect().width'))<=80);
   await evaluate('byId("chat-context-preset").value="custom";byId("chat-context-preset").dispatchEvent(new Event("change"))');
   assert.equal(await evaluate('byId("chat-context-custom").value'),"");
