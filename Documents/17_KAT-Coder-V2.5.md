@@ -261,3 +261,30 @@
 | Начальный прогноз Manager RAM / VRAM с запасом | 7 / 6.25 ГиБ |
 
 Лог подтверждает CUDA expert tier и 40 слоёв CUDA chain. SSE завершён, тестовый job остановлен, порт освобождён, свободная VRAM вернулась к 7663 МиБ. Прогнозы не являются точным пиком private RAM или гарантией для длинного контекста/нескольких моделей; совместный запуск не испытывался. Источник: `Test/CODEX-UL-COLIBRI-CUDA-LIVE-20261120-001/p2-summary.json`, исходный серверный `cuda_qa_20261120/kat/result.json`; SHA256 `30cfc49f95db19fc2ea27cb958a07552d427765e00a642fc58a399ac77fb6d47`. Интеграция рабочего Manager — отдельный этап P3.
+
+
+## 22.11.2026 — BENCH-UL-KAT-CUDA-PROFILES-20261122-001: CUDA 65K / «Сапёр»
+
+KAT-Coder V2.5 Dev, RTX 3070 8 ГиБ, Manager77, slot2, instance 6efc5b3a87174607bfb7f322f0a6d35c, request 2dd5177e7b1e40e4b8ea33e0b3d18f35. Старый глобальный промпт 468 символов, история 0 сообщений, streaming, thinking on, XHigh. Не смешивать с Qwen CPU continuation fc28a0ecbba04c5080d9e9e48d41d5cd.
+
+| Тест | Режим | Веса, ГиБ | Chain | Rows | ctx | VRAM всего, ГиБ | Decode т/с | Статус |
+| --- | --- | ---: | --- | --- | ---: | ---: | ---: | --- |
+| A | CUDA | 3.5 | OFF | Auto | 65536 | 3.69 (срез) | 3.82 | STREAM PASS / CODE REVISE |
+| B | CUDA | 3.5 | ON | 256 | 65536 | — | — | NOT RUN |
+| C | CUDA | 5 | OFF | Auto | 65536 | — | — | NOT RUN |
+| D | CUDA | 5 | ON | 256 | 65536 | — | — | NOT RUN |
+
+A — подтверждено SQLite Client request_metrics: 343 входных / 8776 выходных токенов, first fragment 47.217 с, total 2346.552 с, generation 2299.335 с, decode 3.82 т/с (completion/generation), end-to-end 3.74 т/с. Завершённый exchange сохранён: ответ 30514 символов, reasoning 2590. Срез на 2931 output: средняя 4.538, текущая 4.442 т/с, prefill 47.089 с; GPU0 3.6875/8 ГиБ, instance dedicated 3.567, shared 0.064, working set 2.495, private commit 9.267, свободно RAM 37.09/47.94 ГиБ. Это срез, не пик; отдельный текущий idle замер GPU 3.7002/8, RAM свободно 38.8. Порог 7 ГиБ — предупреждение. 8776 output и полный SSE подтверждают отсутствие прежних ограничений 96 output и абсолютного 300 s в этом прогоне. Полное заполнение ctx65536 не испытано.
+
+Независимое ревью «Сапёр»: оригинал 831 строка, SHA256 блока cpp без заключительного LF 87ce78cf2e1132f6df2d5a7c7bb3a163d8a29c84148fb38ef91d339fc1f88; совпадает с SQLite и переданным владельцем текстом. GCC и Clang C++17 — FAIL: отсутствие <thread>, неверное преобразование std::chrono::duration<unsigned> в stopTimer/updateTimer, многобайтовые char-литералы (Clang error, GCC warnings). Диагностическая копия только для локального теста: добавлен <thread>, duration_cast<seconds>, три символа заменены ASCII. В этой копии 100 полей: safe first click, count, BFS PASS; Board flag toggle и валидный save/load PASS. FAIL: победа при флаге на безопасной клетке, раскрытие flagged first move, таймер удваивает время и не возобновляется при load, UI не имеет пути установки флага, S/N/Q во время игры отвергаются, A1junk принимается, EOF приводит к циклу. UI smoke с ограниченным временем подтверждает ошибки. MSVC NOT RUN. Оригинал не менялся. REVISE, не формальная оценка МАЯК-47.
+
+NEXT: аналогичный тест с новым глобальным промптом и изменённым бюджетом только по OWNER GO, фиксировать обе переменные; для сравнения профилей сохранять остальные условия. 256 rows — число токенов одного prefill chunk, не слои. Направления №22.
+
+
+
+### 22.11.2026 — E: CUDA 5.5 GiB, новый глобальный промпт (LIVE IN PROGRESS)
+
+KAT-Coder V2.5 Dev, Manager77 slot2, instance 5b2674727318429d9b5cbb6ccf409b69, request fd17ff1797344ed1bc7855bec737b3fb. Owner повторяет «Сапёр» в новом чате с изменённым глобальным промптом и весами 5.5 GiB. Подтверждено /api/status: applied 5.5 GiB, Chain OFF, rows Auto, target 7 GiB, ctx65536, active1/queued0. GPU used5.5957/8 GiB, instance dedicated5.444/shared0.064, RAM working set4.023/private commit11.313, free RAM36.57/47.94. Срезы, не пики. Prompt487 tokens, sent_chars1658; окончательные options/usage/качество ещё неизвестны.
+
+Скриншот владельца: 653 output, текущая 7.96, средняя 7.46 т/с, TTFT61.76s, GPU5.60/8. /api/chat/telemetry: 871 output at182.836s, prefill61.634s, avg7.182/current5.913; 994 output at204.807s, avg6.941/current5.973. Owner сообщает: в reasoning скорость выше, при выводе ответа ~5–6 т/с, заметное ускорение. Это наблюдение, не раздельная измеренная статистика фаз. A near907 output avg5.231; E near871 avg7.182 (+37%); A near945 avg5.192 vs E994 avg6.941 (+34%). Не сравнивать раннюю скорость с полной средней A3.82 как окончательный speedup. Context не изменился; prompt изменился, чистый A/B не выполнен. Ускорение возможно за счёт размещения экспертов, причины не доказаны. E финал/качество PENDING. B/C/D (старые плановые профили) NOT RUN. Не прерывать работающий запрос ради проверки.
+
