@@ -87,11 +87,15 @@ class AdmissionTests(unittest.TestCase):
         self.assertEqual(current[second["instance_id"]]["state"],"READY")
         self.assertEqual(self.backend.stops,[first["instance_id"]])
 
-    def test_two_cuda_instances_fit_the_measured_budget(self):
+    def test_vram_forecast_does_not_limit_instance_count(self):
         self.backend.vram=8
         first=self.start(mode="cuda");second=self.start(mode="cuda")
         self.assertNotEqual(first["instance_id"],second["instance_id"])
-        with self.assertRaisesRegex(ControlError,"insufficient_vram"):self.start(mode="cuda")
+        check=self.operation("check",model_key="kat",mode="cuda")
+        self.assertIn("low_vram_forecast",check["warnings"])
+        self.assertFalse(check["requires_ack"])
+        third=self.start(mode="cuda")
+        self.assertNotIn(third["instance_id"],[first["instance_id"],second["instance_id"]])
 
     def test_ready_gpu_memory_is_not_charged_twice(self):
         self.backend.vram=8
@@ -238,7 +242,6 @@ class AdmissionTests(unittest.TestCase):
         for free, vram, verified, mode, reason in (
             (23,20,True,"cpu","resource_risk_not_permitted"),
             (100,None,True,"cuda","vram_telemetry_unknown"),
-            (100,2,True,"cuda","insufficient_vram"),
             (100,20,False,"cpu","resource_telemetry_unknown"),
             (float('nan'),20,True,"cpu","resource_telemetry_unknown")):
             self.backend.memory,self.backend.vram,self.backend.verified=free,vram,verified
@@ -260,11 +263,47 @@ class AdmissionTests(unittest.TestCase):
             with self.subTest(extra=extra),self.assertRaises(ControlError):
                 self.start(**extra)
         self.assertFalse(self.pending)
-    def test_second_cuda_reservation_uses_measured_vram(self):
+    def test_second_cuda_reservation_warns_without_blocking(self):
         self.backend.vram=7
         self.start(mode="cuda")
-        with self.assertRaisesRegex(ControlError,"insufficient_vram"):
-            self.start(key="qwen36",mode="cuda")
+        check=self.operation("check",model_key="qwen36",mode="cuda")
+        self.assertEqual(check["forecast"]["vram_after_gib"],-1)
+        self.assertIn("low_vram_forecast",check["warnings"])
+        self.assertFalse(check["requires_ack"])
+        self.assertEqual(self.start(key="qwen36",mode="cuda")["state"],"STARTING")
+
+    def test_reviewed_cuda_without_vram_estimate_is_advisory(self):
+        self.config["control"]["reviews"]["kat"]["cuda"].pop("vram_gib")
+        check=self.operation("check",model_key="kat",mode="cuda")
+        self.assertIn("vram_estimate_unknown",check["warnings"])
+        self.assertIsNone(check["forecast"]["vram_after_gib"])
+        self.assertFalse(check["requires_ack"])
+        self.start(mode="cuda")
+        check=self.operation("check",model_key="qwen36",mode="cuda")
+        self.assertIn("vram_reservation_unknown",check["warnings"])
+        self.assertIsNone(check["forecast"]["vram_after_gib"])
+        self.assertFalse(check["requires_ack"])
+        self.assertEqual(self.start(key="qwen36",mode="cuda")["state"],"STARTING")
+
+    def test_runner_checks_gpu_and_review_but_not_forecast(self):
+        exe=self.folder/"qwen36.exe"
+        dll=self.folder/"coli_cuda.dll"
+        dll.write_bytes(b"fake")
+        review={"evidence":"measured","source_hashes":{"a":"b"},"vram_gib":8}
+        plan={"source_engine":str(exe),"source_hashes":{"a":"b"}}
+        with configured(RunnerSpec("slot2",8001,"kat","cuda",review=review)):
+            with patch("resource_policy.read_vram",return_value={"free_gib":0.01,"total_gib":8}):
+                verify_review(plan)
+                review.pop("vram_gib")
+                verify_review(plan)
+                with self.assertRaisesRegex(StartDenied,"runtime_or_model_changed"):
+                    verify_review({**plan,"source_hashes":{"a":"changed"}})
+            with patch("resource_policy.read_vram",return_value=None):
+                with self.assertRaisesRegex(StartDenied,"vram_telemetry_unknown"):
+                    verify_review(plan)
+            dll.unlink()
+            with self.assertRaisesRegex(StartDenied,"cuda_runtime_or_measurement_unverified"):
+                verify_review(plan)
     def test_stop_only_own_stable_instance(self):
         first=self.start()
         self.settle()
@@ -356,10 +395,12 @@ class AdmissionTests(unittest.TestCase):
         self.assertEqual(cuda[1][cuda[1].index("--gpu")+1],"0")
         self.assertIn("8004",cpu[0]["gateway_pid"])
         self.assertEqual(paths()["gateway_pid"].split("coli-serve-")[-1],"8001.pid")
-    def test_primary_spec_forbidden(self):
-        for slot,port in (("slot1",8001),("slot2",8000),("slot4",8443)):
-            with self.assertRaises(ValueError):
-                RunnerSpec(slot,port)
+    def test_manager_port_forbidden_but_unprotected_primary_supported(self):
+        self.assertEqual(RunnerSpec("slot1",8000).port,8000)
+        with self.assertRaises(ValueError):
+            RunnerSpec("slot4",8443)
+        with self.assertRaises(ValueError):
+            RunnerSpec("slot4",8433,manager_port=8433)
     def test_review_hash_drift_refuses_before_materialization(self):
         with configured(RunnerSpec(review={"evidence":"measured","source_hashes":{"a":"b"}})):
             with self.assertRaises(StartDenied):

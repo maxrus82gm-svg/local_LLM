@@ -28,10 +28,14 @@ class SlotRegistry:
         db.execute("CREATE TABLE IF NOT EXISTS risk_checks (token TEXT PRIMARY KEY,owner TEXT NOT NULL,slot TEXT NOT NULL,model TEXT NOT NULL,mode TEXT NOT NULL,free_gib REAL NOT NULL,expires REAL NOT NULL,policy TEXT NOT NULL)")
         db.execute("CREATE TABLE IF NOT EXISTS model_checks (model TEXT,mode TEXT,review TEXT NOT NULL,checked REAL NOT NULL,PRIMARY KEY(model,mode))")
         for slot in self.config["slots"]:
-            protected=bool(slot.get("protected") or slot["slot_id"]=="slot1" or slot["api_port"]==8000)
+            protected=bool(slot.get("protected",False))
             row=db.execute("SELECT port,protected FROM slots WHERE slot_id=?",(slot["slot_id"],)).fetchone()
-            if row and row!=(slot["api_port"],int(protected)):
+            if row and row[0]!=slot["api_port"]:
                 raise ValueError("Configured slot conflicts with durable registry")
+            if row and row[1]!=int(protected):
+                if db.execute("SELECT 1 FROM instances WHERE slot=? AND released=0",(slot["slot_id"],)).fetchone():
+                    raise ValueError("Cannot change protection of active instance")
+                db.execute("UPDATE slots SET protected=?,revision=revision+1 WHERE slot_id=?",(int(protected),slot["slot_id"]))
             db.execute("INSERT OR IGNORE INTO slots(slot_id,port,protected) VALUES(?,?,?)",(slot["slot_id"],slot["api_port"],int(protected)))
 
     def definitions(self,db):
@@ -55,7 +59,7 @@ class SlotRegistry:
             low,high=self.config.get("control",{}).get("slot_port_range",[8001,8999])
             if type(low) is not int or type(high) is not int or not 1024<=low<=high<=65535:
                 raise ValueError("invalid_slot_port_range")
-            occupied={s["api_port"] for s in slots}|set(telemetry["ports"])|{self.config.get("listen_port"),8000,8443}
+            occupied={s["api_port"] for s in slots}|set(telemetry["ports"])|{self.config.get("listen_port",8443)}
             port=next((p for p in range(low,high+1) if p not in occupied),None)
             if port is None:raise ValueError("no_free_slot_port")
             number=4

@@ -105,7 +105,18 @@ dialog{color:#ebf1fc;background:transparent;border:0;max-width:min(650px,calc(10
 #chat-latest{align-self:flex-end;margin:3px 20px}
 .chat-stat-row{padding:5px 0;border-top:1px solid var(--line)}
 
-.slot-catalog{margin-bottom:18px}.slot-catalog h3,.working-slots h3{font-size:11px;letter-spacing:1px;color:#a7b4cb}.catalog-entry{display:flex;justify-content:space-between;gap:14px;padding:8px;border-bottom:1px solid #29374a}.catalog-entry small{color:#8da1b8}.slot-model{width:100%;padding:7px;background:#172332;color:#e4edfa;border:1px solid #526584;border-radius:6px}.working-slot{min-width:720px}.slot-state{overflow-wrap:anywhere}
+.slot-catalog{margin-bottom:18px}.slot-catalog h3,.working-slots h3{font-size:11px;letter-spacing:1px;color:#a7b4cb}.catalog-entry{display:flex;justify-content:space-between;gap:14px;padding:8px;border-bottom:1px solid #29374a}.catalog-entry small{color:#8da1b8}.slot-model{width:100%;padding:7px;background:#172332;color:#e4edfa;border:1px solid #526584;border-radius:6px}.working-slot{grid-template-columns:260px repeat(3,95px) 120px 54px;justify-content:start;min-width:0;gap:9px;padding:9px 13px}
+.working-slot .manager-model-info{display:flex;align-items:center;gap:8px;min-width:0}
+.working-slot .manager-model-info strong{font-size:11px;flex:0 0 44px;overflow-wrap:anywhere}
+.working-slot .slot-model{width:208px;min-width:0;font-size:12px;flex:1}
+.working-slot .manager-model-action{width:95px}
+.working-slot .slot-state{font-size:12px;font-weight:650;white-space:nowrap;color:#b0b9c9}
+.working-slot .slot-state.running,.working-slot .slot-active-mode.active{color:#67dab5}
+.working-slot .slot-state.stopped,.working-slot .slot-state.error{color:#f08080}
+.working-slot .slot-state.starting,.working-slot .slot-state.stopping{color:#e5b86c}
+.working-slot .slot-active-mode{font-size:12px;font-weight:650;color:#8695a9}
+.working-slot .slot-mode-running:disabled{background:#163c2e;border-color:#378861;color:#83efba;opacity:1}
+@media(max-width:1050px){.working-slot{grid-template-columns: minmax(200px,260px) repeat(3,90px) 112px 48px;min-width:686px;gap:6px}.working-slot .manager-model-action{width:90px}}
 
 /* Chat UX: one document scrollbar, fixed composer, sticky chat navigation. */
 #chat-view .chat-layout{align-items:stretch}
@@ -145,3 +156,67 @@ dialog{color:#ebf1fc;background:transparent;border:0;max-width:min(650px,calc(10
   #chat-view .chat-form{border-radius:10px 10px 0 0;padding:10px 12px 12px}
   #chat-view .chat-form textarea{min-height:52px}
 }
+
+/* Chat work area: settings and measurements are separate from the composer. */
+#chat-view .chat-layout{grid-template-columns:minmax(170px,220px) minmax(0,1fr) minmax(200px,250px);gap:12px}
+.chat-inspector{align-self:start;position:sticky;top:16px;min-width:0;max-height:calc(100vh - 32px);overflow:auto;padding:14px;background:#151c27;border:1px solid #2b3544;border-radius:12px;color:#b7c8dd;font-size:12px}
+.chat-inspector h3{font-size:12px;margin:0 0 12px;color:#e2eaf7}
+.chat-inspector-target,.chat-inspector-fields label,.chat-inspector .chat-settings label{display:grid;gap:5px;margin:0 0 10px;font-size:11px}
+.chat-inspector select,.chat-inspector input[type=number]{width:100%;max-width:100%;min-width:0;padding:6px;background:#172332;color:#e4edfa;border:1px solid #526584;border-radius:6px;font-size:12px}
+.chat-inspector .chat-settings{padding:4px 0;font-size:11px}
+.chat-inspector .chat-settings summary{cursor:pointer;margin:4px 0 8px}
+.chat-inspector .chat-settings p{font-size:10px;line-height:1.5;color:#91a5bf}
+.chat-inspector .chat-settings label:has(input[type=checkbox]){display:flex;align-items:center}
+.chat-inspector-divider{height:1px;background:#2b3544;margin:14px 0}
+.chat-inspector #chat-timer{white-space:normal;line-height:1.6;font-size:11px;color:#d9be91;overflow-wrap:anywhere;padding:0;min-height:0}
+.chat-inspector .chat-stat-row{padding:6px 0;border-bottom:1px solid #2b3544;font-size:10px;line-height:1.5;overflow-wrap:anywhere}
+.chat-card-model{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.chat-mode-confirmed{color:#67dab5;font-weight:650;white-space:nowrap}
+.chat-mode-line:empty{display:none}
+.chat-mode-line{margin:-2px 0 10px}
+@media(max-width:1150px){#chat-view .chat-layout{grid-template-columns:minmax(150px,190px) minmax(0,1fr) minmax(175px,210px);gap:8px}.chat-inspector{padding:10px}}
+@media(max-width:900px){#chat-view .chat-layout{grid-template-columns:minmax(0,1fr)}.chat-inspector{position:relative;top:auto;max-height:none;grid-row:2}.chat-panel{grid-row:3}}
+
+/* Owner layout: model selector in composer, settings grow upward on the right. */
+#chat-view .chat-inspector{align-self:end;top:auto;bottom:16px;max-height:calc(100svh - 32px)}
+#chat-view .chat-composer-model{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-left:auto;min-width:0}
+#chat-view .chat-composer-model .chat-composer-target{display:flex;align-items:center;gap:4px;min-width:0}
+#chat-view .chat-composer-model select{width:clamp(120px,13vw,230px);min-width:0;max-width:100%}
+#chat-view .chat-composer-model .chat-mode-line{margin:0;font-size:11px}
+#chat-view #chat-detach-model{padding:4px 8px;font-size:15px;line-height:1}
+@media(max-width:900px){#chat-view .chat-inspector{position:relative;bottom:auto;align-self:start;max-height:none} #chat-view .chat-composer-model{max-width:100%;margin-left:auto}}
+
+/* Keep the composer free of empty instructional status. */
+#chat-view .chat-composer-controls #chat-state:empty{display:none}
+
+/* Full-width input: the keyboard fallback lives inside its lower-right corner. */
+#chat-view .chat-input-wrap{position:relative;width:100%}
+#chat-view .chat-composer-input textarea{box-sizing:border-box;padding-right:42px;padding-bottom:38px}
+#chat-view .chat-send-icon{position:absolute;right:9px;bottom:9px;display:grid;place-items:center;width:30px;height:30px;padding:5px;border:1px solid #455673;border-radius:6px;background:#26344b;color:#dce7ff;cursor:pointer;z-index:2}
+#chat-view .chat-send-icon svg{width:18px;height:18px;pointer-events:none}
+#chat-view .chat-send-icon:hover:not(:disabled){background:#43476e;border-color:#8f8aff;color:white}
+#chat-view .chat-send-icon:disabled{opacity:.42;cursor:default}
+#chat-view .chat-send-icon:focus-visible{outline:2px solid #aaa7ff;outline-offset:2px}
+
+/* Matching composer switches, aligned left. */
+#chat-view .chat-composer-controls .chat-stream-options{gap:12px;flex-wrap:wrap;margin:0}
+#chat-view .chat-stream-options label{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+#chat-view .chat-stream-options input{margin:0}
+
+/* Compact per-chat controls and short delayed tooltips. */
+#chat-view .chat-stream-options{gap:10px;min-width:0}
+#chat-view .chat-stream-options #chat-effort{font:inherit;width:clamp(112px,12vw,172px);margin-left:0}
+#chat-view .chat-history-count{display:inline-flex;align-items:center;gap:5px;flex:none}
+#chat-view .chat-history-count svg{width:17px;height:17px;flex:none;color:#9eb2cc}
+#chat-view .chat-history-count input{box-sizing:border-box;width:53px;min-width:0;background:#172332;color:#e4edfa;border:1px solid #526584;border-radius:6px;padding:5px;font:inherit}
+#chat-view .chat-tip{position:relative}
+
+/* Shared global instruction and viewport-level hints. */
+.chat-inspector-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.chat-inspector .chat-inspector-heading h3{margin:0}
+.global-prompt-button{font:inherit;font-size:11px;line-height:1.15;padding:5px 11px;border:1px solid #526584;border-radius:6px;background:#172332;color:#dce7f5;cursor:pointer;text-align:center}
+.global-prompt-button:hover{background:#253247;border-color:#8f9fc0}
+#global-prompt-text{font-size:13px;line-height:1.5;min-height:170px;max-height:52vh}
+
+/* Shared gray hints, above controls and outside the composer clipping area. */
+#chat-floating-tip{position:fixed;inset:auto;left:0;top:0;margin:0;z-index:2147483647;box-sizing:border-box;width:max-content;max-width:min(320px,80vw);max-height:90vh;overflow:hidden;padding:4px 7px;border:1px solid #85888e;border-radius:2px;background:rgba(40,43,48,.97);color:#e5e6e8;font:12px/1.4 system-ui,sans-serif;white-space:normal;overflow-wrap:anywhere;pointer-events:none;box-shadow:0 2px 6px #0006}

@@ -87,12 +87,14 @@ try {
   const command = async name => assert.equal((await fetch(host.upstream+'/__qa/'+name)).status, 204);
   const getPayload = async () => (await fetch(host.upstream+'/__qa/payload')).json();
   const send = async text => evaluate('byId("chat-input").value='+JSON.stringify(text)+'; byId("chat-form").requestSubmit()');
-  const ready = async () => until('!byId("chat-send").disabled');
-  const saved = async text => until('byId("chat-messages").textContent.includes('+JSON.stringify(text)+') && !byId("chat-send").disabled');
+  const ready = async () => until('byId("chat-send").type==="submit" && !byId("chat-send").disabled');
+  const saved = async text => until('byId("chat-messages").textContent.includes('+JSON.stringify(text)+') && byId("chat-send").type==="submit" && !byId("chat-send").disabled');
   const create = async count => {
     await evaluate('byId("chat-new").click()');
     await until('document.querySelectorAll(".chat-choice").length==='+count);
     await ready();
+    assert.equal(await evaluate('currentChat().manager_id'),"qa-manager");
+    assert.equal(await evaluate('Boolean(currentChat().model_id)'),true);
     return evaluate('chatSelected');
   };
   const select = async id => evaluate('selectChat('+JSON.stringify(id)+')');
@@ -111,10 +113,16 @@ try {
   assert(Math.abs(reasoning.composerBottom - 620) < 3);
   await evaluate('refresh(true)');
   assert.equal(await evaluate('byId("chat-state").textContent'),'Модель отвечает');
-  assert.equal(await evaluate('byId("chat-send").disabled'),true);
+  assert.equal(await evaluate('byId("chat-send").type'),"button");
+  assert.equal(await evaluate('byId("chat-send").getAttribute("aria-label")'),"Стоп");
+  assert.equal(await evaluate('byId("chat-send").dataset.icon'),"stop");
+  assert.equal(await evaluate('byId("chat-stream").disabled'),true);
   await evaluate('byId("chat-new").click()');
   await until('document.querySelectorAll(".chat-choice").length===2');
   const b = await evaluate('chatSelected');
+  assert.equal(await evaluate('byId("chat-manager").value'),"qa-manager");
+  assert.equal(await evaluate('Boolean(currentChat().model_id)'),false);
+  assert.equal(await evaluate('byId("chat-model").options.length'),0);
   assert.notEqual(a,b);
   assert.equal(await evaluate('byId("chat-send").disabled'),true);
   assert.equal(await evaluate('chatHolder.querySelector(".chat-bubble")===null'),true);
@@ -171,14 +179,20 @@ try {
   results.scheduler_checks = checks;
   results.synthetic_usage = first.results[0].usage;
 
+  await evaluate('byId("chat-detach-model").click()');
+  await until('!chatMutation && !currentChat().model_id');
   await select(b);
+  await evaluate('changeChat("target",{target:targetFields(chatTargets.find(t=>t.engine_state==="ready"))})');
   await ready();
   await send('qa-b');
   await saved('Ответ qa-b');
   const isolated = await getPayload();
   assert.equal(isolated.context_compaction,'off');
   assert.deepEqual(isolated.messages,[{role:'user',content:'qa-b'}]);
+  await evaluate('byId("chat-detach-model").click()');
+  await until('!chatMutation && !currentChat().model_id');
   await select(a);
+  await evaluate('changeChat("target",{target:targetFields(chatTargets.find(t=>t.engine_state==="ready"))})');
   await saved('qa-long');
   await send('qa-context');
   await saved('Ответ qa-context');
@@ -239,8 +253,8 @@ try {
   results.independence_and_history = true;
 
   await send('qa-cancel');
-  await until('!byId("chat-cancel").disabled && chatHolder.textContent.includes("Фрагмент рассуждения") && conversation(chatSelected).request.first != null');
-  await evaluate('byId("chat-cancel").click()');
+  await until('byId("chat-send").type==="button" && !byId("chat-send").disabled && chatHolder.textContent.includes("Фрагмент рассуждения") && conversation(chatSelected).request.first != null');
+  await evaluate('byId("chat-send").click()');
   await until('byId("chat-notice").textContent.includes("отменён")');
   await ready();
   assert.equal((await query(a)).messages.length,8);

@@ -742,7 +742,8 @@ class ShortTimeoutManagerHTTPServer(ThreadingHTTPServer):
 def run(config_file):
     config = load_config(config_file)
     inbox = PairingInbox()
-    handler = make_handler(config_file, config, inbox)
+    controller = ModelControl(config)
+    handler = make_handler(config_file, config, inbox, controller=controller)
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.minimum_version = ssl.TLSVersion.TLSv1_2
     context.load_cert_chain(config["cert_file"], config["key_file"])
@@ -752,7 +753,19 @@ def run(config_file):
     server.socket = context.wrap_socket(server.socket, server_side=True)
     _LOG.info("Manager %s listening securely at %s:%d",
               config["manager_id"], config["bind_host"], config["listen_port"])
-    server.serve_forever(poll_interval=0.5)
+    stop_watchdog = threading.Event()
+    watchdog = None
+    if controller.db_path is not None:
+        watchdog = threading.Thread(target=controller.watchdog_loop, args=(stop_watchdog,),
+                                    name="manager-watchdog", daemon=True)
+        watchdog.start()
+    try:
+        server.serve_forever(poll_interval=0.5)
+    finally:
+        stop_watchdog.set()
+        if watchdog is not None:
+            watchdog.join(timeout=8)
+        server.server_close()
 
 
 if __name__ == "__main__":

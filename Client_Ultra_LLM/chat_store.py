@@ -16,6 +16,7 @@ _NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$")
 _ID = re.compile(r"[a-f0-9]{32}")
 _LOCK = threading.RLock()
 DEFAULT_CONTEXT = {"max_messages": 100, "max_chars": 200000}
+DEFAULT_PREFERENCES = {"stream": True, "thinking": True}
 
 
 def utc_now():
@@ -171,12 +172,41 @@ def _legacy_id(db, key, instance, *, create=False):
 
 
 _CHAT_FIELDS = """chat_id,title,created_at,manager_id,slot_id,model_id,settings,
-                  context_after,restore_to IS NOT NULL AS can_restore,legacy"""
+                  context_after,restore_to IS NOT NULL AS can_restore,legacy,
+                  CASE WHEN legacy=0 AND EXISTS (
+                      SELECT 1 FROM chats AS owner WHERE owner.legacy=0
+                      AND owner.manager_id=chats.manager_id AND owner.slot_id=chats.slot_id
+                      AND owner.rowid<chats.rowid
+                  ) THEN 1 ELSE 0 END AS target_conflict"""
+
+
+class ChatTargetOccupied(ValueError):
+    """A named chat already owns the Manager slot."""
+
+
+def _require_target_owner(db, target, chat_id=None):
+    # Reserve the slot, not the display name, mode, or a model alias.
+    # Keep older assignments until explicit unbind/rebind/delete.
+    if target[0] is None:
+        return
+    owner = db.execute("""SELECT chat_id FROM chats WHERE legacy=0
+        AND manager_id=? AND slot_id=? ORDER BY rowid LIMIT 1""", target[:2]).fetchone()
+    if owner is not None and owner[0] != chat_id:
+        raise ChatTargetOccupied("chat_target_occupied")
+
+
+def require_unassigned_slot(folder, key):
+    if not _safe_path(Path(folder) / "chat_history.sqlite3").exists():
+        return
+    with _connect(folder) as db:
+        _require_target_owner(db, key)
 
 
 def _chat(row):
     result = dict(row)
-    result["settings"] = {**DEFAULT_CONTEXT, **json.loads(result["settings"])}
+    saved = json.loads(result["settings"])
+    result["preferences"] = {**DEFAULT_PREFERENCES, **saved.get("preferences", {})}
+    result["settings"] = {**DEFAULT_CONTEXT, **{k:v for k,v in saved.items() if k in DEFAULT_CONTEXT}}
     return result
 
 
@@ -210,23 +240,33 @@ def manage_chat(folder, op, data):
     with _connect(folder) as db:
         if op == "create":
             chat_id = uuid.uuid4().hex
-            target = data.get("target")
+            target = _target(data.get("target"))
+            _require_target_owner(db, target)
             db.execute("INSERT INTO chats(chat_id,title,created_at,manager_id,slot_id,model_id) VALUES(?,?,?,?,?,?)",
-                       (chat_id, _title(data.get("title", "Новый чат")), utc_now(), *_target(target)))
+                       (chat_id, _title(data.get("title", "Новый чат")), utc_now(), *target))
         else:
             chat_id = data["chat_id"]
-            _get_chat(db, chat_id)
+            current = _get_chat(db, chat_id)
             if op == "rename":
                 db.execute("UPDATE chats SET title=? WHERE chat_id=?", (_title(data["title"]), chat_id))
             elif op == "target":
-                db.execute("UPDATE chats SET manager_id=?,slot_id=?,model_id=? WHERE chat_id=?",
-                           (*_target(data["target"]), chat_id))
+                target = _target(data["target"])
+                _require_target_owner(db, target, chat_id)
+                db.execute("UPDATE chats SET manager_id=?,slot_id=?,model_id=?,legacy=0 WHERE chat_id=?",
+                           (*target, chat_id))
             elif op == "settings":
                 settings = data["context"]
                 if type(settings) is not dict or set(settings) != set(DEFAULT_CONTEXT):
                     raise ValueError("invalid_context_policy")
                 context_for([], **settings)
-                db.execute("UPDATE chats SET settings=? WHERE chat_id=?", (json.dumps(settings), chat_id))
+                saved = {**settings, "preferences":current["preferences"]}
+                db.execute("UPDATE chats SET settings=? WHERE chat_id=?", (json.dumps(saved), chat_id))
+            elif op == "preferences":
+                preferences = data["preferences"]
+                if type(preferences) is not dict or set(preferences) != set(DEFAULT_PREFERENCES) or any(type(v) is not bool for v in preferences.values()):
+                    raise ValueError("invalid_chat_preferences")
+                saved = {**current["settings"], "preferences":preferences}
+                db.execute("UPDATE chats SET settings=? WHERE chat_id=?", (json.dumps(saved), chat_id))
             elif op in ("reset", "clear"):
                 last = db.execute("SELECT COALESCE(MAX(id),0) FROM messages WHERE chat_id=?", (chat_id,)).fetchone()[0]
                 if op == "reset":

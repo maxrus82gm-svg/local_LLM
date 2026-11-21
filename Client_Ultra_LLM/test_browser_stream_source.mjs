@@ -23,7 +23,9 @@ try{
   await until('document.querySelectorAll(".manager").length===1');
   await evaluate('showChats()');
   await evaluate('document.getElementById("chat-new").click()');
+  await until('Boolean(currentChat()) && !chatMutation');
   await until('document.getElementById("chat-send").disabled===false');
+  assert.equal(await evaluate('Boolean(currentChat().model_id)'),true);
   const input='document.getElementById("chat-input")';
   const focus=()=>evaluate(input+'.focus()');
   const value=()=>evaluate(input+'.value');
@@ -58,7 +60,7 @@ try{
   assert.equal(await evaluate('window.qaSubmits'),0,'Blank, repeat, Shift and IME must not submit');
   assert.equal((await metricsFromUpstream()).requests,0);
   assert.equal(await evaluate(`document.activeElement===${input}`),true);
-  await evaluate(`document.getElementById("chat-thinking").value="on";
+  await evaluate(`document.getElementById("chat-thinking").checked=true;
     document.getElementById("chat-effort").value="high";
     document.getElementById("chat-max-tokens").value="2048";
     ${input}.select()`);
@@ -143,6 +145,8 @@ try{
     assert.equal(await evaluate(`document.activeElement===${input}`),true,'Network error must restore keyboard focus');
     assert.equal((await metricsFromUpstream()).requests,3);
   }finally{await browser.call('Network.setBlockedURLs',{urls:[]});}
+  assert.equal(await evaluate('byId("chat-send").closest(".chat-input-wrap")===byId("chat-input").closest(".chat-input-wrap")'),true);
+  assert.equal(await evaluate('byId("chat-send").dataset.icon'),"enter");
   await evaluate('document.getElementById("chat-send").click()');
   await until(`document.getElementById("chat-messages").textContent.includes(${JSON.stringify(retryDraft)})
     && !document.getElementById("chat-send").disabled`);

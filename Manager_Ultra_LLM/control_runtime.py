@@ -52,18 +52,31 @@ class ColibriBackend:
             plan = runner.make_plan(NativeWindows())
             runner.verify_review(plan)
 
-    def status(self, spec, instance_id):
+    def status(self, spec, instance_id, *, recover=False):
         with configured(spec):
             state = runner.run("status")
         if state.get("session") != instance_id:
             return {"state": "ERROR", "reason": "instance_identity_unverified", "released": False}
         status = state.get("state")
         if status in ("STOPPED", "ERROR") and state.get("job_cleanup_confirmed") is True:
-            return {"state": status, "released": True, "reason": "runner_finished"}
+            if any(r["port"] == spec.port for r in runner.NativeWindows().listeners()):
+                return {"state":"ERROR", "released":False, "reason":"recovery_port_occupied"}
+            return {"state": status, "released": True,
+                    "reason": "orphan_recovered" if state.get("reason") == "orphan_recovered" else "runner_finished"}
         if state.get("supervisor_verified") and status in ("STARTING", "READY", "STOPPING", "PREPARING"):
             return {"state": "STARTING" if status == "PREPARING" else status,
                     "released": False, "reason": None}
+        if recover and state.get("supervisor_verified") is False:
+            try:
+                with configured(spec):
+                    if runner.recover_orphan(runner.NativeWindows(), instance_id):
+                        return {"state":"STOPPED", "released":True, "reason":"orphan_recovered"}
+            except Exception:
+                return {"state":"ERROR", "released":False, "reason":"recovery_unverified"}
         return {"state": "ERROR", "released": False, "reason": "supervisor_unverified"}
+
+    def recover_status(self, spec, instance_id):
+        return self.status(spec, instance_id, recover=True)
 
     def start(self, spec, instance_id):
         with configured(spec):
@@ -129,7 +142,8 @@ class ModelControl:
             instance_root=options.get("instance_root", str(Path(self.config["colibri_root"]) / "manager_dev")),
             manager_root=str(Path(__file__).resolve().parent),
             primary_port=next((s["api_port"] for s in self.config["slots"]
-                               if s["slot_id"] == "slot1" or s.get("protected")), 8000))
+                               if s["slot_id"] == "slot1" or s.get("protected")), 8000),
+            manager_port=self.config.get("listen_port",8443))
 
     def assert_chat_allowed(self, slot_id):
         if self.db_path:
@@ -217,6 +231,38 @@ class ModelControl:
             db.execute("UPDATE instances SET state=?,reason=?,released=? WHERE id=?",
                 (status["state"], status.get("reason"), int(status.get("released") is True), row["instance_id"]))
 
+    def watchdog_once(self):
+        """Reconcile even without clients; slow orphan checks outside DB lock."""
+        if self.db_path is None:
+            return
+        with self.db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            self._sync(db)
+            pending = [r for r in self._rows(db) if not r["released"] and r["state"]=="ERROR"]
+            db.commit()
+        recover = getattr(self.backend, "recover_status", None)
+        if recover is None:
+            return
+        for row in pending:
+            try:
+                status = recover(RunnerSpec(**json.loads(row["spec"])), row["instance_id"])
+            except Exception:
+                status = {"state":"ERROR", "reason":"recovery_unverified", "released":False}
+            with self.db() as db:
+                # A new READY/STOPPING state or an already released row wins.
+                db.execute("UPDATE instances SET state=?,reason=?,released=? WHERE id=? AND state='ERROR' AND released=0",
+                    (status["state"],status.get("reason"),int(status.get("released") is True),row["instance_id"]))
+                db.commit()
+
+    def watchdog_loop(self, stop_event, interval=5):
+        import logging
+        log = logging.getLogger(__name__)
+        while not stop_event.wait(interval):
+            try:
+                self.watchdog_once()
+            except Exception:
+                log.warning("Manager watchdog reconciliation unavailable")
+
     @staticmethod
     def _public(row, principal):
         return {k:row[k] for k in ("instance_id", "slot_id", "model_key", "mode", "state", "reason")} | {
@@ -267,8 +313,8 @@ class ModelControl:
                         telemetry = self.backend.telemetry()
                     t = telemetry
                     assessment=self._gate(key, mode, t, all_rows)
-                    if not any(not s.get("protected") and s["slot_id"] != "slot1"
-                               and s["api_port"] != 8000 and s["slot_id"] in principal["allowed_slots"]
+                    if not any(not s.get("protected") and s["slot_id"] in principal["allowed_slots"]
+                               and s["api_port"] != self.config.get("listen_port",8443)
                                and s["api_port"] not in t["ports"]
                                and not any(i["slot_id"] == s["slot_id"] and not i["released"] for i in all_rows)
                                for s in definitions):
@@ -358,7 +404,7 @@ class ModelControl:
                     if requested not in principal["allowed_slots"]:raise ControlError("slot_not_authorized",403)
                     if any(s["slot_id"]==requested and s["protected"] for s in definitions):raise ControlError("legacy_slot_protected",403)
                 slot = next((s for s in definitions if (requested is None or s["slot_id"]==requested) and not s.get("protected")
-                    and s["slot_id"] != "slot1" and s["api_port"] != 8000
+                    and s["api_port"] != self.config.get("listen_port",8443)
                     and s["slot_id"] in principal["allowed_slots"]
                     and s["api_port"] not in telemetry["ports"]
                     and not any(r["slot_id"] == s["slot_id"] and not r["released"] for r in rows)), None)

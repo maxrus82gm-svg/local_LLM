@@ -13,6 +13,7 @@ import web_client as web
 
 
 TARGET = {"manager_id": "m", "slot_id": "slot1", "model_id": "test"}
+TARGET2 = {"manager_id": "m", "slot_id": "slot2", "model_id": "test"}
 
 
 class IndependentChatTests(unittest.TestCase):
@@ -31,13 +32,15 @@ class IndependentChatTests(unittest.TestCase):
         return web.chat_action(self.folder, {"op": op, "chat_id": chat_id, **data})
 
     def append(self, chat_id, user="question", reply="answer", reasoning="private reasoning"):
-        return store.append_exchange(self.folder, *TARGET.values(), user, reply, chat_id=chat_id, reasoning=reasoning)
+        row = store.get_chat(self.folder, chat_id)
+        return store.append_exchange(self.folder, *(row[k] for k in TARGET), user, reply, chat_id=chat_id, reasoning=reasoning)
 
     def history(self, chat_id):
         return store.history(self.folder, chat_id=chat_id)
 
     def payload(self, chat_id, request_id="a"*32, **data):
-        return {**TARGET, "chat_id": chat_id, "message": "new", "request_id": request_id, **data}
+        row = store.get_chat(self.folder, chat_id)
+        return {**{k:row[k] for k in TARGET}, "chat_id": chat_id, "message": "new", "request_id": request_id, **data}
 
     def test_v1_migration_checks_backup_and_preserves_all_instance_histories(self):
         path = self.folder / "chat_history.sqlite3"
@@ -68,8 +71,73 @@ class IndependentChatTests(unittest.TestCase):
             self.assertNotIn("reasoning_content", [row[1] for row in db.execute("PRAGMA table_info(messages)")])
             self.assertEqual(db.execute("PRAGMA foreign_key_check").fetchall(), [])
 
+    def test_slot_claim_is_atomic_and_released_without_losing_history(self):
+        a, b = self.chat(None), self.chat(None)
+        barrier = threading.Barrier(2)
+        alias = {**TARGET, "model_id":"different-alias"}
+        def claim(item):
+            chat, target = item
+            barrier.wait(timeout=5)
+            try:
+                self.action(chat, "target", target=target)
+                return chat
+            except web.ChatClientError as exc:
+                self.assertEqual((exc.reason,exc.status),("chat_target_occupied",409))
+                return None
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            owners = [x for x in pool.map(claim, [(a,TARGET),(b,alias)]) if x]
+        self.assertEqual(len(owners),1)
+        owner = owners[0]
+        other = b if owner == a else a
+        self.append(owner)
+        with self.assertRaisesRegex(web.ChatClientError,"chat_target_occupied"):
+            self.chat(alias)
+        with patch.object(web,"send_chat") as upstream:
+            with self.assertRaisesRegex(web.ChatClientError,"chat_target_occupied"):
+                web.chat_exchange(self.folder,{**TARGET,"message":"legacy"})
+            upstream.assert_not_called()
+        self.action(owner,"target",target=None)
+        self.action(other,"target",target=TARGET)
+        self.assertEqual(len(self.history(owner)),2)
+        self.assertIsNone(store.get_chat(self.folder,owner)["model_id"])
+        self.action(other,"delete",confirm=True)
+        self.action(owner,"target",target=TARGET)
+        self.assertEqual(len(self.history(owner)),2)
+        self.assertFalse(store.get_chat(self.folder,owner)["target_conflict"])
+
+    def test_stream_and_thinking_preferences_persist_per_chat_and_keep_context(self):
+        a,b = self.chat(),self.chat(TARGET2)
+        self.append(a)
+        self.assertEqual(store.get_chat(self.folder,a)["preferences"],{"stream":True,"thinking":True})
+        self.action(a,"preferences",preferences={"stream":False,"thinking":False})
+        self.action(a,"settings",context={"max_messages":24,"max_chars":10000})
+        self.assertEqual(store.get_chat(self.folder,a)["preferences"],{"stream":False,"thinking":False})
+        self.assertEqual(store.get_chat(self.folder,a)["settings"],{"max_messages":24,"max_chars":10000})
+        self.assertEqual(store.get_chat(self.folder,b)["preferences"],{"stream":True,"thinking":True})
+        self.assertEqual(len(self.history(a)),2)
+        for bad in ({"stream":1,"thinking":False},{"stream":True}, {"stream":True,"thinking":True,"auto":True}):
+            with self.assertRaisesRegex(ValueError,"invalid_chat_preferences"):
+                self.action(a,"preferences",preferences=bad)
+        self.assertEqual(store.get_chat(self.folder,a)["preferences"],{"stream":False,"thinking":False})
+
+    def test_existing_duplicate_binding_is_retained_but_cannot_send(self):
+        a,b = self.chat(),self.chat(None)
+        self.append(a)
+        path=self.folder/"chat_history.sqlite3"
+        with closing(sqlite3.connect(path)) as db,db:
+            db.execute("UPDATE chats SET manager_id=?,slot_id=?,model_id=? WHERE chat_id=?",(*TARGET.values(),b))
+        self.assertFalse(store.get_chat(self.folder,a)["target_conflict"])
+        self.assertTrue(store.get_chat(self.folder,b)["target_conflict"])
+        with patch.object(web,"send_chat") as upstream:
+            with self.assertRaisesRegex(web.ChatClientError,"chat_target_occupied"):
+                web.chat_exchange(self.folder,self.payload(b))
+            upstream.assert_not_called()
+        self.action(b,"target",target=TARGET2)
+        self.assertFalse(store.get_chat(self.folder,b)["target_conflict"])
+        self.assertEqual(len(self.history(a)),2)
+
     def test_reset_clear_restore_delete_and_reassignment_preserve_scope(self):
-        a, b = self.chat(), self.chat()
+        a, b = self.chat(), self.chat(TARGET2)
         self.append(a, user="first chat")
         self.append(b, user="second chat")
         self.action(a, "rename", title="Renamed")
@@ -91,7 +159,7 @@ class IndependentChatTests(unittest.TestCase):
         self.action(a, "target", target={**TARGET, "model_id": "different"})
         self.assertEqual(self.history(a)[0]["content"], "first chat")
         with self.assertRaisesRegex(web.ChatClientError, "chat_target_changed"):
-            web.chat_exchange(self.folder, self.payload(a))
+            web.chat_exchange(self.folder, self.payload(a, **TARGET))
         with self.assertRaisesRegex(ValueError, "confirmation"):
             self.action(a, "delete", confirm=1)
         self.action(a, "delete", confirm=True)
@@ -100,7 +168,7 @@ class IndependentChatTests(unittest.TestCase):
         self.assertEqual(len(self.history(b)), 2)
 
     def test_v2_migration_links_only_unambiguous_measurements(self):
-        chat_id, other_chat = self.chat(), self.chat()
+        chat_id, other_chat = self.chat(), self.chat(TARGET2)
         records = [
             (chat_id, 0, 11),
             (chat_id, 2, 22),
@@ -113,7 +181,8 @@ class IndependentChatTests(unittest.TestCase):
             metrics = {"started_at": f"2026-11-19T10:00:0{second}.000+00:00",
                        "finished_at": f"2026-11-19T10:00:0{second+1}.000+00:00",
                        "total_ms": 1000, "usage": {"completion_tokens": tokens}}
-            store.append_exchange(self.folder, *TARGET.values(), "question", "answer",
+            binding = store.get_chat(self.folder, chat)
+            store.append_exchange(self.folder, *(binding[k] for k in TARGET), "question", "answer",
                                   chat_id=chat, request_id=request_id, metrics=metrics)
         self.assertEqual([m["metrics"]["usage"]["completion_tokens"] for m in self.history(chat_id)],
                          [11, 11, 22, 22, 33, 33])
@@ -159,7 +228,7 @@ class IndependentChatTests(unittest.TestCase):
             store.context_for([], max_chars=True)
 
     def test_parallel_ids_and_zero_history_do_not_mix(self):
-        a, b = self.chat(), self.chat()
+        a, b = self.chat(), self.chat(TARGET2)
         with ThreadPoolExecutor(max_workers=6) as pool:
             list(pool.map(lambda i: self.append(a if i % 2 else b, user=str(i)), range(32)))
         for chat_id, parity in ((a, 1), (b, 0)):
@@ -212,7 +281,7 @@ class IndependentChatTests(unittest.TestCase):
         self.assertFalse(web.CHAT_LOCKS)
 
     def test_two_active_chats_and_byte_bounded_payloads(self):
-        a, b = self.chat(), self.chat()
+        a, b = self.chat(), self.chat(TARGET2)
         self.append(a, reply="😀"*1000)
         self.append(b, user="second history")
         synchronized = threading.Barrier(2)

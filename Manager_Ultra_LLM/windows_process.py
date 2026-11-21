@@ -55,6 +55,8 @@ class NativeWindows:
         bind(self.k, "OpenEventW", w.HANDLE, w.DWORD, w.BOOL, w.LPCWSTR)
         bind(self.k, "SetEvent", w.BOOL, w.HANDLE)
         bind(self.k, "CreateJobObjectW", w.HANDLE, c.c_void_p, w.LPCWSTR)
+        bind(self.k, "OpenJobObjectW", w.HANDLE, w.DWORD, w.BOOL, w.LPCWSTR)
+        bind(self.k, "TerminateJobObject", w.BOOL, w.HANDLE, w.UINT)
         bind(self.k, "SetInformationJobObject", w.BOOL, w.HANDLE, c.c_int, c.c_void_p, w.DWORD)
         bind(self.k, "QueryInformationJobObject", w.BOOL, w.HANDLE, c.c_int,
              c.c_void_p, w.DWORD, c.POINTER(w.DWORD))
@@ -235,7 +237,97 @@ class NativeWindows:
         self.checked(self.k.IsProcessInJob(process_handle, job, c.byref(value)), "Cannot verify job member")
         return bool(value.value)
 
-    def spawn_contained(self, command, env, cwd, stdout, stderr, job):
+    def record_state(self, expected):
+        """Differentiate a dead/reused PID from an inaccessible process."""
+        if not self.same(expected, expected):
+            return "unknown"
+        handle = self.k.OpenProcess(0x1000 | 0x100000, False, expected["pid"])
+        if not handle:
+            return "gone" if c.get_last_error() == 87 else "unknown"
+        try:
+            result = self.k.WaitForSingleObject(handle, 0)
+            if result == 0:
+                return "gone"
+            if result != 258:
+                return "unknown"
+            try:
+                observed = self.identity(handle)
+                if self.same(expected, observed):
+                    return "alive"
+                return "gone" if expected["created_filetime"] != observed["created_filetime"] else "unknown"
+            except WindowsError:
+                return "gone" if self.k.WaitForSingleObject(handle, 0) == 0 else "unknown"
+        finally:
+            self.close(handle)
+
+    def session_pids(self, session):
+        """Read session markers for corroboration, not authority to kill."""
+        import re
+        import json
+        if not re.fullmatch(r"[a-f0-9]{32}", session):
+            raise WindowsError("Invalid recovery session")
+        script = (
+            "$ErrorActionPreference='Stop';"
+            "$ids=@(Get-CimInstance Win32_Process -ErrorAction Stop | "
+            "Where-Object {($_.CommandLine -like ('*'+$env:UL_RECOVERY_SESSION+'*')) "
+            "-or ($_.ExecutablePath -like ('*'+$env:UL_RECOVERY_SESSION+'*'))} | "
+            "ForEach-Object {[int]$_.ProcessId});"
+            "ConvertTo-Json -InputObject $ids -Compress"
+        )
+        env = {**os.environ, "UL_RECOVERY_SESSION": session}
+        executable = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"),
+                                  "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
+        result = subprocess.run([executable, "-NoLogo", "-NoProfile", "-NonInteractive",
+                                 "-Command", script], env=env, capture_output=True,
+                                text=True, timeout=4, check=True,
+                                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        ids = json.loads(result.stdout.strip())
+        if type(ids) is not list or any(type(p) is not int or p <= 0 for p in ids):
+            raise WindowsError("Session process inventory unknown")
+        return set(ids)
+
+    def recover_job(self, name, records):
+        """Terminate the exact session job only with a verified member anchor."""
+        handle = self.k.OpenJobObjectW(0x4 | 0x8, False, name)
+        if not handle:
+            if c.get_last_error() == 2:
+                return True
+            raise WindowsError("Cannot inspect recorded session job")
+        try:
+            pids = self.job_pids(handle)
+            if not pids:
+                return True
+            anchored = False
+            for record in records:
+                if record["pid"] not in pids:
+                    continue
+                with self.process(record["pid"]) as process:
+                    if self.same(record, self.identity(process)) and self.member(process, handle):
+                        anchored = True
+                        break
+            if not anchored:
+                raise WindowsError("Named job has no verified recorded member")
+            self.checked(self.k.TerminateJobObject(handle, 1), "Cannot terminate recorded session job")
+            try:
+                return not self.job_pids(handle)
+            except WindowsError:
+                return False  # asynchronous exit; verify again on the next pass
+        finally:
+            self.close(handle)
+
+    def terminate_record(self, record):
+        """Retain and reverify the same Windows handle before fallback cleanup."""
+        handle = self.checked(self.k.OpenProcess(0x1000 | 0x100000 | 1, False, record["pid"]),
+                              "Cannot open recorded orphan")
+        try:
+            if not self.same(record, self.identity(handle)):
+                raise WindowsError("Orphan identity changed; no termination")
+            self.checked(self.k.TerminateProcess(handle, 1), "Cannot terminate recorded orphan")
+            return self.k.WaitForSingleObject(handle, 500) == 0
+        finally:
+            self.close(handle)
+
+    def spawn_contained(self, command, env, cwd, stdout, stderr, job, *, before_resume=None):
         """Create suspended, assign job, then resume. Never retry on ambiguity."""
         import _winapi
         import msvcrt
@@ -255,6 +347,8 @@ class NativeWindows:
                 )
                 self.checked(self.k.AssignProcessToJobObject(job, hp), "Job assignment failed")
                 record = self.identity(hp)
+                if before_resume is not None:
+                    before_resume(record)
                 if self.k.ResumeThread(ht) == 0xFFFFFFFF:
                     raise WindowsError("Cannot resume owned gateway")
                 return hp, record

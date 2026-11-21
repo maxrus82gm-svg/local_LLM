@@ -52,41 +52,60 @@
       <button type="button" id="chat-latest" class="btn secondary small hidden">↓ К последнему сообщению</button>
       <form id="chat-form" class="chat-form">
       <div class="chat-composer-controls">
-      <label class="chat-composer-target">Manager <select id="chat-manager" aria-label="Manager чата"></select></label>
-      <label class="chat-composer-target">Модель <select id="chat-model" aria-label="Модель чата"></select></label>
       <div id="chat-state" class="chat-state" role="status"></div>
-      <div id="chat-timer" class="chat-state"></div>
-      <div class="chat-stream-options"><label><input type="checkbox" id="chat-stream" checked> Потоковый ответ</label> <button type="button" id="chat-cancel" class="btn secondary small" disabled>Отменить поток</button></div>
-          <details class="chat-settings"><summary>Параметры генерации и истории</summary>
-        <label>Thinking <select id="chat-thinking"><option value="auto">Как настроено в Colibri</option><option value="on">Включить, если модель поддерживает</option><option value="off">Выключить</option></select></label>
-        <label>Глубина <select id="chat-effort"><option value="auto">По умолчанию движка</option><option>low</option><option>medium</option><option>high</option><option>xhigh</option></select></label>
+      <div class="chat-stream-options">
+        <label class="chat-tip" data-tip="Ответ появляется по мере генерации, не дожидаясь завершения."><input type="checkbox" id="chat-stream" checked> Потоковый ответ</label>
+        <label class="chat-tip" id="chat-thinking-tip" data-tip="Включает режим рассуждения у поддерживаемых моделей."><input type="checkbox" id="chat-thinking" checked> Размышление</label>
+        <span class="chat-tip" data-tip="Глубина размышления: сколько усилий модель тратит на рассуждение."><select id="chat-effort" aria-label="Глубина размышления"><option value="auto">По умолчанию движка</option><option>low</option><option>medium</option><option>high</option><option>xhigh</option></select></span>
+      </div>
+      <div class="chat-composer-model">
+        <label class="chat-tip chat-history-count" data-tip="История сообщений для LLM: максимум предыдущих сообщений в запросе. Переписка не удаляется."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg><input id="chat-history-messages" type="number" min="0" max="1024" value="100" aria-label="История сообщений для LLM"></label>
+        <label class="chat-composer-target">Модель <select id="chat-model" aria-label="Модель чата"></select></label>
+        <span class="chat-mode-line" id="chat-active-mode" aria-live="polite"></span>
+        <button type="button" id="chat-detach-model" data-tip="Освободить слот, сохранив чат" aria-label="Освободить слот" class="btn secondary small hidden">×</button>
+      </div>
+      </div>
+      <div class="chat-composer-input">
+        <div class="chat-input-wrap">
+        <button type="button" id="chat-input-resize" class="chat-input-resize" aria-label="Изменить высоту поля ввода" data-tip="Потяните вверх, чтобы увеличить поле ввода"><span aria-hidden="true"></span></button>
+        <textarea id="chat-input" maxlength="131072" rows="3" placeholder="Сообщение выбранной LLM…" aria-label="Сообщение" disabled></textarea>
+        <button type="submit" class="chat-send-icon" id="chat-send" aria-label="Отправить сообщение" data-tip="Отправить (Enter)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 5v9H5m6-6-6 6 6 6"/></svg></button>
+        </div>
+      </div>
+      </form>
+    </section>
+    <aside class="chat-inspector" aria-label="Настройки чата">
+      <div class="chat-inspector-heading"><h3>Настройки чата</h3><button type="button" id="global-prompt-open" class="global-prompt-button chat-tip" data-tip="Общая инструкция для всех LLM и всех чатов.">Global<br>Prompt</button></div>
+      <label class="chat-inspector-target">Manager <select id="chat-manager" aria-label="Manager чата"></select></label>
+
+      <details class="chat-settings chat-advanced"><summary>Дополнительно</summary>
         <label>Максимум выходных токенов <input id="chat-max-tokens" type="number" min="1" placeholder="Лимит движка"></label>
-        <label>Сообщений истории <input id="chat-history-messages" type="number" min="0" max="1024" value="100"></label>
         <label>Символов истории (это не токены) <input id="chat-history-chars" type="number" min="0" max="1048576" value="200000"></label>
         <label><input id="chat-show-reasoning" type="checkbox" checked> Показывать отдельный поток рассуждений</label>
-        <p>Auto сохраняет настройки Colibri. Возможности thinking зависят от модели. Сокращение истории будет показано перед ответом.</p>
-        <p>Защита локального Client: запрос до 1 MiB, сообщение до 131072 символов, ответ и reasoning по 1 Mi символов, поток до 64 MiB, кадр до 2 MiB, ожидание до 330 с. Политика Manager и реальные лимиты движка показаны в измерениях; действует наиболее строгий предел. История хранится полностью; окно просмотра — последние 100 сообщений.</p>
+        <p>Лимиты движка задаются в Manager. Здесь можно дополнительно ограничить ответ и передаваемую историю. История чата сохраняется полностью.</p>
       </details>
-      <details id="chat-statistics" class="chat-settings"><summary>Измерения и запросы этого чата</summary>
-        <p>Время браузера и Client измеряется отдельно. Скорость маршрута включает подготовку prompt на стороне Colibri.</p>
-        <pre id="chat-metrics">Ещё нет измерений</pre>
+      <div class="chat-inspector-divider"></div>
+      <h3>Последний запрос</h3>
+      <div id="chat-timer" class="chat-state" aria-live="polite"></div>
+      <details id="chat-statistics" class="chat-settings"><summary>История измерений</summary>
         <label>Модель <select id="chat-stat-model"><option value="">Все</option></select></label>
         <label>Режим <select id="chat-stat-mode"><option value="">Все</option><option value="cpu">CPU</option><option value="cuda">CUDA</option><option value="unknown">Нет данных</option></select></label>
         <div id="chat-stat-results"></div>
       </details>
-      </div>
-      <div class="chat-composer-input">
-        <div class="chat-input-wrap">
-        <button type="button" id="chat-input-resize" class="chat-input-resize" aria-label="Изменить высоту поля ввода" title="Потяните вверх, чтобы увеличить поле ввода"><span aria-hidden="true"></span></button>
-        <textarea id="chat-input" maxlength="131072" rows="3" placeholder="Сообщение выбранной LLM…" aria-label="Сообщение" disabled></textarea>
-        </div>
-        <button type="submit" class="btn primary" id="chat-send" disabled>Отправить</button>
-      </div>
-      </form>
-    </section>
+    </aside>
   </div>
   <footer>Инференс и управление моделями выполняет авторизованный Manager</footer>
 </main></div>
+<dialog id="global-prompt-dialog" aria-labelledby="global-prompt-title">
+  <div class="dialog-content">
+    <div class="dialog-top"><div><h2 id="global-prompt-title">Global Prompt</h2><p>Общая инструкция для всех моделей и чатов. Передаётся с каждым запросом, даже без истории.</p></div><button type="button" class="close" id="global-prompt-close" aria-label="Закрыть">✕</button></div>
+    <form id="global-prompt-form">
+      <label class="field full">Глобальный контекст<textarea id="global-prompt-text" rows="9" maxlength="8192" placeholder="Например: отвечай по-русски, кратко и точно."></textarea><small>До 8192 символов. Пустой текст отключает инструкцию. Текст не записывается в историю чатов.</small></label>
+      <div id="global-prompt-error" class="form-error hidden" role="alert"></div>
+      <div class="dialog-actions"><button type="button" class="btn secondary" id="global-prompt-cancel">Отмена</button><button type="submit" class="btn primary" id="global-prompt-save">Сохранить</button></div>
+    </form>
+  </div>
+</dialog>
 <dialog id="setup" aria-labelledby="setup-title">
   <div class="dialog-content">
     <div class="dialog-top"><div><div class="eyebrow">НАСТРОЙКА ПОДКЛЮЧЕНИЯ</div><h2 id="setup-title">Добавить Ultra LLM Manager</h2><p>Укажите адрес сервера и его публичный сертификат</p></div><button type="button" class="close" id="close-setup" aria-label="Закрыть">✕</button></div>

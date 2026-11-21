@@ -37,7 +37,7 @@ import time
 import uuid
 
 from launch_contract import initial_instances, InstanceDefinition
-from manager_core import SERVER, planned_paths
+from manager_core import SERVER, planned_paths, Slot
 from resource_catalog import initial_catalogue
 from server_preflight import (INSTALLATION_QUERY, PROJECT, probe_api, read_profiles,
                               require_local_server)
@@ -70,13 +70,14 @@ class RunnerSpec:
     primary_port: int = 8000
     instance_id: str | None = None
     resources: dict = field(default_factory=dict)
+    manager_port: int = 8443
 
     def __post_init__(self):
         if (type(self.slot_id) is not str or not re.fullmatch(r"[a-z][a-z0-9_-]{0,31}", self.slot_id)
-                or self.slot_id == "slot1"
                 or type(self.port) is not int or not 1024 <= self.port <= 65535
                 or type(self.primary_port) is not int or not 1024 <= self.primary_port <= 65535
-                or self.port in (8000, 8443, self.primary_port) or self.model_key not in initial_catalogue()
+                or type(self.manager_port) is not int or not 1024 <= self.manager_port <= 65535
+                or self.port == self.manager_port or self.model_key not in initial_catalogue()
                 or self.backend not in ("cpu", "cuda") or type(self.review) is not dict):
             raise ValueError("Invalid managed runner specification")
         if self.instance_id is not None and (type(self.instance_id) is not str or not re.fullmatch(r"[a-f0-9]{32}",self.instance_id)):
@@ -164,14 +165,15 @@ def verify_review(plan):
     if review.get("source_hashes") != plan["source_hashes"]:
         raise StartDenied("runtime_or_model_changed")
     if spec.backend == "cuda":
-        if (review.get("evidence") != "measured" or not Path(plan["source_engine"]).with_name("coli_cuda.dll").is_file()
-                or type(review.get("vram_gib")) not in (int, float)
-                or not 0 < review["vram_gib"] < 1024):
+        if review.get("evidence") != "measured" or not Path(plan["source_engine"]).with_name("coli_cuda.dll").is_file():
             raise StartDenied("cuda_runtime_or_measurement_unverified")
+        estimate = review.get("vram_gib")
+        if estimate is not None and (type(estimate) not in (int,float) or not 0 < estimate < 1024):
+            raise StartDenied("invalid_resource_estimate")
         from resource_policy import read_vram
         vram=read_vram()
         if vram is None:raise StartDenied("vram_telemetry_unknown")
-        if vram["free_gib"]<review["vram_gib"]:raise StartDenied("insufficient_vram")
+        # Do not deny based on the forecast; retain GPU presence and verified runtime.
 
 
 def validate_model(model, root, profile, *, model_key=None):
@@ -216,7 +218,10 @@ def digest(path):
 
 def paths():
     item = InstanceDefinition(setting("slot_id"), "Managed Colibri", SERVER, setting("port"))
-    base = planned_paths(managed_slot(item))
+    # Trusted RunnerSpec already validates the slot identifier/port and host.
+    # Legacy dry-run/owner-trial rules remain separate from managed instances.
+    slot = Slot(item.slot_id, item.name, item.port) if _SPEC.get() else managed_slot(item)
+    base = planned_paths(slot)
     original = Path(base["instance_home"])
     result = {key: (value if key == "shared_weights_ro"
                     else str(setting("home") / Path(value).relative_to(original)))
@@ -242,7 +247,18 @@ def write_json(path, data):
     temp = safe_write_path(path.with_name(path.name + f".{os.getpid()}.tmp"))
     with temp.open("w", encoding="utf-8") as stream:
         json.dump(data, stream, ensure_ascii=False, indent=2)
-    os.replace(temp, path)
+        if data.get("state") in ("PREPARING","STOPPED","ERROR") or "state" not in data:
+            stream.flush()
+            os.fsync(stream.fileno())
+    # Atomic replace can briefly be blocked by Windows readers/antivirus.
+    for attempt in range(6):
+        try:
+            os.replace(temp, path)
+            break
+        except OSError as error:
+            if getattr(error, "winerror", None) not in (5, 32, 33) or attempt == 5:
+                raise
+            time.sleep(0.025 * (2 ** attempt))
 
 
 def read_state():
@@ -309,35 +325,55 @@ def get_primary(native):
     return gateway
 
 
+def reviewed_engine(review):
+    """Discover an installed engine from the server-owner reviewed file manifest."""
+    hashes = review.get("source_hashes", {})
+    if type(hashes) is not dict:
+        raise StartDenied("runtime_review_required")
+    candidates = [Path(name) for name in hashes if type(name) is str and Path(name).name.casefold() == "qwen36.exe"]
+    if len(candidates) != 1:
+        raise StartDenied("runtime_review_required")
+    engine = candidates[0]
+    if not engine.is_absolute() or str(engine).startswith(chr(92)*2) or not engine.is_file():
+        raise StartDenied("runtime_or_model_changed")
+    if digest(engine) != hashes[str(engine)]:
+        raise StartDenied("runtime_or_model_changed")
+    return engine
+
+
 def make_plan(native):
     require_execution()
     policy_check(native.memory()["free_gib"])
     if any(row["port"] == setting("port") for row in native.listeners()):
         raise StartDenied("Port 8001 occupied; no stop or automatic port change")
-    primary = get_primary(native)
     with native.process(os.getpid()) as own_handle:
         owner = native.identity(own_handle)["owner_sid"]
-    if primary["owner_sid"] != owner:
-        raise StartDenied("Use the same server Windows account as Colibri1")
-    # Installed executable is discovered from the RUNNING process, never setup.json.
-    executable = Path(os.environ.get("SystemRoot", r"C:\Windows")) / (
+    primary = engine_record = None
+    if _SPEC.get() is not None:
+        engine = reviewed_engine(_SPEC.get().review)
+    else:
+        primary = get_primary(native)
+        if primary["owner_sid"] != owner:
+            raise StartDenied("Use the same server Windows account as Colibri1")
+        # Old standalone owner trial only: find its original external runtime.
+        executable = Path(os.environ.get("SystemRoot", r"C:\Windows")) / (
         "System32/WindowsPowerShell/v1.0/powershell.exe")
-    result = subprocess.run(
-        [str(executable), "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", INSTALLATION_QUERY],
-        capture_output=True, text=True, check=True, timeout=30,
-        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-    inventory = json.loads(result.stdout)
-    candidates = [r for r in inventory["processes"] if r["parent_pid"] == primary["pid"]
-                  and str(r.get("name", "")).casefold() == "qwen36.exe"]
-    if inventory.get("host") != (_SPEC.get().host if _SPEC.get() else SERVER) or len(candidates) != 1:
-        raise StartDenied("Cannot identify the actual Colibri1 engine/runtime")
-    with native.process(candidates[0]["pid"]) as handle:
-        engine_record = native.identity(handle)
-    if engine_record["owner_sid"] != owner:
-        raise StartDenied("Primary engine owner mismatch")
-    engine = Path(engine_record["exe"])
-    if not engine.is_absolute() or engine.name.casefold() != "qwen36.exe" or not engine.is_file():
-        raise StartDenied("Installed engine unavailable")
+        result = subprocess.run(
+            [str(executable), "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", INSTALLATION_QUERY],
+            capture_output=True, text=True, check=True, timeout=30,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        inventory = json.loads(result.stdout)
+        candidates = [r for r in inventory["processes"] if r["parent_pid"] == primary["pid"]
+                      and str(r.get("name", "")).casefold() == "qwen36.exe"]
+        if inventory.get("host") != (_SPEC.get().host if _SPEC.get() else SERVER) or len(candidates) != 1:
+            raise StartDenied("Cannot identify the actual Colibri1 engine/runtime")
+        with native.process(candidates[0]["pid"]) as handle:
+            engine_record = native.identity(handle)
+        if engine_record["owner_sid"] != owner:
+            raise StartDenied("Primary engine owner mismatch")
+        engine = Path(engine_record["exe"])
+        if not engine.is_absolute() or engine.name.casefold() != "qwen36.exe" or not engine.is_file():
+            raise StartDenied("Installed engine unavailable")
     launcher = colibri_path() / "c" / "coli"
     verified_cli(launcher)
     profile = read_profiles(colibri_path() / "ULTRA-CONTROL.py").get(
@@ -473,6 +509,8 @@ def verify_record(native, record):
 
 
 def verify_primary(native, plan):
+    if _SPEC.get() is not None:
+        return
     for key in ("primary", "primary_engine"):
         verify_record(native, plan[key])
     owners = {r["pid"] for r in native.listeners() if r["port"] == primary_port()}
@@ -537,19 +575,24 @@ def supervise(session):
             if native.k.WaitForSingleObject(event, 0) == 0:
                 raise OwnerCancelled("owner cancelled preparation")
             cap=_SPEC.get().resources.get("job_limit_gib") if _SPEC.get() else 14
-            job = native.job(rf"Global\UltraLLM-{setting('slot_id')}-job-{session}", cap)
+            state["job_name"] = rf"Global\UltraLLM-{setting('slot_id')}-job-{session}"
+            write_json(paths()["state"], state)
+            job = native.job(state["job_name"], cap)
             command, env = command_and_environment(plan)
             log = safe_write_path(Path(plan["paths"]["logs"]) / f"{session}.stdout.log")
             error_log = safe_write_path(Path(plan["paths"]["logs"]) / f"{session}.stderr.log")
             state.update(stdout=str(log), stderr=str(error_log), command=command)
             with log.open("xb") as stdout, error_log.open("xb") as stderr:
                 state["state"] = "STARTING"
+                def record_gateway(record):
+                    state["gateway"] = record
+                    write_json(plan["paths"]["pid"], {
+                        "instance": setting("slot_id"), "session": session, "supervisor": state["supervisor"],
+                        "gateway": record, "port": setting("port")})
+                    write_json(paths()["state"], state)
                 gateway_handle, gateway = native.spawn_contained(
-                    command, env, str(setting("home")), stdout, stderr, job)
-                state["gateway"] = gateway
-                write_json(plan["paths"]["pid"], {
-                    "instance": setting("slot_id"), "session": session, "supervisor": state["supervisor"],
-                    "gateway": gateway, "port": setting("port")})
+                    command, env, str(setting("home")), stdout, stderr, job,
+                    before_resume=record_gateway)
                 load_timeout=_SPEC.get().review.get("launch",{}).get("load_timeout_seconds",900) if _SPEC.get() else 900
                 if type(load_timeout) is not int or not 1<=load_timeout<=3600:raise StartDenied("invalid_launch_timeout")
                 deadline = time.monotonic() + load_timeout
@@ -568,24 +611,28 @@ def supervise(session):
                         break
                     verify_primary(native, plan)
                     engines = []
+                    members = []
                     for pid in native.job_pids(job):
                         try:
                             with native.process(pid) as handle:
                                 identity = native.identity(handle)
-                                if (Path(identity["exe"]) == Path(plan["paths"]["runtime"]) / "qwen36.exe"
-                                        and native.member(handle, job)):
-                                    engines.append(identity)
+                                if native.member(handle, job):
+                                    members.append(identity)
+                                    if Path(identity["exe"]) == Path(plan["paths"]["runtime"]) / "qwen36.exe":
+                                        engines.append(identity)
                         except WindowsError:
                             continue  # child exited between two OS reads
                     state["engines"] = engines
+                    state["job_members"] = members
                     owners = {r["pid"] for r in native.listeners() if r["port"] == setting("port")}
                     api = probe(setting("port")) if owners == {gateway["pid"]} and engines else {}
                     previous = state["state"]
                     state["state"] = readiness(previous, owners, gateway["pid"], engines, api)
                     if state["state"] == "READY" and previous != "READY":
-                        if probe(primary_port()).get("health") != "ok":
-                            raise StartDenied("Primary API lost health; closing only Colibri2")
-                        state["primary_health_at_ready"] = "ok"
+                        if _SPEC.get() is None:
+                            if probe(primary_port()).get("health") != "ok":
+                                raise StartDenied("Primary API lost health; closing only Colibri2")
+                            state["primary_health_at_ready"] = "ok"
                     if time.monotonic() > deadline and state["state"] != "READY":
                         raise StartDenied("CPU load timeout; closing only owned job")
                     write_json(plan["paths"]["state"], state)
@@ -623,7 +670,7 @@ def supervise(session):
             native.close(event)
             native.close(gateway_handle)
             state["job_cleanup_confirmed"] = cleanup_confirmed
-            if plan:
+            if plan and _SPEC.get() is None:
                 try:
                     verify_primary(native, plan)
                     state["primary_preserved"] = True
@@ -648,6 +695,58 @@ def status(native):
         return {**state, "supervisor_verified": False,
                 "state": state["state"] if state["state"] in ("STOPPED", "ERROR") else "STALE"}
     return {**state, "supervisor_verified": True}
+
+
+def recover_orphan(native, session):
+    """Recover a managed session only after proof of ownership and cleanup."""
+    spec = _SPEC.get()
+    if spec is None or spec.instance_id != session:
+        return False
+    with native.mutex(setting("mutex")), file_lock():
+        state = read_state()
+        if not state or state.get("session") != session:
+            return False
+        supervisor = state.get("supervisor")
+        if native.record_state(supervisor) != "gone":
+            return False
+        with native.process(os.getpid()) as own_handle:
+            owner = native.identity(own_handle)["owner_sid"]
+        if supervisor["owner_sid"] != owner:
+            return False
+        name = rf"Global\UltraLLM-{spec.slot_id}-job-{session}"
+        if state.get("job_name", name) != name:
+            return False
+        records = []
+        for record in [state.get("gateway"), *state.get("engines", []), *state.get("job_members", [])]:
+            if record is None:
+                continue
+            if not native.same(record, record) or record["owner_sid"] != owner:
+                return False
+            if not any(native.same(record, old) for old in records):
+                records.append(record)
+        if any(native.record_state(r) == "unknown" for r in records):
+            return False
+        # No name/PID-only kill. A named job needs a verified member anchor.
+        if not native.recover_job(name, records):
+            return False
+        pids = native.session_pids(session)
+        for record in records:
+            observed = native.record_state(record)
+            if observed == "unknown":
+                return False
+            if observed == "alive":
+                if record["pid"] not in pids or not native.terminate_record(record):
+                    return False
+        if any(native.record_state(r) != "gone" for r in [supervisor, *records]):
+            return False
+        if native.session_pids(session):
+            return False
+        if any(r["port"] == spec.port for r in native.listeners()):
+            return False
+        write_json(paths()["state"], {**state, "state": "STOPPED",
+                   "reason": "orphan_recovered", "recovered_utc": stamp(),
+                   "updated_utc": stamp(), "job_cleanup_confirmed": True})
+        return True
 
 
 def stop(native):

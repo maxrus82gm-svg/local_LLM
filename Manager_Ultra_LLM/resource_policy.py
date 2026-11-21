@@ -64,14 +64,22 @@ def assess(config, review, mode, telemetry, reservations):
         warnings.append("low_ram_forecast")
     vram = review.get("vram_gib") if mode == "cuda" else 0
     vram_reserved = sum(r.get("vram_gib") or 0 for r in pending)
+    pending_vram_unknown = any(r.get("vram_gib") is None for r in pending)
     vram_free = telemetry.get("vram_free_gib")
     if mode == "cuda":
         if not number(vram_free):
             raise ValueError("vram_telemetry_unknown")
-        if review.get("evidence") != "measured" or not number(vram) or vram <= 0:
+        if review.get("evidence") != "measured":
             raise ValueError("cuda_measurement_unverified")
-        if vram_free-vram_reserved < vram:
-            raise ValueError("insufficient_vram")
+        if vram is not None and (not number(vram) or not 0 < vram < 1024):
+            raise ValueError("invalid_resource_estimate")
+        # Estimates are advisory; actual allocation success belongs to the engine.
+        if vram is None:
+            warnings.append("vram_estimate_unknown")
+        if pending_vram_unknown:
+            warnings.append("vram_reservation_unknown")
+        if vram is not None and vram_free-vram_reserved < vram:
+            warnings.append("low_vram_forecast")
     job_cap=review.get("job_limit_gib")
     if job_cap is not None and (not number(job_cap) or job_cap<=0):
         raise ValueError("invalid_job_limit")
@@ -80,10 +88,10 @@ def assess(config, review, mode, telemetry, reservations):
     public={"ram_free_gib":telemetry["free_gib"],"ram_reserved_gib":reserved,"ram_estimate_gib":ram,
         "ram_after_gib":remaining,"ram_warning_gib":threshold,"estimate_evidence":review.get("evidence","unknown"),
         "vram_free_gib":vram_free if mode=="cuda" else None,"vram_reserved_gib":vram_reserved,
-        "vram_estimate_gib":vram,"vram_after_gib":vram_free-vram_reserved-vram if mode=="cuda" else None,
+        "vram_estimate_gib":vram,"vram_after_gib":vram_free-vram_reserved-vram if mode=="cuda" and vram is not None and not pending_vram_unknown else None,
         "job_limit_gib":job_cap}
     launch={"ram_gib":ram,"vram_gib":vram,"job_limit_gib":job_cap,"ram_warning_gib":threshold,
             "min_free_at_start_gib":max(0,telemetry["free_gib"]-drift)}
     return {"forecast":public,"warnings":warnings,"policy":launch,
             "risk_ack_allowed":settings.get("allow_risk_ack",False) is True,
-            "requires_ack":bool(warnings)}
+            "requires_ack":any(w not in {"vram_estimate_unknown","vram_reservation_unknown","low_vram_forecast"} for w in warnings)}

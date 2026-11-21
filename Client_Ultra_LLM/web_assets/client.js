@@ -78,6 +78,9 @@ function controlReason(reason) {
     resource_telemetry_unknown:"Нет достоверных данных о памяти и процессах сервера",
     vram_telemetry_unknown:"Нет достоверных данных о свободной VRAM",
     insufficient_ram:"Недостаточно свободной RAM с учётом резерва",
+    low_vram_forecast:"Прогноз: возможна нехватка VRAM (запуск разрешён)",
+    vram_estimate_unknown:"Оценка VRAM неизвестна",
+    vram_reservation_unknown:"Оценка VRAM ожидающего запуска неизвестна",
     insufficient_vram:"Недостаточно свободной VRAM с учётом резерва",
     ram_estimate_unknown:"Оценка потребления RAM неизвестна",
     ram_estimate_unmeasured:"Оценка потребления RAM ещё не измерена",
@@ -88,6 +91,8 @@ function controlReason(reason) {
     no_free_authorized_slot:"Нет свободного разрешённого слота",
     context_length_exceeded:"Модель отклонила длину контекста. Уменьшите историю или сбросьте контекст этого чата",
     colibri_context_length_exceeded:"Модель отклонила длину контекста. Уменьшите историю или сбросьте контекст этого чата",
+    chat_target_occupied:"Этот слот уже назначен другому чату",
+    chat_target_not_assigned:"Назначьте этому чату свободный слот",
     slot_chat_in_progress:"Слот занят запросом",
     model_not_authorized:"Эта модель не разрешена клиенту",
     instance_not_authorized:"Экземпляр принадлежит другому клиенту или слот не разрешён",
@@ -126,7 +131,7 @@ function workspaces(container,manager) {
   heading.append(node("h3","","РАБОЧИЕ СЛОТЫ · "+control.slots.length));
   const add=node("button","btn secondary small","＋ Добавить слот");
   add.type="button";add.classList.add("add-slot");add.disabled=!control.can_add_slot;
-  add.title=control.can_add_slot ? "Manager назначит слот и свободный порт" : "Необходимо разрешение управления на Manager";
+  add.dataset.tip=control.can_add_slot ? "Manager назначит слот и свободный порт" : "Необходимо разрешение управления на Manager";
   add.addEventListener("click",async()=>{add.disabled=true;try{
     await pairingPost("/api/control",{manager_id:manager.manager_id,op:"add_slot",request_id:crypto.randomUUID().replaceAll("-","")});
     controlError="";
@@ -151,29 +156,29 @@ function workspaces(container,manager) {
     }else select.value=slot.model_key || "";
     select.disabled=slot.protected||!slot.authorized||!control.control_models||!control.enabled||Boolean(item)||slotPending.has(key);
     const shown=item || (previous?.state==="ERROR" ? previous : null);
-    const stateNames={STARTING:"Запускается",READY:live.availability==="busy" ? "Занята" : "Готова",STOPPING:"Останавливается",ERROR:"Ошибка",STOPPED:"Остановлена"};
-    const status=node("small","slot-state",shown ? shown.state+" · "+(stateNames[shown.state] || "Состояние неизвестно")+
-      " · "+shown.mode+(shown.reason ? " · "+controlReason(shown.reason) : "") :
-      slot.protected ? stateLabel(live.engine_state)+" · внешний экземпляр" : "Остановлена · выбран "+slot.mode);
-    info.append(select,status);line.append(info);
-    const selectedModel=(control.models || []).find(m=>m.key===select.value);
-    if(selectedModel && !slot.protected)for(const mode of ["cpu","cuda"]){
-      const capability=selectedModel.modes?.[mode];
-      if(!capability)continue;
-      const forecast=capability.forecast;
-      const warnings=(capability.warnings || []).map(controlReason);
-      const detail=capability.available ?
-        "Прогноз RAM после: "+(forecast?.ram_after_gib===null || forecast?.ram_after_gib===undefined ? "—" : formatNumber(forecast.ram_after_gib)+" GiB")+
-        (mode==="cuda" ? "; VRAM после: "+(forecast?.vram_after_gib===null || forecast?.vram_after_gib===undefined ? "—" : formatNumber(forecast.vram_after_gib)+" GiB") : "")+
-        (warnings.length ? "; предупреждения: "+warnings.join(", ") : "") : controlReason(capability.reason);
-      info.append(node("small","slot-resource",mode.toUpperCase()+": "+detail));
-    }
+    // A saved mode is a preference, not a running backend. Only show a
+    // running mode when READY agrees with live telemetry and instance identity.
+    const confirmedReady=item?.state==="READY" && live.engine_state==="ready" &&
+      Boolean(item.instance_id) && live.instance_id===item.instance_id;
+    const running=confirmedReady || (slot.protected && live.engine_state==="ready");
+    const stopped=!item && !shown && live.engine_state==="not_running";
+    const slotState=running ? "running" : stopped ? "stopped" :
+      shown?.state==="ERROR" ? "error" : shown?.state==="STARTING" ? "starting" :
+      shown?.state==="STOPPING" ? "stopping" : "unknown";
+    const stateNames={running:"Запущен",stopped:"Остановлен",error:"Ошибка",starting:"Запускается",stopping:"Останавливается",unknown:"Не подтверждён"};
+    const status=node("span","slot-state "+slotState,stateNames[slotState]);
+    status.dataset.tip=shown?.reason ? controlReason(shown.reason) : running && live.availability==="busy" ? "Запущен · выполняет запрос" :
+      slot.protected ? "Внешний экземпляр" : slotState==="unknown" ? "Состояние процесса требует проверки" : stateNames[slotState];
+    const activeMode=confirmedReady && ["cpu","cuda"].includes(item.mode) ? item.mode.toUpperCase() : "";
+    const modeLabel=node("span","slot-active-mode"+(activeMode ? " active" : ""),activeMode || (running ? "?" : "—"));
+    modeLabel.dataset.tip=activeMode ? "Фактический режим: "+activeMode : running ? "Режим работы не подтверждён" : "Нет подтверждённого активного режима";
+    info.append(select);line.append(info);
     select.addEventListener("change",async()=>{
       if(!select.value)return;
       slotPending.add(key);select.disabled=true;
       try{await pairingPost("/api/control",{manager_id:manager.manager_id,op:"select",slot_id:slot.slot_id,
         model_key:select.value,mode:slot.mode,expected_revision:slot.revision,request_id:crypto.randomUUID().replaceAll("-","")});controlError="";}
-      catch(e){controlError=controlReason(e.message);status.textContent=controlError;}
+      catch(e){controlError=controlReason(e.message);status.textContent="Ошибка";status.dataset.tip=controlError;setNotice(controlError);}
       finally{slotPending.delete(key);await refresh(true);}
     });
     const canStop=item?.can_stop===true && ["STARTING","READY"].includes(item.state);
@@ -184,14 +189,16 @@ function workspaces(container,manager) {
       const capability=model?.modes?.[mode];
       button.disabled=slotPending.has(key)||(title==="Стоп" ? !canStop :
         Boolean(item)||slot.protected||!slot.authorized||!control.control_models||!control.enabled||!modelInstalled(model)||!capability?.available||live.engine_state!=="not_running");
-      button.title=title==="Стоп" ? (canStop ? "Остановить только этот экземпляр" : "Остановка недоступна в текущем состоянии экземпляра") :
+      if(title!=="Стоп" && activeMode===mode.toUpperCase())button.classList.add("slot-mode-running");
+      button.dataset.tip=title==="Стоп" ? (canStop ? "Остановить только этот экземпляр" : "Остановка недоступна в текущем состоянии экземпляра") :
         (!modelInstalled(model) ? "Установка модели не подтверждена Manager" : controlReason(capability?.reason)||"Проверить запуск в этом слоте");
       if(title!=="Стоп" && capability?.forecast) {
         const forecast=capability.forecast;
-        button.title+=" · Ожидаемый остаток RAM: "+(forecast.ram_after_gib===null ? "неизвестен" : formatNumber(forecast.ram_after_gib)+" GiB")+
+        button.dataset.tip+=" · Ожидаемый остаток RAM: "+(forecast.ram_after_gib===null ? "неизвестен" : formatNumber(forecast.ram_after_gib)+" GiB")+
           " · VRAM: "+(forecast.vram_after_gib===null ? "не применяется" : formatNumber(forecast.vram_after_gib)+" GiB")+
           " · Оценка: "+forecast.estimate_evidence;
       }
+      if(title!=="Стоп" && capability?.warnings?.length)button.dataset.tip+=" · "+capability.warnings.map(controlReason).join("; ");
       button.addEventListener("click",async()=>{
         slotPending.add(key);button.disabled=true;
         for(const input of line.querySelectorAll("select,button"))input.disabled=true;
@@ -207,7 +214,7 @@ function workspaces(container,manager) {
               const details="Ожидаемый остаток RAM: "+(forecast.ram_after_gib===null ? "неизвестен" : formatNumber(forecast.ram_after_gib)+" GiB")+
                 "; VRAM: "+(forecast.vram_after_gib===null ? "не применяется" : formatNumber(forecast.vram_after_gib)+" GiB")+
                 ". Достоверность: "+forecast.estimate_evidence+". Предупреждения: "+checked.warnings.join(", ");
-              status.textContent=details;
+              status.dataset.tip=details;
               if(!checked.risk_ack_allowed)throw Error("resource_risk_not_permitted");
               ack=confirm(details+". Возможны замедление других моделей и программ сервера. Подтвердить риск этого запуска?");
               if(!ack)return;
@@ -216,12 +223,13 @@ function workspaces(container,manager) {
           }
           const response=await pairingPost("/api/control",{manager_id:manager.manager_id,...body,request_id:crypto.randomUUID().replaceAll("-","")});
           controlError="";
-          status.textContent=response.state;
-        }catch(e){controlError=controlReason(e.message);status.textContent=controlError;setNotice(controlError);}
+          status.textContent=({STARTING:"Запускается",STOPPING:"Останавливается",READY:"Запущен",STOPPED:"Остановлен"})[response.state] || "Проверка";
+        }catch(e){controlError=controlReason(e.message);status.textContent="Ошибка";status.dataset.tip=controlError;setNotice(controlError);}
         finally{slotPending.delete(key);await refresh(true);}
       });
       line.append(button);
     }
+    line.append(status,modeLabel);
     list.append(line);
   }
   area.append(list);container.append(area);
@@ -282,13 +290,13 @@ function modelList(container, slots, disk, manager) {
       const button = node("button", "btn secondary small manager-model-action", title);
       button.type = "button";
       button.disabled = true;
-      button.title = "Обновите Manager для управления моделями";
+      button.dataset.tip = "Обновите Manager для управления моделями";
       if (item.model) {
         const mode = title === "Старт CPU" ? "cpu" : "cuda";
         const own = item.active.find(i => i.can_stop);
         const capability = item.model.modes[mode] || {};
         button.disabled = title === "Стоп" ? !own : capability.available !== true;
-        button.title = title === "Стоп" ? (own ? "Остановить свой экземпляр " + own.instance_id :
+        button.dataset.tip = title === "Стоп" ? (own ? "Остановить свой экземпляр " + own.instance_id :
           "Нет собственного управляемого экземпляра") : (controlReason(capability.reason) || "Manager повторно проверит ресурсы");
         button.addEventListener("click", async () => {
           button.disabled = true;
@@ -723,10 +731,10 @@ function modelName(id) {
   return /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(id || "") ? "Модель" : String(id || "Модель").slice(0, 40);
 }
 function modelLabel(target) {
-  const peers = chatTargets.filter(item => item.manager_id === target.manager_id &&
-    modelName(item.model_id) === modelName(target.model_id));
-  return modelName(target.model_id) + (peers.length > 1 ?
-    ` · ${target.slot_id}${target.mode ? " · " + target.mode.toUpperCase() : ""}` : "");
+  return modelName(target.model_id) + (target.slot_id ? ` · ${target.slot_id}` : "");
+}
+function actualChatMode(target) {
+  return target?.engine_state === "ready" && ["cpu","cuda"].includes(target.mode) ? target.mode.toUpperCase() : "";
 }
 function selectedManagerId(chat) {
   if (!chat) return "";
@@ -740,6 +748,55 @@ function currentChat() {
 }
 function liveTarget(chat) {
   return chat && chatTargets.find(target => targetKey(target) === targetKey(chat));
+}
+function slotChatOwner(target) {
+  if (!target?.manager_id || !target?.slot_id) return null;
+  return [...chatItems].reverse().find(c => !c.legacy && c.model_id && slotKey(c)===slotKey(target)) || null;
+}
+function assignedChatOwnsTarget(chat, target) {
+  return Boolean(chat && target && !chat.legacy && !chat.target_conflict &&
+    targetKey(chat)===targetKey(target) && slotChatOwner(target)?.chat_id===chat.chat_id);
+}
+function targetAvailableToChat(target, chat) {
+  if (target?.engine_state !== "ready" || target.availability === "denied") return false;
+  const owner = slotChatOwner(target);
+  return owner ? owner.chat_id===chat?.chat_id : chatReady(target);
+}
+// Only new chats receive automatic assignments. Keep the ordering from the
+// overview (Manager order, then its slot order), never sort by model name.
+function automaticChatPlan() {
+  const managers = (chatSnapshot?.managers || []).filter(m => m.status === "online" && typeof m.manager_id === "string");
+  const candidates = managers.flatMap(m => chatTargets.filter(t =>
+    t.manager_id === m.manager_id && !slotChatOwner(t) && chatReady(t)));
+  return {managerId:candidates[0]?.manager_id || managers[0]?.manager_id || "", candidates};
+}
+async function createAutomatically(values) {
+  // Refresh the stored assignments, then live state; stale requests may not
+  // override a newer snapshot. The SQLite owner gate is the final arbiter.
+  chatItems = (await api("/api/chats")).chats;
+  let plan;
+  try {
+    await readStatus();
+    plan = automaticChatPlan();
+  } catch {
+    plan = {managerId:"", candidates:[]};
+  }
+  const attempted = new Set();
+  for (const target of plan.candidates) {
+    const key = slotKey(target);
+    if (attempted.has(key) || slotChatOwner(target) || !chatReady(target)) continue;
+    attempted.add(key);
+    try {
+      const row = await pairingPost("/api/chats", {op:"create", ...values, target:targetFields(target)});
+      return {row, managerId:target.manager_id};
+    } catch (error) {
+      if (error.message !== "chat_target_occupied") throw error;
+      // This 409 means no chat was created. Do not retry ambiguous failures.
+      chatItems = (await api("/api/chats")).chats;
+    }
+  }
+  const row = await pairingPost("/api/chats", {op:"create", ...values});
+  return {row, managerId:plan.managerId};
 }
 function chatReady(target) {
   return target?.engine_state === "ready" && target.availability === "ready_unreserved" &&
@@ -768,7 +825,7 @@ const chatActionNames = {
 function chatActionButton(op, chat) {
   const button = node("button", "chat-action chat-action-" + op);
   button.type = "button";
-  button.title = chatActionNames[op];
+  button.dataset.tip = chatActionNames[op];
   button.setAttribute("aria-label", chatActionNames[op]);
   button.dataset.action = op;
   button.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${chatActionIcons[op]}</svg>`;
@@ -801,7 +858,7 @@ function renderChatList(payload) {
         chatTargets.push({
           manager_id:manager.manager_id, manager_name:manager.name || manager.manager_id,
           slot_id:slot.slot_id, model_id:model, instance_id:slot.instance_id,
-          mode:manager.data.control?.instances?.find(row => row.instance_id === slot.instance_id)?.mode || "",
+          mode:slot.engine_state === "ready" && slot.instance_id ? (manager.data.control?.instances?.find(row => !row.released && row.state === "READY" && row.instance_id === slot.instance_id)?.mode || "") : "",
           streaming:manager.data.chat?.streaming === true, engine_state:slot.engine_state,
           availability:slot.availability, transport:manager.data.chat?.transport_policy
         });
@@ -815,13 +872,17 @@ function renderChatList(payload) {
   for (const chat of chatItems) {
     const view = conversation(chat.chat_id);
     const card = node("div", "chat-choice" + (chat.chat_id === chatSelected ? " active" : "") +
-      (chatReady(liveTarget(chat)) ? " is-ready" : ""));
+      (assignedChatOwnsTarget(chat,liveTarget(chat)) && chatReady(liveTarget(chat)) ? " is-ready" : ""));
     card.dataset.chatId = chat.chat_id;
     const select = node("button", "chat-choice-select");
     select.type = "button";
     select.setAttribute("aria-label", "Открыть чат " + chat.title);
-    select.append(node("b", "", chat.title), node("small", "",
-      chat.model_id ? (liveTarget(chat) ? modelLabel(liveTarget(chat)) : modelName(chat.model_id) + " · недоступна") : "Без назначения"));
+    const target = liveTarget(chat);
+    const model = node("small", "chat-card-model", chat.model_id ?
+      (target ? modelLabel(target) : modelLabel(chat) + " · недоступна") : "");
+    const mode = assignedChatOwnsTarget(chat,target) ? actualChatMode(target) : "";
+    if (mode) model.append(chatModeBadge(mode));
+    select.append(node("b", "", chat.title), model);
     if (view.request) card.append(node("small", "", "Модель отвечает"));
     select.addEventListener("click", () => selectChat(chat.chat_id));
     const actions = node("div", "chat-action-row");
@@ -843,8 +904,9 @@ function renderChatControls() {
   const managerSelector = byId("chat-manager");
   const modelSelector = byId("chat-model");
   const managerId = selectedManagerId(chat);
-  const value = chat?.model_id && managerId === chat.manager_id ? targetKey(chat) : "";
-  const choices = chatTargets.filter(item => item.availability !== "denied");
+  const owns = assignedChatOwnsTarget(chat,target);
+  const value = owns && managerId === chat.manager_id ? targetKey(chat) : "";
+  const choices = chatTargets.filter(item => targetAvailableToChat(item,chat));
   const managers = new Map((Array.isArray(chatSnapshot?.managers) ? chatSnapshot.managers : [])
     .filter(item => typeof item.manager_id === "string")
     .map(item => [item.manager_id, (item.name || item.manager_id) +
@@ -854,30 +916,51 @@ function renderChatControls() {
     ...[...managers].map(([id, name]) => new Option(name, id)));
   managerSelector.value = managerId;
   managerSelector.disabled = !chat || Boolean(active) || chatMutation;
-  const options = [new Option("Выберите модель", ""), new Option("Без назначения", "__none__")];
-  if (value && !choices.some(item => targetKey(item) === value)) {
-    options.push(new Option(modelName(chat.model_id) + ` · ${chat.slot_id} · недоступна`, value));
-  }
-  for (const item of choices.filter(item => item.manager_id === managerId)) {
+  const options = [];
+  for (const item of choices.filter(item => item.manager_id === managerId && item.engine_state === "ready")) {
     options.push(new Option(modelLabel(item), targetKey(item)));
   }
   modelSelector.replaceChildren(...options);
   modelSelector.value = value;
-  modelSelector.disabled = !chat || !managerId || Boolean(active) || chatMutation;
+  modelSelector.disabled = !chat || !managerId || !options.length || Boolean(active) || chatMutation;
+  byId("chat-detach-model").classList.toggle("hidden", !chat?.model_id);
+  byId("chat-detach-model").disabled = !chat || Boolean(active) || chatMutation;
+  const mode = owns && managerId === chat?.manager_id ? actualChatMode(target) : "";
+  byId("chat-active-mode").replaceChildren(...(mode ? [chatModeBadge(mode)] : []));
   byId("chat-title").textContent = chat?.title || "Выберите чат";
   byId("chat-subtitle").textContent = chat?.context_after ? "Контекст начинается после сброса" : "";
   byId("chat-popout").disabled = !chat;
   byId("chat-new").disabled = chatMutation || loadingChats;
   byId("chat-input").disabled = !chat || Boolean(active);
-  byId("chat-send").disabled = !chatReady(target) || Boolean(active) || chatMutation || managerId !== chat.manager_id;
-  byId("chat-cancel").disabled = !active?.controller || active.cancelling;
+  const send = byId("chat-send");
+  send.type = active ? "button" : "submit";
+  const canCancel = Boolean(active?.controller);
+  const icon = canCancel ? "stop" : "enter";
+  if (send.dataset.icon !== icon) {
+    send.dataset.icon = icon;
+    send.innerHTML = icon === "stop" ? '<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 5v9H5m6-6-6 6 6 6"/></svg>';
+  }
+  const sendLabel = canCancel ? (active.cancelling ? "Остановка…" : "Стоп") : "Отправить (Enter)";
+  send.dataset.tip = sendLabel;
+  send.setAttribute("aria-label", sendLabel);
+  send.disabled = active ? !active.controller || Boolean(active.cancelling) :
+    !owns || !chatReady(target) || chatMutation || managerId !== chat.manager_id;
+  byId("chat-stream").disabled = !chat || Boolean(active) || chatMutation || Boolean(target && !target.streaming);
+  byId("chat-thinking").disabled = !chat || Boolean(active) || chatMutation || Boolean(target && !target.streaming);
+  byId("chat-thinking-tip").dataset.tip = target && !target.streaming ? "Этот Manager не сообщает поддержку параметров генерации." : "Включает режим рассуждения у поддерживаемых моделей.";
+  byId("chat-effort").disabled = !chat || Boolean(active) || chatMutation || !byId("chat-thinking").checked || Boolean(target && !target.streaming);
   const status = byId("chat-state");
   if (active) status.textContent = active.cancelling ? "Отменяем запрос…" : "Модель отвечает";
   else if (!chat) status.textContent = "";
-  else if (managerId !== chat.manager_id || !chat.model_id) status.textContent = "Выберите Manager и модель.";
+  else if (managerId !== chat.manager_id || !chat.model_id || chat.legacy) status.textContent = "";
+  else if (slotChatOwner(chat)?.chat_id!==chat.chat_id) status.textContent = "Слот уже назначен другому чату.";
   else if (target && (releasingSlots.has(slotKey(target)) || target.availability === "busy" || localSlotActive(target))) {
     status.textContent = "Модель занята. Ожидаем освобождения слота.";
   } else status.textContent = chatReady(target) ? "" : "Назначенная модель сейчас недоступна.";
+}
+function applyChatPreferences(chat) {
+  byId("chat-stream").checked = chat?.preferences?.stream ?? true;
+  byId("chat-thinking").checked = chat?.preferences?.thinking ?? true;
 }
 function selectChat(id) {
   chatSelected = id;
@@ -888,6 +971,12 @@ function selectChat(id) {
   const chat = currentChat();
   const view = chat ? conversation(id) : {messages:[], draft:"", metrics:{}};
   byId("chat-input").value = view.draft;
+  applyChatPreferences(chat);
+  let effort = "auto";
+  if (chat) {
+    try { effort = localStorage.getItem("ultra.chat.effort." + chat.chat_id) || "auto"; } catch {}
+  }
+  byId("chat-effort").value = ["auto","low","medium","high","xhigh"].includes(effort) ? effort : "auto";
   byId("chat-history-messages").value = chat?.settings.max_messages ?? 100;
   byId("chat-history-chars").value = chat?.settings.max_chars ?? 200000;
   setChatNotice(view.notice);
@@ -907,14 +996,21 @@ async function changeChat(op, values = {}, id = chatSelected) {
   chatMutation = true;
   renderChatList(chatSnapshot);
   try {
-    const row = await pairingPost("/api/chats", {op, ...(op === "create" ? {} : {chat_id:id}), ...values});
+    const automatic = op === "create" && !Object.prototype.hasOwnProperty.call(values,"target");
+    const created = automatic ? await createAutomatically(values) : null;
+    const row = created ? created.row :
+      await pairingPost("/api/chats", {op, ...(op === "create" ? {} : {chat_id:id}), ...values});
     if (op === "create") {
       chatItems.unshift(row);
+      if (created && !row.manager_id && created.managerId) {
+        sessionStorage.setItem("ultra.chat.manager." + row.chat_id, created.managerId);
+      }
       selectChat(row.chat_id);
     } else if (op === "delete") {
       chatItems = chatItems.filter(item => item.chat_id !== id);
       conversations.delete(id);
       sessionStorage.removeItem("ultra.chat.manager." + id);
+      try { localStorage.removeItem("ultra.chat.effort." + id); } catch {}
       if (chatSelected === id) selectChat(chatItems[0]?.chat_id || "");
     } else {
       chatItems = chatItems.map(item => item.chat_id === id ? row : item);
@@ -925,6 +1021,9 @@ async function changeChat(op, values = {}, id = chatSelected) {
       }
     }
   } catch (error) {
+    if (error.message === "chat_target_occupied") {
+      try { chatItems = (await api("/api/chats")).chats; } catch {}
+    }
     if (chatSelected === id) {
       setChatNotice("Не удалось изменить чат: " + controlReason(error.message));
       const chat = currentChat();
@@ -935,9 +1034,29 @@ async function changeChat(op, values = {}, id = chatSelected) {
     }
   } finally {
     chatMutation = false;
+    if (op==="preferences" && chatSelected===id) applyChatPreferences(currentChat());
     renderChatList(chatSnapshot);
+    chatBindingChannel?.postMessage("changed");
   }
 }
+const chatBindingChannel = typeof BroadcastChannel === "function" ? new BroadcastChannel("ultra-chat-bindings") : null;
+let bindingSyncVersion = 0;
+async function syncChatBindings() {
+  if (!chatOpen || loadingChats || chatMutation) return;
+  const version = ++bindingSyncVersion;
+  try {
+    const rows = (await api("/api/chats")).chats;
+    if (!chatOpen || loadingChats || chatMutation || version !== bindingSyncVersion) return;
+    chatItems = rows;
+    if (chatSelected && !currentChat()) selectChat(rows[0]?.chat_id || "");
+    else {
+      if (!currentChat() || !conversation(chatSelected).request) applyChatPreferences(currentChat());
+      renderChatList(chatSnapshot);
+    }
+  } catch {}
+}
+if (chatBindingChannel) chatBindingChannel.onmessage = () => syncChatBindings();
+window.addEventListener("focus", syncChatBindings);
 function reasoningPanel(text, open) {
   const detail = node("details", "reasoning-panel");
   detail.open = open;
@@ -961,7 +1080,7 @@ function messageFooter(message) {
   if (!message.pending) {
     const details = node("small", "chat-message-metrics", message.metrics ?
       requestMetricsLabel(message.metrics) : "Замеры запроса недоступны");
-    details.title = "Сохранённые замеры Client для этой пары сообщений";
+    details.dataset.tip = "Сохранённые замеры Client для этой пары сообщений";
     footer.append(details);
   }
   return footer;
@@ -1090,7 +1209,7 @@ function updateMetrics(view, extra = {}) {
   view.metrics = {...view.metrics, ...extra};
   if (!chatSelected || view !== conversation(chatSelected)) return;
   streamMetrics = view.metrics;
-  byId("chat-metrics").textContent = Object.keys(streamMetrics).length ? JSON.stringify(streamMetrics, null, 2) : "Ещё нет измерений";
+  // Raw telemetry remains in view.metrics and persistent request records; it is not rendered as JSON.
 }
 function seconds(ms) {
   return Number.isFinite(ms) ? (ms/1000).toFixed(2) + " с" : "нет данных";
@@ -1145,7 +1264,7 @@ function renderStatistics(results) {
   const models = byId("chat-stat-model");
   const previous = models.value;
   const names = [...new Set(results.map(row => row.target.model_id))];
-  models.replaceChildren(new Option("Все", ""), ...names.map(name => new Option(name, name)));
+  models.replaceChildren(new Option("Все", ""), ...names.map(name => new Option(modelName(name), name)));
   if (names.includes(previous)) models.value = previous;
   filterStatistics();
 }
@@ -1154,7 +1273,7 @@ function filterStatistics() {
   const mode = byId("chat-stat-mode").value;
   const results = stats.filter(row => (!model || row.target.model_id === model) && (!mode || (row.execution_mode || "unknown") === mode));
   byId("chat-stat-results").replaceChildren(...results.map(row => node("div", "chat-stat-row",
-    timestamp(row.finished_at).textContent + " · " + row.target.model_id + " · " +
+    timestamp(row.finished_at).textContent + " · " + modelName(row.target.model_id) + " · " +
     (row.execution_mode?.toUpperCase() || "режим неизвестен") + " · " +
     ({complete:"Завершён", failed:"Ошибка", cancelled:"Отменён"}[row.state]) + " · " + seconds(row.total_ms) + " · " +
     (row.usage?.prompt_tokens ?? "нет данных") + " / " + (row.usage?.completion_tokens ?? "нет данных") + " токенов")));
@@ -1163,7 +1282,8 @@ function filterStatistics() {
 function generationFields(target) {
   const maximum = byId("chat-max-tokens").value;
   const policy = target.transport || {};
-  return {options:{thinking:byId("chat-thinking").value, reasoning_effort:byId("chat-effort").value,
+  const thinking = byId("chat-thinking").checked;
+  return {options:{thinking:thinking ? "on" : "off", reasoning_effort:thinking ? byId("chat-effort").value : "auto",
       ...(maximum ? {max_output_tokens:Number(maximum)} : {})},
     context:{max_bytes:Math.min(policy.request_bytes || 1048576, 1048576),
       max_messages:Math.min(Number(byId("chat-history-messages").value), (policy.history_messages || 1024)-1),
@@ -1263,7 +1383,7 @@ async function submitChat(event) {
   const target = liveTarget(chat);
   const input = byId("chat-input");
   const message = input.value.trim();
-  if (!chatReady(target) || chatMutation || selectedManagerId(chat) !== chat.manager_id ||
+  if (!assignedChatOwnsTarget(chat,target) || !chatReady(target) || chatMutation || selectedManagerId(chat) !== chat.manager_id ||
       !message || message.length > 131072) return;
   const id = chat.chat_id;
   const view = conversation(id);
@@ -1346,8 +1466,7 @@ byId("nav-overview").addEventListener("click", showOverview);
 byId("nav-chats").addEventListener("click", showChats);
 byId("chat-reload").addEventListener("click", () => refresh(true));
 byId("chat-new").addEventListener("click", () => {
-  const target = liveTarget(currentChat()) || (chatTargets.length === 1 ? chatTargets[0] : null);
-  changeChat("create", target ? {target:targetFields(target)} : {});
+  changeChat("create");
 });
 byId("chat-manager").addEventListener("change", event => {
   if (!chatSelected) return;
@@ -1357,7 +1476,18 @@ byId("chat-manager").addEventListener("change", event => {
 byId("chat-model").addEventListener("change", event => {
   if (!event.target.value) return;
   const target = chatTargets.find(item => targetKey(item) === event.target.value);
-  if (event.target.value === "__none__" || target) changeChat("target", {target:target ? targetFields(target) : null});
+  if (target && targetAvailableToChat(target,currentChat())) changeChat("target", {target:targetFields(target)});
+});
+byId("chat-detach-model").addEventListener("click", () => {
+  if (currentChat()?.model_id) changeChat("target", {target:null});
+});
+for (const field of ["chat-stream","chat-thinking"]) byId(field).addEventListener("change", () => {
+  if (!currentChat()) return;
+  changeChat("preferences", {preferences:{stream:byId("chat-stream").checked, thinking:byId("chat-thinking").checked}});
+});
+byId("chat-effort").addEventListener("change", () => {
+  if (!currentChat()) return;
+  try { localStorage.setItem("ultra.chat.effort." + chatSelected, byId("chat-effort").value); } catch {}
 });
 for (const field of ["chat-history-messages","chat-history-chars"]) byId(field).addEventListener("change", () => {
   changeChat("settings", {context:{max_messages:Number(byId("chat-history-messages").value),
@@ -1408,7 +1538,7 @@ byId("chat-input").addEventListener("keydown", event => {
   if (event.key !== "Enter" || event.shiftKey || event.ctrlKey || event.altKey ||
       event.metaKey || event.isComposing || event.keyCode === 229) return;
   event.preventDefault();
-  if (event.repeat || byId("chat-send").disabled || !event.currentTarget.value.trim()) return;
+  if (event.repeat || byId("chat-send").disabled || byId("chat-send").type !== "submit" || !event.currentTarget.value.trim()) return;
   event.currentTarget.form.requestSubmit();
 });
 byId("chat-show-reasoning").addEventListener("change", () => {
@@ -1416,7 +1546,8 @@ byId("chat-show-reasoning").addEventListener("change", () => {
     !byId("chat-show-reasoning").checked || !detail.querySelector(".reasoning-text").textContent));
   followBottom();
 });
-byId("chat-cancel").addEventListener("click", async () => {
+byId("chat-send").addEventListener("click", async () => {
+  if (byId("chat-send").type !== "button") return;
   const request = chatSelected && conversation(chatSelected).request;
   if (!request?.controller || request.cancelling) return;
   request.cancelling = true;
@@ -1438,3 +1569,109 @@ byId("chat-popout").addEventListener("click", () => {
   window.open(url.toString(), "_blank", "noopener");
 });
 window.addEventListener("focus", () => { if (chatOpen) loadChatHistory(); });
+
+{
+  const promptDialog = byId("global-prompt-dialog");
+  const field = byId("global-prompt-text");
+  const save = byId("global-prompt-save");
+  const error = byId("global-prompt-error");
+  function showError(message) {
+    error.textContent = message;
+    error.classList.toggle("hidden", !message);
+  }
+  byId("global-prompt-open").addEventListener("click", async () => {
+    showError("");
+    field.value = "";
+    field.disabled = save.disabled = true;
+    promptDialog.showModal();
+    try {
+      const result = await api("/api/global-prompt");
+      field.value = result.prompt;
+      field.disabled = save.disabled = false;
+      field.focus();
+    } catch (e) { showError("Не удалось загрузить Global Prompt: " + e.message); }
+  });
+  for (const id of ["global-prompt-close", "global-prompt-cancel"])
+    byId(id).addEventListener("click", () => promptDialog.close());
+  byId("global-prompt-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    showError("");
+    save.disabled = true;
+    try {
+      // Refresh the local session in case Client was restarted while this tab was open.
+      csrf = (await api("/api/session")).csrf;
+      await api("/api/global-prompt", {method:"POST", headers:{"Content-Type":"application/json","X-Ultra-CSRF":csrf}, body:JSON.stringify({prompt:field.value})});
+      promptDialog.close();
+    } catch (e) { showError("Не удалось сохранить Global Prompt: " + e.message); }
+    finally { save.disabled = false; }
+  });
+}
+
+// One shared tooltip in the browser top layer, outside every scroll container.
+function chatModeBadge(mode) {
+  const label = node("span", "chat-mode-confirmed", mode);
+  label.dataset.tip = mode === "CPU" ? "Модель работает на процессоре (CPU)." :
+    mode === "CUDA" ? "Модель работает на видеокарте (CUDA)." : "Режим выполнения: " + mode;
+  return label;
+}
+{
+  const tip = node("div", "", "");
+  tip.id = "chat-floating-tip";
+  tip.setAttribute("role", "tooltip");
+  tip.setAttribute("popover", "manual");
+  const topLayer = typeof tip.showPopover === "function";
+  if (!topLayer) tip.hidden = true;
+  document.body.append(tip);
+  let owner = null, timer = 0;
+  function hideTip() {
+    clearTimeout(timer);
+    if (owner) {
+      const ids = (owner.getAttribute("aria-describedby") || "").split(/\s+/).filter(x => x && x !== tip.id);
+      if (ids.length) owner.setAttribute("aria-describedby", ids.join(" "));
+      else owner.removeAttribute("aria-describedby");
+    }
+    owner = null;
+    if (topLayer && tip.matches(":popover-open")) tip.hidePopover();
+    else if (!topLayer) tip.hidden = true;
+  }
+  function showTip(el) {
+    if (!el || !el.dataset.tip || owner === el) return;
+    hideTip();
+    owner = el;
+    timer = setTimeout(() => {
+      if (owner !== el || !el.isConnected || !el.getClientRects().length || !el.dataset.tip) return hideTip();
+      tip.textContent = el.dataset.tip;
+      tip.style.left = "0px"; tip.style.top = "0px";
+      if (topLayer) tip.showPopover();
+      else tip.hidden = false;
+      const b = el.getBoundingClientRect(), t = tip.getBoundingClientRect();
+      const zoom = t.width / tip.offsetWidth || 1;
+      const x = Math.max(8, Math.min(b.left+(b.width-t.width)/2, innerWidth-t.width-8));
+      const y = Math.max(4, b.top-t.height-7);
+      tip.style.left = x/zoom+"px"; tip.style.top = y/zoom+"px";
+      const ids = new Set((el.getAttribute("aria-describedby") || "").split(/\s+/).filter(Boolean));
+      ids.add(tip.id);
+      el.setAttribute("aria-describedby",[...ids].join(" "));
+    }, 200);
+  }
+  const find = target => target instanceof Element ? target.closest("[data-tip]") : null;
+  document.addEventListener("pointerover", e => {
+    const el = find(e.target);
+    if (el) showTip(el);
+  }, true);
+  document.addEventListener("pointerout", e => {
+    if (owner && find(e.target) === owner && !(e.relatedTarget instanceof Node && owner.contains(e.relatedTarget))) hideTip();
+  }, true);
+  document.addEventListener("focusin", e => { const el = find(e.target); if (el) showTip(el); });
+  document.addEventListener("focusout", e => {
+    if (owner && owner.contains(e.target) && !(e.relatedTarget instanceof Node && owner.contains(e.relatedTarget))) hideTip();
+  });
+  document.addEventListener("pointerdown",hideTip,true);
+  document.addEventListener("keydown", e => { if (e.key === "Escape") hideTip(); });
+  window.addEventListener("scroll",hideTip,true);
+  window.addEventListener("resize",hideTip);
+  window.addEventListener("blur",hideTip);
+  // A live refresh can replace a slot/card while its hint is on screen.
+  new MutationObserver(() => { if (owner && (!owner.isConnected || !owner.getClientRects().length)) hideTip(); })
+    .observe(document.body,{childList:true,subtree:true});
+}

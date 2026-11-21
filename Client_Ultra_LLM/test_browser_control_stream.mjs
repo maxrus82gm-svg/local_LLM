@@ -11,7 +11,7 @@ const here=path.dirname(fileURLToPath(import.meta.url));
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 const tmp=await fs.mkdtemp(path.join(process.env.UL_QA_ROOT || here,'.chrome-qa-'));
 let chrome,ws,server,release;
-let phase='STOPPED', lastControl=null, streamBody=null;
+let phase='STOPPED', lastControl=null, streamBody=null, normalBody=null;
 const chats=[];
 const errors=[];
 const results=[];
@@ -24,7 +24,7 @@ function snapshot(){
   return {configured:true,managers:[{manager_id:'manager-b',name:'Manager B',status:'online',data:{host:'QA B',
     chat:{streaming:true},memory:{state:'live',ddr_generation:'DDR5',installed_gib:64,free_gib:40},models:[{directory_name:'KAT'}],
     slots:Array.from({length:5},(_,i)=>({slot_id:`slot${i+1}`,models:i===0?['legacy']:i===1&&phase==='READY'?['ultra-slot2-kat-cpu']:[],
-      engine_state:i===0||i===1&&phase==='READY'?'ready':'not_running',availability:i===0||i===1&&phase==='READY'?'ready_unreserved':'not_running'})),
+      engine_state:i===0||i===1&&phase==='READY'?'ready':'not_running',availability:i===0||i===1&&phase==='READY'?'ready_unreserved':'not_running',...(i===1&&phase==='READY'?{instance_id:'f'.repeat(32)}:{})})),
     control:{models:[{...model,modes:{...model.modes,cpu:{available:phase==='STOPPED'}}}],
       instances:phase==='STOPPED'?[]:[{instance_id:'f'.repeat(32),model_key:'kat',model_id:'ultra-slot2-kat-cpu',mode:'cpu',slot_id:'slot2',state:phase,can_stop:phase==='READY'}]}}},
     {manager_id:'manager-a',name:'Manager A',status:'online',data:{host:'QA A',memory:{state:'unknown'},models:[],chat:{streaming:true},
@@ -43,12 +43,16 @@ try {
       if(req.method==='GET')return json({chats});
       const command=JSON.parse(raw);
       if(command.op==='create'){
-        const row={chat_id:String.fromCharCode(97+chats.length).repeat(32),title:'Новый чат',settings:{}};
-        chats.push(row);return json(row);
+        if(command.target && chats.some(c=>c.manager_id===command.target.manager_id&&c.slot_id===command.target.slot_id))
+          return json({error:'chat_target_occupied'},409);
+        const row={chat_id:String.fromCharCode(97+chats.length).repeat(32),title:'Новый чат',settings:{},...(command.target||{})};
+        chats.unshift(row);return json(row);
       }
       const row=chats.find(item=>item.chat_id===command.chat_id);
       if(!row)return json({error:'chat_not_found'},404);
+      if(command.op==='delete'){chats.splice(chats.indexOf(row),1);return json({deleted:true});}
       if(command.op==='target')Object.assign(row,command.target || {manager_id:null,slot_id:null,model_id:null});
+      if(command.op==='preferences')row.preferences=command.preferences;
       return json(row);
     }
     if(req.url.startsWith('/api/chat/history?'))return json({messages:[]});
@@ -67,7 +71,7 @@ try {
           {role:'assistant',content:'Первый фрагмент и конец'}]})+'\n');};
       return;
     }
-    if(req.url==='/api/chat/send')return json({messages:[{role:'assistant',content:'Обычный ответ'}]});
+    if(req.url==='/api/chat/send'){normalBody=JSON.parse(raw);return json({messages:[{role:'assistant',content:'Обычный ответ'}]});}
     if(req.url==='/api/chat/cancel')return json({cancelled:true});
     const asset={'/':'index.html','/client.js':'client.js','/client.css':'client.css'}[req.url];
     if(asset){if(asset==='client.js')markOnce('client_script_requested');
@@ -120,7 +124,7 @@ try {
   results.push('PASS: two Manager identities, duplicate model IDs, one model list per Manager');
   const buttons='[...document.querySelectorAll(".manager-model-row")].find(x=>x.textContent.includes("KAT-Coder")).querySelectorAll("button")';
   assert.deepEqual(await evaluate(`Array.from(${buttons}).map(b=>b.disabled)`),[false,true,true]);
-  assert.match(await evaluate(`${buttons}[1].title`),/vram_telemetry_unknown/);
+  assert.match(await evaluate(`${buttons}[1].dataset.tip`),/vram_telemetry_unknown/);
   await evaluate(`${buttons}[0].click()`);
   await until('document.querySelector(".manager-model-scroll").textContent.includes("STARTING")');
   assert.equal(lastControl.manager_id,'manager-b');assert.equal(lastControl.op,'start');assert.equal(lastControl.mode,'cpu');
@@ -136,10 +140,15 @@ try {
   phase='READY';await evaluate('refresh().then(showChats)');
   await evaluate('byId("chat-new").click()');
   await until('document.querySelectorAll(".chat-choice").length===1');
+  assert.equal(await evaluate('currentChat().manager_id'),"manager-b");
+  assert.equal(await evaluate('currentChat().slot_id'),"slot1");
+  assert.equal(await evaluate('byId("chat-manager").value'),"manager-b");
+  assert.notEqual(await evaluate('byId("chat-model").value'),"");
+  assert.equal(await evaluate('byId("chat-model").options.length'),2);
   assert.deepEqual(await evaluate('[...byId("chat-manager").options].map(o=>o.text)'),
     ['Выберите Manager','Manager B','Manager A']);
   await evaluate('byId("chat-manager").value="manager-a";byId("chat-manager").dispatchEvent(new Event("change"))');
-  assert.match(await evaluate('byId("chat-model").options[2].text'),/^KAT-Coder V2.5 Dev/);
+  assert.match(await evaluate('byId("chat-model").options[0].text'),/^KAT-Coder V2.5 Dev/);
   assert.equal(await evaluate('byId("chat-model").textContent.includes("eeeeeeee")'),false);
   await evaluate('(() => { const manager=byId("chat-manager"); manager.value="manager-b"; manager.dispatchEvent(new Event("change")); const select=byId("chat-model"); select.value=targetKey(chatTargets.find(t=>t.model_id==="ultra-slot2-kat-cpu")); select.dispatchEvent(new Event("change")); })()');
   await until('byId("chat-send").disabled===false');
@@ -151,18 +160,43 @@ try {
   assert(release,'No upstream release gate');
   assert.equal(await evaluate('document.getElementById("chat-messages").textContent.includes("и конец")'),false);
   assert.equal(streamBody.manager_id,'manager-b');assert.equal(streamBody.model_id,'ultra-slot2-kat-cpu');
+  assert.equal(streamBody.options.thinking,'on');
   release();release=null;
   await until('byId("chat-messages").textContent.includes("Первый фрагмент и конец") && !byId("chat-send").disabled');
   results.push(`PASS: visible real HTTP fragments before completion, browser_first_fragment_ms=${firstMs} (fake model)`);
-  await evaluate('document.getElementById("chat-stream").checked=false;document.getElementById("chat-input").value="Обычный";document.getElementById("chat-form").requestSubmit()');
+  await evaluate('byId("chat-stream").checked=false;byId("chat-thinking").checked=false;byId("chat-effort").value="high";byId("chat-thinking").dispatchEvent(new Event("change"))');
+  await until('!chatMutation && currentChat().preferences?.thinking===false');
+  assert.equal(await evaluate('byId("chat-effort").disabled'),true);
+  await evaluate('byId("chat-input").value="Обычный";byId("chat-form").requestSubmit()');
   await until('document.getElementById("chat-messages").textContent.includes("Обычный ответ")');
-  results.push('PASS: ordinary chat independent from streaming');
+  assert.equal(normalBody.options.thinking,'off');assert.equal(normalBody.options.reasoning_effort,'auto');
+  results.push('PASS: ordinary chat and explicit thinking off');
   const previousOrigin=await evaluate('performance.timeOrigin');
   await call('Page.reload');
   await until('performance.timeOrigin>'+previousOrigin+' && document.querySelectorAll(".manager").length===2');
   await evaluate('showChats()');
   await until('byId("chat-manager").value==="manager-b" && byId("chat-model").value!==""');
-  assert.match(await evaluate('document.querySelector(".chat-choice small").textContent'),/^KAT-Coder V2.5 Dev/);
+  assert.match(await evaluate('document.querySelector(".chat-choice small").textContent'),/^KAT-Coder V2.5 Dev.*CPU/);
+  assert(await evaluate('[...byId("chat-model").options].some(o=>o.text==="KAT-Coder V2.5 Dev · slot2")'));
+  assert.match(await evaluate('document.querySelector(".chat-choice small").textContent'),/slot2.*CPU/);
+  assert.equal(await evaluate('modelLabel({model_id:"Qwen3.6-35B-A3B",slot_id:"slot1",manager_id:"manager-a"})'),"Qwen 3.6 · slot1");
+  assert.equal(await evaluate('document.querySelector(".chat-choice .chat-mode-confirmed").textContent'),"CPU");
+  assert.equal(await evaluate('byId("chat-active-mode").textContent'),"CPU");
+  assert.equal(await evaluate('byId("chat-form").contains(byId("chat-model"))'),true);
+  assert.equal(await evaluate('byId("chat-form").contains(byId("chat-thinking"))'),true);
+  assert.equal(await evaluate('byId("chat-form").contains(byId("chat-effort")) && byId("chat-form").contains(byId("chat-history-messages"))'),true);
+  assert.equal(await evaluate('document.querySelector(".chat-inspector").contains(byId("chat-effort")) || document.querySelector(".chat-inspector").contains(byId("chat-history-messages"))'),false);
+  assert.equal(await evaluate('document.querySelectorAll("#chat-form .chat-tip[data-tip]").length'),4);
+  await evaluate('byId("chat-stream").closest("[data-tip]").dispatchEvent(new PointerEvent("pointerover",{bubbles:true}))');
+  await until('byId("chat-floating-tip").matches(":popover-open")');
+  assert(await evaluate('byId("chat-floating-tip").getBoundingClientRect().bottom < byId("chat-stream").getBoundingClientRect().top'));
+  assert.match(await evaluate('byId("chat-floating-tip").textContent'), /генерации/);
+  await evaluate('document.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true}))');
+  assert.equal(await evaluate('byId("chat-floating-tip").matches(":popover-open")'),false);
+
+  assert.equal(await evaluate('byId("chat-stream").checked'),false);
+  assert.equal(await evaluate('byId("chat-thinking").checked'),false);
+  assert.equal(await evaluate('Boolean(document.getElementById("chat-metrics"))'),false);
   await evaluate('byId("chat-manager").value="manager-a";byId("chat-manager").dispatchEvent(new Event("change"))');
   assert.equal(await evaluate('byId("chat-send").disabled'),true);
   assert.equal(await evaluate('currentChat().manager_id'), 'manager-b');
@@ -185,6 +219,9 @@ try {
   await until('document.querySelectorAll(".chat-choice").length===2');
   const secondChat=await evaluate('chatSelected');
   assert.notEqual(firstChat,secondChat);
+  assert.equal(await evaluate('currentChat().manager_id'),"manager-b");
+  assert.equal(await evaluate('currentChat().slot_id'),"slot1");
+  assert.equal(await evaluate('byId("chat-stream").checked && byId("chat-thinking").checked'),true);
   await evaluate('byId("chat-manager").value="manager-b";byId("chat-manager").dispatchEvent(new Event("change"))');
   await evaluate('{const select=byId("chat-model");select.value=targetKey(chatTargets.find(t=>t.manager_id==="manager-b" && t.model_id==="ultra-slot2-kat-cpu"));select.dispatchEvent(new Event("change"))}');
   await until('currentChat().manager_id==="manager-b" && !byId("chat-send").disabled');
@@ -192,6 +229,28 @@ try {
   assert.equal(await evaluate('byId("chat-manager").value'),'manager-a');
   await evaluate('selectChat('+JSON.stringify(secondChat)+')');
   assert.equal(await evaluate('byId("chat-manager").value'),'manager-b');
+  await evaluate('byId("chat-new").click()');
+  await until('document.querySelectorAll(".chat-choice").length===3');
+  const thirdChat=await evaluate('chatSelected');
+  assert.equal(await evaluate('currentChat().slot_id'),"slot1");
+  assert.equal(await evaluate('currentChat().manager_id'),"manager-b");
+  assert.equal(await evaluate('byId("chat-model").options.length'),1);
+  assert.equal(await evaluate('[...byId("chat-model").options].some(o=>o.value===targetKey(chatTargets.find(t=>t.manager_id==="manager-b"&&t.slot_id==="slot2")))'),false);
+  await evaluate('byId("chat-new").click()');
+  await until('document.querySelectorAll(".chat-choice").length===4 && !chatMutation');
+  const draftChat=await evaluate('chatSelected');
+  assert.equal(await evaluate('byId("chat-manager").value'),"manager-b");
+  assert.equal(await evaluate('byId("chat-model").value'),"");
+  assert.equal(await evaluate('byId("chat-model").options.length'),0);
+  assert.equal(await evaluate('byId("chat-send").disabled'),true);
+  assert.equal(await evaluate('Boolean(currentChat().model_id)'),false);
+  await evaluate('changeChat("delete",{confirm:true})');
+  await until('!chatMutation && !chatItems.some(c=>c.chat_id==='+JSON.stringify(draftChat)+')');
+  await evaluate('selectChat('+JSON.stringify(thirdChat)+')');
+  await evaluate('changeChat("delete",{confirm:true})');
+  await until('!chatMutation && !chatItems.some(c=>c.chat_id==='+JSON.stringify(thirdChat)+')');
+  await evaluate('selectChat('+JSON.stringify(secondChat)+')');
+  results.push('PASS: automatic top-to-bottom free slot assignment, full capacity draft, manual override');
   // Real instances of one model have distinct generated model IDs. Use the same DOM
   // renderer with a synthetic third slot and an idle Manager.
   const duplicateResult=await evaluate(`(() => {
@@ -214,8 +273,8 @@ try {
       return {options,idle};
     } finally {chatSnapshot=original;renderChatList(original);}
   })()`);
-  assert(duplicateResult.options.some(x=>x.includes("slot2")&&x.includes("CPU")));
-  assert(duplicateResult.options.some(x=>x.includes("slot3")&&x.includes("CUDA")));
+  assert(duplicateResult.options.some(x=>x.includes("slot2")&&!x.includes("CPU")));
+  assert(duplicateResult.options.some(x=>x.includes("slot3")&&!x.includes("CUDA")));
   assert(!duplicateResult.options.some(x=>x.includes("dddddddd")));
   assert.equal(duplicateResult.idle,true);
   results.push('PASS: distinct runtime IDs share one display name; slot/mode distinguish duplicates; idle Manager visible');

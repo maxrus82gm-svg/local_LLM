@@ -110,7 +110,7 @@ try{
   async function ready(slot){
     await waitStatus(`ready ${slot}`,s=>s.instances?.some(i=>i.slot===slot&&i.state==='READY'));
     await evaluate('refresh(true)');
-    await until(`${row(slot)}.querySelector(".slot-state").textContent.startsWith("READY") && [...${row(slot)}.querySelectorAll("button")].slice(0,2).every(b=>b.disabled)`);
+    await until(`${row(slot)}.querySelector(".slot-state").classList.contains("running") && [...${row(slot)}.querySelectorAll("button")].slice(0,2).every(b=>b.disabled)`);
   }
   await pick('slot2','kat');await click('slot2','Старт CPU');await ready('slot2');
   await pick('slot3','kat');await click('slot3','Старт CPU');await ready('slot3');
@@ -123,10 +123,16 @@ try{
     const instance=manager.data.control.instances.find(i=>i.slot_id==='slot2');
     const shown=()=>{const host=document.createElement('div');workspaces(host,manager);return host;};
     slot.availability='busy';
-    const busy=shown().querySelector('[data-slot-id=slot2] .slot-state').textContent;
+    const runningRow=shown().querySelector('[data-slot-id=slot2]');
+    const busy=runningRow.querySelector('.slot-state').textContent;
+    const busyTip=runningRow.querySelector('.slot-state').dataset.tip;
+    const activeMode=runningRow.querySelector('.slot-active-mode').textContent;
+    const greenMode=runningRow.querySelector('.slot-mode-running')?.textContent;
     instance.state='ERROR';instance.reason='runner_action_unconfirmed';
     const errorHost=shown();
-    const error=errorHost.querySelector('[data-slot-id=slot2] .slot-state').textContent;
+    const errorStatus=errorHost.querySelector('[data-slot-id=slot2] .slot-state');
+    const error=errorStatus.textContent;
+    const errorTip=errorStatus.dataset.tip;
     const stopDisabled=[...errorHost.querySelector('[data-slot-id=slot2]').querySelectorAll('button')].find(b=>b.textContent==='Стоп').disabled;
     manager.data.control.control_models=false;manager.data.control.can_add_slot=false;
     const denied=shown().querySelector('.manager-pairing-note').textContent;
@@ -135,10 +141,19 @@ try{
     for(const model of manager.data.control.models)delete model.installation_checked;
     const staleHost=shown();
     const staleStart=[...staleHost.querySelector('[data-slot-id=slot2]').querySelectorAll('button')].find(b=>b.textContent==='Старт CPU').disabled;
-    return {busy,error,stopDisabled,denied,staleStart};
+    const stopped=staleHost.querySelector('[data-slot-id=slot2] .slot-state').textContent;
+    const stoppedMode=staleHost.querySelector('[data-slot-id=slot2] .slot-active-mode').textContent;
+    return {busy,busyTip,activeMode,greenMode,error,errorTip,stopDisabled,denied,staleStart,stopped,stoppedMode,verbose:runningRow.querySelectorAll(".slot-resource").length};
   })()`);
-  assert.match(uiStates.busy,/Занята/);
-  assert.match(uiStates.error,/Ошибка.*runner_action_unconfirmed/);
+  assert.equal(uiStates.busy,"Запущен");
+  assert.match(uiStates.busyTip,/выполняет запрос/);
+  assert.equal(uiStates.activeMode,"CPU");
+  assert.equal(uiStates.greenMode,"Старт CPU");
+  assert.equal(uiStates.error,"Ошибка");
+  assert.match(uiStates.errorTip,/runner_action_unconfirmed/);
+  assert.equal(uiStates.stopped,"Остановлен");
+  assert.equal(uiStates.stoppedMode,"—");
+  assert.equal(uiStates.verbose,0);
   assert.equal(uiStates.stopDisabled,true);
   assert.match(uiStates.denied,/set-control-models/);
   assert.equal(uiStates.staleStart,true,'Old folder-only Manager catalogue must not enable Start');
@@ -182,11 +197,11 @@ try{
   assert.equal(new Set(active.map(i=>i.instance_id)).size,4);
   assert.equal(new Set(state.control.slots.map(s=>s.api_port)).size,5);
   assert(state.control.slots.every(s=>s.api_port!==host.ipv6_occupied_port));
-  const sendPayload=(item,message,id)=>({manager_id:'qa-manager',slot_id:item.slot_id,model_id:item.model_id,instance_id:item.instance_id,message,request_id:id});
+  const sendPayload=(item,message,id)=>({manager_id:'qa-manager',slot_id:item.slot_id,model_id:item.model_id,instance_id:item.instance_id,chat_id:item.slot_id==='slot2'?chatA:chatB,message,request_id:id});
   const one=twins.find(i=>i.slot_id==='slot2'),two=twins.find(i=>i.slot_id==='slot3');
   // Real simultaneous Client -> TLS Manager -> independent fake Colibri APIs.
   const pair=await evaluate(`Promise.all(${JSON.stringify([sendPayload(one,'instance one','a'.repeat(32)),sendPayload(two,'instance two','b'.repeat(32))])}.map(body=>pairingPost("/api/chat/send",body)))`);
-  assert.equal(pair[0].messages[0].content,'instance one');assert.equal(pair[1].messages[0].content,'instance two');
+  assert.equal(pair[0].messages.at(-2).content,'instance one');assert.equal(pair[1].messages.at(-2).content,'instance two');
   assert(!pair[0].messages.some(m=>m.content==='instance two'));
   const concurrency=await(await fetch(host.upstream+'/__qa/metrics')).json();
   assert.equal(concurrency.max_parallel_normal,2);
@@ -249,11 +264,11 @@ try{
   const boundedFailureMs=Math.round(performance.now()-boundedStart);
   await waitStatus('recovered after 503 burst',()=>true);
   mark('status_recovered');
-  const history=await evaluate(`api("/api/chat/history?"+new URLSearchParams(${JSON.stringify({manager_id:'qa-manager',slot_id:two.slot_id,model_id:two.model_id,instance_id:two.instance_id})}))`);
-  assert.equal(history.messages[0].content,'instance two');
+  const history=await evaluate(`api("/api/chat/history?"+new URLSearchParams(${JSON.stringify({chat_id:chatB})}))`);
+  assert.equal(history.messages.at(-2).content,'instance two');
   // Risk cancellation is a user decision, not a capability/role escalation.
   await fetch(host.upstream+'/__qa/low_ram');await evaluate('refresh()');
-  assert.match(await evaluate(`${row('slot2')}.querySelector('.slot-resource').textContent`),/RAM после/);
+  assert.match(await evaluate(`${row('slot2')}.querySelector('button').dataset.tip`),/Ожидаемый остаток RAM/);
   await click('slot2','Старт CPU');
   await until('!slotPending.has("qa-manager:slot2")');
   state=await data();assert(!state.control.instances.some(i=>i.slot_id==='slot2'&&!i.released));

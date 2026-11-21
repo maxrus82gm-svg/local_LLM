@@ -37,7 +37,8 @@ from pairing_client import _require_private_acl, _run_windows_powershell, enroll
 from chat_client import ChatClientError, send_chat, stream_chat, control_request, cancel_chat
 from chat_store import (validate_key, validate_chat_id, history as load_chat_history, legacy_chat_id, wire_bytes,
                         context_for, request_context, append_exchange, claim_request, fail_request,
-                        utc_now, get_chat, list_chats, manage_chat, recent_metrics)
+                        utc_now, get_chat, list_chats, manage_chat, recent_metrics,
+                        ChatTargetOccupied, require_unassigned_slot)
 from pairing_live import (PairingRequestError, submit_profile, check_profile_ticket,
                           admin_requests, admin_decision)
 
@@ -243,6 +244,7 @@ def chat_record(folder, chat_id):
 def chat_action(folder, data):
     fields = {"create": (set(), {"target", "title"}), "rename": ({"title"}, set()),
               "target": ({"target"}, set()), "settings": ({"context"}, set()),
+              "preferences": ({"preferences"}, set()),
               "reset": (set(), set()), "resume": (set(), set()), "restore": (set(), set()),
               "clear": ({"confirm"}, set()), "delete": ({"confirm"}, set())}
     op = data.get("op")
@@ -259,12 +261,15 @@ def chat_action(folder, data):
         if type(target) is not dict:
             raise ValueError("invalid_chat_target")
         selected_profile(folder, target.get("manager_id"))
-    if op == "create":
-        return manage_chat(folder, op, data)
-    chat_id = validate_chat_id(data["chat_id"])
-    with chat_lock((folder, chat_id)):
-        chat_record(folder, chat_id)
-        return manage_chat(folder, op, data)
+    try:
+        if op == "create":
+            return manage_chat(folder, op, data)
+        chat_id = validate_chat_id(data["chat_id"])
+        with chat_lock((folder, chat_id)):
+            chat_record(folder, chat_id)
+            return manage_chat(folder, op, data)
+    except ChatTargetOccupied:
+        raise ChatClientError("chat_target_occupied", 409) from None
 
 
 def chat_binding(folder, payload, key, context_policy):
@@ -273,8 +278,17 @@ def chat_binding(folder, payload, key, context_policy):
         chat = chat_record(folder, chat_id)
         if tuple(chat[name] for name in ("manager_id", "slot_id", "model_id")) != key:
             raise ChatClientError("chat_target_changed", 409)
+        if chat.get("legacy"):
+            raise ChatClientError("chat_target_not_assigned", 409)
+        if chat.get("target_conflict"):
+            raise ChatClientError("chat_target_occupied", 409)
         if "context" not in payload:
             context_policy = chat["settings"]
+    else:
+        try:
+            require_unassigned_slot(folder, key)
+        except ChatTargetOccupied:
+            raise ChatClientError("chat_target_occupied", 409) from None
     return chat_id, context_policy
 
 
@@ -299,6 +313,53 @@ def finish_metrics(metrics, started, state, *, error=None, event=None):
     return metrics
 
 
+GLOBAL_PROMPT_LIMIT = 8192
+
+
+def _global_prompt_path(folder):
+    path = Path(folder) / "global_prompt.json"
+    if path.is_symlink() or (path.exists() and (
+            not path.is_file() or getattr(path.lstat(), "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT)):
+        raise PermissionError("invalid_global_prompt_store")
+    return path
+
+
+def validate_global_prompt(prompt):
+    if type(prompt) is not str or len(prompt) > GLOBAL_PROMPT_LIMIT or "\x00" in prompt:
+        raise ValueError("invalid_global_prompt")
+    wire_bytes(prompt)
+    return prompt
+
+
+def load_global_prompt(folder):
+    with PROFILE_LOCK:
+        path = _global_prompt_path(folder)
+        if not path.exists():
+            return ""
+        if path.stat().st_size > 65536:
+            raise ValueError("invalid_global_prompt_store")
+        return validate_global_prompt(json.loads(path.read_text(encoding="utf-8"))["prompt"])
+
+
+def save_global_prompt(folder, data):
+    if type(data) is not dict or set(data) != {"prompt"}:
+        raise ValueError("invalid_global_prompt")
+    prompt = validate_global_prompt(data["prompt"])
+    with PROFILE_LOCK:
+        path = _global_prompt_path(folder)
+        temp = None
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=folder,
+                                             prefix=".global-prompt-", delete=False) as handle:
+                temp = Path(handle.name)
+                json.dump({"prompt": prompt}, handle, ensure_ascii=False)
+            os.replace(temp, path)
+        finally:
+            if temp is not None:
+                temp.unlink(missing_ok=True)
+    return {"prompt": prompt}
+
+
 def prepare_chat_messages(folder, key, history_id, chat_id, context_policy, message):
     context_started = time.perf_counter()
     policy = dict(context_policy)
@@ -306,9 +367,30 @@ def prepare_chat_messages(folder, key, history_id, chat_id, context_policy, mess
     current = {"role": "user", "content": message}
     # Account for the request envelope, including the slot, model and options.
     byte_budget = max_bytes - 1024 - wire_bytes(current)
+    prompt = load_global_prompt(folder)
+    # Legacy Manager does not accept a system role. Prefix the first user turn
+    # in a transient request copy; do not alter stored messages or their roles.
+    prefix = ("[Global Prompt]\n" + prompt + "\n[/Global Prompt]\n\n") if prompt.strip() else ""
+    if prefix:
+        byte_budget -= wire_bytes(prefix) + 8
+        policy["max_chars"] = max(0, policy["max_chars"] - len(prefix))
+        if len(current["content"]) + len(prefix) > 131072 or byte_budget < 0:
+            raise ValueError("global_prompt_request_too_large")
     messages, info = request_context(folder, key, history_id, chat_id, policy, byte_budget=byte_budget)
+    # Keep within the legacy per-message cap, dropping complete oldest turns.
+    if prefix:
+        while messages and len(messages[0]["content"]) + len(prefix) > 131072:
+            messages.pop(0)
+            while messages and messages[0]["role"] != "user":
+                messages.pop(0)
+        info["sent_history_messages"] = len(messages)
+        info["sent_history_chars"] = sum(len(m["content"]) for m in messages)
+        info["omitted_messages"] = info["available_messages"] - len(messages)
     messages.append(current)
-    info.update(sent_messages=len(messages), sent_chars=info["sent_history_chars"] + len(message),
+    if prefix:
+        messages[0] = {**messages[0], "content":prefix + messages[0]["content"]}
+    info.update(sent_messages=len(messages), sent_chars=info["sent_history_chars"] + len(message) + len(prefix),
+                global_prompt_chars=len(prompt) if prefix else 0,
                 sent_messages_json_bytes=wire_bytes(messages), preparation_ms=elapsed_ms(context_started))
     return messages, info
 
@@ -561,6 +643,11 @@ def make_handler(folder: Path, port_getter, csrf: str):
                 return self.wfile.write(raw)
             if path == "/api/session":
                 return self._send_json(200, {"csrf": csrf})
+            if path == "/api/global-prompt":
+                try:
+                    return self._send_json(200, {"prompt": load_global_prompt(folder)})
+                except (OSError, ValueError, KeyError):
+                    return self._send_json(503, {"error": "global_prompt_store_unavailable"})
             if path == "/api/config":
                 try:
                     return self._send_json(200, config_info(folder))
@@ -655,7 +742,7 @@ def make_handler(folder: Path, port_getter, csrf: str):
                     not secrets.compare_digest(
                         self.headers.get("X-Ultra-CSRF", ""), csrf)):
                 return self._reject_post(403, {"error": "request_not_authorised"})
-            if self.path not in ("/api/chats", "/api/chat/send", "/api/chat/stream", "/api/chat/cancel", "/api/control", "/api/enroll", "/api/shutdown",
+            if self.path not in ("/api/global-prompt", "/api/chats", "/api/chat/send", "/api/chat/stream", "/api/chat/cancel", "/api/control", "/api/enroll", "/api/shutdown",
                                   "/api/pairing/retry",
                                   "/api/pairing/approve",
                                   "/api/pairing/deny"):
@@ -678,6 +765,8 @@ def make_handler(folder: Path, port_getter, csrf: str):
                     return self._send_json(201, response)
                 if not isinstance(data, dict):
                     raise ValueError("Invalid form")
+                if self.path == "/api/global-prompt":
+                    return self._send_json(200, save_global_prompt(folder, data))
                 if self.path == "/api/chats":
                     return self._send_json(200, chat_action(folder, data))
                 if self.path == "/api/chat/send":

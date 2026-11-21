@@ -50,6 +50,59 @@ Codex работает **на компьютере владельца**, поэ�
 
 ### БЛОК 1 — ТЕКУЩАЯ ЗАДАЧА
 
+# CODEX-UL-MANAGER-UI-PROFILES-20261121-001
+
+**TASK ID:** `CODEX-UL-MANAGER-UI-PROFILES-20261121-001`
+**Дата:** 21.11.2026
+**Исполнитель:** ChatGPT временно вместо Codex.
+**Цель:** полноценное локальное нативное Windows-окно Ultra LLM Manager (предпочтительно WinForms), ручное управление запуском Manager и прозрачные сохраняемые параметры каждой LLM / backend. Устранить перенос тестовых 96 output tokens и ctx 2048 в штатные профили. Сохранить CPU/CUDA и независимые слоты/чаты. Приоритет владельца изменён: Manager UI прежде интеграции llama.cpp.
+
+**Read matrix:** AGENTS.md, №000, 00, 03, 04, 06, 07, 13, релевантные №18/17/19; действующие source и LIVE Manager/runner/control/registry, configuration schema, launcher, scheduler; просмотреть утверждённый макет от 21.11 (две панели). GitHub-first, DC только необходимые local/LIVE действия; owner-assisted GUI checks.
+
+- P1: read-only сверить конкретные effective параметры CPU/CUDA в LIVE с тестовыми 96/2048, прямым Colibri и ранее работавшими профилями; выявить каждое место ограничения (runner, Manager request policy, Client, engine). Не менять LIVE до backup/owner scope; согласовать реальные пределы модели/движка/ресурсов и план миграции. Восстановить source соответствие универсальным слотам, не терять изменения LIVE.
+- P2: собственный компактный native Windows Manager UI на сервере, предпочтительно WinForms, без браузера. Слева прокручиваемый список LLM (KAT-Coder, Qwen, будущие варианты); справа настройки выбранной LLM. Сверху фактические состояние ONLINE/OFFLINE/STARTING/ERROR, ручные Start/Stop Manager, переключатель «Автозапуск с Windows», сведения CPU/RAM/GPU/VRAM. UI доступен и когда Manager остановлен; служба/API остаётся отдельной существующей сущностью, не второй Manager. Использовать существующий штатный lifecycle планировщика или согласованный эквивалент; toggle сохраняется и управляет реальным boot autostart, ручной старт возможен независимо от toggle. Запуск не создаёт дубликаты. Stop с действующими слотами — ясное предупреждение/штатная процедура с подтверждением, не завершать чужие процессы. Не менять auth/ACL/TLS, сетевые границы, Valheim.
+- P3: модельные профили по стабильной идентичности модели/варианта, engine и режиму CPU/CUDA. Отображать только поддерживаемые параметры: размер контекста, максимум выходных токенов (переключатель собственного лимита/авто; показать действительный engine maximum без выдуманного unlimited), потоки CPU, RAM/cache, VRAM/GPU параметры где поддерживаются, прочие параметры по возможностям движка. Настройки CPU/CUDA независимы, значения видны и сохраняются между открытиями. «Сохранить» сохраняет профиль; «Применить» явно сообщает что применится к следующему Start и что требует перезапуска конкретного instance; нельзя менять активный процесс незаметно. Предложенные на макете 8192/4096 не утверждённые production defaults. Не заменять 96/2048 другими скрытыми глобальными числами; измеренные тестовые профили архивировать отдельно, штатные defaults выбирать по проверенной модели, ресурсам и owner UX. При невозможности запуска/реальной несовместимости — ясная ошибка; при прогнозной нехватке ресурсов — предупреждение по согласованной политике, не вводить жёсткого лимита количества GPU.
+- P4: действительный runtime профиль передаётся в существующий Manager/runner/Client API, а не просто редактируемая форма. Реальный ответ длиннее 96 токенов и контекст больше 2048 при поддерживаемом профиле; сравнить CPU/CUDA, холодный/повторный старт (отдельная диагностика производительности, не объявлять ускорение без замеров). Client сохраняет историю, маршрутизацию, стрим и отмену. Добавить компактное фактическое имя/квантование при достоверных метаданных/CPU-CUDA/слот в селекторе и карточке чата только если не расширяет задачу; иначе сохранить отдельный FOLLOWUP.
+- P5: source unit/negative/UI tests, persistence, isolation CPU/CUDA profiles, validation (unsupported values, invalid configuration, missing model, duplicate start, unauthorized operation), autostart toggle behavior, safe apply/rollback; GitHub CI по применимости. Живое изменение конфигурации/службы/launcher и deployment только по отдельному точному OWNER GO и guarded backup/rollback, вне live без изменений. Владелец запускает окно и проверяет ручной старт/стоп, автозапуск on/off (реальный reboot отдельно owner approved), выбор модели, сохранение параметров, CPU/CUDA START/READY/ответ/STOP; не прерывать активные модели и игровые серверы. Не выдавать mock за real; независимая приёмка отдельно.
+
+**Scope:** Manager_Ultra_LLM (native UI, profile schema/runner/lifecycle glue, tests), минимальные необходимые Client_Ultra_LLM/тесты, task-local Test/<TASK-ID>, существующие №05/06/07/09/13/18, штатный отчёт. Никаких серверных записей или процессов без точного разрешения; no Git write. Llama.cpp integration deferred, веса/engine Colibri не менять; новые GGUF, multi-GPU/RPC, расширенное сетевое администрирование — отдельные будущие задачи. Не считать установленный GUI макетом: фактические настройки обязаны применяться.
+
+**Приёмка:** пользователь имеет нативный Manager, может запускать его сам с ярлыка даже при выключенном API, включать/выключать автозапуск, выбирать LLM слева и настраивать её справа; никаких скрытых тестовых 96/2048, фактические настройки проверяются при запуске; рабочие CPU/CUDA и Client сохранены. Checkpoints №05/13, финальный DONE/CHANGED/DIFF/TESTS/PROBLEMS/QUESTIONS/DOC IMPACT/NEXT, штатная ротация. Самотестирование не independent.
+
+**AMENDMENT 21.11.2026 — P0 CUDA operational follow-up, owner priority:** перед native UI устранить прогнозную VRAM-блокировку в Manager admission и runner, сохранить реальные проверки GPU/runtime/source hashes/ownership, не ограничивать число экземпляров. Неизвестная/недостаточная оценка VRAM — информационное предупреждение без обязательного risk-ack исключительно по VRAM; существующие RAM- и реальные safety-gates не меняются. Фактический CPU/CUDA показывать всегда в Client chat selector/card из подтверждённого активного instance_id, не угадывать по model_id. Тестовые ctx2048/ngen96 вывести из штатного профиля отдельным согласованным LIVE config change с backup после остановки затрагиваемых экземпляров, не навязывать новые defaults. Ошибка supervisor_unverified — отдельное read-only исследование; не снимать quarantine без подтверждения отсутствия/принадлежности процесса. P0 source fixes/tests first; exact LIVE scope via owner GO. Original task remains intact.
+
+**AMENDMENT 21.11.2026 — P0 Client compact slot view (owner screenshot):** one compact row, fixed bounded model selector and nearby Start CPU / Start CUDA / Stop. Only visible state and actual mode to the right: green Запущен and CPU/CUDA for verified READY, red Остановлен with no mode for confirmed stopped, separate Ошибка/transition/unknown states without false running/stopped claim; active start button green. Remove Selected CPU, raw READY/ERROR codes and verbose forecast lines from every row. Keep forecasts, warnings and diagnostic reasons in action/state tooltips and actual safety confirmations; keep Manager header online/free RAM, model catalogue/count and add slot. No destructive change to slot ownership. Native Manager UI remains next after P0 bring-up.
+
+**AMENDMENT 21.11.2026 — Chat UX owner screenshots:** remove service options «Выберите модель» / «Без назначения» from model dropdown; only actual ready model instances, empty when no choice, keep saved routing/independent history and explicitly choose a model in new chat. Manager dropdown unchanged. Model name without CPU/CUDA suffix; duplicate model names identify slot; actual mode separate green label in chat card/right panel only when READY + matching instance identity. Move Manager/model, generation/history controls and measurements to compact right sidebar, not over the text input. Keep stream toggle/cancel and input/send in fixed composer; right pane has Thinking, «Глубина размышления», history message count, advanced output/char/reasoning controls (output cap optional, not input limit); max token actual engine constraint remains Manager responsibility. Raw JSON is diagnostics, hide from regular UI, retain underlying metrics/history and show readable timing/token/rate + per request, no generated IDs in visible labels (technical IDs in tooltips if needed). Keep compact slots approved by owner, fix slot3 supervisor_unverified separately and P0 server VRAM gate/test cap still pending. No auto-start model when choosing chat target. Maintain desktop + narrow screen, popout, F5, stream, cancellation, independent chats and resizing. Save screenshots' requirements in 05/07/13. No live Manager writes under UX work.
+
+**AMENDMENT 21.11.2026 — exclusive chat-slot assignment / final layout (owner screenshots):** one Manager slot belongs to at most one named chat per Client database, regardless of model name/alias/mode. Only live ready unassigned slots of selected Manager are offered; assigned chat retains its own choice. No automatic assignment; archives/drafts are unlimited, simultaneous usable bound chats cannot exceed active slots. Explicit unbind (history retained), change target, or delete releases the previous claim. A stored slot claim survives stop/restart until owner rebinds/unbinds; old model ID must not silently send to a replacement. Existing duplicate named bindings preserved, earliest nonlegacy chat owns the slot, conflicts visible and blocked until resolved; imported legacy archives do not claim. Atomic BEGIN IMMEDIATE check in SQLite create/target and named/legacy request admission; cross-window sync, F5 persistence. Move model selector into right side of fixed composer; Manager/settings panel anchored lower right, expands upward, keep current nav and green actual mode. Scope local Client DB first. To enforce globally across separate Client installations, add authenticated Manager-side slot claim/release keyed by Manager/slot/instance, stable client_id + chat_id, explicit release/rebind/stop lifecycle and legacy admission; do not claim distributed enforcement until deployed and tested. No new LIVE changes without owner GO. Server VRAM/caps/slot3 recovery remain P0.
+
+**AMENDMENT 21.11.2026 — empirical RAM/VRAM statistics and Client resource planning (owner):** Client is the user-facing authority for desired instance count, engine/model/mode/slot choice; Manager executes and reports actual resources, never imposes arbitrary GPU-instance counts or blocks solely on an estimated memory budget. Genuine runtime incompatibility, authorization/ownership and allocation failure remain errors. Collect per verified instance/process tree physical RAM working-set/private memory where reliable, job committed RAM separately, and per GPU (UUID) attributable VRAM where supported; report unknown if attribution unavailable (Windows WDDM/NVML limitations), never substitute aggregate host change as exact model usage. Capture model variant/quant/engine version/profile/context/backend/device and phases loading, ready-idle, generating; periodic samples with actual elapsed interval, timestamps, sample coverage and duration. Time-weighted mean=sum(bytes_i * dt_i)/sum(dt_i) over valid intervals, separately for RAM and each GPU's VRAM; also current, peak, p95, count, duration, load/startup peak; separate cold/warm and active/idle. Historical estimate is descriptive, configurable/optional, not a launch quota. Display server total/free RAM/VRAM, per-slot live/previous-run mean/peak and sample confidence; free after candidate estimate = current free minus not-yet-reflected pending allocations and candidate estimated demand (avoid double-counting active instances); recommend p95/peak plus configurable reserve, warnings only for forecast. Sum VRAM across GPUs only as informational total, check per-device capacity for planning. Persist compact run summaries, not unbounded raw logs; no model prompt content collected. Missing/sparse telemetry must stay unknown; CPU mode VRAM not assumed zero unless verified. Implement as separate stage after current exclusive binding/P0 live repair and native Manager controls, no new LIVE changes now. Global slot exclusivity requires authenticated Manager claim/release protocol across Client installations; local DB-only is interim, never call global enforcement PASS.
+
+**AMENDMENT 21.11.2026 — composer minimal controls (owner screenshot):** remove idle hint «Выберите Manager и модель» and separate «Отменить поток» button. Checkbox «Потоковый ответ» alone chooses streaming/nonstreaming for the next request; do not confuse toggling with cancellation of an in-flight request. Preserve existing cancellation via the same Send button switching to «Стоп» only during cancellable streaming; nonstreaming in-flight remains disabled, direct duplicate submit still blocked. Empty status consumes no space; real errors/busy status remain. No Manager changes.
+
+**AMENDMENT 21.11.2026 — slot label always visible (owner):** every assigned model label in chat card and selector includes actual slot ID, even with a single instance of that model family; retain green confirmed CPU/CUDA separately. Unavailable assigned chat retains its saved slot label, no green execution mode without live confirmation. No change to unique slot routing.
+
+**AMENDMENT 21.11.2026 — full-width composer (owner):** remove external text Send button and its column, preserve same submit action as small Enter-arrow icon inside textarea lower-right. Enter submits, Shift+Enter newline, existing IME/duplicate protection preserved. During cancellable streaming same icon becomes stop square; accessible label/title, nonstreaming disabled. Text padding prevents overlap; resize grip/height/scroll/layout unchanged. Thinking effort remains in current panel pending later owner feedback.
+
+**AMENDMENT 21.11.2026 — explicit per-chat stream/thinking (owner):** matching checkboxes «Потоковый ответ» and «Размышление» on the left of composer; no inherited Colibri thinking selector/Auto. Checked -> thinking on / enable_thinking true; unchecked -> off / false on supported Manager path; when off send effort auto, depth disabled (no conflicting options). Defaults both checked for new/existing chats without saved values (explicit decision, editable). Persist both booleans in existing chat settings JSON as separate preferences, not in context fields; no schema migration or history deletion. Per-chat switch/F5/Client restart preserve, existing context updates preserve preferences; no silent downgrade for legacy runtime, capability caveats visible, real engine support still requires live test. Depth remains in right panel. Client restart needed for API code changes; Manager/live unchanged.
+
+**AMENDMENT 21.11.2026 — automatic assignment on new chat (owner):** new chat auto-selects first online Manager with a free READY/ready_unreserved instance in overview order, then first free slot top-to-bottom as supplied by Manager (not model name or CPU/CUDA priority). Existing local exclusive ownership, busy/releasing/unknown gates remain; no auto model startup or extra slot creation. If no free slot, choose first online Manager in UI as draft, model empty; if none online, both empty. Refresh live status and chat ownership on creation; explicit SQLite 409 occupied retries next currently free candidate only, no retry ambiguous failures. Existing chat routes, histories, explicit unbind and manual manager/model changes remain unaffected. User can override automatic choice. Local Client scope; distributed cross-Client ownership still pending Manager protocol.
+
+**AMENDMENT 21.11.2026 — compact composer refinement:** move existing reasoning effort selector beside Thinking checkbox (no visible heading, accessible name); default auto, disabled while Thinking off, retain depth per chat in browser-local storage. Move existing history message count before model selector with envelope icon; this controls messages sent to LLM, not visible/deleted history. Remove both fields from right inspector. Short hover/focus tooltips after 200 ms for streaming, Thinking, depth and LLM history; same compact styling. No server/API changes.
+
+**AMENDMENT 21.11.2026 ? Manager orphan watchdog (owner, current TASK):** slot3 df4bb767e4c5466286f52bc4c52306bd had stale READY state, registry ERROR/supervisor_unverified/released=0; PIDs 382100/381452/382324 absent, port 8002 free. Source: periodic independent Manager reconciliation, named job + gateway identity persisted before resume, complete job-member snapshots, retry atomic state replacement. Only exact session, held lifecycle locks, verified dead supervisor, verified job-member anchor, process identity/session corroboration and free port permit cleanup/release. Missing/ambiguous evidence remains quarantined. Reconciled prior LIVE universal-slot changes while retaining local advisory VRAM policy. Offline tests pending; LIVE not changed.
+
+**Результат 21.11.2026 — Watchdog / восстановление зависших экземпляров (OFFLINE PASS, LIVE HOLD).** В рамках CODEX-UL-MANAGER-UI-PROFILES-20261121-001 реализованы периодическая сверка Manager независимо от Client, сохранение фактического PID/birth/image/SID gateway перед ResumeThread и идентичности Job Object, снимки членов Job, атомарное сохранение состояния с повтором при sharing violation, аварийная очистка строго подтверждённого сеанса и освобождение слота после проверки процессов/группы/порта. Медленные orphan-проверки вынесены из SQLite write-lock, обновление по CAS. Источник синхронизирован с прежним LIVE universal-slot кодом без отмены локальной advisory VRAM политики. Фокусная проверка `test_orphan_recovery`, `test_control_runtime`, `test_colibri2_runner`: Ran 100, OK, 99 PASS + 1 skip; в нативном тесте проверены живой и завершённый процесс, PID reuse, session marker, отказ чужому Job, изоляция соседней группы. Лог `Test/CODEX-UL-MANAGER-UI-PROFILES-20261121-001/orphan-recovery/focused-tests-recheck.log`. slot3 LIVE пока ERROR: сервер не изменялся, не перезапускался; установка после разрешения владельца. Неопределённые/отсутствующие записи, недоступные процессы и чужой порт остаются в карантине; доказательство завершения процесса не является побайтовой атрибуцией VRAM/RAM.
+
+## 21.11.2026 19:35 (UTC+5) — CODEX-UL-MANAGER-UI-PROFILES-20261121-001 / Watchdog LIVE recovery PASS, OWNER smoke PENDING
+
+Владелец разрешил серверное обновление. Manager 77 / DESKTOP-KT4G5SM (192.168.0.77): исходники 6 файлов установлены с проверкой SHA-256; backup `C:\ProgramData\UltraLLM\Manager\private\watchdog-20261121-1933` (код + согласованная SQLite-копия, integrity_check=ok, 21 запись). Manager PID 2716 → 24432, задача `UltraLLM_Manager_LIVE` Running, HTTPS 8443. Остановлен только прежний процесс Manager, без остановки дерева задач. Watchdog автоматически восстановил slot3, instance `df4bb767e4c5466286f52bc4c52306bd`: ERROR/released=0 → STOPPED/released=1, reason=orphan_recovered, job_cleanup_confirmed=true, recovered_utc=2026-11-21T14:34:55.887057+00:00; порт 8002 свободен, текущий instance_id=null. Другие экземпляры сохранили идентичность: slot1 `194e20466a9544f7ad287ae2f82ddaa8` CPU gateway PID 16432 (8000), slot2 `fa25a465e8054cfb800cda85d029b0fc` CUDA gateway PID 22104 (8001), slot4 `bd2481ec559e45818e082cc4d59f1b0b` CPU gateway PID 21716 (8003), все READY. База после обновления integrity_check=ok. KAT CPU/CUDA available=true; прогноз CUDA low_vram_forecast является предупреждением, CPU ram_estimate_unknown требует разрешения риска. Установлена и ранее протестированная advisory VRAM политика. Повторный старт/стоп slot3 пользователем ещё не выполнен; полная TASK остаётся активной, не закрывать и не переносить в BLOCK 1.1. Ограничения 96/2048, native Manager UI, глобальные межклиентские назначения и телеметрия не закрыты этой записью. OFFLINE: 99 PASS, 1 skip; LIVE: восстановление прежнего зависшего экземпляра и сохранение соседних PASS; OWNER: повторный старт/стоп PENDING. Без commit/push.
+
+### БЛОК 1.1 — ПОСЛЕДНЯЯ СДАННАЯ ЗАДАЧА (ДОСЛОВНЫЙ ОРИГИНАЛ)
+
+**SUBMITTED / ITERATION CLOSED PARTIAL / REVIEW PENDING.** Previous BLOCK 1.1 preserved verbatim in owner commit 86f0656ad2d58cb5c864587b166fc6a92999a6c9 / Documents/07; verified exact content before rotation. Current original follows unchanged.
+
 # CODEX-UL-COLIBRI-CUDA-LIVE-20261120-001
 
 **TASK ID:** `CODEX-UL-COLIBRI-CUDA-LIVE-20261120-001`
@@ -68,239 +121,11 @@ Scope: локальные исходники Manager, необходимые т�
 
 После каждого этапа/блокера записывать №13 и №05: статус, изменения, тесты, остаток и точный NEXT. Продолжать автономно в разрешённом scope. При сдаче зафиксировать DONE/CHANGED/DIFF/TESTS/PROBLEMS/QUESTIONS/DOC IMPACT/NEXT в №13, ротировать полный оригинал в 1.1 с проверкой immutable истории, не заявлять независимую приёмку собственной работы. Публикация владельцем.
 
-### БЛОК 1.1 — ПОСЛЕДНЯЯ СДАННАЯ ЗАДАЧА (ДОСЛОВНЫЙ ОРИГИНАЛ)
-
-**SUBMITTED / REVIEW PENDING / LOCAL QA PASS / OWNER UX PENDING.** Original TASK preserved verbatim. Partial owner publication 85 fbc16a66ea9515523a5756f1028937481d1618f1; final local correction and evidence in Reports/CODEX-UL-CLIENT-CHAT-COMPOSER-UX-20261120-001/Final/report.md. Previous BLOCK 1.1 is immutable in commit 85 / Documents/07. No git write.
-
-# CODEX-UL-CLIENT-CHAT-COMPOSER-UX-20261120-001
-
-**TASK ID:** `CODEX-UL-CLIENT-CHAT-COMPOSER-UX-20261120-001`
-
-**Дата:** 20.11.2026  
-**Исполнитель:** Codex  
-**Проект:** Ultra LLM Client  
-**Workspace:** `M:\GitHub\local_LLM`  
-**Baseline:** №84 `a712c17ce96158e328d89fa65c5e56a057cee477`
-
-## 1. Цель
-
-Доработать интерфейс независимых чатов Ultra LLM Client согласно результатам пользовательского тестирования.
-
-Работающие функции сохранить. Владелец подтвердил успешную генерацию ответов KAT-Coder и Qwen на CPU в независимых чатах, сохранение переписки и улучшение прокрутки.
-
-Manager и Colibri в рамках этой задачи не изменять.
-
-## 2. Подготовка
-
-Изучить релевантные разделы:
-
-- AGENTS.md.
-- №00 — Старт.
-- №000 — Задачи для агента.
-- №03 — Архитектура.
-- №07 — Задачи Codex.
-- №13 — Тактический контекст.
-- №18 — техническая документация, разделы 18.42–18.43.
-
-Проверить актуальный HEAD, существующие незакоммиченные изменения и реализацию Client_Ultra_LLM.
-
-Не затирать существующие изменения координатора в документах №05 и №13.
-
-Не читать целиком исторические отчёты без необходимости. Экономить контекст.
-
-## 3. Этап P1 — Закреплённая панель ввода
-
-Объединить поле ввода сообщения и настройки в единую нижнюю закреплённую панель.
-
-В неё перенести:
-
-- Выбор сервера и модели.
-- Потоковый ответ.
-- Параметры генерации.
-- Параметры контекста и истории.
-- Настройки reasoning.
-- Измерения и запросы текущего чата.
-- Поле ввода и отправку сообщения.
-
-Основные настройки расположить компактно по горизонтали. Расширенные параметры допускается раскрывать.
-
-Настройки не должны исчезать за пределами экрана при прокрутке переписки.
-
-Поле ввода должно регулироваться мышью по вертикали, расширяясь вверх. Увеличение высоты панели не должно перекрывать последние сообщения, создавать дополнительный основной scrollbar или выводить элементы за пределы экрана.
-
-## 4. Этап P2 — Выбор Manager и модели
-
-Удалить существующий верхний комбинированный список назначения модели.
-
-В нижней панели разместить два зависимых списка:
-
-1. Manager — выбор подключённого сервера.
-2. Модель — выбор доступного экземпляра на выбранном сервере.
-
-Первым в названии модели показывать её понятное короткое имя:
-
-- KAT-Coder V2.5 Dev.
-- Qwen 3.6.
-
-При наличии нескольких одинаковых экземпляров дополнительно показывать слот и CPU/CUDA для их различения.
-
-Не отображать длинные instance_id, UUID и прочие служебные идентификаторы в основных названиях и карточках чатов. Внутренние идентификаторы и точную маршрутизацию сохранить.
-
-Выбранные сервер и модель должны сохраняться индивидуально для каждого чата, включая F5.
-
-Недоступность или остановка модели не должна удалять чат, историю или незаметно переключать запросы на другой экземпляр.
-
-Собственные пользовательские имена моделей — вне scope настоящей TASK.
-
-## 5. Этап P3 — Управление чатами
-
-Полностью убрать верхний раскрывающийся блок «Управление чатом» и его крупные текстовые кнопки.
-
-Все существующие операции перенести непосредственно в нижнюю часть каждой карточки чата в левом списке.
-
-Основная группа компактных пиктограмм слева:
-
-- Карандаш — «Переименовать чат».
-- Круговая стрелка — «Сбросить контекст».
-- Ластик — «Очистить переписку».
-- Корзина — «Удалить чат».
-
-Отдельная группа справа:
-
-- «Вернуть полный контекст».
-- «Восстановить переписку».
-
-Для восстановления подобрать визуально различимые пиктограммы, отделённые небольшим промежутком от основных действий.
-
-Каждая пиктограмма должна иметь русскоязычную всплывающую подсказку при наведении и доступное текстовое название.
-
-Недоступные операции восстановления отображать приглушёнными либо показывать только после возникновения возможности восстановления.
-
-Обязательно:
-
-- Действие применяется строго к chat_id соответствующей карточки.
-- Не допускается выполнение действия над другим активным чатом.
-- Сохранить подтверждение удаления и очистки переписки.
-- Сохранить действующие ограничения во время генерации.
-- Сохранить существующую семантику всех шести операций.
-- Кнопку «+ Новый чат» оставить без изменений.
-- Открепление окна чата сохранить.
-
-Использовать компактные SVG-пиктограммы без новых внешних зависимостей.
-
-## 6. Этап P4 — Прокрутка
-
-При каждом открытии, создании или переключении чата основной правый scrollbar автоматически переводится в нижнее положение после загрузки истории.
-
-После F5 открытый чат также должен показывать последнее сообщение.
-
-При этом:
-
-- Сохранить одну основную вертикальную прокрутку страницы.
-- Не создавать scrollbar внутри истории чата.
-- Не возвращать пользователя принудительно вниз, если он вручную читает старые сообщения.
-- Сохранить автоматическое следование за потоковым ответом при нахождении внизу.
-- Сохранить кнопку перехода к последнему сообщению.
-- Последнее сообщение не должно перекрываться закреплённой панелью.
-
-## 7. Этап P5 — Проверки
-
-Провести полный авторский regression Client и браузерные проверки Chrome.
-
-Обязательно проверить:
-
-- Два Manager и несколько экземпляров одинаковых моделей на синтетических данных.
-- Независимость назначения и истории нескольких чатов.
-- Переключение чатов и F5.
-- Все шесть операций управления чатами.
-- Правильный chat_id при действиях над неактивной карточкой.
-- Закрепление нижней панели во всех положениях прокрутки.
-- Изменение высоты поля ввода.
-- Enter, Shift+Enter, streaming, reasoning, cancel.
-- Откреплённые окна.
-- Существующие измерения и статистику.
-- Desktop 1440×800, узкое окно 780×620 и масштаб 110%.
-
-Проверить соответствующие существующие unit/API/JS/Chrome-тесты, дополнить их недостающими сценариями.
-
-Не ослаблять существующие тесты ради PASS.
-
-## 8. ОБЯЗАТЕЛЬНО — Поступательное выполнение и контрольные точки
-
-Выполнять этапы P1–P5 последовательно и автономно, без ожидания промежуточных подтверждений владельца в пределах утверждённого scope.
-
-После каждого этапа, существенного исправления или обнаруженного блокера:
-
-1. Сохранить фактически выполненные изменения.
-2. Провести доступные целевые тесты.
-3. Обновить текущий отчёт.
-4. Обновить `Documents/13_Тактический_контекст.md`.
-
-Для каждой контрольной точки указать:
-
-- TASK ID и номер этапа.
-- Что реализовано.
-- Какие файлы изменены.
-- Какие тесты выполнены и их результаты.
-- Что осталось незавершённым.
-- Конкретное следующее действие.
-
-Использовать статусы TODO / IN PROGRESS / PASS / FAIL / BLOCKED.
-
-Если доступный контекст или лимит Codex заканчивается, немедленно зафиксировать текущую контрольную точку и точное место продолжения работы.
-
-Нельзя оставлять всю документацию на конец задачи.
-
-## 9. Границы разрешений
-
-Разрешено:
-
-- Редактирование необходимых исходников и тестов Client_Ultra_LLM.
-- Обновление существующей документации в рамках TASK.
-- Изолированная локальная QA.
-- Создание отчёта и evidence настоящей TASK.
-
-Запрещено:
-
-- Изменение Manager_Ultra_LLM, Colibri, моделей и серверной конфигурации.
-- Остановка или перезапуск реальных LLM.
-- Изменение рабочей установки Production Client без отдельного OWNER GO.
-- Использование реальной пользовательской переписки для destructive tests.
-- Любые Git write-операции: add, commit, push, checkout, merge и другие.
-- Создание файлов вне утверждённого Workspace.
-
-Все временные файлы и профили тестирования размещать внутри `Test/<TASK-ID>/`.
-
-## 10. Сдача результата
-
-Постоянный отчёт:
-
-`Documents/Reports/CODEX-UL-CLIENT-CHAT-COMPOSER-UX-20261120-001/Final/report.md`
-
-Санитизированные доказательства — WorkEvidence настоящей TASK.
-
-Представить:
-
-- DONE.
-- CHANGED.
-- DIFF.
-- TEST RESULTS.
-- PROBLEMS.
-- QUESTIONS.
-- DOC IMPACT.
-- NEXT.
-
-Выполнить регламентную ротацию БЛОКА 1 в БЛОК 1.1 при сдаче с сохранением предыдущего оригинала.
-
-Статус результата: AUTHOR TESTED / REVIEW PENDING.
-
-Независимая приёмка координатором, публикация владельцем и пользовательская LIVE UX-проверка выполняются отдельно.
-
-Начать с P1 и последовательно выполнить всю TASK.
-
 ### БЛОК 2 — ПОСЛЕДНИЕ ПЯТЬ ЗАДАЧ (КОРОТКИЙ ИНДЕКС)
 
-- **CODEX-UL-CLIENT-CHAT-COMPOSER-UX-20261120-001 / 20.11:** P1-P5 LOCAL QA PASS, Client 58/58, Chrome 4/4, local asset readback PASS; OWNER UX / final owner publication / CI OPEN. Original in BLOCK 1.1.
+- **CODEX-UL-COLIBRI-CUDA-LIVE-20261120-001 / 21.11:** ITERATION CLOSED PARTIAL; real standalone GPU KAT/Qwen PASS, CONFIG LIVE PASS, owner observed responses PASS, cold latency/VRAM forecast/independent review OPEN; original BLOCK 1.1; №05/09/13/18.
+
+- **CODEX-UL-CLIENT-CHAT-COMPOSER-UX-20261120-001 / 20.11:** P1-P5 LOCAL QA PASS, Client 58/58, Chrome 4/4, local asset readback PASS; OWNER UX / final owner publication / CI OPEN. Original in immutable commit 86f0656ad2d58cb5c864587b166fc6a92999a6c9 / Documents/07 (then BLOCK 1.1).
 
 
 - **CODEX-UL-R5-MODEL-CONTROL-UI-LIVE-GATE-20261120-001 / 20.11:** AUTHOR LOCAL QA PASS, три regression-цикла Manager 354/Client 58/Chrome, LIVE/CI/OWNER UX OPEN; дословная TASK в БЛОКЕ 1.1, evidence в task-local Test, детали №05/№13. Original in immutable commit 85 / Documents/07 (prior BLOCK 1.1).
@@ -308,11 +133,17 @@ Manager и Colibri в рамках этой задачи не изменять.
 - **CODEX-UL-R5-CHROME-STABILITY-20261117-001 / 18.11:** OWNER №63 CI P1 FAIL → №64 fix → INDEPENDENT OFFLINE SOURCE ACCEPTED / Windows CI PASS twice; REAL RELEASE HOLD; DOC-UL-R5-CHROME-INDEPENDENT-20261118-001. Original in BLOCK1.1.
 
 - **CODEX-UL-R5-GATE2-REGRESSION-FIX-20261114-001 / 14.11:** OFFLINE source fix **SCOPED CLOSED / INDEPENDENT TECHNICAL+CI PASS**: №56 `d79e7fb0aeabb49c96cbbb643376ab910b4a6cb5`, [independent CI attempt 2](https://github.com/maxrus82gm-svg/local_LLM/actions/runs/43599309587/attempts/2) 336 Manager PASS/1 SKIP, Client49 PASS, Chrome/5 controls PASS. REAL/ZIP rebuild NOT RUN; RELEASE HOLD.
-- **CODEX-UL-R5-CI-GATE2-HARDEN-20261114-001 / 14.11:** AUTHOR PARTIAL, independent code/CI review, четыре RED/Windows FAIL; оригинал [immutable №56](https://github.com/maxrus82gm-svg/local_LLM/blob/d79e7fb0aeabb49c96cbbb643376ab910b4a6cb5/Documents/07_%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B8%20Codex.md) → прежняя БЛОК 1.1; №54/README/№09.
+
 
 **Дополнительные OPEN вне завершённой пятёрки:** `CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001` — A/B SUBMITTED, Stage B Gate2, C/D NOT RUN/OWNER GO absent; полная задача и AMENDMENT immutable №54. F3 backup provenance pin; F4 Chrome first-run; versioned R5 release/re-stage после source fixes. Все ранние задачи остаются в №09/immutable Git.
 
 ### БЛОК 3 — OPEN / NEXT
+
+- **NOW 21.11 / CODEX-UL-MANAGER-UI-PROFILES-20261121-001:** P1 NEXT; CODEX-UL-LLAMACPP-INTEGRATION-20261121-001 deferred (original in 09), CUDA iteration closed partial in 1.1.
+
+
+- **NOW 21.11 / CODEX-UL-LLAMACPP-INTEGRATION-20261121-001:** P1 NEXT; current task in BLOCK 1. Previous CUDA iteration closed PARTIAL; latency/VRAM warnings/independent review OPEN, see 05/13.
+
 
 - **NOW 20.11 / CODEX-UL-CLIENT-CHAT-COMPOSER-UX-20261120-001:** local P5 full QA PASS; owner F5 visual acceptance, publish remaining corrections, exact-SHA CI; release/cleanup pending.
 

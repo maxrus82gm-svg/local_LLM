@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "07_Задачи Codex.md",
+                "file": "21_Сборка_сервера.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "07_Задачи Codex"
+              "title": "21_Сборка_сервера"
             }
           }
         ]
@@ -187,6 +187,7 @@
   },
   "active": "b830a0ae8b2d0ac5",
   "lastOpenFiles": [
+    "07_Задачи Codex.md",
     "Reports/CODEX-UL-CLIENT-CHAT-COMPOSER-UX-20261120-001/WorkEvidence/coordinator-qa-summary.json",
     "Reports/CODEX-UL-CLIENT-CHAT-COMPOSER-UX-20261120-001/WorkEvidence",
     "Reports/CODEX-UL-CLIENT-CHAT-COMPOSER-UX-20261120-001/Final/report.md",
@@ -194,13 +195,11 @@
     "Reports/CODEX-UL-CLIENT-CHAT-COMPOSER-UX-20261120-001",
     "Reports/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/WorkEvidence/message-metrics.json",
     "Reports/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/Final/report.md",
-    "07_Задачи Codex.md",
     "Reports/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/WorkEvidence/manifest.json",
     "Reports/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/WorkEvidence/colibri-ab.py",
     "Reports/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/WorkEvidence/summary.json",
     "Reports/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/WorkEvidence",
     "Reports/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001/Final",
-    "Reports/CODEX-UL-CHAT-CONTEXT-REASONING-UX-20261119-001",
     "Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/Final/coordinator-client-production-deploy-20261119.md",
     "Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/Final/owner-cpu-addendum.md",
     "Reports/CODEX-UL-R5-MULTI-LLM-CONTROL-ENTER-20261119-001/Final/REPRODUCE.md",
