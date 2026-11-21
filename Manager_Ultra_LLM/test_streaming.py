@@ -8,6 +8,18 @@ from chat_runtime import proxy_stream, ChatError
 
 
 class StreamingTests(unittest.TestCase):
+    def test_live_sample_is_bounded_and_separates_prefill_from_generation(self):
+        from live_manager import live_request_sample
+        health={"status":"ok","scheduler":{"active":1,"queued":0},"live":[
+            {"state":"reading","prompt_tokens":3352,"tokens":0,"tok_s_now":0.0,"elapsed_s":13.5,
+             "read_s":13.5,"tok_s":0.0,"secret":"never expose","forwards":0}]}
+        sample=live_request_sample(health)
+        self.assertEqual(sample,{"state":"reading","prompt_tokens":3352,"tokens":0,
+            "tok_s_now":0.0,"elapsed_s":13.5,"read_s":13.5,"tok_s":0.0})
+        self.assertIsNone(live_request_sample({**health,"live":health["live"]*2}))
+        self.assertIsNone(live_request_sample({**health,"scheduler":{"active":0,"queued":0}}))
+        self.assertNotIn("tokens",live_request_sample({**health,"live":[{"state":"writing","tokens":True}]}))
+
     def test_combined_delta_order_and_reasoning_only_completion(self):
         combined=b'data: {"choices":[{"delta":{"reasoning_content":"why","content":"answer"}}]}\n\n'
         events=list(proxy_stream(self.upstream([combined,b'data: [DONE]\n\n']),"test",[]))

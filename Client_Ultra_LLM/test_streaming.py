@@ -153,6 +153,10 @@ class FullChainTests(unittest.TestCase):
         gate=threading.Event()
         self.addCleanup(gate.set)
         class FakeColibri(BaseHTTPRequestHandler):
+            def do_GET(h):
+                raw=json.dumps({"status":"ok","scheduler":{"active":1,"queued":0},"live":[
+                    {"state":"writing","prompt_tokens":17,"tokens":3,"tok_s":2.0,"tok_s_now":3.0,"elapsed_s":1.2}]}).encode()
+                h.send_response(200);h.send_header("Content-Length",str(len(raw)));h.end_headers();h.wfile.write(raw)
             def do_POST(h):
                 body=json.loads(h.rfile.read(int(h.headers['Content-Length'])))
                 h.send_response(200);h.send_header('Content-Type','text/event-stream');h.end_headers()
@@ -177,18 +181,19 @@ class FullChainTests(unittest.TestCase):
         upstream=serve(FakeColibri)
         config={'manager_id':'m','display_name':'fake','slots':[{'slot_id':'slot2','api_port':upstream.server_address[1]}]}
         principal={'client_id':'alice','allowed_slots':['slot2']}
-        snapshot={'source':'LIVE_HOST','viewer_id':'alice','slots':[{'slot_id':'slot2','instance_id':'legacy-fixture','engine_state':'ready','availability':'ready_unreserved','models':['kat']}]}
+        snapshot={'source':'LIVE_HOST','viewer_id':'alice','slots':[{'slot_id':'slot2','instance_id':'legacy-'+'1'*32,'pid':1,'engine_state':'ready','availability':'ready_unreserved','models':['kat']}]}
         # Keep all validation/select_backend/lock/stream handlers real.
         with patch.object(live_manager,'load_config',return_value=config), \
              patch.object(live_manager,'_authorized_client',return_value=principal), \
-             patch.object(live_manager,'chat_snapshot',return_value=snapshot):
+             patch.object(live_manager,'chat_snapshot',return_value=snapshot), \
+             patch.object(live_manager,'_chat_listener',return_value=(1,'legacy-'+'1'*32)):
             config.update({'bind_host':'127.0.0.1','listen_port':12345,'cert_file':'dummy','key_file':'dummy',
                            'colibri_root':'dummy','models_root':'dummy','allowed_client_ips':['127.0.0.1']})
             manager=serve(live_manager.make_handler(Path('unused'),config,PairingInbox()))
             opener=build_opener(ProxyHandler({}))
             def manager_open(profile,path,payload=None,**kwargs):
                 return opener.open(Request(f'http://127.0.0.1:{manager.server_address[1]}'+path,
-                    data=json.dumps(payload).encode(),headers={'Content-Type':'application/json'}),timeout=5)
+                    data=None if payload is None else json.dumps(payload).encode(),headers={'Content-Type':'application/json'}),timeout=5)
             with tempfile.TemporaryDirectory() as directory, \
                  patch.object(web,'load_profiles',return_value=[{'manager_id':'m'}]), \
                  patch.object(chat_client,'manager_open',side_effect=manager_open):
@@ -196,7 +201,7 @@ class FullChainTests(unittest.TestCase):
                 local=serve(web.make_handler(Path(directory),lambda:holder['port'],'TEST-CSRF'))
                 holder['port']=local.server_address[1]
                 origin=f'http://127.0.0.1:{holder["port"]}'
-                payload={'manager_id':'m','slot_id':'slot2','model_id':'kat','message':'Hi','request_id':'d'*32}
+                payload={'manager_id':'m','slot_id':'slot2','model_id':'kat','message':'Hi','request_id':'d'*32,'instance_id':'legacy-'+'1'*32}
                 req=Request(origin+'/api/chat/stream',data=json.dumps(payload).encode(),headers={
                     'Content-Type':'application/json','X-Ultra-CSRF':'TEST-CSRF','Origin':origin})
                 started=time.monotonic()
@@ -205,6 +210,15 @@ class FullChainTests(unittest.TestCase):
                     self.assertEqual(json.loads(r.readline())['text'],'первый ')
                     self.assertFalse(gate.is_set())
                     self.assertLess(time.monotonic()-started,1.5)
+                    from urllib.parse import urlencode
+                    params={k:payload[k] for k in ("manager_id","slot_id","model_id","instance_id","request_id")}
+                    with opener.open(origin+"/api/chat/telemetry?"+urlencode(params),timeout=3) as live:
+                        sample=json.load(live)
+                    self.assertEqual(sample["live"]["tokens"],3)
+                    self.assertEqual(sample["live"]["prompt_tokens"],17)
+                    self.assertEqual(sample["sent_chars"],2)
+                    with opener.open(origin+"/api/chat/telemetry?"+urlencode({**params,"request_id":"f"*32}),timeout=3) as live:
+                        self.assertIsNone(json.load(live)["live"])
                     gate.set()
                     rest=[json.loads(line) for line in r]
                 self.assertEqual(rest[-1]['type'],'done')
@@ -215,7 +229,7 @@ class FullChainTests(unittest.TestCase):
                     'Content-Type':'application/json','X-Ultra-CSRF':'TEST-CSRF','Origin':origin})
                 with opener.open(req,timeout=5) as r:
                     r.readline();r.readline()  # meta and first real fragment
-                    cancel={k:v for k,v in payload.items() if k!='message'}
+                    cancel={k:payload[k] for k in ('manager_id','slot_id','model_id','request_id')}
                     cancel_req=Request(origin+'/api/chat/cancel',data=json.dumps(cancel).encode(),headers={
                         'Content-Type':'application/json','X-Ultra-CSRF':'TEST-CSRF','Origin':origin})
                     started=time.monotonic()

@@ -74,6 +74,28 @@
       </form>
     </section>
     <aside class="chat-inspector" aria-label="События и настройки чата">
+      <section id="chat-cuda-panel" class="chat-cuda-panel hidden" aria-label="Настройки CUDA">
+        <h3>Настройки CUDA <small id="cuda-slot-label"></small></h3>
+        <div class="chat-cuda-fields">
+          <label title="Пустое поле — Auto. Число задаёт бюджет весов и экспертов GPU, не общий лимит VRAM. Для 8 ГиБ начните с 3,5.">Бюджет весов, ГиБ <input id="cuda-budget" type="number" min="0.1" max="1024" step="0.1" placeholder="Auto"></label>
+          <label title="Выкл.: состояние на CPU, отдельные операции могут выполняться на GPU. Не гарантирует отсутствие OOM.">CUDA Chain <select id="cuda-chain"><option value="off">Выкл.</option><option value="on">Вкл.</option></select></label>
+          <label title="Строки блока prefill. Пустое поле — Auto. Меньше (256–512) снижает размер временных буферов. Только при включённой Chain.">Блок чтения <input id="cuda-rows" type="number" min="1" max="8192" step="1" placeholder="Auto"></label>
+          <label title="Редактируемый порог общего использования GPU 0, включая Windows. Это предупреждение, не аппаратная квота.">Порог VRAM, ГиБ <input id="cuda-target" type="number" min="0.1" max="1024" step="0.1"></label>
+        </div>
+        <button type="button" id="cuda-save" class="btn secondary small">Сохранить</button>
+        <button type="button" id="cuda-reset" class="btn secondary small">Отмена правок</button>
+        <p id="cuda-save-status" class="cuda-status" role="status"></p>
+        <div class="chat-context-summary-row"><span>GPU 0: занято / всего</span><strong id="cuda-total">—</strong></div>
+        <div class="cuda-meter"><div id="cuda-meter-fill"></div></div>
+        <div class="chat-context-summary-row"><span>VRAM экземпляра</span><strong id="cuda-dedicated">—</strong></div>
+        <div class="chat-context-summary-row"><span>Общая GPU (DDR)</span><strong id="cuda-shared">—</strong></div>
+        <div class="chat-context-summary-row"><span>RAM экземпляра</span><strong id="cuda-ram">—</strong></div>
+        <div id="cuda-telemetry-warning" class="cuda-status" role="status"></div>
+        <details class="cuda-help"><summary>Как настраивать</summary>
+          <p>Для 8 ГиБ начните с бюджета 3,5 ГиБ, Chain выкл. и порога 7 ГиБ. Бюджет весов не включает все буферы и копию KV. При OOM уменьшайте бюджет или блок чтения. Auto может заполнить карту. Порог не прекращает генерацию.</p>
+          <p>Сохранение сразу передаёт настройки Manager. Бюджет, Chain и блок действуют при следующем явном Стоп → Старт этого слота. Порог действует сразу. Manager перезапускать не нужно.</p>
+        </details>
+      </section>
       <section class="chat-events-panel" aria-labelledby="chat-events-title">
         <h3 id="chat-events-title">События чата</h3>
         <div id="chat-events-scroll" class="chat-events-scroll" tabindex="0" aria-label="Текущие события и контекст">
@@ -84,6 +106,14 @@
           </div>
           <div id="chat-context-pending" role="status" class="chat-event-warning hidden"></div>
           <div id="chat-state" class="chat-state" role="status"></div>
+          <div id="chat-live-phase" class="chat-live-phase">Нет активного запроса</div>
+          <div class="chat-live-grid">
+            <div title="Символы показанной истории, текущего вопроса и ответа, без отдельного потока рассуждений."><span>Симв. чата</span><strong id="chat-live-chars">—</strong></div>
+            <div title="Токены входа / выхода текущего или последнего завершённого запроса. Вход — полный prompt, не количество уже обработанных токенов."><span>Ток. вход / выход</span><strong id="chat-live-tokens">—</strong></div>
+            <div title="Моментальная скорость генерации по движку."><span>Тек. ток/с</span><strong id="chat-live-speed">—</strong></div>
+            <div title="Средняя скорость генерации по движку или по замерам завершённого запроса."><span>Ср. ток/с</span><strong id="chat-live-average">—</strong></div>
+          </div>
+          <div class="chat-context-summary-row chat-live-context"><span>Симв. запроса</span><strong id="chat-live-context-chars">—</strong></div>
           <div id="chat-notice" class="notice hidden" role="status"></div>
         </div>
       </section>

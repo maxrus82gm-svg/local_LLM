@@ -244,3 +244,30 @@ dialog{color:#ebf1fc;background:transparent;border:0;max-width:min(650px,calc(10
 .working-slot .slot-memory{font-size:12px;color:#a8b8cc;white-space:nowrap;min-width:145px}
 
 .working-slot .slot-context{font-size:12px;color:#a8b8cc;white-space:nowrap;font-variant-numeric:tabular-nums}
+
+/* Compact CUDA inspector and independent chat telemetry. */
+#chat-view .chat-cuda-panel{min-width:0;min-height:0;flex:0 1 auto;overflow:auto;scrollbar-width:thin;background:#151c27;border:1px solid #2b3544;border-radius:12px;padding:12px;font-size:11px}
+#chat-view .chat-cuda-panel h3{margin:0 0 8px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:3px}
+#chat-view .chat-cuda-panel h3 small{font-weight:400;color:var(--muted);font-size:10px}
+#chat-view .chat-cuda-fields{display:grid;gap:5px}
+#chat-view .chat-cuda-fields label{display:grid;grid-template-columns:minmax(0,1fr) minmax(58px,76px);align-items:center;gap:4px;font-size:11px}
+#chat-view .chat-cuda-fields input,#chat-view .chat-cuda-fields select{font-size:11px;padding:3px 4px}
+#chat-view .chat-cuda-panel .btn{font-size:10px;padding:4px 6px;margin:7px 2px 2px 0}
+#chat-view .cuda-status{font-size:10px;line-height:1.4;color:#e0bf91;margin:4px 0;overflow-wrap:anywhere}
+#chat-view .cuda-meter{height:5px;background:#293341;border-radius:3px;overflow:hidden;margin:4px 0 6px}
+#chat-view #cuda-meter-fill{height:100%;width:0;background:var(--green)}
+#chat-view #cuda-meter-fill.warning{background:#f1c68c}
+#chat-view .cuda-help{margin-top:5px;color:var(--muted);font-size:10px;line-height:1.4}
+#chat-view .cuda-help summary{cursor:pointer}
+#chat-view .chat-live-phase{font-size:10px;line-height:1.5;color:#a9bfd8;margin:3px 0}
+#chat-view .chat-live-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;margin:3px 0 6px}
+#chat-view .chat-live-grid>div{padding:4px 5px;border:1px solid #2b3544;border-radius:5px;min-width:0}
+#chat-view .chat-live-grid span,#chat-view .chat-live-grid strong{display:block;font-size:10px;overflow-wrap:anywhere}
+#chat-view .chat-live-grid span{color:var(--muted)}
+#chat-view .chat-live-grid strong{color:#e2eaf7;font-size:11px;font-variant-numeric:tabular-nums}
+#chat-view .chat-live-context{font-size:10px;padding-bottom:4px}
+#chat-view .message-copy{display:inline-grid;place-items:center;vertical-align:middle;background:transparent;border:1px solid transparent;border-radius:5px;color:#a5b8ce;padding:3px;width:24px;height:24px;margin:3px 0}
+#chat-view .message-copy:hover,#chat-view .message-copy:focus-visible{border-color:#526584;color:#eef3fa}
+#chat-view .message-copy svg{width:15px;height:15px;pointer-events:none}
+#chat-view .message-copy:disabled{opacity:.35;cursor:default}
+@media(max-width:900px){#chat-view .chat-cuda-panel{flex:none}}

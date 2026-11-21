@@ -8,6 +8,7 @@ import json
 import re
 import time
 import uuid
+from cuda_profile import normalize
 
 
 class SlotRegistry:
@@ -27,6 +28,7 @@ class SlotRegistry:
         db.execute("CREATE TABLE IF NOT EXISTS slot_requests (owner TEXT,id TEXT,fingerprint TEXT NOT NULL,response TEXT NOT NULL,PRIMARY KEY(owner,id))")
         db.execute("CREATE TABLE IF NOT EXISTS risk_checks (token TEXT PRIMARY KEY,owner TEXT NOT NULL,slot TEXT NOT NULL,model TEXT NOT NULL,mode TEXT NOT NULL,free_gib REAL NOT NULL,expires REAL NOT NULL,policy TEXT NOT NULL)")
         db.execute("CREATE TABLE IF NOT EXISTS model_checks (model TEXT,mode TEXT,review TEXT NOT NULL,checked REAL NOT NULL,PRIMARY KEY(model,mode))")
+        db.execute("CREATE TABLE IF NOT EXISTS cuda_profiles (slot TEXT NOT NULL,model TEXT NOT NULL,profile TEXT NOT NULL,PRIMARY KEY(slot,model))")
         for slot in self.config["slots"]:
             protected=bool(slot.get("protected",False))
             row=db.execute("SELECT port,protected FROM slots WHERE slot_id=?",(slot["slot_id"],)).fetchone()
@@ -42,6 +44,10 @@ class SlotRegistry:
         return [{"slot_id":r[0],"api_port":r[1],"protected":bool(r[2]),"creator":r[3],
                  "model_key":r[4],"mode":r[5],"revision":r[6]}
                 for r in db.execute("SELECT * FROM slots ORDER BY rowid")]
+
+    def cuda_profile(self,db,slot,model):
+        row = db.execute("SELECT profile FROM cuda_profiles WHERE slot=? AND model=?", (slot,model)).fetchone()
+        return normalize(json.loads(row[0])) if row else None
 
     def principal(self,db,principal):
         created=[r[0] for r in db.execute("SELECT slot_id FROM slots WHERE owner=?",(principal["client_id"],))]
@@ -67,6 +73,20 @@ class SlotRegistry:
             identity=f"slot{number}"
             db.execute("INSERT INTO slots(slot_id,port,protected,owner) VALUES(?,?,0,?)",(identity,port,owner))
             result={"state":"SLOT_CREATED","slot_id":identity,"api_port":port,"creator_grant":True,"revision":0}
+        elif payload["op"]=="cuda_settings":
+            slot=next((s for s in slots if s["slot_id"]==payload["slot_id"]),None)
+            if slot is None or slot["slot_id"] not in principal["allowed_slots"]:raise PermissionError("slot_not_authorized")
+            if slot["protected"]:raise PermissionError("legacy_slot_protected")
+            if slot["mode"]!="cuda" or slot["model_key"]!=payload["model_key"]:raise ValueError("slot_selection_changed")
+            if any(r["slot_id"]==slot["slot_id"] and not r["released"] and r["owner"]!=owner for r in rows):
+                raise PermissionError("instance_not_authorized")
+            if type(payload["expected_revision"]) is not int or payload["expected_revision"]!=slot["revision"]:
+                raise ValueError("slot_selection_changed")
+            profile=normalize(payload["cuda_profile"])
+            db.execute("INSERT OR REPLACE INTO cuda_profiles VALUES(?,?,?)",(slot["slot_id"],slot["model_key"],json.dumps(profile,sort_keys=True)))
+            db.execute("UPDATE slots SET revision=revision+1 WHERE slot_id=?",(slot["slot_id"],))
+            result={"state":"CUDA_SETTINGS_SAVED","slot_id":slot["slot_id"],"model_key":slot["model_key"],
+                    "cuda_profile":profile,"revision":slot["revision"]+1}
         else:
             slot=next((s for s in slots if s["slot_id"]==payload["slot_id"]),None)
             if slot is None or slot["slot_id"] not in principal["allowed_slots"]:raise PermissionError("slot_not_authorized")
@@ -99,7 +119,7 @@ class SlotRegistry:
                 or row[5]<time.time() or assessment["forecast"]["ram_free_gib"]<row[4]-1):
             raise ValueError("risk_confirmation_stale")
         stored=json.loads(row[6]);old=stored["policy"];new=assessment["policy"]
-        if any(old.get(k)!=new.get(k) for k in ("ram_gib","vram_gib","job_limit_gib","ram_warning_gib","context_tokens")):
+        if any(old.get(k)!=new.get(k) for k in ("ram_gib","vram_gib","job_limit_gib","ram_warning_gib","context_tokens","cuda_profile")):
             raise ValueError("risk_confirmation_stale")
         if any(assessment["forecast"][k]>stored["forecast"][k] for k in ("ram_reserved_gib","vram_reserved_gib")):
             raise ValueError("risk_confirmation_stale")

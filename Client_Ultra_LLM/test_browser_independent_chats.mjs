@@ -115,6 +115,21 @@ try {
   assert.equal(await evaluate('byId("chat-context-desired").textContent'),"16384 ток.");
   assert.match(await evaluate('byId("chat-context-pending").textContent'),/Требуется перезапуск LLM/);
   assert.equal(await evaluate('byId("chat-context-kv").textContent'),"Нет данных");
+  assert.equal(await evaluate('document.querySelector(".chat-events-panel").contains(byId("chat-live-tokens"))'),true);
+  assert.equal(await evaluate('byId("chat-cuda-panel").classList.contains("hidden")'),true);
+  assert.equal(await evaluate('byId("chat-live-chars").textContent'),"0");
+  // Clipboard writes are intercepted only in this disposable browser fixture.
+  const copied=await evaluate(`(async()=>{
+    const writes=[];
+    Object.defineProperty(navigator,"clipboard",{configurable:true,value:{writeText:async text=>{writes.push(text)}}});
+    const bubble=messageBubble({role:"assistant",content:"ответ\\n  code",reasoning_content:"размышление"});
+    const buttons=bubble.querySelectorAll(".message-copy");
+    buttons[0].click();buttons[1].click();await Promise.resolve();
+    return {writes,labels:[...buttons].map(b=>b.textContent),icons:[...buttons].map(b=>!!b.querySelector("svg"))};
+  })()`);
+  assert.deepEqual(copied.writes,["размышление","ответ\n  code"]);
+  assert.deepEqual(copied.labels,["",""]);
+  assert.deepEqual(copied.icons,[true,true]);
   assert.equal(await evaluate('byId("chat-context-pending").classList.contains("hidden")'),false);
   assert.equal(await evaluate('Boolean(document.querySelector(".chat-events-panel").contains(byId("chat-state")) && !byId("chat-form").contains(byId("chat-state")) && document.querySelector(".chat-events-panel").contains(byId("chat-notice")))'),true);
   const beforeEventHeight=await evaluate('byId("chat-form").offsetHeight');

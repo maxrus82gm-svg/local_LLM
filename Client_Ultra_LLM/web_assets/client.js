@@ -90,6 +90,7 @@ function controlReason(reason) {
     model_already_managed:"Для модели уже зарезервирован экземпляр",
     no_free_authorized_slot:"Нет свободного разрешённого слота",
     invalid_context_tokens:"Введите положительное целое число до шести цифр",
+    invalid_cuda_profile:"Проверьте числа CUDA: бюджет не больше порога, блок 1–8192 или Auto",
     context_capacity_exceeded:"Контекст превышает заявленную ёмкость модели",
     context_capacity_unknown:"Максимальный контекст модели не подтверждён",
     context_override_unavailable:"Обновите Manager для управления контекстом из Client",
@@ -428,6 +429,7 @@ function makeManager(row) {
 function render(payload) {
   unknownSlots.clear();
   chatSnapshot = payload;
+  statusSampleTime=performance.now();
   const all = Array.isArray(payload.managers) ? payload.managers : [];
   const online = all.filter(x => x.status === "online");
   adminManagers = online.filter(x => x.data && x.data.pairing_admin === true)
@@ -707,6 +709,7 @@ setInterval(() => { if (chatSnapshot?.managers?.some(m =>
 /* CHAT-01: model slots are discovered dynamically from live Manager snapshots.
    They are never predefined as "three" or tied to hard-coded IP addresses. */
 let chatSnapshot = null;
+let statusSampleTime = 0;
 let chatOpen = false;
 let chatItems = [];
 let chatSelected = "";
@@ -894,7 +897,7 @@ function renderChatList(payload) {
           mode:slot.engine_state === "ready" && slot.instance_id ? (manager.data.control?.instances?.find(row => !row.released && row.state === "READY" && row.instance_id === slot.instance_id)?.mode || "") : "",
           streaming:manager.data.chat?.streaming === true, engine_state:slot.engine_state,
           availability:slot.availability, transport:manager.data.chat?.transport_policy,
-          context_tokens:slot.context_tokens
+          context_tokens:slot.context_tokens, live_telemetry:manager.data.chat?.live_telemetry===true
         });
       }
     }
@@ -984,6 +987,7 @@ function renderChatControls() {
   byId("chat-thinking-tip").dataset.tip = target && !target.streaming ? "Этот Manager не сообщает поддержку параметров генерации." : "Включает режим рассуждения у поддерживаемых моделей.";
   byId("chat-effort").disabled = !chat || Boolean(active) || chatMutation || !byId("chat-thinking").checked || Boolean(target && !target.streaming);
   renderContextSize(chat,target,!chat || Boolean(active) || chatMutation || Boolean(chat?.legacy));
+  renderCudaPanel(chat,target);
   const status = byId("chat-state");
   if (active) status.textContent = active.cancelling ? "Отменяем запрос…" : "Модель отвечает";
   else if (!chat) status.textContent = "";
@@ -1044,6 +1048,127 @@ function renderChatContextSummary(chat,target,pending) {
     "Требуется перезапуск LLM: Стоп → Старт назначенного слота, затем выберите новый экземпляр в этом чате. Manager перезапускать не нужно.") : "";
   if(warning.textContent!==message) warning.textContent=message;
   warning.classList.toggle("hidden",!message);
+}
+/* Settings belong to the Manager's slot/model, not a browser chat draft. */
+let cudaFormKey="", cudaRevision=null, cudaDirty=false, cudaSaving=false, cudaStatusText="";
+let cudaSample=null, cudaPollBusy=false;
+const cudaInputIds=["cuda-budget","cuda-chain","cuda-rows","cuda-target"];
+function cudaBinding(chat,target) {
+  if (!chat?.manager_id || chat.legacy || selectedManagerId(chat)!==chat.manager_id ||
+      slotChatOwner(chat)?.chat_id!==chat.chat_id) return null;
+  const manager=chatSnapshot?.managers?.find(m=>m.manager_id===chat.manager_id&&m.status==="online");
+  const control=manager?.data?.control;
+  if (control?.cuda_profiles!==true) return null;
+  const slot=control.slots?.find(s=>s.slot_id===chat.slot_id&&s.authorized&&!s.protected&&s.mode==="cuda");
+  const instance=control.instances?.find(i=>i.slot_id===chat.slot_id&&i.model_id===chat.model_id&&i.mode==="cuda");
+  if(!slot || !instance || instance.model_key!==slot.model_key) return null;
+  return {manager,control,slot,instance,key:JSON.stringify([chat.manager_id,slot.slot_id,slot.model_key])};
+}
+function put(id,value) {
+  const el=byId(id),text=String(value);
+  if(el.textContent!==text)el.textContent=text;
+}
+function gib(x) {return Number.isFinite(x) ? x.toFixed(2)+" ГиБ" : "—";}
+function cudaProfileFromForm() {
+  const budget=byId("cuda-budget").value,rows=byId("cuda-rows").value;
+  return {budget_gib:budget===""?null:Number(budget),chain:byId("cuda-chain").value==="on",
+          rows:rows===""?null:Number(rows),target_gib:Number(byId("cuda-target").value)};
+}
+function setCudaInputs(profile) {
+  byId("cuda-budget").value=profile.budget_gib ?? "";
+  byId("cuda-chain").value=profile.chain?"on":"off";
+  byId("cuda-rows").value=profile.rows ?? "";
+  byId("cuda-target").value=profile.target_gib;
+}
+function sameLaunchProfile(a,b) {
+  return Boolean(a&&b&&a.budget_gib===b.budget_gib&&a.chain===b.chain&&a.rows===b.rows);
+}
+function renderCudaPanel(chat,target) {
+  const binding=cudaBinding(chat,target), panel=byId("chat-cuda-panel");
+  panel.classList.toggle("hidden",!binding);
+  if(!binding){cudaFormKey="";cudaDirty=false;cudaSample=null;return;}
+  const {control,slot,instance,key}=binding;
+  if(cudaFormKey!==key){cudaFormKey=key;cudaDirty=false;cudaStatusText="";cudaSample=null;}
+  if(!cudaDirty&&!cudaSaving) {
+    setCudaInputs(slot.cuda_profile || control.cuda_defaults);
+    cudaRevision=slot.revision;
+  }
+  const mayEdit=control.control_models===true && (instance.released||instance.can_stop);
+  for(const id of cudaInputIds)byId(id).disabled=!mayEdit||cudaSaving;
+  byId("cuda-rows").disabled=!mayEdit||cudaSaving||byId("cuda-chain").value==="off";
+  byId("cuda-save").disabled=!mayEdit||cudaSaving;
+  byId("cuda-reset").disabled=!cudaDirty||cudaSaving;
+  put("cuda-slot-label",slot.slot_id);
+  const applied=instance.cuda_profile;
+  let message=slot.cuda_profile ? (!instance.released&&!sameLaunchProfile(slot.cuda_profile,applied) ?
+    "Сохранено: для бюджета/Chain/блока нужен Стоп → Старт LLM." :
+    (instance.released?"Сохранено для следующего запуска.":"Профиль запуска применён.")) :
+    "Предложенный профиль. Действующий запуск без переопределения. Нажмите Сохранить.";
+  if(applied&&!instance.released)message+=" Сейчас: "+(applied.budget_gib??"Auto")+" ГиБ · Chain "+(applied.chain?"вкл.":"выкл.") +
+    (applied.chain?" · блок "+(applied.rows??"Auto"):"")+".";
+  if(cudaDirty)message="Есть несохранённые изменения. "+message;
+  put("cuda-save-status",cudaStatusText||message);
+  const sample=cudaSample?.identity===instance.instance_id&&performance.now()-cudaSample.at<8000?cudaSample.data:null;
+  const snapshotAge=performance.now()-statusSampleTime;
+  const gpu=sample?sample.gpu:snapshotAge<20000?control.gpu:null;
+  const mem=instance.released?null:sample?sample.memory:snapshotAge<20000?instance.memory:null;
+  const total=Number.isFinite(gpu?.total_gib)&&gpu.total_gib>0?gpu.total_gib:null;
+  const used=Number.isFinite(gpu?.used_gib)?gpu.used_gib:null;
+  put("cuda-total",used!=null&&total!=null?used.toFixed(2)+" / "+gib(total):"Нет данных");
+  put("cuda-dedicated",gib(mem?.vram_gib));
+  put("cuda-shared",gib(mem?.vram_shared_gib));
+  put("cuda-ram",gib(mem?.ram_gib));
+  const threshold=slot.cuda_profile?.target_gib??control.cuda_defaults?.target_gib;
+  const over=used!=null&&Number.isFinite(threshold)&&used>=threshold;
+  byId("cuda-meter-fill").style.width=total&&used!=null?Math.max(0,Math.min(100,used/total*100))+"%":"0%";
+  byId("cuda-meter-fill").classList.toggle("warning",over);
+  put("cuda-telemetry-warning",over?"Внимание: GPU достиг порога "+gib(threshold)+". Модель не остановлена автоматически.":
+    used==null?"Измерение GPU сейчас недоступно.":
+    total!=null&&threshold>total?"Порог выше физической VRAM.":"Последний замер GPU 0; порог — "+gib(threshold)+".");
+}
+for(const id of cudaInputIds)byId(id).addEventListener("input",()=>{
+  cudaDirty=true;cudaStatusText="";renderCudaPanel(currentChat(),liveTarget(currentChat()));
+});
+byId("cuda-reset").addEventListener("click",()=>{
+  cudaDirty=false;cudaStatusText="";renderCudaPanel(currentChat(),liveTarget(currentChat()));
+});
+byId("cuda-save").addEventListener("click",async()=>{
+  const binding=cudaBinding(currentChat(),liveTarget(currentChat()));
+  if(!binding||cudaSaving)return;
+  const {manager,slot,key}=binding, profile=cudaProfileFromForm();
+  if(cudaInputIds.some(id=>byId(id).validity.badInput)||
+     !Number.isFinite(profile.target_gib)||profile.target_gib<=0||profile.target_gib>1024||
+     (profile.budget_gib!==null&&(!Number.isFinite(profile.budget_gib)||profile.budget_gib<=0||profile.budget_gib>profile.target_gib))||
+     (profile.rows!==null&&(!Number.isInteger(profile.rows)||profile.rows<1||profile.rows>8192))) {
+    cudaStatusText=controlReason("invalid_cuda_profile");renderCudaPanel(currentChat(),liveTarget(currentChat()));return;
+  }
+  cudaSaving=true;cudaStatusText="Сохраняем на Manager…";renderCudaPanel(currentChat(),liveTarget(currentChat()));
+  try{
+    const saved=await pairingPost("/api/control",{manager_id:manager.manager_id,op:"cuda_settings",slot_id:slot.slot_id,
+      model_key:slot.model_key,expected_revision:cudaRevision,cuda_profile:profile,request_id:crypto.randomUUID().replaceAll("-","")});
+    if(saved.state!=="CUDA_SETTINGS_SAVED"||saved.slot_id!==slot.slot_id||saved.model_key!==slot.model_key)throw Error("invalid_control_response");
+    if(cudaFormKey===key){cudaDirty=false;cudaStatusText="";}
+    slot.cuda_profile=saved.cuda_profile;slot.revision=saved.revision;
+    await refresh(true);
+  }catch(error){if(cudaFormKey===key)cudaStatusText="Ошибка: "+controlReason(error.message);}
+  finally{cudaSaving=false;renderCudaPanel(currentChat(),liveTarget(currentChat()));}
+});
+async function pollCuda() {
+  if(!chatOpen||cudaPollBusy)return;
+  const b=cudaBinding(currentChat(),liveTarget(currentChat()));
+  if(!b||b.instance.released)return;
+  cudaPollBusy=true;
+  try{
+    const values={manager_id:b.manager.manager_id,slot_id:b.slot.slot_id,instance_id:b.instance.instance_id};
+    const data=await api("/api/control/cuda_status?"+new URLSearchParams(values),{signal:AbortSignal.timeout(6500)});
+    if(cudaFormKey===b.key&&data.instance_id===b.instance.instance_id)
+      cudaSample={identity:data.instance_id,data,at:performance.now()};
+  }catch{
+    if(cudaFormKey===b.key)cudaSample={identity:b.instance.instance_id,data:{gpu:null,memory:null},at:performance.now()};
+  }finally{
+    cudaPollBusy=false;
+    if(chatOpen)renderCudaPanel(currentChat(),liveTarget(currentChat()));
+  }
 }
 function applyChatPreferences(chat) {
   byId("chat-stream").checked = chat?.preferences?.stream ?? true;
@@ -1146,11 +1271,49 @@ async function syncChatBindings() {
 }
 if (chatBindingChannel) chatBindingChannel.onmessage = () => syncChatBindings();
 window.addEventListener("focus", syncChatBindings);
+const COPY_ICON='<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h1"/></svg>';
+const COPIED_ICON='<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg>';
+function copyButton(source,kind) {
+  const btn=node("button","message-copy");
+  btn.type="button";
+  btn.dataset.copyKind=kind;
+  btn.title="Копировать";
+  btn.setAttribute("aria-label",kind==="reasoning"?"Копировать рассуждение":"Копировать сообщение");
+  btn.innerHTML=COPY_ICON;
+  btn.disabled=!source.textContent;
+  let timer;
+  btn.addEventListener("click",async event=>{
+    event.stopPropagation();
+    const value=source.textContent;
+    if(!value)return;
+    try {
+      await navigator.clipboard.writeText(value);
+      btn.title="Скопировано";
+      btn.innerHTML=COPIED_ICON;
+    } catch {
+      btn.title="Не удалось скопировать. Выделите текст вручную.";
+      btn.setAttribute("aria-label",btn.title);
+    }
+    clearTimeout(timer);
+    timer=setTimeout(()=>{
+      btn.title="Копировать";btn.innerHTML=COPY_ICON;
+      btn.setAttribute("aria-label",kind==="reasoning"?"Копировать рассуждение":"Копировать сообщение");
+    },1600);
+  });
+  return btn;
+}
+function updateCopyButtons(bubble) {
+  for(const btn of bubble.querySelectorAll(".message-copy")){
+    const text=bubble.querySelector(btn.dataset.copyKind==="reasoning"?".reasoning-text":".chat-text");
+    btn.disabled=!text?.textContent;
+  }
+}
 function reasoningPanel(text, open) {
   const detail = node("details", "reasoning-panel");
   detail.open = open;
   detail.classList.toggle("hidden", !byId("chat-show-reasoning").checked);
-  detail.append(node("summary", "", "Рассуждения"), node("div", "reasoning-text", text || ""));
+  const content=node("div","reasoning-text",text||"");
+  detail.append(node("summary", "", "Рассуждения"),content,copyButton(content,"reasoning"));
   detail.addEventListener("toggle", followBottom);
   return detail;
 }
@@ -1182,7 +1345,8 @@ function messageBubble(message, live = false) {
     if (!message.reasoning_content) reasoning.classList.add("hidden");
     bubble.append(label, reasoning);
   } else bubble.append(label);
-  bubble.append(node("div", "chat-text", message.content || ""));
+  const content=node("div","chat-text",message.content||"");
+  bubble.append(content,copyButton(content,"answer"));
   if (!live) bubble.append(messageFooter(message));
   return bubble;
 }
@@ -1312,6 +1476,52 @@ function requestMetricsLabel(metrics) {
     " · Токены вход / выход " + (usage.prompt_tokens ?? "нет данных") + " / " + (usage.completion_tokens ?? "нет данных") +
     (Number.isFinite(rate) ? " · Маршрут Colibri " + rate.toFixed(2) + " токенов/с с подготовкой prompt" : "");
 }
+let livePollBusy=false;
+function codepoints(text) {let n=0;for(const _ of text||"")n++;return n;}
+function chatNumber(n) {return Number.isFinite(n)?n.toLocaleString("ru-RU"):"—";}
+function liveRate(n) {return Number.isFinite(n)?n.toFixed(2):"—";}
+function renderChatTelemetry() {
+  const view=chatSelected?conversation(chatSelected):null;
+  const request=view?.request;
+  if(view&&view.countedMessages!==view.messages) {
+    view.countedMessages=view.messages;
+    view.historyChars=view.messages.reduce((n,m)=>n+codepoints(m.content),0);
+    view.lastMessageMetrics=view.messages.slice().reverse().find(m=>m.role==="assistant"&&m.metrics)?.metrics;
+  }
+  const chars=view?(view.historyChars||0)+(request&&!request.completed?(request.userChars||0)+(request.answerChars||0):0):null;
+  const saved=view?.metrics?.saved;
+  const completed=saved?.state==="complete"||saved?.usage&&!saved?.error ? saved:view?.lastMessageMetrics;
+  const sample=request?.telemetry&&performance.now()-request.telemetry.at<6500?request.telemetry.data:null;
+  const live=sample?.live;
+  const writing=live?.state==="writing";
+  let phase=request?(request.cancelling?"Отмена…":live?.state==="reading"?"Чтение контекста":
+      writing?"Генерация":"Ожидание данных модели"):completed?"Последний завершённый запрос":"Нет активного запроса";
+  if(request&&Number.isFinite(live?.elapsed_s))phase+=" · "+live.elapsed_s.toFixed(1)+" с";
+  put("chat-live-phase",phase);
+  put("chat-live-chars",chatNumber(chars));
+  const input=request?live?.prompt_tokens:completed?.usage?.prompt_tokens;
+  const output=request?live?.tokens:completed?.usage?.completion_tokens;
+  put("chat-live-tokens",chatNumber(input)+" / "+chatNumber(output));
+  put("chat-live-speed",writing?liveRate(live.tok_s_now):"—");
+  const avg=!request&&Number.isFinite(completed?.usage?.completion_tokens)&&completed?.generation_ms>0?
+    completed.usage.completion_tokens/(completed.generation_ms/1000):null;
+  put("chat-live-average",request?(writing?liveRate(live.tok_s):"—"):liveRate(avg));
+  put("chat-live-context-chars",chatNumber(request?(sample?.sent_chars??view.metrics?.context?.sent_chars):
+    completed?.context?.sent_chars));
+}
+async function pollChatTelemetry() {
+  if(!chatOpen||livePollBusy||!chatSelected)return;
+  const view=conversation(chatSelected),request=view.request;
+  if(!request?.controller||request.cancelling||!request.target.live_telemetry||!request.target.instance_id)return;
+  livePollBusy=true;
+  try{
+    const data=await api("/api/chat/telemetry?"+new URLSearchParams({...targetFields(request.target),
+      instance_id:request.target.instance_id,request_id:request.id}),{signal:AbortSignal.timeout(6500)});
+    if(view.request===request&&data.request_id===request.id&&data.instance_id===request.target.instance_id)
+      request.telemetry={data,at:performance.now()};
+  }catch{if(view.request===request)request.telemetry=null;}
+  finally{livePollBusy=false;if(chatOpen)renderChatTelemetry();}
+}
 function renderTimer() {
   const view = chatSelected && conversation(chatSelected);
   const active = view?.request;
@@ -1333,6 +1543,7 @@ function renderTimer() {
       });
   }
   byId("chat-timer").textContent = label;
+  renderChatTelemetry();
 }
 let stats = [];
 async function loadStatistics(id) {
@@ -1431,7 +1642,11 @@ function renderFragment(view, request, event) {
     const detail = request.assistant.querySelector(".reasoning-panel");
     detail.querySelector(".reasoning-text").textContent += event.text;
     detail.classList.toggle("hidden", !byId("chat-show-reasoning").checked);
-  } else request.assistant.querySelector(".chat-text").textContent += event.text;
+  } else {
+    request.assistant.querySelector(".chat-text").textContent += event.text;
+    request.answerChars=(request.answerChars||0)+codepoints(event.text);
+  }
+  updateCopyButtons(request.assistant);
   if (chatSelected === request.chatId) followBottom();
 }
 async function waitForSlot(target, view, request) {
@@ -1483,7 +1698,7 @@ async function submitChat(event) {
   if (!target.streaming) delete generation.options;
   const parameters = JSON.stringify([targetKey(target), target.instance_id, message, generation, streaming]);
   const requestId = view.retry?.parameters === parameters ? view.retry.id : crypto.randomUUID().replaceAll("-", "");
-  const request = {chatId:id, target, id:requestId, started:performance.now(),
+  const request = {chatId:id, target, id:requestId, started:performance.now(),userChars:codepoints(message),answerChars:0,
     controller:streaming ? new AbortController() : null,
     user:messageBubble({role:"user", content:message, created_at:new Date().toISOString(), pending:true}),
     assistant:messageBubble({role:"assistant"}, true)};
@@ -1504,6 +1719,7 @@ async function submitChat(event) {
   try {
     const body = {...targetFields(target), ...generation, chat_id:id, message, request_id:requestId,
       ...(target.instance_id ? {instance_id:target.instance_id} : {})};
+    if(streaming)void pollChatTelemetry();
     let result = streaming ? await readChatStream(body, request, frame => renderFragment(view, request, frame)) :
       await pairingPost("/api/chat/send", body);
     const total = performance.now()-request.started;
@@ -1514,6 +1730,7 @@ async function submitChat(event) {
     view.messages = result.messages;
     view.draft = "";
     completed = true;
+    request.completed=true;
     view.retry = null;
     if (chatSelected === id) {
       input.value = "";
@@ -1526,6 +1743,7 @@ async function submitChat(event) {
         const detail = request.assistant.querySelector(".reasoning-panel");
         detail.querySelector(".reasoning-text").textContent = assistant.reasoning_content || "";
         detail.classList.toggle("hidden", !assistant.reasoning_content || !byId("chat-show-reasoning").checked);
+        updateCopyButtons(request.assistant);
         followBottom();
       } else renderMessages(view.messages);
     }
@@ -1616,6 +1834,8 @@ byId("chat-statistics").addEventListener("toggle", event => {
 byId("chat-stat-model").addEventListener("change", filterStatistics);
 byId("chat-stat-mode").addEventListener("change", filterStatistics);
 setInterval(() => { if (chatOpen) renderTimer(); }, 150);
+setInterval(pollChatTelemetry,2000);
+setInterval(pollCuda,3000);
 byId("chat-form").addEventListener("submit", submitChat);
 byId("chat-input").addEventListener("input", event => {
   if (chatSelected) conversation(chatSelected).draft = event.target.value;

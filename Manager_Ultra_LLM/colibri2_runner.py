@@ -37,6 +37,7 @@ import time
 import uuid
 
 from launch_contract import initial_instances, InstanceDefinition
+from cuda_profile import launch_values
 from manager_core import SERVER, planned_paths, Slot
 from resource_catalog import initial_catalogue
 from server_preflight import (INSTALLATION_QUERY, PROJECT, probe_api, read_profiles,
@@ -346,6 +347,9 @@ def verified_cli(launcher):
     required = {"--model", "--ram", "--ctx", "--gpu", "--cap", "--ngen",
                 "--no-tune-profile", "--no-think", "--host", "--port",
                 "--model-id", "--kv-slots", "--max-queue", "--queue-timeout"}
+    spec=_SPEC.get()
+    if spec is not None and spec.review.get("launch",{}).get("cuda_profile") is not None:
+        required.add("--vram")
     functions = {node.name for node in tree.body if isinstance(node, ast.FunctionDef)}
     if not required <= flags or not {"serve_pidfile", "serve_stopfile", "_watch_stop_file"} <= functions:
         raise StartDenied("Installed source CLI/stop protocol differs; no guessed flags")
@@ -498,7 +502,7 @@ def command_and_environment(plan):
     )
     if _SPEC.get() is not None:
         launch=_SPEC.get().review.get("launch",{})
-        if type(launch) is not dict or set(launch)-{"cache_ram_gib","context_tokens","max_output_tokens","threads","thinking","load_timeout_seconds"}:
+        if type(launch) is not dict or set(launch)-{"cache_ram_gib","context_tokens","max_output_tokens","threads","thinking","load_timeout_seconds","cuda_profile"}:
             raise StartDenied("invalid_launch_policy")
         for flag in ("--ram","--ctx","--ngen"):
             index=command.index(flag);del command[index:index+2]
@@ -511,6 +515,12 @@ def command_and_environment(plan):
             if value is not None:
                 if type(value) is not int or not 1<=value<=2147483647:raise StartDenied("invalid_launch_policy")
                 command.extend([flag,str(value)])
+        if launch.get("cuda_profile") is not None:
+            if setting("backend")!="cuda":raise StartDenied("invalid_cuda_profile")
+            try:cuda_args,cuda_env=launch_values(launch["cuda_profile"])
+            except ValueError:raise StartDenied("invalid_cuda_profile") from None
+            command.extend(cuda_args)
+            env.update(cuda_env)
         if launch.get("thinking") is not None:
             if type(launch["thinking"]) is not bool:raise StartDenied("invalid_launch_policy")
             env["COLI_THINK"]="1" if launch["thinking"] else "0"

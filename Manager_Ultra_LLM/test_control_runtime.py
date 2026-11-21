@@ -72,6 +72,60 @@ class AdmissionTests(unittest.TestCase):
                 self.operation("check",model_key="kat",mode="cpu",context_tokens=bad)
         self.assertEqual(len(self.pending),1)
 
+    def test_cuda_profile_saved_per_slot_and_forwarded_only_at_explicit_start(self):
+        from cuda_profile import DEFAULT_PROFILE
+        self.config["control"]["resources"]={"allow_risk_ack":True}
+        selection=self.operation("select",slot_id="slot2",model_key="kat",mode="cuda")
+        saved=self.operation("cuda_settings",slot_id="slot2",model_key="kat",
+            expected_revision=selection["revision"],cuda_profile=DEFAULT_PROFILE)
+        self.assertFalse(self.pending)
+        # Persistence and risk binding survive a Manager restart.
+        self.core=self.make()
+        check=self.operation("check",slot_id="slot2",model_key="kat",mode="cuda",context_tokens=32768)
+        self.assertEqual(check["forecast"]["cuda_profile"],DEFAULT_PROFILE)
+        self.assertIsNone(check["forecast"]["vram_estimate_gib"])
+        started=self.start(mode="cuda",slot_id="slot2",context_tokens=32768,
+                           risk_ack=True,risk_token=check["risk_token"])
+        with self.core.db() as db:
+            spec=RunnerSpec(**json.loads(self.core._rows(db)[0]["spec"]))
+        with configured(spec):
+            command,env=command_and_environment({"paths":paths(),"launcher":"launcher","model":"model"})
+        self.assertEqual(command[command.index("--vram")+1],"3.5")
+        self.assertEqual(env["COLI_CUDA_CHAIN"],"0")
+        self.assertNotIn("COLI_CUDA_CHAIN_ROWS",env)
+        self.assertEqual(started["cuda_profile"],DEFAULT_PROFILE)
+        self.settle()
+        state=self.core.catalog(self.alice)
+        slot=next(x for x in state["slots"] if x["slot_id"]=="slot2")
+        changed={**DEFAULT_PROFILE,"chain":True,"rows":256,"target_gib":7.5}
+        self.operation("cuda_settings",slot_id="slot2",model_key="kat",expected_revision=slot["revision"],cuda_profile=changed)
+        self.assertFalse(self.pending)
+        active=next(x for x in self.core.catalog(self.alice)["instances"] if x["instance_id"]==started["instance_id"])
+        self.assertEqual(active["cuda_profile"],DEFAULT_PROFILE)
+        with self.assertRaisesRegex(ControlError,"slot_selection_changed"):
+            self.operation("cuda_settings",slot_id="slot2",model_key="kat",expected_revision=slot["revision"],cuda_profile=changed)
+        with self.assertRaisesRegex(ControlError,"invalid_cuda_profile"):
+            self.operation("cuda_settings",slot_id="slot2",model_key="kat",expected_revision=slot["revision"]+1,
+                           cuda_profile={**changed,"budget_gib":8})
+        with configured(RunnerSpec("slot3",8002,"kat","cuda",review={"launch":{"cuda_profile":changed}})):
+            cmd,env=command_and_environment({"paths":paths(),"launcher":"launcher","model":"model"})
+        self.assertEqual(env["COLI_CUDA_CHAIN_ROWS"],"256")
+        with configured(RunnerSpec("slot3",8002,"kat","cpu")):
+            cmd,env=command_and_environment({"paths":paths(),"launcher":"launcher","model":"model"})
+        self.assertNotIn("--vram",cmd)
+        self.assertNotIn("COLI_CUDA_CHAIN",env)
+
+    def test_cuda_profile_rejects_foreign_slot_and_arbitrary_env(self):
+        from cuda_profile import DEFAULT_PROFILE
+        payload={"op":"cuda_settings","slot_id":"slot2","model_key":"kat","expected_revision":0,
+                 "cuda_profile":DEFAULT_PROFILE,"request_id":uuid.uuid4().hex}
+        with self.assertRaisesRegex(ControlError,"slot_not_authorized"):
+            self.core.handle({**self.alice,"allowed_slots":["slot3"]},payload)
+        with self.assertRaisesRegex(ControlError,"invalid_cuda_profile"):
+            self.core.handle(self.alice,{**payload,"cuda_profile":{**DEFAULT_PROFILE,"PATH":"evil"}})
+        with self.assertRaisesRegex(ControlError,"control_models_required"):
+            self.core.handle({**self.alice,"control_models":False},payload)
+
     def test_context_capacity_uses_model_metadata_not_fixed_defaults(self):
         from colibri2_runner import validate_context_capacity
         meta=self.folder/"config.json"

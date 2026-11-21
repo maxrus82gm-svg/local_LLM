@@ -34,7 +34,7 @@ import webbrowser
 
 from live_client import fetch_all, load_profiles
 from pairing_client import _require_private_acl, _run_windows_powershell, enroll
-from chat_client import ChatClientError, send_chat, stream_chat, control_request, cancel_chat
+from chat_client import ChatClientError, send_chat, stream_chat, control_request, cancel_chat, live_query
 from chat_store import (validate_key, validate_chat_id, history as load_chat_history, legacy_chat_id, wire_bytes,
                         context_for, request_context, append_exchange, claim_request, fail_request,
                         utc_now, get_chat, list_chats, manage_chat, recent_metrics,
@@ -181,6 +181,7 @@ def enroll_profile(folder: Path, payload: dict) -> dict:
 CHAT_LOCKS = set()
 CHAT_LOCKS_GUARD = threading.RLock()
 ACTIVE_STREAMS = {}
+ACTIVE_CONTEXT = {}
 
 
 def selected_profile(folder, manager_id):
@@ -435,8 +436,11 @@ def _run_chat_stream(folder, payload, key, identity, history_id, context_policy,
         claimed = True
         with CHAT_LOCKS_GUARD:
             ACTIVE_STREAMS[active_key] = cancelled
+            ACTIVE_CONTEXT[active_key] = {"instance_id":identity,"sent_chars":None}
         messages, context_info = prepare_chat_messages(folder, key, history_id, chat_id, context_policy, message)
         metrics["context"] = context_info
+        with CHAT_LOCKS_GUARD:
+            ACTIVE_CONTEXT[active_key]["sent_chars"]=context_info["sent_chars"]
         client_prepare_ms = elapsed_ms(started)
         phases["client_history_load_ms"] = context_info["preparation_ms"]
         upstream = stream_chat(profile, key[1], key[2], messages, request_id=request_id,
@@ -477,6 +481,7 @@ def _run_chat_stream(folder, payload, key, identity, history_id, context_policy,
                     updated = append_exchange(folder, *key, message, reply, request_id=request_id,
                         instance_id=history_id, reasoning=reasoning, chat_id=chat_id, metrics=metrics)
                     ACTIVE_STREAMS.pop(active_key, None)
+                    ACTIVE_CONTEXT.pop(active_key, None)
                 event["metrics"] = metrics
                 event["timing"]["client_persist_ms"] = round((time.perf_counter()-persist_started)*1000,3)
                 event["timing"]["client_local_total_ms"] = round((time.perf_counter()-started)*1000,3)
@@ -503,6 +508,7 @@ def _run_chat_stream(folder, payload, key, identity, history_id, context_policy,
         finally:
             with CHAT_LOCKS_GUARD:
                 ACTIVE_STREAMS.pop(active_key, None)
+                ACTIVE_CONTEXT.pop(active_key, None)
 
 
 def stream_history_event(event, messages):
@@ -674,6 +680,46 @@ def make_handler(folder: Path, port_getter, csrf: str):
                         "configured": True, "managers": results})
                 except (OSError, ValueError, KeyError):
                     return self._send_json(503, {"error": "manager_config_unavailable"})
+            if path.startswith(("/api/chat/telemetry?","/api/control/cuda_status?")):
+                from urllib.parse import parse_qs
+                try:
+                    if len(path)>1024:raise ValueError()
+                    q=parse_qs(urlsplit(path).query,strict_parsing=True)
+                    chat=path.startswith("/api/chat/")
+                    fields={"manager_id","slot_id","instance_id"} | ({"model_id","request_id"} if chat else set())
+                    if set(q)!=fields or any(len(v)!=1 for v in q.values()):raise ValueError()
+                    values={k:v[0] for k,v in q.items()}
+                    identity=values["instance_id"]
+                    if (not IDENTIFIER.fullmatch(values["manager_id"]) or not IDENTIFIER.fullmatch(values["slot_id"]) or
+                            not re.fullmatch(r"(?:legacy-)?[a-f0-9]{32}",identity)):
+                        raise ValueError()
+                    profile=selected_profile(folder,values["manager_id"])
+                    if not chat:
+                        result=live_query(profile,"cuda",{k:values[k] for k in ("slot_id","instance_id")})
+                        return self._send_json(200,result)
+                    key=validate_key(values["manager_id"],values["slot_id"],values["model_id"])
+                    request_id=values["request_id"]
+                    validate_chat_id(request_id)
+                    active_key=(*key,request_id)
+                    empty={"live":None,"sent_chars":None,"request_id":request_id,"instance_id":identity}
+                    with CHAT_LOCKS_GUARD:
+                        flag=ACTIVE_STREAMS.get(active_key)
+                        context=ACTIVE_CONTEXT.get(active_key)
+                        if flag is None or flag.is_set() or not context or context["instance_id"]!=identity:
+                            return self._send_json(200,empty)
+                        sent_chars=context["sent_chars"]
+                    try:
+                        result=live_query(profile,"chat",{k:values[k] for k in ("slot_id","instance_id","request_id")})
+                    except ChatClientError:
+                        result={"live":None}
+                    with CHAT_LOCKS_GUARD:
+                        if ACTIVE_STREAMS.get(active_key) is not flag or flag.is_set():
+                            return self._send_json(200,empty)
+                    return self._send_json(200,{**empty,"sent_chars":sent_chars,"live":result.get("live")})
+                except ChatClientError as error:
+                    return self._send_json(error.status,{"error":error.reason})
+                except (ValueError,OSError,KeyError):
+                    return self._send_json(400,{"error":"invalid_query"})
             if path.startswith("/api/control/catalog?"):
                 from urllib.parse import parse_qs
                 try:

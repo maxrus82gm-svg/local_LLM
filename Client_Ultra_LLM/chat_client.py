@@ -64,6 +64,23 @@ def manager_open(profile, path, payload=None, *, timeout=15, timing=None):
         raise ChatClientError("manager_connection_failed", 503) from None
 
 
+def live_query(profile, route, fields):
+    from urllib.parse import urlencode
+    routes={"chat":"/v1/chat/telemetry","cuda":"/v1/control/cuda_status"}
+    if route not in routes:raise ValueError("invalid_telemetry_route")
+    with manager_open(profile,routes[route]+"?"+urlencode(fields),timeout=4) as r:
+        raw=r.read(16385)
+    try:
+        if len(raw)>16384:raise ValueError()
+        data=json.loads(raw)
+        if (data.get("manager_id")!=profile["manager_id"] or
+                any(data.get(k)!=v for k,v in fields.items())):
+            raise ValueError()
+        return data
+    except (ValueError,AttributeError,TypeError):
+        raise ChatClientError("invalid_telemetry_response") from None
+
+
 def control_request(profile, payload=None):
     path = "/v1/control/catalog" if payload is None else "/v1/control"
     with manager_open(profile, path, payload) as r:

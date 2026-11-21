@@ -24,6 +24,8 @@ import ssl
 import subprocess
 import threading
 import time
+import math
+from urllib.parse import urlsplit, parse_qs
 import urllib.error
 import urllib.request
 
@@ -78,6 +80,29 @@ _POWERSHELL = r"powershell.exe"
 _API_TIMEOUT = 2
 _OS_TIMEOUT = 8
 _MAX_REQUESTS = threading.BoundedSemaphore(4)
+
+
+def live_request_sample(health):
+    """Only one active engine request, no text or untrusted arbitrary fields."""
+    if not isinstance(health,dict) or health.get("status")!="ok":
+        return None
+    scheduler=health.get("scheduler")
+    items=health.get("live")
+    if (not isinstance(scheduler,dict) or scheduler.get("active")!=1 or
+            scheduler.get("queued")!=0 or not isinstance(items,list) or len(items)!=1):
+        return None
+    row=items[0]
+    if not isinstance(row,dict) or row.get("state") not in ("reading","writing"):
+        return None
+    result={"state":row["state"]}
+    for key in ("prompt_tokens","tokens","elapsed_s","read_s","tok_s","tok_s_now"):
+        value=row.get(key)
+        if type(value) not in (int,float) or not 0<=value<=1e12 or not math.isfinite(value):
+            continue
+        if key in ("prompt_tokens","tokens") and type(value) is not int:
+            continue
+        result[key]=value
+    return result
 
 
 def _utc_now():
@@ -472,6 +497,62 @@ def make_handler(config_file, config, inbox, *, controller=None):
             current = self._current()
             if current is None:
                 return
+            if self.path.startswith("/v1/control/cuda_status?"):
+                principal=_authorized_client(current,self.headers.get("Authorization",""))
+                if principal is None:return self._reply(401,{"error":"unauthorized"})
+                try:
+                    q=parse_qs(urlsplit(self.path).query,strict_parsing=True)
+                    if len(self.path)>256 or set(q)!={"slot_id","instance_id"} or any(len(v)!=1 for v in q.values()):
+                        raise ValueError()
+                    slot_id,identity=q["slot_id"][0],q["instance_id"][0]
+                    if not _ID.fullmatch(slot_id) or not re.fullmatch(r"[a-f0-9]{32}",identity):
+                        raise ValueError()
+                    return self._reply(200,controller.cuda_status(principal,slot_id,identity))
+                except ValueError:
+                    return self._reply(400,{"error":"invalid_query"})
+                except ControlError as error:
+                    return self._reply(error.status,{"error":error.reason})
+                except Exception:
+                    return self._reply(503,{"error":"control_unavailable"})
+            if self.path.startswith("/v1/chat/telemetry?"):
+                principal=_authorized_client(current,self.headers.get("Authorization",""))
+                if principal is None:return self._reply(401,{"error":"unauthorized"})
+                try:
+                    q=parse_qs(urlsplit(self.path).query,strict_parsing=True)
+                    if len(self.path)>512 or set(q)!={"slot_id","instance_id","request_id"} or any(len(v)!=1 for v in q.values()):
+                        raise ValueError()
+                    slot_id,identity,request_id=(q[k][0] for k in ("slot_id","instance_id","request_id"))
+                    if not re.fullmatch(r"[a-f0-9]{32}",request_id) or not re.fullmatch(r"(?:legacy-)?[a-f0-9]{32}",identity):
+                        raise ValueError()
+                except ValueError:
+                    return self._reply(400,{"error":"invalid_query"})
+                if slot_id not in principal["allowed_slots"]:
+                    return self._reply(403,{"error":"stream_not_authorized"})
+                key=(principal["client_id"],request_id)
+                empty={"manager_id":current["manager_id"],"slot_id":slot_id,"instance_id":identity,"request_id":request_id,"live":None}
+                with streams_guard:item=active_streams.get(key)
+                if item is None or item[0]!=slot_id or item[2]!=identity or item[1].is_set():
+                    return self._reply(200,empty)
+                if not _MAX_REQUESTS.acquire(blocking=False):return self._reply(200,empty)
+                try:
+                    slot=next(s for s in current["slots"] if s["slot_id"]==slot_id)
+                    port=slot["api_port"]
+                    if _chat_listener(port)!=item[3]:
+                        return self._reply(200,empty)
+                    health=_local_api_json(port,"/health")
+                    sample=live_request_sample(health)
+                    if _chat_listener(port)!=item[3]:sample=None
+                    # Recheck managed instance identity and request ownership,
+                    # including cancellation/release during the health read.
+                    owned=controller.chat_binding(slot_id)
+                    if (owned or item[3][1])!=identity:sample=None
+                    with streams_guard:
+                        if active_streams.get(key) is not item or item[1].is_set():sample=None
+                    return self._reply(200,{**empty,"live":sample})
+                except Exception:
+                    return self._reply(200,empty)
+                finally:
+                    _MAX_REQUESTS.release()
             if self.path == "/v1/snapshot":
                 client = _authorized_client(current, self.headers.get("Authorization", ""))
                 if client is None:
@@ -490,7 +571,7 @@ def make_handler(config_file, config, inbox, *, controller=None):
                                 row["instance_id"] = _chat_listener(row["api_port"])[1]
                             except Exception:
                                 row["instance_id"] = None
-                    data["chat"] = {"streaming":True, "reasoning_events":True,
+                    data["chat"] = {"streaming":True, "reasoning_events":True, "live_telemetry":True,
                                     "transport_policy":chat_policy(current)}
                     self._reply(200, data)
                 except Exception as error:
@@ -619,7 +700,8 @@ def make_handler(config_file, config, inbox, *, controller=None):
                             with streams_guard:
                                 if stream_key in active_streams:
                                     raise ChatError("stream_in_progress", 409)
-                                active_streams[stream_key] = (slot_id, cancelled)
+                                active_streams[stream_key] = (slot_id, cancelled, identity,
+                                    (snapshot["slots"][0].get("pid"),snapshot["slots"][0]["instance_id"]))
                             try:
                                 return self._stream_chat(port, model_id, messages, current, slot_id, cancelled,
                                     instance_id=identity, options=body.get("options"), policy=policy,

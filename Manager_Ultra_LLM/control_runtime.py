@@ -18,6 +18,7 @@ import uuid
 
 from resource_catalog import initial_catalogue
 from resource_policy import assess
+from cuda_profile import normalize, DEFAULT_PROFILE
 from slot_registry import SlotRegistry
 from colibri2_runner import RunnerSpec, configured
 import colibri2_runner as runner
@@ -113,6 +114,7 @@ class ModelControl:
         self.db_path = None
         self._memory_lock = threading.Lock()
         self._memory_samples = {}
+        self._gpu_sample = None
         self.registry = SlotRegistry(config)
         options = config.get("control", {})
         if options.get("owner_go") is True:
@@ -214,7 +216,7 @@ class ModelControl:
             clients=[self.registry.principal(db,p) for p in current["clients"]]
         return {**current,"slots":slots,"clients":clients}
 
-    def _gate(self,key,mode,telemetry,rows,context_tokens=None):
+    def _gate(self,key,mode,telemetry,rows,context_tokens=None,cuda_profile=None):
         review=self.config.get("control",{}).get("reviews",{}).get(key,{}).get(mode,{})
         if review.get("evidence") not in ("measured","bounded_owner_trial") or not review.get("source_hashes"):
             raise ControlError("runtime_review_required")
@@ -228,7 +230,7 @@ class ModelControl:
             reservations.append({**resources,"state":row["state"]})
         # A measurement for a different context is not an estimate for this launch.
         estimated=review
-        if context_tokens is not None and context_tokens != review.get("launch",{}).get("context_tokens"):
+        if cuda_profile is not None or (context_tokens is not None and context_tokens != review.get("launch",{}).get("context_tokens")):
             estimated={**review,"ram_gib":None,"vram_gib":None}
         try:
             result=assess(self.config,estimated,mode,telemetry,reservations)
@@ -237,6 +239,10 @@ class ModelControl:
                 result["forecast"]["context_tokens"]=context_tokens
                 if estimated is not review:
                     result["forecast"]["estimate_evidence"]="context_unmeasured"
+            if cuda_profile is not None:
+                result["policy"]["cuda_profile"]=cuda_profile
+                result["forecast"]["estimate_evidence"]="cuda_profile_unmeasured"
+                result["forecast"]["cuda_profile"]=cuda_profile
             return result
         except ValueError as error:
             reason=str(error)
@@ -337,8 +343,10 @@ class ModelControl:
                     private[identity]=records
             except Exception:
                 continue
+        from resource_policy import read_vram, process_gpu_memory, process_vram
+        device=read_vram()
         if private:
-            from resource_policy import process_vram
+            windows_gpu=process_gpu_memory()
             gpu=process_vram()
             for identity,records in private.items():
                 engines=[r for r in records if Path(r["exe"]).name.casefold()=="qwen36.exe"]
@@ -347,12 +355,27 @@ class ModelControl:
                         all(x is not None for x in matches) and
                         all(native.record_state(r)=="alive" for r in records)):
                     sampled[identity]["vram_gib"]=round(sum(matches),3)
+                attributed=[windows_gpu[r["pid"]] for r in records if r["pid"] in windows_gpu]
+                if (engines and all(r["pid"] in windows_gpu for r in engines) and
+                        all(native.record_state(r)=="alive" for r in records)):
+                    for key in ("dedicated_gib","shared_gib"):
+                        if attributed and all(number(x.get(key)) for x in attributed):
+                            sampled[identity]["vram_gib" if key=="dedicated_gib" else "vram_shared_gib"]=round(sum(x[key] for x in attributed),3)
         with self._memory_lock:
             self._memory_samples=sampled
+            self._gpu_sample={**device,"sampled":time.monotonic()} if device and number(device.get("used_gib")) else None
 
     def _memory_for(self, identity):
         with self._memory_lock:
             row=self._memory_samples.get(identity)
+            if not row or not 0<=time.monotonic()-row["sampled"]<=20:
+                return None
+            return {k:v for k,v in row.items() if k!="sampled"} | {
+                "age_seconds":round(time.monotonic()-row["sampled"],1)}
+
+    def _gpu_for(self):
+        with self._memory_lock:
+            row=self._gpu_sample
             if not row or not 0<=time.monotonic()-row["sampled"]<=20:
                 return None
             return {k:v for k,v in row.items() if k!="sampled"} | {
@@ -370,11 +393,27 @@ class ModelControl:
 
     @staticmethod
     def _public(row, principal):
+        spec=RunnerSpec(**json.loads(row["spec"]))
         return {k:row[k] for k in ("instance_id", "slot_id", "model_key", "mode", "state", "reason")} | {
-            "model_id": RunnerSpec(**json.loads(row["spec"])).api_id,
+            "model_id": spec.api_id,
+            **({"cuda_profile":spec.review.get("launch",{}).get("cuda_profile")} if row["mode"]=="cuda" else {}),
             "released": bool(row["released"]),
             "can_stop": row["owner"] == principal["client_id"] and not row["released"]
                         and row["state"] in ("STARTING", "READY") and principal.get("control_models") is True}
+
+    def cuda_status(self, principal, slot_id, identity):
+        principal=self.effective_principal(principal)
+        if slot_id not in principal["allowed_slots"]:
+            raise ControlError("slot_not_authorized",403)
+        if self.db_path is None:
+            raise ControlError("control_unavailable",503)
+        with self.db() as db:
+            row=next((r for r in self._rows(db) if r["slot_id"]==slot_id and
+                      r["instance_id"]==identity and not r["released"] and r["mode"]=="cuda"),None)
+        if row is None:
+            raise ControlError("instance_identity_mismatch",409)
+        return {"manager_id":self.config["manager_id"],"slot_id":slot_id,"instance_id":identity,
+                "gpu":self._gpu_for(),"memory":self._memory_for(identity)}
 
     def catalog(self, principal):
         principal=self.effective_principal(principal)
@@ -386,6 +425,9 @@ class ModelControl:
                 db.execute("BEGIN IMMEDIATE")
                 self._sync(db)
                 definitions=self.registry.definitions(db)
+                for slot in definitions:
+                    if slot["slot_id"] in principal["allowed_slots"] and slot["mode"]=="cuda" and slot["model_key"]:
+                        slot["cuda_profile"]=self.registry.cuda_profile(db,slot["slot_id"],slot["model_key"])
                 all_rows = self._rows(db)
                 visible = [r for r in all_rows if not r["released"]]
                 active_slots = {r["slot_id"] for r in visible}
@@ -441,6 +483,8 @@ class ModelControl:
                 "running_instances":sum(r["model_key"]==key and r["state"]=="READY" and not r["released"] for r in all_rows),
                 "directory_name": directory_name, "api_ids": [profile["model_id"]] if type(profile) is dict and profile.get("model_id") else []})
         return {"manager_id": self.config["manager_id"], "models": models, "instances": instances, "context_override":True,
+                "cuda_profiles":self.db_path is not None, "cuda_defaults":DEFAULT_PROFILE,
+                "gpu":self._gpu_for() if principal["allowed_slots"] else None,
                 "enabled":self.db_path is not None,
                 "control_models": principal.get("control_models") is True,
                 "slots":[{**{k:v for k,v in item.items() if k!="creator"},
@@ -462,7 +506,8 @@ class ModelControl:
                   "check": {"op", "model_key", "mode", "request_id"},
                   "stop": {"op", "instance_id", "request_id"},
                   "add_slot":{"op","request_id"},
-                  "select":{"op","slot_id","model_key","mode","request_id"}}
+                  "select":{"op","slot_id","model_key","mode","request_id"},
+                  "cuda_settings":{"op","slot_id","model_key","cuda_profile","expected_revision","request_id"}}
         if (type(op) is not str or op not in fields or (not fields[op] <= set(payload) or set(payload)-fields[op]-({"slot_id","risk_ack","risk_token","context_tokens"} if op in ("start","check") else {"expected_revision"} if op=="select" else set()))
                 or type(payload["request_id"]) is not str or not re.fullmatch(r"[a-f0-9]{32}", payload["request_id"])):
             raise ControlError("invalid_control_fields", 400)
@@ -470,6 +515,12 @@ class ModelControl:
         context_tokens=payload.get("context_tokens")
         if "context_tokens" in payload and (type(context_tokens) is not int or not 1<=context_tokens<=999999):
             raise ControlError("invalid_context_tokens",400)
+        if op=="cuda_settings":
+            self._model_allowed(principal,payload["model_key"],"cuda")
+            if payload["slot_id"] not in principal["allowed_slots"]:
+                raise ControlError("slot_not_authorized",403)
+            try:normalize(payload["cuda_profile"])
+            except ValueError as error:raise ControlError(str(error),400) from None
         owner = principal["client_id"]
         fingerprint = json.dumps(payload, sort_keys=True)
         with self.db() as db:
@@ -477,9 +528,9 @@ class ModelControl:
             self._sync(db)
             rows = self._rows(db)
             definitions=self.registry.definitions(db)
-            cross=db.execute("SELECT fingerprint FROM requests WHERE owner=? AND id=?",(owner,payload["request_id"])).fetchone() if op in ("select","add_slot") else db.execute("SELECT fingerprint FROM slot_requests WHERE owner=? AND id=?",(owner,payload["request_id"])).fetchone()
+            cross=db.execute("SELECT fingerprint FROM requests WHERE owner=? AND id=?",(owner,payload["request_id"])).fetchone() if op in ("select","add_slot","cuda_settings") else db.execute("SELECT fingerprint FROM slot_requests WHERE owner=? AND id=?",(owner,payload["request_id"])).fetchone()
             if cross:raise ControlError("request_id_conflict")
-            if op in ("select","add_slot"):
+            if op in ("select","add_slot","cuda_settings"):
                 if op=="select":self._model_allowed(principal,payload["model_key"],payload["mode"])
                 try:
                     telemetry=self.backend.telemetry() if op=="add_slot" else {}
@@ -523,6 +574,10 @@ class ModelControl:
                     raise ControlError("no_free_authorized_slot")
                 identity=uuid.uuid4().hex
                 spec = self._spec(slot,key,mode)
+                cuda_profile=self.registry.cuda_profile(db,slot["slot_id"],key) if mode=="cuda" else None
+                if cuda_profile is not None:
+                    assessment=self._gate(key,mode,telemetry,rows,context_tokens,cuda_profile)
+                    spec=replace(spec,review={**spec.review,"launch":{**spec.review.get("launch",{}),"cuda_profile":cuda_profile}})
                 if context_tokens is not None:
                     # Reuse the durable launch dictionary, so earlier runners can
                     # deserialize the same instance records during rollback.

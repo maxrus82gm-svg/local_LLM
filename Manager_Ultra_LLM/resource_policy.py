@@ -16,7 +16,7 @@ def read_vram():
             creationflags=getattr(subprocess,"CREATE_NO_WINDOW",0))
         total,used,free=map(float,result.stdout.strip().split(','))
         if all(number(x) for x in (total,used,free)) and total>0 and used+free<=total+2:
-            return {"free_gib":free/1024,"total_gib":total/1024}
+            return {"free_gib":free/1024,"total_gib":total/1024,"used_gib":used/1024}
     except (OSError,ValueError,subprocess.SubprocessError):pass
     return None
 
@@ -48,6 +48,45 @@ def process_vram():
             values[pid]=None if old is None or amount is None else old+amount/1024
         return values
     except (OSError,ValueError,subprocess.SubprocessError):
+        return {}
+
+
+def process_gpu_memory():
+    """WDDM per-process dedicated/shared memory. Unknown is not zero.
+    Read-only, bounded query; no caller-supplied command/PID or paths.
+    Localized Windows counter names may be unavailable; retain NVML fallback.
+    """
+    import os
+    import re
+    import json
+    import subprocess
+    from pathlib import Path
+    exe=Path(os.environ.get("SystemRoot",r"C:\Windows"))/"System32"/"WindowsPowerShell"/"v1.0"/"powershell.exe"
+    if not exe.is_file():return {}
+    script=r"""
+$ErrorActionPreference='Stop'
+@( (Get-Counter '\GPU Process Memory(*)\Dedicated Usage','\GPU Process Memory(*)\Shared Usage').CounterSamples |
+ForEach-Object { [pscustomobject]@{ instance=$_.InstanceName; path=$_.Path; bytes=$_.CookedValue } } ) |
+ConvertTo-Json -Compress
+"""
+    try:
+        result=subprocess.run([str(exe),"-NoProfile","-NonInteractive","-Command",script],
+            capture_output=True,text=True,timeout=4,check=True,
+            creationflags=getattr(subprocess,"CREATE_NO_WINDOW",0))
+        records=json.loads(result.stdout)
+        if type(records) is dict:records=[records]
+        if type(records) is not list:return {}
+        values={}
+        for row in records:
+            match=re.match(r"^pid_(\d+)_",row.get("instance",""),re.I)
+            kind=str(row.get("path","")).rsplit("\\",1)[-1].lower()
+            field={"dedicated usage":"dedicated_gib","shared usage":"shared_gib"}.get(kind)
+            amount=row.get("bytes")
+            if match and field and number(amount):
+                item=values.setdefault(int(match[1]),{})
+                item[field]=item.get(field,0)+amount/(2**30)
+        return values
+    except (OSError,ValueError,TypeError,AttributeError,subprocess.SubprocessError):
         return {}
 
 
