@@ -100,6 +100,7 @@ try{
   assert.equal(await evaluate('Boolean(document.querySelector(".slot-catalog").compareDocumentPosition(document.querySelector(".working-slots")) & Node.DOCUMENT_POSITION_FOLLOWING)'),true);
   assert.equal(await evaluate('document.querySelector("[data-slot-id=slot1] select").disabled'),true);
   const row=slot=>`document.querySelector('[data-slot-id="${slot}"]')`;
+  assert.equal(await evaluate('document.querySelector("[data-slot-id=slot1] .slot-context").textContent.startsWith("Контекст ")'),true);
   const click=async(slot,label)=>evaluate(`[...${row(slot)}.querySelectorAll("button")].find(x=>x.textContent===${JSON.stringify(label)}).click()`);
   async function pick(slot,model){
     await evaluate(`{const e=${row(slot)}.querySelector("select");e.value=${JSON.stringify(model)};e.dispatchEvent(new Event("change"));}`);
@@ -281,6 +282,8 @@ try{
   assert(browser.dialogs.length>=2);
   state=await data();assert.equal(state.slots.find(s=>s.slot_id==='slot2').context_tokens,16384);
   assert.equal(state.slots.find(s=>s.slot_id==='slot3').context_tokens,32768);
+  await until('document.querySelector("[data-slot-id=slot2] .slot-context")?.textContent.replace(/\\s/g,"").includes("16384") && document.querySelector("[data-slot-id=slot3] .slot-context")?.textContent.replace(/\\s/g,"").includes("32768")');
+  assert.equal(await evaluate('document.querySelector("[data-slot-id=slot2] .slot-memory").nextElementSibling.classList.contains("slot-context")'),true);
   await fetch(host.upstream+'/__qa/normal_ram');
   assert.deepEqual(browser.errors,[]);
   await evaluate('refresh(true)');

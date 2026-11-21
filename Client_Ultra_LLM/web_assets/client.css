@@ -105,7 +105,7 @@ dialog{color:#ebf1fc;background:transparent;border:0;max-width:min(650px,calc(10
 #chat-latest{align-self:flex-end;margin:3px 20px}
 .chat-stat-row{padding:5px 0;border-top:1px solid var(--line)}
 
-.slot-catalog{margin-bottom:18px}.slot-catalog h3,.working-slots h3{font-size:11px;letter-spacing:1px;color:#a7b4cb}.catalog-entry{display:flex;justify-content:space-between;gap:14px;padding:8px;border-bottom:1px solid #29374a}.catalog-entry small{color:#8da1b8}.slot-model{width:100%;padding:7px;background:#172332;color:#e4edfa;border:1px solid #526584;border-radius:6px}.working-slot{grid-template-columns:260px repeat(3,95px) 120px 54px max-content;justify-content:start;min-width:0;gap:9px;padding:9px 13px}
+.slot-catalog{margin-bottom:18px}.slot-catalog h3,.working-slots h3{font-size:11px;letter-spacing:1px;color:#a7b4cb}.catalog-entry{display:flex;justify-content:space-between;gap:14px;padding:8px;border-bottom:1px solid #29374a}.catalog-entry small{color:#8da1b8}.slot-model{width:100%;padding:7px;background:#172332;color:#e4edfa;border:1px solid #526584;border-radius:6px}.working-slot{grid-template-columns:260px repeat(3,95px) 120px 54px 190px 136px;justify-content:start;min-width:0;gap:9px;padding:9px 13px}
 .working-slot .manager-model-info{display:flex;align-items:center;gap:8px;min-width:0}
 .working-slot .manager-model-info strong{font-size:11px;flex:0 0 44px;overflow-wrap:anywhere}
 .working-slot .slot-model{width:208px;min-width:0;font-size:12px;flex:1}
@@ -116,7 +116,7 @@ dialog{color:#ebf1fc;background:transparent;border:0;max-width:min(650px,calc(10
 .working-slot .slot-state.starting,.working-slot .slot-state.stopping{color:#e5b86c}
 .working-slot .slot-active-mode{font-size:12px;font-weight:650;color:#8695a9}
 .working-slot .slot-mode-running:disabled{background:#163c2e;border-color:#378861;color:#83efba;opacity:1}
-@media(max-width:1050px){.working-slot{grid-template-columns: minmax(200px,260px) repeat(3,90px) 112px 48px max-content;min-width:820px;gap:6px}.working-slot .manager-model-action{width:90px}}
+@media(max-width:1050px){.working-slot{grid-template-columns: minmax(200px,260px) repeat(3,90px) 112px 48px 190px 136px;min-width:1000px;gap:6px}.working-slot .manager-model-action{width:90px}}
 
 /* Chat UX: one document scrollbar, fixed composer, sticky chat navigation. */
 #chat-view .chat-layout{align-items:stretch}
@@ -242,3 +242,5 @@ dialog{color:#ebf1fc;background:transparent;border:0;max-width:min(650px,calc(10
 #chat-floating-tip{position:fixed;inset:auto;left:0;top:0;margin:0;z-index:2147483647;box-sizing:border-box;width:max-content;max-width:min(320px,80vw);max-height:90vh;overflow:hidden;padding:4px 7px;border:1px solid #85888e;border-radius:2px;background:rgba(40,43,48,.97);color:#e5e6e8;font:12px/1.4 system-ui,sans-serif;white-space:normal;overflow-wrap:anywhere;pointer-events:none;box-shadow:0 2px 6px #0006}
 
 .working-slot .slot-memory{font-size:12px;color:#a8b8cc;white-space:nowrap;min-width:145px}
+
+.working-slot .slot-context{font-size:12px;color:#a8b8cc;white-space:nowrap;font-variant-numeric:tabular-nums}

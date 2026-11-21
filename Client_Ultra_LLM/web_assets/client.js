@@ -256,7 +256,12 @@ function workspaces(container,manager) {
       "RAM: сумма рабочих наборов процессов экземпляра; общие страницы могут учитываться несколько раз. "+
       "Private commit: "+(Number.isFinite(measured.private_commit_gib)?measured.private_commit_gib.toFixed(1)+" ГиБ":"—")+
       ". VRAM — только данные драйвера; — означает нет данных." : "Нет подтверждённого измерения памяти этого экземпляра";
-    line.append(status,modeLabel,memoryLabel);
+    const actualContext=running && Number.isSafeInteger(live.context_tokens) && live.context_tokens>0 ? live.context_tokens : null;
+    const contextLabel=node("span","slot-context","Контекст "+(actualContext!=null ? actualContext.toLocaleString("ru-RU")+" ток." : "—"));
+    contextLabel.dataset.tip=actualContext!=null ?
+      "Фактическая ёмкость контекста работающего экземпляра по health. Не объём RAM/VRAM KV-кэша." :
+      "Фактический контекст не подтверждён. Значение появится после готовности экземпляра и получения health.";
+    line.append(status,modeLabel,memoryLabel,contextLabel);
     list.append(line);
   }
   area.append(list);container.append(area);
