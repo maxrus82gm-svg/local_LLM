@@ -101,17 +101,18 @@ try{
   assert.equal(await evaluate('document.querySelector("[data-slot-id=slot1] select").disabled'),true);
   const row=slot=>`document.querySelector('[data-slot-id="${slot}"]')`;
   assert.equal(await evaluate('document.querySelector("[data-slot-id=slot1] .slot-context").textContent.startsWith("Контекст ")'),true);
-  const click=async(slot,label)=>evaluate(`[...${row(slot)}.querySelectorAll("button")].find(x=>x.textContent===${JSON.stringify(label)}).click()`);
+  const action=(slot,label)=>`[...${row(slot)}.querySelectorAll(".manager-model-action")].find(x=>x.textContent===${JSON.stringify(label)})`;
+  const click=async(slot,label)=>evaluate(`${action(slot,label)}.click()`);
   async function pick(slot,model){
     await evaluate(`{const e=${row(slot)}.querySelector("select");e.value=${JSON.stringify(model)};e.dispatchEvent(new Event("change"));}`);
     await waitStatus(`pick ${slot}`,s=>s.slots?.some(row=>row.slot===slot&&row.model===model));
     await evaluate('refresh()');
-    await until(`${row(slot)}.querySelector("select").value===${JSON.stringify(model)} && !slotPending.has("qa-manager:${slot}") && !${row(slot)}.querySelector("button").disabled`);
+    await until(`${row(slot)}.querySelector("select").value===${JSON.stringify(model)} && !slotPending.has("qa-manager:${slot}") && !${action(slot,"Старт CPU")}.disabled`);
   }
   async function ready(slot){
     await waitStatus(`ready ${slot}`,s=>s.instances?.some(i=>i.slot===slot&&i.state==='READY'));
     await evaluate('refresh(true)');
-    await until(`${row(slot)}.querySelector(".slot-state").classList.contains("running") && [...${row(slot)}.querySelectorAll("button")].slice(0,2).every(b=>b.disabled)`);
+    await until(`${row(slot)}.querySelector(".slot-state").classList.contains("running") && ${action(slot,"Старт CPU")}.disabled && ${action(slot,"Старт CUDA")}.disabled`);
   }
   await pick('slot2','kat');await click('slot2','Старт CPU');await ready('slot2');
   await pick('slot3','kat');await click('slot3','Старт CPU');await ready('slot3');
@@ -286,14 +287,15 @@ try{
   assert.equal(history.messages.at(-2).content,'instance two');
   // Risk cancellation is a user decision, not a capability/role escalation.
   await fetch(host.upstream+'/__qa/low_ram');await evaluate('refresh()');
-  assert.match(await evaluate(`${row('slot2')}.querySelector('button').dataset.tip`),/Ожидаемый остаток RAM/);
+  assert.match(await evaluate(`${action('slot2','Старт CPU')}.dataset.tip`),/Ожидаемый остаток RAM/);
+  const dialogsBeforeRisk=browser.dialogs.length;
   await click('slot2','Старт CPU');
   await until('!slotPending.has("qa-manager:slot2")');
   state=await data();assert(!state.control.instances.some(i=>i.slot_id==='slot2'&&!i.released));
-  assert(browser.dialogs.length>=1);
+  assert.equal(browser.dialogs.length,dialogsBeforeRisk+1,"The cancelled CPU start must display its own risk confirmation");
   browser.setDialogAcceptance(true);
   await click('slot2','Старт CPU');await ready('slot2');
-  assert(browser.dialogs.length>=2);
+  assert.equal(browser.dialogs.length,dialogsBeforeRisk+2,"The accepted CPU start must display a separate risk confirmation");
   state=await data();assert.equal(state.slots.find(s=>s.slot_id==='slot2').context_tokens,16384);
   assert.equal(state.slots.find(s=>s.slot_id==='slot3').context_tokens,32768);
   await until('document.querySelector("[data-slot-id=slot2] .slot-context")?.textContent.replace(/\\s/g,"").includes("16384") && document.querySelector("[data-slot-id=slot3] .slot-context")?.textContent.replace(/\\s/g,"").includes("32768")');
