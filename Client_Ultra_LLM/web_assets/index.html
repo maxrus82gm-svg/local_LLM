@@ -38,7 +38,6 @@
     <p>Выберите Manager и слот. История хранится на этом компьютере, генерация выполняется на сервере.</p></div>
     <div class="hero-actions"><button class="btn secondary" type="button" id="chat-reload">↻ Обновить серверы</button></div>
   </header>
-  <div id="chat-notice" role="status" class="notice hidden"></div>
   <div class="chat-layout">
     <aside class="chat-sources">
       <button id="chat-new" class="btn primary small" type="button">＋ Новый чат</button>
@@ -52,7 +51,6 @@
       <button type="button" id="chat-latest" class="btn secondary small hidden">↓ К последнему сообщению</button>
       <form id="chat-form" class="chat-form">
       <div class="chat-composer-controls">
-      <div id="chat-state" class="chat-state" role="status"></div>
       <div class="chat-stream-options">
         <label class="chat-tip" data-tip="Ответ появляется по мере генерации, не дожидаясь завершения."><input type="checkbox" id="chat-stream" checked> Потоковый ответ</label>
         <label class="chat-tip" id="chat-thinking-tip" data-tip="Включает режим рассуждения у поддерживаемых моделей."><input type="checkbox" id="chat-thinking" checked> Размышление</label>
@@ -75,7 +73,21 @@
       </div>
       </form>
     </section>
-    <aside class="chat-inspector" aria-label="Настройки чата">
+    <aside class="chat-inspector" aria-label="События и настройки чата">
+      <section class="chat-events-panel" aria-labelledby="chat-events-title">
+        <h3 id="chat-events-title">События чата</h3>
+        <div id="chat-events-scroll" class="chat-events-scroll" tabindex="0" aria-label="Текущие события и контекст">
+          <div class="chat-context-summary">
+            <div class="chat-context-summary-row"><span>Контекст фактически</span><strong id="chat-context-actual">—</strong></div>
+            <div class="chat-context-summary-row"><span>Выбранный контекст</span><strong id="chat-context-desired">—</strong></div>
+            <div class="chat-context-summary-row"><span>Память KV-кэша</span><span id="chat-context-kv">Нет данных</span></div>
+          </div>
+          <div id="chat-context-pending" role="status" class="chat-event-warning hidden"></div>
+          <div id="chat-state" class="chat-state" role="status"></div>
+          <div id="chat-notice" class="notice hidden" role="status"></div>
+        </div>
+      </section>
+      <section class="chat-inspector-settings" aria-label="Настройки чата">
       <div class="chat-inspector-heading"><h3>Настройки чата</h3><button type="button" id="global-prompt-open" class="global-prompt-button chat-tip" data-tip="Общая инструкция для всех LLM и всех чатов.">Global<br>Prompt</button></div>
       <label class="chat-inspector-target">Manager <select id="chat-manager" aria-label="Manager чата"></select></label>
 
@@ -93,6 +105,7 @@
         <label>Режим <select id="chat-stat-mode"><option value="">Все</option><option value="cpu">CPU</option><option value="cuda">CUDA</option><option value="unknown">Нет данных</option></select></label>
         <div id="chat-stat-results"></div>
       </details>
+      </section>
     </aside>
   </div>
   <footer>Инференс и управление моделями выполняет авторизованный Manager</footer>

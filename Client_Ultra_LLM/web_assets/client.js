@@ -1014,9 +1014,30 @@ function renderContextSize(chat,target,disabled) {
      document.activeElement!==byId("chat-context-custom"))syncContextSize(chat);
   const tip=byId("chat-context-tip");
   const actual=Number.isInteger(target?.context_tokens) ? target.context_tokens : "не подтверждён";
-  tip.classList.toggle("pending",contextPending(chat,target));
+  const pending=contextPending(chat,target);
+  tip.classList.toggle("pending",pending);
   tip.dataset.tip="Контекст модели (токены), не история сообщений. Фактически: "+actual+
     ". Изменение применяется после ручного Стоп и Старт назначенного слота; затем выберите новый экземпляр в этом чате.";
+  renderChatContextSummary(chat,target,pending);
+}
+function renderChatContextSummary(chat,target,pending) {
+  const actual=chat && target?.engine_state==="ready" && Number.isInteger(target.context_tokens) && target.context_tokens>0 ? target.context_tokens : null;
+  const desired=chat?.context_tokens ?? null;
+  const values={
+    "chat-context-actual":actual!=null ? actual+" ток." : "Нет данных",
+    "chat-context-desired":desired!=null ? desired+" ток." : chat ? "По профилю" : "—",
+    "chat-context-kv":"Нет данных"
+  };
+  for(const [id,value] of Object.entries(values)) {
+    const el=byId(id);
+    if(el.textContent!==value) el.textContent=value;
+  }
+  const warning=byId("chat-context-pending");
+  const message=pending ? (actual==null ?
+    "Фактический размер не подтверждён. Для применения выбранного контекста требуется перезапуск LLM." :
+    "Требуется перезапуск LLM: Стоп → Старт назначенного слота, затем выберите новый экземпляр в этом чате. Manager перезапускать не нужно.") : "";
+  if(warning.textContent!==message) warning.textContent=message;
+  warning.classList.toggle("hidden",!message);
 }
 function applyChatPreferences(chat) {
   byId("chat-stream").checked = chat?.preferences?.stream ?? true;
@@ -1167,6 +1188,7 @@ let scrollFrame = 0;
 let lastScrollTop = window.scrollY;
 let userScrollIntentUntil = 0;
 window.addEventListener("wheel", event => {
+  if (event.target instanceof Element && event.target.closest(".chat-inspector")) return;
   if (event.deltaY < 0) userScrollIntentUntil = performance.now() + 700;
 }, {passive:true});
 window.addEventListener("touchmove", () => { userScrollIntentUntil = performance.now() + 700; }, {passive:true});

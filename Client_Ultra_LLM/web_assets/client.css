@@ -187,7 +187,22 @@ dialog{color:#ebf1fc;background:transparent;border:0;max-width:min(650px,calc(10
 @media(max-width:900px){#chat-view .chat-inspector{position:relative;bottom:auto;align-self:start;max-height:none} #chat-view .chat-composer-model{max-width:100%;margin-left:auto}}
 
 /* Keep the composer free of empty instructional status. */
-#chat-view .chat-composer-controls #chat-state:empty{display:none}
+/* Bounded live notices above existing settings. */
+#chat-view .chat-inspector{display:flex;flex-direction:column;gap:10px;padding:0;border:0;background:transparent;overflow:hidden;min-height:0}
+#chat-view .chat-events-panel,#chat-view .chat-inspector-settings{box-sizing:border-box;min-width:0;min-height:0;background:#151c27;border:1px solid #2b3544;border-radius:12px;padding:12px}
+#chat-view .chat-events-panel{height:clamp(126px,24svh,210px);flex:0 1 auto;display:flex;flex-direction:column}
+#chat-view .chat-events-panel h3{flex:none;margin:0 0 8px}
+#chat-view .chat-events-scroll{min-height:0;flex:1;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#586680 #1d2736;scrollbar-gutter:stable;overflow-wrap:anywhere;padding-right:3px}
+#chat-view .chat-events-scroll:focus-visible{outline:1px solid #8c9ebb;outline-offset:1px}
+#chat-view .chat-context-summary{display:grid;gap:6px;font-size:11px;padding-bottom:8px}
+#chat-view .chat-context-summary-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 6px}
+#chat-view .chat-context-summary-row strong{color:#e2eaf7;font-variant-numeric:tabular-nums}
+#chat-view #chat-context-kv{color:#91a5bf}
+#chat-view .chat-event-warning,#chat-view .chat-events-scroll #chat-state,#chat-view .chat-events-scroll .notice{font-size:11px;line-height:1.5;color:#f1c68c;overflow-wrap:anywhere;white-space:normal;margin:0 0 6px;padding:6px 0;min-height:0;border:0;border-top:1px solid #2b3544;border-radius:0;background:transparent}
+#chat-view .chat-events-scroll #chat-state:empty{display:none}
+#chat-view .chat-inspector-settings{flex:0 1 auto;overflow:auto;scrollbar-width:thin;padding:14px}
+@media(max-width:1150px){#chat-view .chat-inspector-settings{padding:10px}}
+@media(max-width:900px){#chat-view .chat-events-panel{flex:none}#chat-view .chat-inspector-settings{flex:none}}
 
 /* Full-width input: the keyboard fallback lives inside its lower-right corner. */
 #chat-view .chat-input-wrap{position:relative;width:100%}
