@@ -109,6 +109,7 @@ function controlReason(reason) {
     readiness_lost:"Потеря готовности движка",
     gateway_exited:"Процесс Gateway завершился",
     load_timeout:"Превышено время загрузки модели",
+    stream_idle_timeout:"Нет новых фрагментов ответа в течение тайм-аута бездействия",
     runtime_or_telemetry_unverified:"Runtime или состояние сервера не подтверждены"
   };
   return labels[reason] ? labels[reason] + " (" + reason + ")" : reason;

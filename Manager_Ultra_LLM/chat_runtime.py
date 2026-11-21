@@ -32,12 +32,15 @@ class ChatError(Exception):
 
 @contextmanager
 def response_guard(response, deadline, cancelled):
-    """Interrupt only this response socket on absolute deadline/cancellation."""
+    """Interrupt only this response socket on deadline/cancellation.
+
+    A callable deadline permits a sliding semantic-progress watchdog.
+    """
     finished = threading.Event()
     sock = getattr(getattr(getattr(response, "fp", None), "raw", None), "_sock", None)
     def watch():
         while not finished.wait(0.05):
-            if cancelled.is_set() or time.perf_counter() >= deadline:
+            if cancelled.is_set() or time.perf_counter() >= (deadline() if callable(deadline) else deadline):
                 if sock:
                     try:
                         sock.shutdown(socket.SHUT_RDWR)
@@ -116,7 +119,7 @@ def select_backend(config, principal, snapshot, slot_id, model_id):
     return configured[0]["api_port"]
 
 
-def proxy_chat(port, model_id, messages, *, timeout=300, options=None, policy=None):
+def proxy_chat(port, model_id, messages, *, timeout=3600, options=None, policy=None):
     policy = policy or transport_policy()
     """One actual non-streaming request; no fabricated output or retries."""
     body = json.dumps({
@@ -172,9 +175,13 @@ def proxy_stream(port, model_id, messages, *, timeout=300, cancelled=None, optio
     policy = policy or transport_policy()
     timing = {} if timing is None else timing
     started = time.perf_counter()
+    last_progress = started
     timing["colibri_request_started_unix_ms"] = round(time.time()*1000, 3)
     if type(timeout) not in (int, float) or not 0 < timeout <= 3600:
         raise ChatError("stream_deadline", 504)
+    # timeout is an inactivity budget, not a total generation ceiling.
+    def deadline():
+        return last_progress + timeout
     req = Request(f"http://127.0.0.1:{port}/v1/chat/completions", method="POST",
         headers={"Content-Type": "application/json", "Accept": "text/event-stream"},
         data=json.dumps({"model": model_id, "messages": messages, "stream": True,
@@ -188,20 +195,20 @@ def proxy_stream(port, model_id, messages, *, timeout=300, cancelled=None, optio
     cancelled = cancelled or threading.Event()
     try:
         with build_opener(ProxyHandler({}), NoRedirect()).open(req, timeout=timeout) as r, \
-                response_guard(r, started+timeout, cancelled):
+                response_guard(r, deadline, cancelled):
             if r.status != 200 or r.headers.get_content_type() != "text/event-stream":
                 raise ChatError("colibri_stream_not_supported", 502)
             data_lines = []
             while True:
                 if cancelled.is_set():
                     raise ChatError("stream_cancelled", 409)
-                if time.perf_counter() - started > timeout:
-                    raise ChatError("stream_deadline", 504)
+                if time.perf_counter() >= deadline():
+                    raise ChatError("stream_idle_timeout", 504)
                 line = r.readline(min(policy["stream_bytes"], 1048576)+2)
                 if cancelled.is_set():
                     raise ChatError("stream_cancelled", 409)
-                if time.perf_counter() - started > timeout:
-                    raise ChatError("stream_deadline", 504)
+                if time.perf_counter() >= deadline():
+                    raise ChatError("stream_idle_timeout", 504)
                 total += len(line)
                 if len(line) > min(policy["stream_bytes"], 1048576) or total > policy["stream_bytes"]:
                     raise ChatError("stream_too_large", 502)
@@ -261,6 +268,7 @@ def proxy_stream(port, model_id, messages, *, timeout=300, cancelled=None, optio
                                 first = round((time.perf_counter()-started)*1000, 2)
                                 timing["colibri_first_fragment_unix_ms"] = round(time.time()*1000, 3)
                                 timing["_colibri_first_perf"] = time.perf_counter()
+                            last_progress = time.perf_counter()
                             sequence += 1
                             yield {"type": kind, "text": value, "sequence": sequence,
                                    "timing": {**timing, "upstream_elapsed_ms": round((time.perf_counter()-started)*1000, 3)}}
@@ -272,10 +280,10 @@ def proxy_stream(port, model_id, messages, *, timeout=300, cancelled=None, optio
     except TimeoutError:
         if cancelled.is_set():
             raise ChatError("stream_cancelled", 409) from None
-        raise ChatError("stream_deadline", 504) from None
+        raise ChatError("stream_idle_timeout", 504) from None
     except (OSError, TimeoutError, ValueError, KeyError, IndexError, TypeError, AttributeError, URLError):
         if cancelled.is_set():
             raise ChatError("stream_cancelled", 409) from None
-        if time.perf_counter()-started >= timeout:
-            raise ChatError("stream_deadline", 504) from None
+        if time.perf_counter() >= deadline():
+            raise ChatError("stream_idle_timeout", 504) from None
         raise ChatError("colibri_stream_failed", 502) from None

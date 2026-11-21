@@ -30,7 +30,7 @@ class StreamingTests(unittest.TestCase):
         event=b'data: {"model":"foreign","choices":[{"delta":{"content":"no"}}]}\n\n'
         with self.assertRaisesRegex(ChatError,"identity_mismatch"):
             list(proxy_stream(self.upstream([event]),"test",[]))
-    def upstream(self, segments, *, gate=None, content_type="text/event-stream"):
+    def upstream(self, segments, *, gate=None, content_type="text/event-stream", delay=0):
         class Fake(BaseHTTPRequestHandler):
             def do_POST(h):
                 payload=json.loads(h.rfile.read(int(h.headers["Content-Length"])))
@@ -44,6 +44,8 @@ class StreamingTests(unittest.TestCase):
                         h.wfile.flush()
                         if gate and index==0:
                             gate.wait(3)
+                        if delay and index < len(segments)-1:
+                            time.sleep(delay)
                 except OSError:
                     pass
             def log_message(h,*a): pass
@@ -102,15 +104,30 @@ class StreamingTests(unittest.TestCase):
         with self.assertRaisesRegex(ChatError,"stream_deadline"):
             list(proxy_stream(port,"test",[],timeout=0))
 
-    def test_absolute_deadline_interrupts_wait_for_next_fragment(self):
+    def test_idle_deadline_interrupts_wait_for_next_fragment(self):
         gate=threading.Event()
         self.addCleanup(gate.set)
         stream=proxy_stream(self.upstream([self.delta("first"),b'data: [DONE]\n\n'],gate=gate),"test",[],timeout=0.25)
         self.assertEqual(next(stream)["text"],"first")
         started=time.monotonic()
-        with self.assertRaisesRegex(ChatError,"stream_deadline"):
+        with self.assertRaisesRegex(ChatError,"stream_idle_timeout"):
             list(stream)
         self.assertLess(time.monotonic()-started,1)
+
+    def test_active_stream_outlives_idle_budget(self):
+        segments=[self.delta(str(i), "reasoning_content" if i<3 else "content") for i in range(6)]
+        started=time.monotonic()
+        events=list(proxy_stream(self.upstream(segments+[b"data: [DONE]\n\n"],delay=0.25),
+                                 "test",[],timeout=1.0))
+        self.assertGreater(time.monotonic()-started,1.0)
+        self.assertEqual([e["text"] for e in events[:-1]],list("012345"))
+        self.assertEqual([e["type"] for e in events],["reasoning"]*3+["delta"]*3+["done"])
+        self.assertEqual([e["sequence"] for e in events[:-1]],list(range(1,7)))
+
+    def test_sse_keepalives_do_not_extend_semantic_idle_budget(self):
+        segments=[self.delta("first")]+[b": keepalive\n\n"]*8+[b"data: [DONE]\n\n"]
+        with self.assertRaisesRegex(ChatError,"stream_idle_timeout"):
+            list(proxy_stream(self.upstream(segments,delay=0.2),"test",[],timeout=0.8))
 
     def test_cancel_interrupts_upstream_read_without_waiting_for_next_token(self):
         gate=threading.Event();cancelled=threading.Event()

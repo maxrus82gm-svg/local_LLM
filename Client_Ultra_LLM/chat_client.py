@@ -89,13 +89,19 @@ def stream_guard(response, deadline):
                 socket.close(sock.detach())
             except OSError:
                 pass
-    timer = threading.Timer(max(0.01, deadline-time.perf_counter()), interrupt)
-    timer.daemon = True
-    timer.start()
+    finished = threading.Event()
+    def watch():
+        while not finished.wait(0.05):
+            if time.perf_counter() >= (deadline() if callable(deadline) else deadline):
+                interrupt()
+                return
+    watcher = threading.Thread(target=watch, daemon=True)
+    watcher.start()
     try:
         yield
     finally:
-        timer.cancel()
+        finished.set()
+        watcher.join(0.2)
 
 
 def cancel_chat(profile, slot_id, request_id):
@@ -104,8 +110,14 @@ def cancel_chat(profile, slot_id, request_id):
     return result.get("manager_id") == profile["manager_id"] and result.get("cancelled") is True
 
 
-def stream_chat(profile, slot_id, model_id, messages, *, timeout=330, request_id=None, instance_id=None, options=None):
+def stream_chat(profile, slot_id, model_id, messages, *, timeout=3630, request_id=None, instance_id=None, options=None):
     started = time.perf_counter()
+    last_progress = started
+    idle_timeout = timeout
+    if type(timeout) not in (int, float) or not 0 < timeout <= 3630:
+        raise ChatClientError("invalid_stream_timeout", 400)
+    def deadline():
+        return last_progress + idle_timeout
     timing = {}
     try:
         payload = {"slot_id": slot_id, "model_id": model_id, "messages": messages}
@@ -116,7 +128,7 @@ def stream_chat(profile, slot_id, model_id, messages, *, timeout=330, request_id
         if options is not None:
             payload["options"] = options
         with manager_open(profile, "/v1/chat/stream", payload, timeout=timeout, timing=timing) as r, \
-                stream_guard(r, started+timeout):
+                stream_guard(r, deadline):
             if r.headers.get_content_type() != "application/x-ndjson":
                 raise ChatClientError("invalid_stream_response")
             seen_meta = False
@@ -124,9 +136,11 @@ def stream_chat(profile, slot_id, model_id, messages, *, timeout=330, request_id
             sequence = 0
             total = 0
             while True:
-                if time.perf_counter()-started > timeout:
-                    raise ChatClientError("stream_deadline", 504)
+                if time.perf_counter() >= deadline():
+                    raise ChatClientError("stream_idle_timeout", 504)
                 raw = r.readline(2097154)
+                if time.perf_counter() >= deadline():
+                    raise ChatClientError("stream_idle_timeout", 504)
                 total += len(raw)
                 if total > 67108864 or len(raw) > 2097152:
                     raise ChatClientError("stream_too_large")
@@ -141,6 +155,11 @@ def stream_chat(profile, slot_id, model_id, messages, *, timeout=330, request_id
                     if instance_id is not None and event.get("instance_id") != instance_id:
                         raise ChatClientError("stream_identity_mismatch")
                     seen_meta = True
+                    last_progress = time.perf_counter()
+                    # Configured Manager idle budget plus transport margin.
+                    advertised = event.get("transport_policy", {}).get("timeout_seconds") if isinstance(event.get("transport_policy"), dict) else None
+                    if type(advertised) is int and 1 <= advertised <= 3600:
+                        idle_timeout = min(timeout, advertised + 30)
                     require_sequence = event.get("schema") == "ultra.manager.stream.v2"
                 elif kind not in ("delta", "reasoning", "done", "error"):
                     raise ChatClientError("invalid_stream_event")
@@ -157,6 +176,8 @@ def stream_chat(profile, slot_id, model_id, messages, *, timeout=330, request_id
                     sequence += 1
                     if require_sequence and event.get("sequence") != sequence:
                         raise ChatClientError("stream_sequence_mismatch")
+                    if isinstance(event.get("text"), str) and event["text"]:
+                        last_progress = time.perf_counter()
                 event["timing"] = {**event.get("timing", {}), **timing,
                     "client_received_unix_ms": round(time.time()*1000, 3),
                     "client_elapsed_ms":round((time.perf_counter()-started)*1000, 3)}
@@ -165,11 +186,15 @@ def stream_chat(profile, slot_id, model_id, messages, *, timeout=330, request_id
                     return
     except ChatClientError:
         raise
-    except (OSError, TimeoutError, URLError, ValueError, AttributeError):
+    except TimeoutError:
+        raise ChatClientError("stream_idle_timeout", 504) from None
+    except (OSError, URLError, ValueError, AttributeError):
+        if time.perf_counter() >= deadline():
+            raise ChatClientError("stream_idle_timeout", 504) from None
         raise ChatClientError("manager_stream_failed", 503) from None
 
 
-def send_chat(profile, slot_id, model_id, messages, *, timeout=330, instance_id=None, options=None):
+def send_chat(profile, slot_id, model_id, messages, *, timeout=3630, instance_id=None, options=None):
     """Same authenticated transport and precise errors as streaming/control."""
     started=time.perf_counter()
     body={"slot_id":slot_id,"model_id":model_id,"messages":messages}

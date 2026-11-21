@@ -1,10 +1,12 @@
-"""Explicit transport policy, independent of the engine's token/context limits."""
+"""Transport policy: timeout_seconds is streaming inactivity, not duration.
+Non-streaming has its own bounded wait because no progress is observable.
+"""
 DEFAULTS = {"request_bytes": 1048576, "message_chars": 131072,
             "history_messages": 128, "history_chars": 240000,
-            "response_chars": 1048576, "stream_bytes": 8388608, "timeout_seconds": 300}
+            "response_chars": 1048576, "stream_bytes": 8388608, "timeout_seconds": 300, "nonstream_timeout_seconds": 3600}
 CEILINGS = {"request_bytes": 8388608, "message_chars": 1048576,
             "history_messages": 1024, "history_chars": 1048576,
-            "response_chars": 8388608, "stream_bytes": 67108864, "timeout_seconds": 3600}
+            "response_chars": 8388608, "stream_bytes": 67108864, "timeout_seconds": 3600, "nonstream_timeout_seconds": 3600}
 
 
 def policy(config=None):

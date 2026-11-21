@@ -154,12 +154,18 @@ class FullChainTests(unittest.TestCase):
         self.addCleanup(gate.set)
         class FakeColibri(BaseHTTPRequestHandler):
             def do_POST(h):
-                h.rfile.read(int(h.headers['Content-Length']))
+                body=json.loads(h.rfile.read(int(h.headers['Content-Length'])))
                 h.send_response(200);h.send_header('Content-Type','text/event-stream');h.end_headers()
                 def emit(text):
                     h.wfile.write(('data: '+json.dumps({'choices':[{'delta':{'content':text}}]},ensure_ascii=False)+'\n\n').encode());h.wfile.flush()
                 try:
-                    emit('первый ');gate.wait(4);emit('второй')
+                    if body['messages'][-1]['content']=='LONG-ACTIVE':
+                        for i in range(6):
+                            field='reasoning_content' if i<3 else 'content'
+                            h.wfile.write(('data: '+json.dumps({'choices':[{'delta':{field:str(i)}}]})+'\n\n').encode());h.wfile.flush()
+                            time.sleep(0.35)
+                    else:
+                        emit('первый ');gate.wait(4);emit('второй')
                     h.wfile.write(b'data: [DONE]\n\n');h.wfile.flush()
                 except OSError: pass
             def log_message(h,*a):pass
@@ -219,6 +225,22 @@ class FullChainTests(unittest.TestCase):
                     self.assertEqual(events[-1]['type'],'error')
                     self.assertLess(time.monotonic()-started,1.5)
                 self.assertEqual(len(chat_store.history(Path(directory),'m','slot2','kat')),2)
+                # Accelerated real HTTP end-to-end: both old total deadlines
+                # would expire before DONE, while each semantic gap is short.
+                config['chat']={'transport':{'timeout_seconds':1}}
+                payload.update(message='LONG-ACTIVE',request_id='f'*32)
+                req=Request(origin+'/api/chat/stream',data=json.dumps(payload).encode(),headers={
+                    'Content-Type':'application/json','X-Ultra-CSRF':'TEST-CSRF','Origin':origin})
+                from functools import partial
+                started=time.monotonic()
+                with patch.object(web,'stream_chat',new=partial(chat_client.stream_chat,timeout=1.5)):
+                    with opener.open(req,timeout=5) as r:
+                        events=[json.loads(line) for line in r]
+                self.assertGreater(time.monotonic()-started,1.5)
+                self.assertEqual([e['type'] for e in events],['meta']+['reasoning']*3+['delta']*3+['done'])
+                self.assertEqual(events[-1]['messages'][-1]['content'],'345')
+                self.assertEqual(events[-1]['messages'][-1]['reasoning_content'],'012')
+                self.assertEqual(len(chat_store.history(Path(directory),'m','slot2','kat')),4)
 
 
 if __name__=='__main__':unittest.main()

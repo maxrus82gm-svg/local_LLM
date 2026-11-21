@@ -629,7 +629,7 @@ def make_handler(config_file, config, inbox, *, controller=None):
                                 with streams_guard:
                                     active_streams.pop(stream_key, None)
                         response = proxy_chat(port, model_id, messages, options=body.get("options"),
-                                              policy=policy, timeout=policy["timeout_seconds"])
+                                              policy=policy, timeout=policy["nonstream_timeout_seconds"])
                         return self._reply(200, {
                             "schema": "ultra.manager.chat.v1",
                             "manager_id": current["manager_id"],
