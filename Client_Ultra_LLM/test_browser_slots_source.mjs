@@ -186,11 +186,25 @@ try{
   await until('byId("chat-messages").textContent.includes("qa-ui-one")');
   assert.equal(await evaluate('byId("chat-messages").textContent.includes("qa-ui-two")'),false);
   await evaluate('showOverview()');
+  browser.setDialogAcceptance(true);
   for(const slot of ['slot4','slot5']){
     await evaluate('document.querySelector(".add-slot").click()');
     await until(`document.querySelector('[data-slot-id="${slot}"]')!==null`);
-    await pick(slot,'qwen36');await click(slot,'Старт CUDA');await ready(slot);
+    await pick(slot,'qwen36');
+    if(slot==='slot4'){
+      await until('Boolean(document.querySelector("[data-slot-id=slot4] .slot-cuda-config"))');
+      await evaluate('document.querySelector("[data-slot-id=slot4] .slot-cuda-config").click()');
+      assert.equal(await evaluate('byId("pre-cuda-budget").value'),"3.5");
+      assert.equal(await evaluate('byId("pre-cuda-target").value'),"7");
+      await evaluate('byId("pre-cuda-target").value="7.1";byId("pre-cuda-save").click()');
+      await until('!byId("cuda-prelaunch-dialog") && !isRefreshing && !refreshQueued');
+      const pre=(await data()).control;
+      assert.equal(pre.slots.find(s=>s.slot_id===slot).cuda_profile.target_gib,7.1);
+      assert(!pre.instances.some(i=>i.slot_id===slot&&!i.released));
+    }
+    await click(slot,'Старт CUDA');await ready(slot);
   }
+  browser.setDialogAcceptance(false);
   state=await data();
   const active=state.control.instances.filter(i=>!i.released);
   assert.equal(active.length,4);
@@ -290,16 +304,17 @@ try{
   await uiChat('slot4','qa-cuda-settings',3);
   await until('!byId("chat-cuda-panel").classList.contains("hidden")');
   assert.equal(await evaluate('byId("cuda-budget").value'),"3.5");
-  assert.equal(await evaluate('byId("cuda-target").value'),"7");
+  assert.equal(await evaluate('byId("cuda-target").value'),"7.1");
   const beforeProfile=(await data()).control.instances.find(i=>i.slot_id==='slot4'&&!i.released);
   await evaluate('byId("cuda-budget").value="3";byId("cuda-budget").dispatchEvent(new Event("input"));byId("cuda-target").value="7.2";byId("cuda-target").dispatchEvent(new Event("input"));byId("cuda-save").click()');
   await until('!cudaSaving && !cudaDirty && byId("cuda-save-status").textContent.includes("Стоп → Старт")');
   const savedProfile=(await data()).control;
   assert.equal(savedProfile.slots.find(s=>s.slot_id==='slot4').cuda_profile.budget_gib,3);
   assert.equal(savedProfile.slots.find(s=>s.slot_id==='slot4').cuda_profile.target_gib,7.2);
-  assert.equal(savedProfile.slots.find(s=>s.slot_id==='slot5').cuda_profile,null);
+  assert.deepEqual(savedProfile.slots.find(s=>s.slot_id==='slot5').cuda_profile,{budget_gib:3.5,chain:false,rows:null,target_gib:7});
   assert.equal(savedProfile.instances.find(i=>i.slot_id==='slot4'&&!i.released).instance_id,beforeProfile.instance_id);
-  assert.equal(savedProfile.instances.find(i=>i.slot_id==='slot4'&&!i.released).cuda_profile,null);
+  assert.deepEqual(beforeProfile.cuda_profile,{budget_gib:3.5,chain:false,rows:null,target_gib:7.1});
+  assert.deepEqual(savedProfile.instances.find(i=>i.slot_id==='slot4'&&!i.released).cuda_profile,beforeProfile.cuda_profile);
   await evaluate(`selectChat(${JSON.stringify(chatB)})`);
   assert.equal(await evaluate('byId("chat-cuda-panel").classList.contains("hidden")'),true);
   await evaluate('showOverview()');

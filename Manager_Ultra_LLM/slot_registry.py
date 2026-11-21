@@ -77,9 +77,12 @@ class SlotRegistry:
             slot=next((s for s in slots if s["slot_id"]==payload["slot_id"]),None)
             if slot is None or slot["slot_id"] not in principal["allowed_slots"]:raise PermissionError("slot_not_authorized")
             if slot["protected"]:raise PermissionError("legacy_slot_protected")
-            if slot["mode"]!="cuda" or slot["model_key"]!=payload["model_key"]:raise ValueError("slot_selection_changed")
-            if any(r["slot_id"]==slot["slot_id"] and not r["released"] and r["owner"]!=owner for r in rows):
-                raise PermissionError("instance_not_authorized")
+            if slot["model_key"]!=payload["model_key"]:raise ValueError("slot_selection_changed")
+            active=next((r for r in rows if r["slot_id"]==slot["slot_id"] and not r["released"]),None)
+            if active:
+                if active["owner"]!=owner:raise PermissionError("instance_not_authorized")
+                if active["mode"]!="cuda" or active["model_key"]!=slot["model_key"]:
+                    raise ValueError("slot_selection_changed")
             if type(payload["expected_revision"]) is not int or payload["expected_revision"]!=slot["revision"]:
                 raise ValueError("slot_selection_changed")
             profile=normalize(payload["cuda_profile"])

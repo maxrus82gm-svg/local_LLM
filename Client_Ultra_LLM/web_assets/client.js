@@ -194,6 +194,16 @@ function workspaces(container,manager) {
       finally{slotPending.delete(key);await refresh(true);}
     });
     const canStop=item?.can_stop===true && ["STARTING","READY"].includes(item.state);
+    const selectedModel=(control.models || []).find(m=>m.key===slot.model_key);
+    if(control.cuda_profiles===true && !item && !slot.protected && slot.authorized &&
+        control.control_models && control.enabled && modelInstalled(selectedModel) && selectedModel?.modes?.cuda) {
+      const settings=node("button","btn secondary small slot-cuda-config","⚙");
+      settings.type="button";settings.disabled=slotPending.has(key);
+      settings.dataset.tip="Настройки CUDA перед запуском "+slot.slot_id;
+      settings.setAttribute("aria-label",settings.dataset.tip);
+      settings.addEventListener("click",()=>openPrelaunchCuda(manager,slot));
+      info.append(settings);
+    }
     for(const title of ["Старт CPU", "Старт CUDA", "Стоп"]) {
       const mode=title==="Старт CPU" ? "cpu" : "cuda";
       const button=node("button","btn secondary small manager-model-action",title);button.type="button";
@@ -1069,10 +1079,74 @@ function put(id,value) {
   if(el.textContent!==text)el.textContent=text;
 }
 function gib(x) {return Number.isFinite(x) ? x.toFixed(2)+" ГиБ" : "—";}
+function readCudaProfile(budget,chain,rows,target) {
+  return {budget_gib:budget.value===""?null:Number(budget.value),chain:chain.value==="on",
+          rows:rows.value===""?null:Number(rows.value),target_gib:Number(target.value)};
+}
+function validCudaProfile(profile,inputs) {
+  return !inputs.some(input=>input.validity.badInput)&&
+    Number.isFinite(profile.target_gib)&&profile.target_gib>0&&profile.target_gib<=1024&&
+    (profile.budget_gib===null||(Number.isFinite(profile.budget_gib)&&profile.budget_gib>0&&profile.budget_gib<=profile.target_gib))&&
+    (profile.rows===null||(Number.isInteger(profile.rows)&&profile.rows>=1&&profile.rows<=8192));
+}
 function cudaProfileFromForm() {
-  const budget=byId("cuda-budget").value,rows=byId("cuda-rows").value;
-  return {budget_gib:budget===""?null:Number(budget),chain:byId("cuda-chain").value==="on",
-          rows:rows===""?null:Number(rows),target_gib:Number(byId("cuda-target").value)};
+  return readCudaProfile(byId("cuda-budget"),byId("cuda-chain"),byId("cuda-rows"),byId("cuda-target"));
+}
+function openPrelaunchCuda(manager,slot) {
+  if(byId("cuda-prelaunch-dialog"))return;
+  const control=manager.data.control;
+  const profile=slot.cuda_profile||control.cuda_defaults;
+  const dialog=node("dialog","");
+  dialog.id="cuda-prelaunch-dialog";
+  dialog.setAttribute("aria-label","Настройки CUDA "+slot.slot_id);
+  const panel=node("div","dialog-content");
+  panel.append(node("h3","","Настройки CUDA · "+slot.slot_id),node("p","manager-pairing-note",
+    "Для следующего явного запуска CUDA. CPU и текущие экземпляры не изменяются. Порог VRAM — предупреждение, не ограничитель."));
+  const form=node("form","");
+  const fields=node("div","form-grid");
+  function field(title,input) {
+    const label=node("label","field");label.append(node("span","",title),input);fields.append(label);
+    return input;
+  }
+  function num(id,value,min,max,step,placeholder="") {
+    const input=node("input","");input.id=id;input.type="number";input.min=min;input.max=max;
+    input.step=step;input.placeholder=placeholder;input.value=value??"";return input;
+  }
+  const budget=field("Бюджет весов, ГиБ",num("pre-cuda-budget",profile.budget_gib,0.1,1024,0.1,"Auto"));
+  const chain=node("select","slot-model");chain.id="pre-cuda-chain";
+  chain.append(new Option("Выкл.","off"),new Option("Вкл.","on"));chain.value=profile.chain?"on":"off";
+  field("CUDA Chain",chain);
+  const rows=field("Блок чтения",num("pre-cuda-rows",profile.rows,1,8192,1,"Auto"));
+  rows.disabled=chain.value==="off";chain.addEventListener("change",()=>{rows.disabled=chain.value==="off";});
+  const target=field("Порог VRAM, ГиБ",num("pre-cuda-target",profile.target_gib,0.1,1024,0.1));
+  const error=node("div","form-error hidden");error.setAttribute("role","status");
+  const actions=node("div","dialog-actions");
+  const cancel=node("button","btn secondary","Отмена");cancel.type="button";
+  const save=node("button","btn primary","Сохранить");save.type="submit";
+  save.id="pre-cuda-save";
+  actions.append(cancel,save);form.append(fields,error,actions);panel.append(form);dialog.append(panel);
+  let saving=false;
+  cancel.addEventListener("click",()=>dialog.close());
+  dialog.addEventListener("cancel",event=>{if(saving)event.preventDefault();});
+  dialog.addEventListener("close",()=>dialog.remove());
+  form.addEventListener("submit",async event=>{
+    event.preventDefault();if(saving)return;
+    const next=readCudaProfile(budget,chain,rows,target);
+    if(!validCudaProfile(next,[budget,chain,rows,target])){
+      error.textContent=controlReason("invalid_cuda_profile");error.classList.remove("hidden");return;
+    }
+    saving=true;save.disabled=cancel.disabled=true;error.classList.add("hidden");
+    try {
+      const saved=await pairingPost("/api/control",{manager_id:manager.manager_id,op:"cuda_settings",
+        slot_id:slot.slot_id,model_key:slot.model_key,expected_revision:slot.revision,cuda_profile:next,
+        request_id:crypto.randomUUID().replaceAll("-","")});
+      if(saved.state!=="CUDA_SETTINGS_SAVED"||saved.slot_id!==slot.slot_id||saved.model_key!==slot.model_key)
+        throw Error("invalid_control_response");
+      dialog.close();await refresh(true);
+    }catch(e){error.textContent=controlReason(e.message);error.classList.remove("hidden");}
+    finally{saving=false;save.disabled=cancel.disabled=false;}
+  });
+  document.body.append(dialog);dialog.showModal();
 }
 function setCudaInputs(profile) {
   byId("cuda-budget").value=profile.budget_gib ?? "";
@@ -1103,7 +1177,7 @@ function renderCudaPanel(chat,target) {
   let message=slot.cuda_profile ? (!instance.released&&!sameLaunchProfile(slot.cuda_profile,applied) ?
     "Сохранено: для бюджета/Chain/блока нужен Стоп → Старт LLM." :
     (instance.released?"Сохранено для следующего запуска.":"Профиль запуска применён.")) :
-    "Предложенный профиль. Действующий запуск без переопределения. Нажмите Сохранить.";
+    "Профиль по умолчанию для следующего запуска. Действующий экземпляр не изменён.";
   if(applied&&!instance.released)message+=" Сейчас: "+(applied.budget_gib??"Auto")+" ГиБ · Chain "+(applied.chain?"вкл.":"выкл.") +
     (applied.chain?" · блок "+(applied.rows??"Auto"):"")+".";
   if(cudaDirty)message="Есть несохранённые изменения. "+message;
@@ -1136,10 +1210,7 @@ byId("cuda-save").addEventListener("click",async()=>{
   const binding=cudaBinding(currentChat(),liveTarget(currentChat()));
   if(!binding||cudaSaving)return;
   const {manager,slot,key}=binding, profile=cudaProfileFromForm();
-  if(cudaInputIds.some(id=>byId(id).validity.badInput)||
-     !Number.isFinite(profile.target_gib)||profile.target_gib<=0||profile.target_gib>1024||
-     (profile.budget_gib!==null&&(!Number.isFinite(profile.budget_gib)||profile.budget_gib<=0||profile.budget_gib>profile.target_gib))||
-     (profile.rows!==null&&(!Number.isInteger(profile.rows)||profile.rows<1||profile.rows>8192))) {
+  if(!validCudaProfile(profile,cudaInputIds.map(id=>byId(id)))) {
     cudaStatusText=controlReason("invalid_cuda_profile");renderCudaPanel(currentChat(),liveTarget(currentChat()));return;
   }
   cudaSaving=true;cudaStatusText="Сохраняем на Manager…";renderCudaPanel(currentChat(),liveTarget(currentChat()));

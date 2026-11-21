@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import tempfile
+import time
 import unittest
 import uuid
 import sys
@@ -35,14 +36,25 @@ class LiveMemoryPrimitiveTests(unittest.TestCase):
         folder=directory.name
         try:
             with open(Path(folder)/"out","wb") as out,open(Path(folder)/"err","wb") as err:
-                cmd=[sys.executable,"-B","-c","import time;time.sleep(20)"]
-                h,r=native.spawn_contained(cmd,os.environ.copy(),folder,out,err,a)
+                # Require both children to touch a known allocation before measuring.
+                script=("import pathlib,sys,time; "
+                        "memory=bytearray(8*1024*1024); "
+                        "memory[::4096]=b'x'*2048; "
+                        "pathlib.Path(sys.argv[1]).write_text('READY'); time.sleep(20)")
+                cmd=[sys.executable,"-B","-c",script]
+                marker_a=Path(folder)/"a.ready"; marker_b=Path(folder)/"b.ready"
+                h,r=native.spawn_contained(cmd+[str(marker_a)],os.environ.copy(),folder,out,err,a)
                 handles.append(h)
-                h2,r2=native.spawn_contained(cmd,os.environ.copy(),folder,out,err,b)
+                h2,r2=native.spawn_contained(cmd+[str(marker_b)],os.environ.copy(),folder,out,err,b)
                 handles.append(h2)
+                deadline=time.monotonic()+8
+                while not (marker_a.is_file() and marker_b.is_file()):
+                    self.assertTrue(native.alive(h) and native.alive(h2),"Fixture exited before readiness")
+                    self.assertLess(time.monotonic(),deadline,"Fixture did not commit memory before deadline")
+                    time.sleep(0.05)
                 data=native.job_memory(name,r)
-                self.assertGreater(data["ram_gib"],0)
-                self.assertGreater(data["private_commit_gib"],0)
+                self.assertGreaterEqual(data["ram_gib"],round(8/1024,3))
+                self.assertGreaterEqual(data["private_commit_gib"],round(8/1024,3))
                 # Windows Python launchers may themselves create a child.
                 members={x["pid"] for x in data["records"]}
                 self.assertIn(r["pid"],members)

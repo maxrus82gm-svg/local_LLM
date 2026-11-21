@@ -115,6 +115,32 @@ class AdmissionTests(unittest.TestCase):
         self.assertNotIn("--vram",cmd)
         self.assertNotIn("COLI_CUDA_CHAIN",env)
 
+    def test_selected_cuda_default_and_profile_before_first_launch(self):
+        from cuda_profile import DEFAULT_PROFILE
+        self.config["control"]["resources"]={"allow_risk_ack":True}
+        selection=self.operation("select",slot_id="slot2",model_key="kat",mode="cpu")
+        checked=self.operation("check",slot_id="slot2",model_key="kat",mode="cuda")
+        self.assertEqual(checked["forecast"]["cuda_profile"],DEFAULT_PROFILE)
+        self.assertIsNone(checked["forecast"]["ram_estimate_gib"])
+        self.assertFalse(self.pending)
+        changed={**DEFAULT_PROFILE,"budget_gib":3.0,"chain":True,"rows":256}
+        self.operation("cuda_settings",slot_id="slot2",model_key="kat",
+                       expected_revision=selection["revision"],cuda_profile=changed)
+        self.assertFalse(self.pending)
+        with self.assertRaisesRegex(ControlError,"risk_confirmation_stale"):
+            self.start(mode="cuda",slot_id="slot2",risk_ack=True,risk_token=checked["risk_token"])
+        check=self.operation("check",slot_id="slot2",model_key="kat",mode="cuda")
+        self.assertEqual(check["forecast"]["cuda_profile"],changed)
+        started=self.start(mode="cuda",slot_id="slot2",risk_ack=True,risk_token=check["risk_token"])
+        self.assertEqual(started["cuda_profile"],changed)
+        self.operation("select",slot_id="slot3",model_key="kat",mode="cpu")
+        second_check=self.operation("check",slot_id="slot3",model_key="kat",mode="cuda")
+        second=self.start(mode="cuda",slot_id="slot3",risk_ack=True,risk_token=second_check["risk_token"])
+        self.assertEqual(second["cuda_profile"],DEFAULT_PROFILE)
+        saved=self.core.catalog(self.alice)["slots"]
+        self.assertEqual(next(x for x in saved if x["slot_id"]=="slot3")["cuda_profile"],DEFAULT_PROFILE)
+        self.assertEqual(next(x for x in saved if x["slot_id"]=="slot2")["cuda_profile"],changed)
+
     def test_cuda_profile_rejects_foreign_slot_and_arbitrary_env(self):
         from cuda_profile import DEFAULT_PROFILE
         payload={"op":"cuda_settings","slot_id":"slot2","model_key":"kat","expected_revision":0,

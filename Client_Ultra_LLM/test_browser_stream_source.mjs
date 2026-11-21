@@ -148,9 +148,15 @@ try{
   assert.equal(await evaluate('byId("chat-send").closest(".chat-input-wrap")===byId("chat-input").closest(".chat-input-wrap")'),true);
   assert.equal(await evaluate('byId("chat-send").dataset.icon'),"enter");
   await evaluate('document.getElementById("chat-send").click()');
-  await until(`document.getElementById("chat-messages").textContent.includes(${JSON.stringify(retryDraft)})
-    && !document.getElementById("chat-send").disabled`);
-  assert.equal(await value(),'');
+  // A pending user bubble and the enabled STOP button are not completion.
+  await until(`!conversation(${JSON.stringify(chatId)}).request &&
+    conversation(${JSON.stringify(chatId)}).messages.at(-2)?.content===${JSON.stringify(retryDraft)} &&
+    conversation(${JSON.stringify(chatId)}).messages.at(-1)?.role==="assistant" &&
+    document.getElementById("chat-send").type==="submit" && !document.getElementById("chat-send").disabled`);
+  assert.equal(await value(),'','A committed successful retry must clear the draft');
+  const afterRetry=await(await fetch(host.url+'/api/chat/history?chat_id='+chatId)).json();
+  assert.equal(afterRetry.messages.filter(m=>m.role==='user'&&m.content===retryDraft).length,1);
+  assert.equal(afterRetry.messages.at(-1).role,'assistant');
   assert.equal((await metricsFromUpstream()).requests,4,'Clicking Send must recover with exactly one request');
   assert.deepEqual(browser.errors,[]);
   console.log(JSON.stringify({status:'PASS',chain:'Chrome / SOURCE Client / verified TLS SOURCE Manager / fake Colibri',

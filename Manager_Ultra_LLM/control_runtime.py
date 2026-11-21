@@ -426,7 +426,7 @@ class ModelControl:
                 self._sync(db)
                 definitions=self.registry.definitions(db)
                 for slot in definitions:
-                    if slot["slot_id"] in principal["allowed_slots"] and slot["mode"]=="cuda" and slot["model_key"]:
+                    if slot["slot_id"] in principal["allowed_slots"] and not slot["protected"] and slot["model_key"]:
                         slot["cuda_profile"]=self.registry.cuda_profile(db,slot["slot_id"],slot["model_key"])
                 all_rows = self._rows(db)
                 visible = [r for r in all_rows if not r["released"]]
@@ -559,7 +559,6 @@ class ModelControl:
                     telemetry = self.backend.telemetry()
                 except Exception:
                     raise ControlError("resource_telemetry_unknown", 503) from None
-                assessment=self._gate(key,mode,telemetry,rows,context_tokens)
                 requested=payload.get("slot_id")
                 if requested is not None:
                     if type(requested) is not str or not any(s["slot_id"]==requested for s in definitions):raise ControlError("unknown_slot",404)
@@ -575,8 +574,12 @@ class ModelControl:
                 identity=uuid.uuid4().hex
                 spec = self._spec(slot,key,mode)
                 cuda_profile=self.registry.cuda_profile(db,slot["slot_id"],key) if mode=="cuda" else None
+                # Explicit selected-slot launches use the displayed defaults.
+                # Unselected/automatic legacy calls retain their reviewed contract.
+                if mode=="cuda" and cuda_profile is None and requested is not None and slot["model_key"]==key:
+                    cuda_profile=dict(DEFAULT_PROFILE)
+                assessment=self._gate(key,mode,telemetry,rows,context_tokens,cuda_profile)
                 if cuda_profile is not None:
-                    assessment=self._gate(key,mode,telemetry,rows,context_tokens,cuda_profile)
                     spec=replace(spec,review={**spec.review,"launch":{**spec.review.get("launch",{}),"cuda_profile":cuda_profile}})
                 if context_tokens is not None:
                     # Reuse the durable launch dictionary, so earlier runners can
@@ -604,6 +607,9 @@ class ModelControl:
                 try:self.registry.confirm_risk(db,principal,payload,slot["slot_id"],assessment)
                 except PermissionError as error:raise ControlError(str(error),403) from None
                 except ValueError as error:raise ControlError(str(error)) from None
+                if cuda_profile is not None:
+                    db.execute("INSERT OR IGNORE INTO cuda_profiles VALUES(?,?,?)",
+                               (slot["slot_id"],key,json.dumps(cuda_profile,sort_keys=True)))
                 db.execute("UPDATE slots SET model_key=?,mode=?,revision=revision+1 WHERE slot_id=?",(key,mode,slot["slot_id"]))
                 row = {"instance_id": identity, "slot_id": slot["slot_id"], "model_key": key,
                        "mode": mode, "owner": owner, "state": "STARTING", "released": False,
