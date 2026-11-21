@@ -42,7 +42,7 @@ from resource_catalog import initial_catalogue
 from server_preflight import (INSTALLATION_QUERY, PROJECT, probe_api, read_profiles,
                               require_local_server)
 from server_runner import managed_slot
-from windows_process import NativeWindows, WindowsError
+from windows_process import NativeWindows, WindowsError, read_shared_text
 
 ROOT = PROJECT / "Colibri" / "manager_dev"
 HOME = ROOT / "instances" / "slot2"
@@ -261,12 +261,59 @@ def write_json(path, data):
             time.sleep(0.025 * (2 ** attempt))
 
 
+def state_write_event(state, event, error=None, **details):
+    """Independent diagnostic file; never let diagnostic I/O kill a model."""
+    try:
+        path = safe_write_path(Path(paths()["state"]).parent / "supervisor-events.jsonl")
+        row = {"utc": stamp(), "event": event, "slot": state["instance"],
+               "instance_id": state["session"], "state": state["state"], **details}
+        if error is not None:
+            row["winerror"] = getattr(error, "winerror", None)
+        with path.open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps(row, ensure_ascii=True) + "\n")
+    except OSError:
+        pass
+
+
+class HeartbeatWriter:
+    """Only repetitive READY snapshots may be delayed; identity/start/stop writes stay strict."""
+    def __init__(self):
+        self.failed_since = None
+
+    def publish(self, path, state, previous):
+        try:
+            write_json(path, state)
+        except OSError as error:
+            if (previous != "READY" or state["state"] != "READY"
+                    or getattr(error, "winerror", None) not in (5, 32, 33)):
+                raise
+            now = time.monotonic()
+            if self.failed_since is None:
+                self.failed_since = now
+                state_write_event(state, "heartbeat_write_delayed", error)
+            if now - self.failed_since >= 30:
+                state_write_event(state, "heartbeat_write_timeout", error)
+                raise
+            return False
+        if self.failed_since is not None:
+            state_write_event(state, "heartbeat_write_recovered")
+            self.failed_since = None
+        return True
+
+
 def read_state():
     path = safe_write_path(paths()["state"])
     if not path.is_file():
         return None
     try:
-        state = json.loads(path.read_text(encoding="utf-8"))
+        for attempt in range(4):
+            try:
+                state = json.loads(read_shared_text(path))
+                break
+            except OSError as error:
+                if getattr(error, "winerror", None) not in (5, 32, 33) or attempt == 3:
+                    raise
+                time.sleep(0.025 * (2 ** attempt))
     except (OSError, ValueError) as error:
         raise StartDenied("Invalid instance state; no lifecycle action") from error
     if (type(state) is not dict or state.get("instance") != setting("slot_id")
@@ -341,6 +388,20 @@ def reviewed_engine(review):
     return engine
 
 
+def validate_context_capacity(model, requested):
+    if requested is None:
+        return
+    config=json.loads((Path(model)/"config.json").read_text(encoding="utf-8-sig"))
+    declared=[config.get("max_position_embeddings")]
+    if type(config.get("text_config")) is dict:
+        declared.append(config["text_config"].get("max_position_embeddings"))
+    limits=[v for v in declared if type(v) is int and v>0]
+    if not limits:
+        raise StartDenied("context_capacity_unknown")
+    if requested>min(limits):
+        raise StartDenied("context_capacity_exceeded")
+
+
 def make_plan(native):
     require_execution()
     policy_check(native.memory()["free_gib"])
@@ -385,6 +446,8 @@ def make_plan(native):
     if not model.resolve().is_relative_to(root.resolve()):
         raise StartDenied("Model path outside shared catalogue")
     metadata = validate_model(model, root, profile)
+    if _SPEC.get() is not None:
+        validate_context_capacity(model, _SPEC.get().resources.get("context_tokens"))
     runtime_files = [engine] + sorted(engine.parent.glob("*.dll"))
     # Metadata and executable hashes only: do not hash/copy the 22 GB weights.
     hashes = {str(p): digest(p) for p in (
@@ -558,6 +621,7 @@ def supervise(session):
         try:
             event = native.event(event_name)
             write_json(paths()["state"], state)
+            state_write_event(state, "supervisor_started")
             plan = make_plan(native)
             state.update(plan)
             if native.k.WaitForSingleObject(event, 0) == 0:
@@ -597,6 +661,9 @@ def supervise(session):
                 if type(load_timeout) is not int or not 1<=load_timeout<=3600:raise StartDenied("invalid_launch_timeout")
                 deadline = time.monotonic() + load_timeout
                 low_samples = 0
+                heartbeat = HeartbeatWriter()
+                degraded = None
+                missing_since = None
                 while native.alive(gateway_handle):
                     state["updated_utc"] = stamp()
                     free = native.memory()["free_gib"]
@@ -627,15 +694,42 @@ def supervise(session):
                     owners = {r["pid"] for r in native.listeners() if r["port"] == setting("port")}
                     api = probe(setting("port")) if owners == {gateway["pid"]} and engines else {}
                     previous = state["state"]
-                    state["state"] = readiness(previous, owners, gateway["pid"], engines, api)
+                    # A slow/busy HTTP endpoint is not evidence of a hung engine.
+                    # Preserve strict legacy trial semantics and foreign-port protection.
+                    if _SPEC.get() and previous=="READY" and (not owners or not engines or
+                            api.get("health")!="ok" or setting("api_id") not in api.get("model_ids", [])):
+                        if owners and owners!={gateway["pid"]}:
+                            raise StartDenied("Foreign process owns slot port; closing only owned job")
+                        observed=("process_or_listener_missing" if not owners or not engines else "api_probe_unavailable")
+                        if observed != degraded:
+                            state_write_event(state,"readiness_degraded",reason=observed,
+                                health=api.get("health","UNKNOWN"),errors={k:api[k] for k in ("/health","/v1/models") if k in api},
+                                engine_count=len(engines),listener_verified=owners=={gateway["pid"]})
+                            degraded=observed
+                        state["health_warning"]=observed
+                        if not owners or not engines:
+                            if missing_since is None:
+                                missing_since=time.monotonic()
+                            if time.monotonic()-missing_since>=15:
+                                raise StartDenied("Owned engine or listener missing for 15 seconds")
+                        else:
+                            missing_since=None
+                        # Keep ownership; live API reports unavailable independently.
+                    else:
+                        state["state"] = readiness(previous, owners, gateway["pid"], engines, api)
+                        if degraded is not None:
+                            state_write_event(state,"readiness_recovered")
+                        degraded=missing_since=None
+                        state.pop("health_warning",None)
                     if state["state"] == "READY" and previous != "READY":
+                        state_write_event(state,"instance_ready",engine_count=len(engines))
                         if _SPEC.get() is None:
                             if probe(primary_port()).get("health") != "ok":
                                 raise StartDenied("Primary API lost health; closing only Colibri2")
                             state["primary_health_at_ready"] = "ok"
                     if time.monotonic() > deadline and state["state"] != "READY":
                         raise StartDenied("CPU load timeout; closing only owned job")
-                    write_json(plan["paths"]["state"], state)
+                    heartbeat.publish(plan["paths"]["state"], state, previous)
                     time.sleep(1)
                 if state["state"] != "STOPPING":
                     raise StartDenied("Owned gateway exited; inspect the isolated stderr log")
@@ -646,6 +740,7 @@ def supervise(session):
             state.update(state="STOPPING", reason=str(error))
         except BaseException as error:
             state.update(state="ERROR", reason=str(error))
+            state_write_event(state,"supervisor_error",error,exception_class=type(error).__name__,reason=str(error)[:500])
         finally:
             # Non-inheritable handle, owned by this supervisor alone. Closing
             # affects its descendants, never the existing primary or game server.
@@ -681,6 +776,7 @@ def supervise(session):
             elif not cleanup_confirmed:
                 state.update(state="ERROR", reason="Owned job closed; process exit confirmation incomplete")
             state["updated_utc"] = stamp()
+            state_write_event(state,"supervisor_finished",cleanup_confirmed=cleanup_confirmed,reason=str(state.get("reason") or "")[:500])
             write_json(paths()["state"], state)
         return state
 

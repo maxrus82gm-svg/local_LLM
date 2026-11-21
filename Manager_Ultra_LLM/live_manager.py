@@ -374,6 +374,8 @@ def live_snapshot(config, client):
             models = _local_api_json(port, "/v1/models")
             if isinstance(health, dict) and health.get("status") == "ok":
                 row["engine_state"] = "ready"
+                if allowed and type(health.get("context_tokens")) is int and health["context_tokens"]>0:
+                    row["context_tokens"]=health["context_tokens"]
                 queue = health.get("scheduler")
                 if isinstance(queue, dict):
                     vals = [queue.get(k) for k in ("active", "queued", "capacity")]

@@ -43,6 +43,49 @@ class AdmissionTests(unittest.TestCase):
     def operation(self,op,**fields):
         return self.core.handle(self.alice,{"op":op,"request_id":uuid.uuid4().hex,**fields})
 
+    def test_context_override_isolated_bound_to_risk_and_forwarded_to_cli(self):
+        self.config["control"]["resources"]={"allow_risk_ack":True}
+        review=self.config["control"]["reviews"]["kat"]["cuda"]
+        review["launch"]={"context_tokens":2048,"threads":2}
+        check=self.operation("check",model_key="kat",mode="cuda",slot_id="slot2",context_tokens=16384)
+        self.assertIsNone(check["forecast"]["vram_estimate_gib"])
+        self.assertIsNone(check["forecast"]["ram_estimate_gib"])
+        self.assertEqual(check["forecast"]["estimate_evidence"],"context_unmeasured")
+        self.assertTrue(check["requires_ack"])
+        with self.assertRaisesRegex(ControlError,"risk_confirmation_stale"):
+            self.start(mode="cuda",slot_id="slot2",context_tokens=32768,risk_ack=True,risk_token=check["risk_token"])
+        first=self.start(mode="cuda",slot_id="slot2",context_tokens=16384,risk_ack=True,risk_token=check["risk_token"])
+        self.assertEqual(review["launch"]["context_tokens"],2048)
+        with self.core.db() as db:
+            spec=RunnerSpec(**json.loads(self.core._rows(db)[0]["spec"]))
+        self.assertEqual(spec.review["launch"]["context_tokens"],16384)
+        self.assertEqual(spec.resources["context_tokens"],16384)
+        with configured(spec):
+            command,env=command_and_environment({"paths":paths(),"launcher":"launcher","model":"model"})
+        self.assertEqual(command.count("--ctx"),1)
+        self.assertEqual(command[command.index("--ctx")+1],"16384")
+        self.assertNotIn("--ngen",command)
+        self.assertEqual(env["OMP_NUM_THREADS"],"2")
+        self.assertEqual(first["slot_id"],"slot2")
+        for bad in (0,-1,1000000,True,2.5,"8192",None):
+            with self.subTest(bad=bad),self.assertRaisesRegex(ControlError,"invalid_context_tokens"):
+                self.operation("check",model_key="kat",mode="cpu",context_tokens=bad)
+        self.assertEqual(len(self.pending),1)
+
+    def test_context_capacity_uses_model_metadata_not_fixed_defaults(self):
+        from colibri2_runner import validate_context_capacity
+        meta=self.folder/"config.json"
+        meta.write_text(json.dumps({"max_position_embeddings":262144}),encoding="utf-8")
+        validate_context_capacity(self.folder,262144)
+        with self.assertRaisesRegex(StartDenied,"context_capacity_exceeded"):
+            validate_context_capacity(self.folder,262145)
+        meta.write_text(json.dumps({"text_config":{"max_position_embeddings":32768}}),encoding="utf-8")
+        validate_context_capacity(self.folder,16384)
+        meta.write_text("{}",encoding="utf-8")
+        with self.assertRaisesRegex(StartDenied,"context_capacity_unknown"):
+            validate_context_capacity(self.folder,8192)
+        validate_context_capacity(self.folder,None)
+
     def test_same_slot_race_has_exactly_one_winner(self):
         def request(_):
             try:return self.start(slot_id="slot2")

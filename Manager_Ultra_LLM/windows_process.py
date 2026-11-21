@@ -37,15 +37,48 @@ class MemoryStatus(c.Structure):
         ("total", "available", "page_total", "page_available", "virtual", "virtual_available", "extended")]
 
 
+
+def read_shared_text(path):
+    """Read an atomic state snapshot without denying Windows rename/delete."""
+    if os.name != "nt":
+        return path.read_text(encoding="utf-8")
+    import msvcrt
+    k = c.WinDLL("kernel32", use_last_error=True)
+    create = k.CreateFileW
+    create.argtypes = [w.LPCWSTR, w.DWORD, w.DWORD, c.c_void_p, w.DWORD, w.DWORD, w.HANDLE]
+    create.restype = w.HANDLE
+    h = create(str(path), 0x80000000, 7, None, 3, 0x80, None)
+    if h in (None, c.c_void_p(-1).value):
+        raise c.WinError(c.get_last_error())
+    try:
+        fd = msvcrt.open_osfhandle(h, os.O_RDONLY | os.O_BINARY)
+    except BaseException:
+        k.CloseHandle.argtypes = [w.HANDLE]
+        k.CloseHandle(h)
+        raise
+    with os.fdopen(fd, "r", encoding="utf-8") as stream:
+        return stream.read()
+
+
+class ProcessMemoryCounters(c.Structure):
+    _fields_ = [("cb", w.DWORD), ("PageFaultCount", w.DWORD)] + [
+        (name, c.c_size_t) for name in (
+            "PeakWorkingSetSize", "WorkingSetSize", "QuotaPeakPagedPoolUsage",
+            "QuotaPagedPoolUsage", "QuotaPeakNonPagedPoolUsage", "QuotaNonPagedPoolUsage",
+            "PagefileUsage", "PeakPagefileUsage", "PrivateUsage")]
+
+
 class NativeWindows:
     def __init__(self):
         if os.name != "nt":
             raise WindowsError("Windows only")
         self.k = c.WinDLL("kernel32", use_last_error=True)
         self.a = c.WinDLL("advapi32", use_last_error=True)
+        self.psapi = c.WinDLL("psapi", use_last_error=True)
         def bind(dll, name, result, *args):
             fn = getattr(dll, name)
             fn.restype, fn.argtypes = result, list(args)
+        bind(self.psapi, "GetProcessMemoryInfo", w.BOOL, w.HANDLE, c.POINTER(ProcessMemoryCounters), w.DWORD)
         bind(self.k, "CloseHandle", w.BOOL, w.HANDLE)
         bind(self.k, "LocalFree", w.HANDLE, w.HANDLE)
         bind(self.k, "CreateMutexW", w.HANDLE, c.c_void_p, w.BOOL, w.LPCWSTR)
@@ -236,6 +269,43 @@ class NativeWindows:
         value = w.BOOL()
         self.checked(self.k.IsProcessInJob(process_handle, job, c.byref(value)), "Cannot verify job member")
         return bool(value.value)
+
+    def job_memory(self, name, gateway):
+        """Query only an exact managed job anchored by its verified gateway."""
+        from contextlib import ExitStack
+        job = self.k.OpenJobObjectW(4, False, name)
+        if not job:
+            raise WindowsError("Session memory job unavailable")
+        try:
+            with ExitStack() as stack:
+                pids = set(self.job_pids(job))
+                if not pids or gateway["pid"] not in pids:
+                    raise WindowsError("Gateway not in job")
+                working = private = 0
+                records = []
+                for pid in sorted(pids):
+                    handle = self.checked(self.k.OpenProcess(0x400 | 0x10 | 0x100000, False, pid),
+                                          "Cannot open process for memory query")
+                    stack.callback(self.close, handle)
+                    identity = self.identity(handle)
+                    if not self.member(handle, job) or identity["owner_sid"] != gateway["owner_sid"]:
+                        raise WindowsError("Memory membership not verified")
+                    if pid == gateway["pid"] and not self.same(gateway, identity):
+                        raise WindowsError("Gateway identity changed")
+                    counters = ProcessMemoryCounters()
+                    counters.cb = c.sizeof(counters)
+                    self.checked(self.psapi.GetProcessMemoryInfo(handle, c.byref(counters), counters.cb),
+                                 "Cannot measure process memory")
+                    working += counters.WorkingSetSize
+                    private += counters.PrivateUsage
+                    records.append(identity)
+                if set(self.job_pids(job)) != pids or any(self.record_state(r) != "alive" for r in records):
+                    raise WindowsError("Job membership changed while measuring")
+                return {"ram_gib": round(working / 2**30, 3),
+                        "private_commit_gib": round(private / 2**30, 3),
+                        "process_count": len(records), "records": records}
+        finally:
+            self.close(job)
 
     def record_state(self, expected):
         """Differentiate a dead/reused PID from an inaccessible process."""

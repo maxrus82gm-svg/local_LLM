@@ -253,8 +253,11 @@ try{
   await evaluate(`selectChat(${JSON.stringify(chatA)})`);
   await until('byId("chat-messages").textContent.includes("qa-ui-one")');
   assert.equal(await evaluate('byId("chat-send").disabled'),true,'Stopped model must not accept a chat');
+  await evaluate('byId("chat-context-preset").value="16384";byId("chat-context-preset").dispatchEvent(new Event("change"))');
+  await until('!chatMutation && currentChat().context_tokens===16384');
   await evaluate(`selectChat(${JSON.stringify(chatB)})`);
   await until('byId("chat-messages").textContent.includes("qa-ui-two")');
+  assert.equal(await evaluate("currentChat().context_tokens"),null);
   assert.equal(await evaluate('byId("chat-send").disabled'),false,'Other model remains available');
   await evaluate('showOverview()');
   // A burst of unavailable snapshots must hit a finite deadline, never READY.
@@ -276,6 +279,8 @@ try{
   browser.setDialogAcceptance(true);
   await click('slot2','Старт CPU');await ready('slot2');
   assert(browser.dialogs.length>=2);
+  state=await data();assert.equal(state.slots.find(s=>s.slot_id==='slot2').context_tokens,16384);
+  assert.equal(state.slots.find(s=>s.slot_id==='slot3').context_tokens,32768);
   await fetch(host.upstream+'/__qa/normal_ram');
   assert.deepEqual(browser.errors,[]);
   await evaluate('refresh(true)');
@@ -290,7 +295,7 @@ try{
     unique_instance_ids:true,ipv6_listener_skipped:true,concurrent_chats_isolated:true,
     stop_one_preserves_other:true,controller_and_browser_reload:true,history_preserved:true,
     two_ui_chats_bound_and_persisted:true,per_message_metrics_visible:true,
-    risk_cancel_and_confirm:true,status_faults:['null','partial','503','delay','disconnect','bounded_503_burst'],
+    context_override_end_to_end:16384,risk_cancel_and_confirm:true,status_faults:['null','partial','503','delay','disconnect','bounded_503_burst'],
     status_samples:statusTrace.length,status_classes:[...new Set(statusTrace.map(s=>s.kind+':'+s.http))],
     phase_trace:phaseTrace,bounded_failure_ms:boundedFailureMs,status_trace:statusTrace,
     console_errors:browser.errors},null,2));

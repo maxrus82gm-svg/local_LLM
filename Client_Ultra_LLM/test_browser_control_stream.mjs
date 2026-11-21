@@ -186,8 +186,11 @@ try {
   assert.equal(await evaluate('byId("chat-form").contains(byId("chat-thinking"))'),true);
   assert.equal(await evaluate('byId("chat-form").contains(byId("chat-effort")) && byId("chat-form").contains(byId("chat-history-messages"))'),true);
   assert.equal(await evaluate('document.querySelector(".chat-inspector").contains(byId("chat-effort")) || document.querySelector(".chat-inspector").contains(byId("chat-history-messages"))'),false);
-  assert.equal(await evaluate('document.querySelectorAll("#chat-form .chat-tip[data-tip]").length'),4);
-  await evaluate('byId("chat-stream").closest("[data-tip]").dispatchEvent(new PointerEvent("pointerover",{bubbles:true}))');
+  assert.equal(await evaluate('document.querySelectorAll("#chat-form .chat-tip[data-tip]").length'),5);
+  assert.equal(await evaluate('Boolean(byId("chat-context-tip").dataset.tip)'),true);
+  // Let composer layout/focus settle before synthetic hover; scroll dismisses tips.
+  await delay(350);
+  await evaluate('document.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true}));byId("chat-stream").closest("[data-tip]").dispatchEvent(new PointerEvent("pointerover",{bubbles:true}))');
   await until('byId("chat-floating-tip").matches(":popover-open")');
   assert(await evaluate('byId("chat-floating-tip").getBoundingClientRect().bottom < byId("chat-stream").getBoundingClientRect().top'));
   assert.match(await evaluate('byId("chat-floating-tip").textContent'), /генерации/);

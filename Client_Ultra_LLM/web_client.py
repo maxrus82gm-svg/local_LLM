@@ -244,7 +244,7 @@ def chat_record(folder, chat_id):
 def chat_action(folder, data):
     fields = {"create": (set(), {"target", "title"}), "rename": ({"title"}, set()),
               "target": ({"target"}, set()), "settings": ({"context"}, set()),
-              "preferences": ({"preferences"}, set()),
+              "preferences": ({"preferences"}, set()), "context_tokens": ({"context_tokens"}, set()),
               "reset": (set(), set()), "resume": (set(), set()), "restore": (set(), set()),
               "clear": ({"confirm"}, set()), "delete": ({"confirm"}, set())}
     op = data.get("op")

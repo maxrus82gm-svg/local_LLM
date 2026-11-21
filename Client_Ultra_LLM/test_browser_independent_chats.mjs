@@ -103,6 +103,17 @@ try {
 
   await activate();
   const a = await create(1);
+  assert.equal(await evaluate('document.querySelector(".chat-stream-options").contains(byId("chat-context-preset"))'),true);
+  await evaluate('byId("chat-context-preset").value="16384";byId("chat-context-preset").dispatchEvent(new Event("change"))');
+  await until('!chatMutation && currentChat().context_tokens===16384');
+  assert((await evaluate('byId("chat-context-preset").getBoundingClientRect().width'))<=80);
+  await evaluate('byId("chat-context-preset").value="custom";byId("chat-context-preset").dispatchEvent(new Event("change"))');
+  assert.equal(await evaluate('byId("chat-context-custom").value'),"");
+  await evaluate('byId("chat-context-custom").value="1234567x";byId("chat-context-custom").dispatchEvent(new Event("input"));byId("chat-context-custom").dispatchEvent(new Event("change"))');
+  await until('!chatMutation && currentChat().context_tokens===123456');
+  assert.equal(await evaluate('byId("chat-context-custom").value'),"123456");
+  await evaluate('byId("chat-context-list").click();byId("chat-context-preset").value="8192";byId("chat-context-preset").dispatchEvent(new Event("change"))');
+  await until('!chatMutation && currentChat().context_tokens===8192');
   await call('Emulation.setDeviceMetricsOverride',{width:780,height:620,deviceScaleFactor:1,mobile:false});
   await evaluate('document.body.style.zoom="110%"');
   await send('qa-long');
@@ -124,9 +135,11 @@ try {
   assert.equal(await evaluate('Boolean(currentChat().model_id)'),false);
   assert.equal(await evaluate('byId("chat-model").options.length'),0);
   assert.notEqual(a,b);
+  assert.equal(await evaluate("currentChat().context_tokens"),null);
   assert.equal(await evaluate('byId("chat-send").disabled'),true);
   assert.equal(await evaluate('chatHolder.querySelector(".chat-bubble")===null'),true);
   await select(a);
+  assert.equal(await evaluate('byId("chat-context-preset").value'),"8192");
   await until('document.querySelector(".reasoning-text")?.textContent.length>500 && scrollDistance()<=3');
   await command('answer');
   await until('chatHolder.textContent.includes("Первая часть ответа") && scrollDistance()<=3');

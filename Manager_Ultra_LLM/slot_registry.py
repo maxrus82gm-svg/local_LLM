@@ -99,7 +99,7 @@ class SlotRegistry:
                 or row[5]<time.time() or assessment["forecast"]["ram_free_gib"]<row[4]-1):
             raise ValueError("risk_confirmation_stale")
         stored=json.loads(row[6]);old=stored["policy"];new=assessment["policy"]
-        if any(old[k]!=new[k] for k in ("ram_gib","vram_gib","job_limit_gib","ram_warning_gib")):
+        if any(old.get(k)!=new.get(k) for k in ("ram_gib","vram_gib","job_limit_gib","ram_warning_gib","context_tokens")):
             raise ValueError("risk_confirmation_stale")
         if any(assessment["forecast"][k]>stored["forecast"][k] for k in ("ram_reserved_gib","vram_reserved_gib")):
             raise ValueError("risk_confirmation_stale")

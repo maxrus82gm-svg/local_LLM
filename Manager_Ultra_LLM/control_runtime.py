@@ -61,8 +61,23 @@ class ColibriBackend:
         if status in ("STOPPED", "ERROR") and state.get("job_cleanup_confirmed") is True:
             if any(r["port"] == spec.port for r in runner.NativeWindows().listeners()):
                 return {"state":"ERROR", "released":False, "reason":"recovery_port_occupied"}
-            return {"state": status, "released": True,
-                    "reason": "orphan_recovered" if state.get("reason") == "orphan_recovered" else "runner_finished"}
+            reason = "orphan_recovered" if state.get("reason") == "orphan_recovered" else "runner_finished"
+            if status == "ERROR":
+                # Never publish raw exceptions/paths/credentials. The isolated
+                # state file retains the exact original diagnostic.
+                detail = str(state.get("reason") or "")
+                match = re.match(r"\[WinError (\d+)\]", detail)
+                if match and match.group(1) in ("5", "32", "33") and "state.json" in detail:
+                    reason = "state_file_winerror_" + match.group(1)
+                elif match and len(match.group(1)) <= 5:
+                    reason = "runner_winerror_" + match.group(1)
+                elif detail == "Owned gateway exited; inspect the isolated stderr log":
+                    reason = "gateway_exited"
+                elif detail == "Colibri2 lost verified readiness; closing only owned job":
+                    reason = "readiness_lost"
+                elif detail == "CPU load timeout; closing only owned job":
+                    reason = "load_timeout"
+            return {"state": status, "released": True, "reason": reason}
         if state.get("supervisor_verified") and status in ("STARTING", "READY", "STOPPING", "PREPARING"):
             return {"state": "STARTING" if status == "PREPARING" else status,
                     "released": False, "reason": None}
@@ -96,6 +111,8 @@ class ModelControl:
         self.backend = backend or ColibriBackend()
         self.dispatch = dispatch or self._dispatch
         self.db_path = None
+        self._memory_lock = threading.Lock()
+        self._memory_samples = {}
         self.registry = SlotRegistry(config)
         options = config.get("control", {})
         if options.get("owner_go") is True:
@@ -118,7 +135,31 @@ class ModelControl:
                 db.execute("CREATE UNIQUE INDEX IF NOT EXISTS reserved_slot ON instances(slot) WHERE released=0")
                 db.execute("CREATE TABLE IF NOT EXISTS requests (owner TEXT, id TEXT, fingerprint TEXT NOT NULL, instance TEXT NOT NULL, PRIMARY KEY(owner,id))")
                 self.registry.initialize(db)
+                self._initialize_instance_events(db)
                 db.commit()
+
+    @staticmethod
+    def _initialize_instance_events(db):
+        # Same transaction as lifecycle changes: no lost transition and no
+        # duplicates from ordinary status polling. No prompt, owner or spec data.
+        db.execute("""CREATE TABLE IF NOT EXISTS instance_events (
+            event_id INTEGER PRIMARY KEY, utc TEXT NOT NULL,
+            instance_id TEXT NOT NULL, slot TEXT NOT NULL, model TEXT NOT NULL,
+            mode TEXT NOT NULL, previous_state TEXT, state TEXT NOT NULL,
+            released INTEGER NOT NULL, reason TEXT)""")
+        db.execute("CREATE INDEX IF NOT EXISTS instance_events_by_instance ON instance_events(instance_id,event_id)")
+        db.execute("""CREATE TRIGGER IF NOT EXISTS instance_events_insert
+            AFTER INSERT ON instances BEGIN
+            INSERT INTO instance_events(utc,instance_id,slot,model,mode,previous_state,state,released,reason)
+            VALUES(strftime('%Y-%m-%dT%H:%M:%fZ','now'),NEW.id,NEW.slot,NEW.model,NEW.mode,NULL,NEW.state,NEW.released,NEW.reason);
+            END""")
+        db.execute("""CREATE TRIGGER IF NOT EXISTS instance_events_update
+            AFTER UPDATE OF state,released,reason ON instances
+            WHEN OLD.state IS NOT NEW.state OR OLD.released IS NOT NEW.released OR OLD.reason IS NOT NEW.reason
+            BEGIN
+            INSERT INTO instance_events(utc,instance_id,slot,model,mode,previous_state,state,released,reason)
+            VALUES(strftime('%Y-%m-%dT%H:%M:%fZ','now'),NEW.id,NEW.slot,NEW.model,NEW.mode,OLD.state,NEW.state,NEW.released,NEW.reason);
+            END""")
 
     @staticmethod
     def _dispatch(fn):
@@ -173,7 +214,7 @@ class ModelControl:
             clients=[self.registry.principal(db,p) for p in current["clients"]]
         return {**current,"slots":slots,"clients":clients}
 
-    def _gate(self,key,mode,telemetry,rows):
+    def _gate(self,key,mode,telemetry,rows,context_tokens=None):
         review=self.config.get("control",{}).get("reviews",{}).get(key,{}).get(mode,{})
         if review.get("evidence") not in ("measured","bounded_owner_trial") or not review.get("source_hashes"):
             raise ControlError("runtime_review_required")
@@ -185,7 +226,18 @@ class ModelControl:
                 "ram_gib":spec.get("review",{}).get("ram_gib"),
                 "vram_gib":spec.get("review",{}).get("vram_gib") if row["mode"]=="cuda" else 0}
             reservations.append({**resources,"state":row["state"]})
-        try:return assess(self.config,review,mode,telemetry,reservations)
+        # A measurement for a different context is not an estimate for this launch.
+        estimated=review
+        if context_tokens is not None and context_tokens != review.get("launch",{}).get("context_tokens"):
+            estimated={**review,"ram_gib":None,"vram_gib":None}
+        try:
+            result=assess(self.config,estimated,mode,telemetry,reservations)
+            if context_tokens is not None:
+                result["policy"]["context_tokens"]=context_tokens
+                result["forecast"]["context_tokens"]=context_tokens
+                if estimated is not review:
+                    result["forecast"]["estimate_evidence"]="context_unmeasured"
+            return result
         except ValueError as error:
             reason=str(error)
             raise ControlError(reason,503 if reason.endswith("unknown") else 409) from None
@@ -254,12 +306,65 @@ class ModelControl:
                     (status["state"],status.get("reason"),int(status.get("released") is True),row["instance_id"]))
                 db.commit()
 
+    def sample_memory(self):
+        """One bounded background pass. No model requests, DB write-lock or raw PID data in API."""
+        if self.db_path is None or not isinstance(self.backend, ColibriBackend):
+            return
+        with self.db() as db:
+            rows=[r for r in self._rows(db) if not r["released"]]
+        native=runner.NativeWindows()
+        sampled={}
+        private={}
+        for row in rows:
+            identity=row["instance_id"]
+            try:
+                spec=RunnerSpec(**json.loads(row["spec"]))
+                with configured(spec):
+                    state=runner.read_state()
+                if (not state or state.get("session") != identity or
+                        native.record_state(state.get("supervisor")) != "alive"):
+                    continue
+                gateway=state.get("gateway")
+                if not native.same(gateway,gateway):
+                    continue
+                name=rf"Global\UltraLLM-{spec.slot_id}-job-{identity}"
+                if state.get("job_name",name)!=name:
+                    continue
+                measured=native.job_memory(name,gateway)
+                records=measured.pop("records")
+                sampled[identity]={**measured,"vram_gib":None,"sampled":time.monotonic()}
+                if spec.backend=="cuda":
+                    private[identity]=records
+            except Exception:
+                continue
+        if private:
+            from resource_policy import process_vram
+            gpu=process_vram()
+            for identity,records in private.items():
+                engines=[r for r in records if Path(r["exe"]).name.casefold()=="qwen36.exe"]
+                matches=[gpu[r["pid"]] for r in records if r["pid"] in gpu]
+                if (engines and all(r["pid"] in gpu for r in engines) and matches and
+                        all(x is not None for x in matches) and
+                        all(native.record_state(r)=="alive" for r in records)):
+                    sampled[identity]["vram_gib"]=round(sum(matches),3)
+        with self._memory_lock:
+            self._memory_samples=sampled
+
+    def _memory_for(self, identity):
+        with self._memory_lock:
+            row=self._memory_samples.get(identity)
+            if not row or not 0<=time.monotonic()-row["sampled"]<=20:
+                return None
+            return {k:v for k,v in row.items() if k!="sampled"} | {
+                "age_seconds":round(time.monotonic()-row["sampled"],1)}
+
     def watchdog_loop(self, stop_event, interval=5):
         import logging
         log = logging.getLogger(__name__)
         while not stop_event.wait(interval):
             try:
                 self.watchdog_once()
+                self.sample_memory()
             except Exception:
                 log.warning("Manager watchdog reconciliation unavailable")
 
@@ -291,6 +396,9 @@ class ModelControl:
                 instances = [self._public(r, principal) for r in [*visible, *latest.values()]
                              if r["slot_id"] in principal["allowed_slots"]]
                 db.commit()
+        for item in instances:
+            if not item["released"]:
+                item["memory"] = self._memory_for(item["instance_id"])
         models = []
         checks={}
         if self.db_path:
@@ -332,7 +440,7 @@ class ModelControl:
                 "files_present":present,"installation_checked":True,"runtime_checked":compatible,
                 "running_instances":sum(r["model_key"]==key and r["state"]=="READY" and not r["released"] for r in all_rows),
                 "directory_name": directory_name, "api_ids": [profile["model_id"]] if type(profile) is dict and profile.get("model_id") else []})
-        return {"manager_id": self.config["manager_id"], "models": models, "instances": instances,
+        return {"manager_id": self.config["manager_id"], "models": models, "instances": instances, "context_override":True,
                 "enabled":self.db_path is not None,
                 "control_models": principal.get("control_models") is True,
                 "slots":[{**{k:v for k,v in item.items() if k!="creator"},
@@ -355,10 +463,13 @@ class ModelControl:
                   "stop": {"op", "instance_id", "request_id"},
                   "add_slot":{"op","request_id"},
                   "select":{"op","slot_id","model_key","mode","request_id"}}
-        if (type(op) is not str or op not in fields or (not fields[op] <= set(payload) or set(payload)-fields[op]-({"slot_id","risk_ack","risk_token"} if op in ("start","check") else {"expected_revision"} if op=="select" else set()))
+        if (type(op) is not str or op not in fields or (not fields[op] <= set(payload) or set(payload)-fields[op]-({"slot_id","risk_ack","risk_token","context_tokens"} if op in ("start","check") else {"expected_revision"} if op=="select" else set()))
                 or type(payload["request_id"]) is not str or not re.fullmatch(r"[a-f0-9]{32}", payload["request_id"])):
             raise ControlError("invalid_control_fields", 400)
         if "risk_ack" in payload and type(payload["risk_ack"]) is not bool:raise ControlError("invalid_risk_ack",400)
+        context_tokens=payload.get("context_tokens")
+        if "context_tokens" in payload and (type(context_tokens) is not int or not 1<=context_tokens<=999999):
+            raise ControlError("invalid_context_tokens",400)
         owner = principal["client_id"]
         fingerprint = json.dumps(payload, sort_keys=True)
         with self.db() as db:
@@ -397,7 +508,7 @@ class ModelControl:
                     telemetry = self.backend.telemetry()
                 except Exception:
                     raise ControlError("resource_telemetry_unknown", 503) from None
-                assessment=self._gate(key,mode,telemetry,rows)
+                assessment=self._gate(key,mode,telemetry,rows,context_tokens)
                 requested=payload.get("slot_id")
                 if requested is not None:
                     if type(requested) is not str or not any(s["slot_id"]==requested for s in definitions):raise ControlError("unknown_slot",404)
@@ -411,7 +522,12 @@ class ModelControl:
                 if slot is None:
                     raise ControlError("no_free_authorized_slot")
                 identity=uuid.uuid4().hex
-                spec = replace(self._spec(slot,key,mode),instance_id=identity,resources=assessment["policy"])
+                spec = self._spec(slot,key,mode)
+                if context_tokens is not None:
+                    # Reuse the durable launch dictionary, so earlier runners can
+                    # deserialize the same instance records during rollback.
+                    spec = replace(spec,review={**spec.review,"launch":{**spec.review.get("launch",{}),"context_tokens":context_tokens}})
+                spec = replace(spec,instance_id=identity,resources=assessment["policy"])
                 try:
                     self.backend.preflight(spec)
                 except ControlError:
@@ -419,10 +535,10 @@ class ModelControl:
                 except Exception as error:
                     reason = str(error)
                     if reason not in ("runtime_review_required", "runtime_or_model_changed",
-                                      "cuda_runtime_or_measurement_unverified"):
+                                      "cuda_runtime_or_measurement_unverified", "context_capacity_exceeded", "context_capacity_unknown"):
                         reason = "runtime_preflight_unverified"
                     raise ControlError(reason) from None
-                db.execute("INSERT OR REPLACE INTO model_checks VALUES(?,?,?,?)",(key,mode,json.dumps(spec.review,sort_keys=True),time.time()))
+                db.execute("INSERT OR REPLACE INTO model_checks VALUES(?,?,?,?)",(key,mode,json.dumps(self._spec(slot,key,mode).review,sort_keys=True),time.time()))
                 if op == "check":
                     result={"manager_id":self.config["manager_id"],"state":"CHECKED","slot_id":slot["slot_id"],
                             **{k:assessment[k] for k in ("forecast","warnings","requires_ack","risk_ack_allowed")}}

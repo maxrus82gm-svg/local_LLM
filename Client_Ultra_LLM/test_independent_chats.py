@@ -42,6 +42,25 @@ class IndependentChatTests(unittest.TestCase):
         row = store.get_chat(self.folder, chat_id)
         return {**{k:row[k] for k in TARGET}, "chat_id": chat_id, "message": "new", "request_id": request_id, **data}
 
+    def test_context_tokens_are_independent_and_survive_other_preferences(self):
+        a, b = self.chat(None), self.chat(None)
+        self.assertIsNone(store.get_chat(self.folder,a)["context_tokens"])
+        self.action(a,"context_tokens",context_tokens=16384)
+        self.action(b,"context_tokens",context_tokens=123456)
+        self.action(a,"settings",context={"max_messages":0,"max_chars":100})
+        self.action(a,"preferences",preferences={"stream":False,"thinking":True})
+        self.action(a,"target",target=TARGET)
+        self.append(a)
+        self.action(a,"target",target=None)
+        self.assertEqual(store.get_chat(self.folder,a)["context_tokens"],16384)
+        self.assertEqual(store.get_chat(self.folder,b)["context_tokens"],123456)
+        self.assertEqual(store.get_chat(self.folder,a)["settings"]["max_messages"],0)
+        self.assertEqual(len(self.history(a)),2)
+        for bad in (0,-1,1000000,True,2.5,"8192",None):
+            with self.subTest(bad=bad),self.assertRaisesRegex(ValueError,"invalid_context_tokens"):
+                self.action(a,"context_tokens",context_tokens=bad)
+        self.assertEqual(store.get_chat(self.folder,a)["context_tokens"],16384)
+
     def test_v1_migration_checks_backup_and_preserves_all_instance_histories(self):
         path = self.folder / "chat_history.sqlite3"
         with closing(sqlite3.connect(path)) as db, db:

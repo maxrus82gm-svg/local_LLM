@@ -21,6 +21,36 @@ def read_vram():
     return None
 
 
+def process_vram():
+    """Return attributed GPU bytes only when NVIDIA supplies numeric PID data."""
+    import os
+    import subprocess
+    from pathlib import Path
+    executable=Path(os.environ.get("SystemRoot",r"C:\Windows"))/"System32"/"nvidia-smi.exe"
+    if not executable.is_file():
+        return {}
+    try:
+        result=subprocess.run([str(executable),"--query-compute-apps=pid,used_gpu_memory",
+            "--format=csv,noheader,nounits"], capture_output=True,text=True,timeout=2,check=True,
+            creationflags=getattr(subprocess,"CREATE_NO_WINDOW",0))
+        values={}
+        for line in result.stdout.splitlines():
+            if not line.strip():
+                continue
+            p,m=line.split(",",1)
+            pid=int(p.strip())
+            try:
+                amount=float(m.strip())
+                if not number(amount): amount=None
+            except ValueError:
+                amount=None
+            old=values.get(pid,0)
+            values[pid]=None if old is None or amount is None else old+amount/1024
+        return values
+    except (OSError,ValueError,subprocess.SubprocessError):
+        return {}
+
+
 def number(value):
     return type(value) in (int,float) and math.isfinite(value) and value >= 0
 

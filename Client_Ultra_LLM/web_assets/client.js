@@ -89,6 +89,10 @@ function controlReason(reason) {
     cuda_measurement_unverified:"Потребление VRAM этой моделью ещё не измерено",
     model_already_managed:"Для модели уже зарезервирован экземпляр",
     no_free_authorized_slot:"Нет свободного разрешённого слота",
+    invalid_context_tokens:"Введите положительное целое число до шести цифр",
+    context_capacity_exceeded:"Контекст превышает заявленную ёмкость модели",
+    context_capacity_unknown:"Максимальный контекст модели не подтверждён",
+    context_override_unavailable:"Обновите Manager для управления контекстом из Client",
     context_length_exceeded:"Модель отклонила длину контекста. Уменьшите историю или сбросьте контекст этого чата",
     colibri_context_length_exceeded:"Модель отклонила длину контекста. Уменьшите историю или сбросьте контекст этого чата",
     chat_target_occupied:"Этот слот уже назначен другому чату",
@@ -99,6 +103,12 @@ function controlReason(reason) {
     instance_not_stoppable:"Остановка недоступна до подтверждения состояния экземпляра",
     runner_action_unconfirmed:"Результат операции не подтверждён; слот защищён от повторного запуска",
     supervisor_unverified:"Владение процессом не подтверждено",
+    state_file_winerror_5:"Windows заблокировала запись файла состояния",
+    state_file_winerror_32:"Файл состояния занят другим процессом",
+    state_file_winerror_33:"Файл состояния заблокирован",
+    readiness_lost:"Потеря готовности движка",
+    gateway_exited:"Процесс Gateway завершился",
+    load_timeout:"Превышено время загрузки модели",
     runtime_or_telemetry_unverified:"Runtime или состояние сервера не подтверждены"
   };
   return labels[reason] ? labels[reason] + " (" + reason + ")" : reason;
@@ -207,6 +217,14 @@ function workspaces(container,manager) {
           if(title==="Стоп")body={op:"stop",instance_id:item.instance_id};
           else {
             const target={slot_id:slot.slot_id,model_key:select.value,mode};
+            // Read persisted ownership immediately before the explicit slot start.
+            const owners=(await api("/api/chats")).chats;
+            const owner=[...owners].reverse().find(c=>!c.legacy && c.model_id &&
+              c.manager_id===manager.manager_id && c.slot_id===slot.slot_id);
+            if(owner?.context_tokens!=null) {
+              if(control.context_override!==true)throw Error("context_override_unavailable");
+              target.context_tokens=owner.context_tokens;
+            }
             const checked=await pairingPost("/api/control",{manager_id:manager.manager_id,op:"check",...target,request_id:crypto.randomUUID().replaceAll("-","")});
             let ack=false;
             if(checked.requires_ack) {
@@ -229,7 +247,16 @@ function workspaces(container,manager) {
       });
       line.append(button);
     }
-    line.append(status,modeLabel);
+    const measured=item?.memory;
+    const validMemory=Boolean(measured && Number.isFinite(measured.ram_gib) && measured.ram_gib>=0);
+    const memoryLabel=node("span","slot-memory",item ?
+      (validMemory ? "RAM "+measured.ram_gib.toFixed(1)+" ГиБ"+(item.mode==="cuda" ?
+        " · VRAM "+(Number.isFinite(measured.vram_gib) ? measured.vram_gib.toFixed(1)+" ГиБ" : "—") : "") : "RAM —") : "—");
+    memoryLabel.dataset.tip=validMemory ?
+      "RAM: сумма рабочих наборов процессов экземпляра; общие страницы могут учитываться несколько раз. "+
+      "Private commit: "+(Number.isFinite(measured.private_commit_gib)?measured.private_commit_gib.toFixed(1)+" ГиБ":"—")+
+      ". VRAM — только данные драйвера; — означает нет данных." : "Нет подтверждённого измерения памяти этого экземпляра";
+    line.append(status,modeLabel,memoryLabel);
     list.append(line);
   }
   area.append(list);container.append(area);
@@ -860,7 +887,8 @@ function renderChatList(payload) {
           slot_id:slot.slot_id, model_id:model, instance_id:slot.instance_id,
           mode:slot.engine_state === "ready" && slot.instance_id ? (manager.data.control?.instances?.find(row => !row.released && row.state === "READY" && row.instance_id === slot.instance_id)?.mode || "") : "",
           streaming:manager.data.chat?.streaming === true, engine_state:slot.engine_state,
-          availability:slot.availability, transport:manager.data.chat?.transport_policy
+          availability:slot.availability, transport:manager.data.chat?.transport_policy,
+          context_tokens:slot.context_tokens
         });
       }
     }
@@ -949,6 +977,7 @@ function renderChatControls() {
   byId("chat-thinking").disabled = !chat || Boolean(active) || chatMutation || Boolean(target && !target.streaming);
   byId("chat-thinking-tip").dataset.tip = target && !target.streaming ? "Этот Manager не сообщает поддержку параметров генерации." : "Включает режим рассуждения у поддерживаемых моделей.";
   byId("chat-effort").disabled = !chat || Boolean(active) || chatMutation || !byId("chat-thinking").checked || Boolean(target && !target.streaming);
+  renderContextSize(chat,target,!chat || Boolean(active) || chatMutation || Boolean(chat?.legacy));
   const status = byId("chat-state");
   if (active) status.textContent = active.cancelling ? "Отменяем запрос…" : "Модель отвечает";
   else if (!chat) status.textContent = "";
@@ -956,7 +985,39 @@ function renderChatControls() {
   else if (slotChatOwner(chat)?.chat_id!==chat.chat_id) status.textContent = "Слот уже назначен другому чату.";
   else if (target && (releasingSlots.has(slotKey(target)) || target.availability === "busy" || localSlotActive(target))) {
     status.textContent = "Модель занята. Ожидаем освобождения слота.";
-  } else status.textContent = chatReady(target) ? "" : "Назначенная модель сейчас недоступна.";
+  } else if (contextPending(chat,target) && chatReady(target)) status.textContent = "Контекст ожидает перезапуска слота (фактически: "+(target.context_tokens ?? "не подтверждён")+").";
+  else status.textContent = chatReady(target) ? "" : "Назначенная модель сейчас недоступна.";
+}
+const CONTEXT_PRESETS = ["2048","4096","8192","16384","32768","65536"];
+let contextCustomDraft = false;
+function showContextCustom(show) {
+  byId("chat-context-preset").classList.toggle("hidden",show);
+  byId("chat-context-custom").classList.toggle("hidden",!show);
+  byId("chat-context-list").classList.toggle("hidden",!show);
+}
+function syncContextSize(chat) {
+  const actual=liveTarget(chat)?.context_tokens;
+  const value=String(chat?.context_tokens ?? (Number.isInteger(actual) && actual>0 ? actual : 8192));
+  const preset=CONTEXT_PRESETS.includes(value);
+  contextCustomDraft=false;
+  byId("chat-context-preset").value=preset ? value : "custom";
+  byId("chat-context-custom").value=preset ? "" : value;
+  showContextCustom(!preset);
+}
+function contextPending(chat,target) {
+  return Boolean(chat?.context_tokens!=null && target?.engine_state==="ready" &&
+    target.context_tokens!==chat.context_tokens);
+}
+function renderContextSize(chat,target,disabled) {
+  for(const id of ["chat-context-preset","chat-context-custom","chat-context-list"])byId(id).disabled=disabled;
+  // A chat without an explicit preference follows the confirmed running size.
+  if(!contextCustomDraft && chat?.context_tokens==null && Number.isInteger(target?.context_tokens) &&
+     document.activeElement!==byId("chat-context-custom"))syncContextSize(chat);
+  const tip=byId("chat-context-tip");
+  const actual=Number.isInteger(target?.context_tokens) ? target.context_tokens : "не подтверждён";
+  tip.classList.toggle("pending",contextPending(chat,target));
+  tip.dataset.tip="Контекст модели (токены), не история сообщений. Фактически: "+actual+
+    ". Изменение применяется после ручного Стоп и Старт назначенного слота; затем выберите новый экземпляр в этом чате.";
 }
 function applyChatPreferences(chat) {
   byId("chat-stream").checked = chat?.preferences?.stream ?? true;
@@ -972,6 +1033,7 @@ function selectChat(id) {
   const view = chat ? conversation(id) : {messages:[], draft:"", metrics:{}};
   byId("chat-input").value = view.draft;
   applyChatPreferences(chat);
+  syncContextSize(chat);
   let effort = "auto";
   if (chat) {
     try { effort = localStorage.getItem("ultra.chat.effort." + chat.chat_id) || "auto"; } catch {}
@@ -1035,6 +1097,7 @@ async function changeChat(op, values = {}, id = chatSelected) {
   } finally {
     chatMutation = false;
     if (op==="preferences" && chatSelected===id) applyChatPreferences(currentChat());
+    if (op==="context_tokens" && chatSelected===id) syncContextSize(currentChat());
     renderChatList(chatSnapshot);
     chatBindingChannel?.postMessage("changed");
   }
@@ -1488,6 +1551,33 @@ for (const field of ["chat-stream","chat-thinking"]) byId(field).addEventListene
 byId("chat-effort").addEventListener("change", () => {
   if (!currentChat()) return;
   try { localStorage.setItem("ultra.chat.effort." + chatSelected, byId("chat-effort").value); } catch {}
+});
+byId("chat-context-preset").addEventListener("change",event=>{
+  if(!currentChat())return;
+  if(event.target.value==="custom"){
+    contextCustomDraft=true;
+    showContextCustom(true);
+    byId("chat-context-custom").value="";
+    byId("chat-context-custom").focus();
+  }else changeChat("context_tokens",{context_tokens:Number(event.target.value)});
+});
+const customContextInput=byId("chat-context-custom");
+customContextInput.addEventListener("input",()=>{contextCustomDraft=true;customContextInput.value=customContextInput.value.replace(/[^0-9]/g,"").slice(0,6);});
+function saveCustomContext(){
+  if(!contextCustomDraft || !currentChat())return;
+  const value=Number(customContextInput.value);
+  if(!Number.isInteger(value) || value<1 || value>999999){
+    setChatNotice(controlReason("invalid_context_tokens"));return;
+  }
+  contextCustomDraft=false;
+  changeChat("context_tokens",{context_tokens:value});
+}
+customContextInput.addEventListener("change",saveCustomContext);
+customContextInput.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();event.stopPropagation();saveCustomContext();}});
+byId("chat-context-list").addEventListener("click",()=>{
+  contextCustomDraft=true;showContextCustom(false);
+  byId("chat-context-preset").selectedIndex=-1;
+  byId("chat-context-preset").focus();
 });
 for (const field of ["chat-history-messages","chat-history-chars"]) byId(field).addEventListener("change", () => {
   changeChat("settings", {context:{max_messages:Number(byId("chat-history-messages").value),

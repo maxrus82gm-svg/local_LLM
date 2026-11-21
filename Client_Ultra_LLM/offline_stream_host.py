@@ -102,7 +102,7 @@ def main():
                 if self.model_id is None:
                     self.send_response(503); self.end_headers(); return
                 busy = streaming_busy.is_set() or time.monotonic() < release_until[0]
-                data={"status":"ok","context_tokens":32768,"max_tokens":8192,
+                data={"status":"ok","context_tokens":getattr(self,"context_tokens",32768),"max_tokens":8192,
                       "scheduler":{"active":int(busy),"queued":0,"capacity":1}}
             elif self.path == "/v1/models":
                 data={"data":[{"id":self.model_id}] if self.model_id else []}
@@ -236,7 +236,7 @@ def main():
                         "ports":[r["port"] for r in NativeWindows().listeners()],"vram_free_gib":32}
             def preflight(self,spec):pass
             def start(self,spec,identity):
-                handler=type("InstanceColibri",(Colibri,),{"model_id":spec.api_id})
+                handler=type("InstanceColibri",(Colibri,),{"model_id":spec.api_id,"context_tokens":spec.review.get("launch",{}).get("context_tokens",32768)})
                 server=ThreadingHTTPServer(("127.0.0.1",spec.port),handler)
                 serve(server)
                 self.instances[identity]=(server,True)

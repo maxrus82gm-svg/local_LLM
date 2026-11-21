@@ -206,6 +206,7 @@ def _chat(row):
     result = dict(row)
     saved = json.loads(result["settings"])
     result["preferences"] = {**DEFAULT_PREFERENCES, **saved.get("preferences", {})}
+    result["context_tokens"] = saved.get("context_tokens")
     result["settings"] = {**DEFAULT_CONTEXT, **{k:v for k,v in saved.items() if k in DEFAULT_CONTEXT}}
     return result
 
@@ -259,13 +260,19 @@ def manage_chat(folder, op, data):
                 if type(settings) is not dict or set(settings) != set(DEFAULT_CONTEXT):
                     raise ValueError("invalid_context_policy")
                 context_for([], **settings)
-                saved = {**settings, "preferences":current["preferences"]}
+                saved = {**settings, "preferences":current["preferences"], "context_tokens":current["context_tokens"]}
                 db.execute("UPDATE chats SET settings=? WHERE chat_id=?", (json.dumps(saved), chat_id))
             elif op == "preferences":
                 preferences = data["preferences"]
                 if type(preferences) is not dict or set(preferences) != set(DEFAULT_PREFERENCES) or any(type(v) is not bool for v in preferences.values()):
                     raise ValueError("invalid_chat_preferences")
-                saved = {**current["settings"], "preferences":preferences}
+                saved = {**current["settings"], "preferences":preferences, "context_tokens":current["context_tokens"]}
+                db.execute("UPDATE chats SET settings=? WHERE chat_id=?", (json.dumps(saved), chat_id))
+            elif op == "context_tokens":
+                value = data["context_tokens"]
+                if type(value) is not int or not 1 <= value <= 999999:
+                    raise ValueError("invalid_context_tokens")
+                saved = {**current["settings"], "preferences":current["preferences"], "context_tokens":value}
                 db.execute("UPDATE chats SET settings=? WHERE chat_id=?", (json.dumps(saved), chat_id))
             elif op in ("reset", "clear"):
                 last = db.execute("SELECT COALESCE(MAX(id),0) FROM messages WHERE chat_id=?", (chat_id,)).fetchone()[0]
