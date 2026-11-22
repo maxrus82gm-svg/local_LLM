@@ -1,0 +1,28 @@
+event: meta
+id: 0
+data: {"type":"meta","request_id":"11111111111111111111111111111111","sequence":0,"bridge_id":"bridge-fixture","target_id":"tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5","instance_id":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","manager_id":"manager-77","slot_id":"slot1","model_id":"KAT-Coder-V2.5","protocol_version":"1.0.0","catalog_revision":"catalog-1","execution_mode":"CUDA","limits":{"context_tokens":65536,"max_output_tokens":null,"request_bytes":1048576,"history_messages":128,"history_chars":240000,"message_chars":131072,"response_chars":1048576,"stream_bytes":8388608,"idle_timeout_seconds":300},"capabilities":{"streaming":"supported","reasoning_events":"supported","usage":"supported","thinking":"supported","reasoning_effort":"supported","max_output_tokens":"supported","system_role":"unsupported","tool_calling":"unsupported","assistant_reasoning_input":"unknown","detached_generation":"unsupported","replay":"unsupported","live_steering":"unsupported","model_control":"unsupported"},"launch_configuration":{"actual_config_id":null,"actual_revision":null,"default_config_id":null,"default_revision":null,"hardware_profile_id":null,"configuration_lab":"unsupported"}}
+
+event: status
+id: 1
+data: {"type":"status","request_id":"11111111111111111111111111111111","sequence":1,"state":"RUNNING"}
+
+event: reasoning
+id: 2
+data: {"type":"reasoning","request_id":"11111111111111111111111111111111","sequence":2,"text":"Working"}
+
+event: delta
+id: 3
+data: {"type":"delta","request_id":"11111111111111111111111111111111","sequence":3,"text":"Answer"}
+
+event: usage
+id: 4
+data: {"type":"usage","request_id":"11111111111111111111111111111111","sequence":4,"usage":{"status":"partial","prompt_tokens":17,"completion_tokens":23,"total_tokens":40,"reasoning_tokens":null,"cached_prompt_tokens":null,"source":"provider_and_derived_total","prompt_basis":"unknown"}}
+
+event: telemetry
+id: 5
+data: {"type":"telemetry","request_id":"11111111111111111111111111111111","sequence":5,"telemetry":{"bridge_ttft_ms":4,"engine_ttft_ms":null}}
+
+event: done
+id: 6
+data: {"type":"done","request_id":"11111111111111111111111111111111","sequence":6,"state":"SUCCEEDED","finish_reason":"stop","usage":{"status":"partial","prompt_tokens":17,"completion_tokens":23,"total_tokens":40,"reasoning_tokens":null,"cached_prompt_tokens":null,"source":"provider_and_derived_total","prompt_basis":"unknown"},"error":null}
+

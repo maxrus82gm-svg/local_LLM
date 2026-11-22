@@ -1,0 +1,1801 @@
+{
+  "openapi": "3.1.0",
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "info": {
+    "title": "Colibri Client Bridge API",
+    "version": "1.0.0",
+    "description": "P0 contract candidate; not a deployed API. Normative SSE event schemas and state transitions in sibling files."
+  },
+  "servers": [
+    {
+      "url": "/bridge/v1",
+      "description": "Relative to explicitly discovered, loopback-by-default Client Bridge origin; no automatic public binding."
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "x-required-permission": "read",
+        "security": [
+          {
+            "BridgeBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authenticated bridge health",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Bridge or target unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/models": {
+      "get": {
+        "operationId": "getModels",
+        "x-required-permission": "read",
+        "security": [
+          {
+            "BridgeBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized dynamic catalogue",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Catalog"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Bridge or target unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat/stream": {
+      "post": {
+        "operationId": "streamChat",
+        "x-required-permission": "chat",
+        "security": [
+          {
+            "BridgeBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted attempt; incrementally emits UTF-8 SSE, see stream-events.schema.json and request-states.md.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                },
+                "x-event-schema": "./stream-events.schema.json"
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed or invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown identity or request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Admission or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Effective transport limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unsupported capability or context/output limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Bridge or target unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat/cancel": {
+      "post": {
+        "operationId": "cancelChat",
+        "x-required-permission": "chat",
+        "security": [
+          {
+            "BridgeBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Idempotent cancellation receipt; acceptance is not stop confirmation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed or invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown identity or request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Admission or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Effective transport limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unsupported capability or context/output limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Bridge or target unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/requests/{request_id}": {
+      "get": {
+        "operationId": "getRequest",
+        "x-required-permission": "chat",
+        "security": [
+          {
+            "BridgeBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Durable technical status, no conversation or generated content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed or invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown identity or request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Bridge or target unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BridgeBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Independent local credential; server-enforced read/chat/control permissions; never exposed to browser."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "invalid_request",
+              "unauthorized",
+              "forbidden",
+              "unknown_target",
+              "stale_instance",
+              "target_not_ready",
+              "slot_busy",
+              "manager_unavailable",
+              "unsupported_capability",
+              "request_conflict",
+              "request_already_attempted",
+              "unknown_request",
+              "request_too_large",
+              "context_limit",
+              "output_limit",
+              "transport_timeout",
+              "upstream_failed",
+              "identity_mismatch",
+              "cancel_not_confirmed",
+              "internal_error",
+              "protocol_error"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "request_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "upstream_code": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]{1,80}$"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "retryable"
+        ],
+        "additionalProperties": false
+      },
+      "Usage": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "reported",
+              "partial",
+              "unavailable"
+            ]
+          },
+          "prompt_tokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "completion_tokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total_tokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reasoning_tokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cached_prompt_tokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "provider",
+              "provider_and_derived_total",
+              "unavailable"
+            ]
+          },
+          "prompt_basis": {
+            "type": "string",
+            "enum": [
+              "includes_cached",
+              "excludes_cached",
+              "unknown"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "prompt_tokens",
+          "completion_tokens",
+          "total_tokens",
+          "reasoning_tokens",
+          "cached_prompt_tokens",
+          "source",
+          "prompt_basis"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "unavailable"
+                }
+              },
+              "required": [
+                "status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "prompt_tokens": {
+                  "type": "null"
+                },
+                "completion_tokens": {
+                  "type": "null"
+                },
+                "total_tokens": {
+                  "type": "null"
+                },
+                "reasoning_tokens": {
+                  "type": "null"
+                },
+                "cached_prompt_tokens": {
+                  "type": "null"
+                },
+                "source": {
+                  "const": "unavailable"
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "source": {
+                  "enum": [
+                    "provider",
+                    "provider_and_derived_total"
+                  ]
+                }
+              },
+              "anyOf": [
+                {
+                  "properties": {
+                    "prompt_tokens": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                {
+                  "properties": {
+                    "completion_tokens": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                {
+                  "properties": {
+                    "total_tokens": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                {
+                  "properties": {
+                    "reasoning_tokens": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                {
+                  "properties": {
+                    "cached_prompt_tokens": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "reported"
+                }
+              },
+              "required": [
+                "status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "source": {
+                  "const": "provider"
+                },
+                "prompt_tokens": {
+                  "type": "integer"
+                },
+                "completion_tokens": {
+                  "type": "integer"
+                },
+                "total_tokens": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "Telemetry": {
+        "type": "object",
+        "properties": {
+          "engine_ttft_ms": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "manager_ttft_ms": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bridge_ttft_ms": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "engine_decode_tokens_per_second": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "engine_elapsed_ms": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bridge_elapsed_ms": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bridge_forward_ms": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ram_used_bytes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vram_used_bytes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "LaunchConfiguration": {
+        "type": "object",
+        "properties": {
+          "actual_config_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "actual_revision": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "default_config_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "default_revision": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hardware_profile_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "configuration_lab": {
+            "type": "string",
+            "enum": [
+              "supported",
+              "unsupported",
+              "unknown"
+            ]
+          }
+        },
+        "required": [
+          "actual_config_id",
+          "actual_revision",
+          "default_config_id",
+          "default_revision",
+          "hardware_profile_id",
+          "configuration_lab"
+        ],
+        "additionalProperties": false
+      },
+      "Capabilities": {
+        "type": "object",
+        "properties": {
+          "streaming": {
+            "type": "string",
+            "enum": [
+              "supported",
+              "unsupported",
+              "unknown"
+            ]
+          },
+          "reasoning_events": {
+            "type": "string",
+            "enum": [
+              "supported",
+              "unsupported",
+              "unknown"
+            ]
+          },
+          "usage": {
+            "type": "string",
+            "enum": [
+              "supported",
+              "unsupported",
+              "unknown"
+            ]
+          },
+          "thinking": {
+            "type": "string",
+            "enum": [
+              "supported",
+              "unsupported",
+              "unknown"
+            ]
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "supported",
+              "unsupported",
+              "unknown"
+            ]
+          },
+          "max_output_tokens": {
+            "type": "string",
+            "enum": [
+              "supported",
+              "unsupported",
+              "unknown"
+            ]
+          },
+          "system_role": {
+            "const": "unsupported"
+          },
+          "tool_calling": {
+            "const": "unsupported"
+          },
+          "assistant_reasoning_input": {
+            "type": "string",
+            "enum": [
+              "supported",
+              "unsupported",
+              "unknown"
+            ]
+          },
+          "detached_generation": {
+            "const": "unsupported"
+          },
+          "replay": {
+            "const": "unsupported"
+          },
+          "live_steering": {
+            "const": "unsupported"
+          },
+          "model_control": {
+            "const": "unsupported"
+          }
+        },
+        "required": [
+          "streaming",
+          "reasoning_events",
+          "usage",
+          "thinking",
+          "reasoning_effort",
+          "max_output_tokens",
+          "system_role",
+          "tool_calling",
+          "assistant_reasoning_input",
+          "detached_generation",
+          "replay",
+          "live_steering",
+          "model_control"
+        ],
+        "additionalProperties": false
+      },
+      "Limits": {
+        "type": "object",
+        "properties": {
+          "context_tokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "max_output_tokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_bytes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "history_messages": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "history_chars": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message_chars": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "response_chars": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stream_bytes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "idle_timeout_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "context_tokens",
+          "max_output_tokens",
+          "request_bytes",
+          "history_messages",
+          "history_chars",
+          "message_chars",
+          "response_chars",
+          "stream_bytes",
+          "idle_timeout_seconds"
+        ],
+        "additionalProperties": false
+      },
+      "Target": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "pattern": "^tgt_[a-f0-9]{64}$"
+          },
+          "bridge_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "manager_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "slot_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "model_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "model_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "instance_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?:[a-f0-9]{32}|legacy-[A-Za-z0-9_.-]{1,96})$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "model_revision": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "manager_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "READY",
+              "BUSY",
+              "NOT_READY",
+              "UNAVAILABLE",
+              "UNKNOWN"
+            ]
+          },
+          "execution_mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "CPU",
+                  "CUDA"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "engine": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "engine_version": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/Capabilities"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/Limits"
+          },
+          "launch_configuration": {
+            "$ref": "#/components/schemas/LaunchConfiguration"
+          },
+          "allowed_operations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "chat"
+              ]
+            },
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "target_id",
+          "bridge_id",
+          "manager_id",
+          "slot_id",
+          "model_key",
+          "model_id",
+          "instance_id",
+          "model_revision",
+          "display_name",
+          "manager_name",
+          "status",
+          "execution_mode",
+          "engine",
+          "engine_version",
+          "capabilities",
+          "limits",
+          "launch_configuration",
+          "allowed_operations"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "allowed_operations": {
+                  "contains": {
+                    "const": "chat"
+                  }
+                }
+              },
+              "required": [
+                "allowed_operations"
+              ]
+            },
+            "then": {
+              "properties": {
+                "status": {
+                  "const": "READY"
+                },
+                "instance_id": {
+                  "type": "string"
+                },
+                "capabilities": {
+                  "properties": {
+                    "streaming": {
+                      "const": "supported"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "Message": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant",
+              "system",
+              "developer",
+              "tool"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "reasoning_content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "role": {
+                  "const": "assistant"
+                }
+              },
+              "required": [
+                "role"
+              ]
+            },
+            "else": {
+              "not": {
+                "required": [
+                  "reasoning_content"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "GenerationOptions": {
+        "type": "object",
+        "properties": {
+          "thinking": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "on",
+              "off"
+            ]
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ]
+          },
+          "max_output_tokens": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        },
+        "required": [],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "thinking": {
+                  "const": "off"
+                }
+              },
+              "required": [
+                "thinking"
+              ]
+            },
+            "then": {
+              "properties": {
+                "reasoning_effort": {
+                  "const": "auto"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "ChatRequest": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "target_id": {
+            "type": "string",
+            "pattern": "^tgt_[a-f0-9]{64}$"
+          },
+          "instance_id": {
+            "type": "string",
+            "pattern": "^(?:[a-f0-9]{32}|legacy-[A-Za-z0-9_.-]{1,96})$"
+          },
+          "catalog_revision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "conversation_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "turn_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Message"
+            },
+            "minItems": 1
+          },
+          "options": {
+            "$ref": "#/components/schemas/GenerationOptions"
+          }
+        },
+        "required": [
+          "request_id",
+          "target_id",
+          "instance_id",
+          "messages"
+        ],
+        "additionalProperties": false
+      },
+      "RequestStatus": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "target_id": {
+            "type": "string",
+            "pattern": "^tgt_[a-f0-9]{64}$"
+          },
+          "instance_id": {
+            "type": "string",
+            "pattern": "^(?:[a-f0-9]{32}|legacy-[A-Za-z0-9_.-]{1,96})$"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ACCEPTED",
+              "RUNNING",
+              "CANCEL_REQUESTED",
+              "SUCCEEDED",
+              "FAILED",
+              "CANCELLED",
+              "UNKNOWN"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "terminal_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_sequence": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Usage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Error"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "finish_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "details_retained": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "request_id",
+          "target_id",
+          "instance_id",
+          "state",
+          "created_at",
+          "updated_at",
+          "terminal_at",
+          "last_sequence",
+          "usage",
+          "error",
+          "finish_reason",
+          "details_retained"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "state": {
+                  "enum": [
+                    "SUCCEEDED",
+                    "FAILED",
+                    "CANCELLED",
+                    "UNKNOWN"
+                  ]
+                }
+              },
+              "required": [
+                "state"
+              ]
+            },
+            "then": {
+              "properties": {
+                "terminal_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "terminal_at": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "Health": {
+        "type": "object",
+        "properties": {
+          "bridge_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "protocol_version": {
+            "const": "1.0.0"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "READY",
+              "DEGRADED"
+            ]
+          },
+          "catalog_revision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "read",
+                "chat",
+                "control"
+              ]
+            },
+            "uniqueItems": true
+          },
+          "capabilities": {
+            "type": "object",
+            "properties": {
+              "detached_generation": {
+                "const": "unsupported"
+              },
+              "replay": {
+                "const": "unsupported"
+              },
+              "model_control": {
+                "const": "unsupported"
+              }
+            },
+            "required": [
+              "detached_generation",
+              "replay",
+              "model_control"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "bridge_id",
+          "protocol_version",
+          "status",
+          "catalog_revision",
+          "permissions",
+          "capabilities"
+        ],
+        "additionalProperties": false
+      },
+      "Catalog": {
+        "type": "object",
+        "properties": {
+          "bridge_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "protocol_version": {
+            "const": "1.0.0"
+          },
+          "catalog_revision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "targets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Target"
+            }
+          }
+        },
+        "required": [
+          "bridge_id",
+          "protocol_version",
+          "catalog_revision",
+          "targets"
+        ],
+        "additionalProperties": false
+      },
+      "CancelRequest": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "target_id": {
+            "type": "string",
+            "pattern": "^tgt_[a-f0-9]{64}$"
+          },
+          "instance_id": {
+            "type": "string",
+            "pattern": "^(?:[a-f0-9]{32}|legacy-[A-Za-z0-9_.-]{1,96})$"
+          }
+        },
+        "required": [
+          "request_id",
+          "target_id",
+          "instance_id"
+        ],
+        "additionalProperties": false
+      },
+      "CancelResponse": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "target_id": {
+            "type": "string",
+            "pattern": "^tgt_[a-f0-9]{64}$"
+          },
+          "instance_id": {
+            "type": "string",
+            "pattern": "^(?:[a-f0-9]{32}|legacy-[A-Za-z0-9_.-]{1,96})$"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ACCEPTED",
+              "RUNNING",
+              "CANCEL_REQUESTED",
+              "SUCCEEDED",
+              "FAILED",
+              "CANCELLED",
+              "UNKNOWN"
+            ]
+          },
+          "cancel_accepted": {
+            "type": "boolean"
+          },
+          "stop_confirmed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "request_id",
+          "target_id",
+          "instance_id",
+          "state",
+          "cancel_accepted",
+          "stop_confirmed"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "required": [
+                "state"
+              ],
+              "properties": {
+                "state": {
+                  "const": "CANCELLED"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "stop_confirmed": {
+                  "const": true
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "stop_confirmed": {
+                  "const": false
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

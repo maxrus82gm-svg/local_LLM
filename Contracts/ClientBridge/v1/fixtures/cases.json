@@ -1,0 +1,2023 @@
+{
+  "schema_version": "1.0.0",
+  "note": "Synthetic examples; target_id values are derived from the documented stable identity tuple.",
+  "valid": [
+    {
+      "schema": "Health",
+      "value": {
+        "bridge_id": "bridge-fixture",
+        "protocol_version": "1.0.0",
+        "status": "READY",
+        "catalog_revision": "catalog-1",
+        "permissions": [
+          "read",
+          "chat"
+        ],
+        "capabilities": {
+          "detached_generation": "unsupported",
+          "replay": "unsupported",
+          "model_control": "unsupported"
+        }
+      }
+    },
+    {
+      "schema": "Catalog",
+      "value": {
+        "bridge_id": "bridge-fixture",
+        "protocol_version": "1.0.0",
+        "catalog_revision": "catalog-1",
+        "targets": [
+          {
+            "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+            "bridge_id": "bridge-fixture",
+            "manager_id": "manager-77",
+            "slot_id": "slot1",
+            "model_key": "kat-coder",
+            "model_id": "KAT-Coder-V2.5",
+            "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "model_revision": null,
+            "display_name": "KAT-Coder V2.5",
+            "manager_name": "Manager 77",
+            "status": "READY",
+            "execution_mode": "CUDA",
+            "engine": "colibri",
+            "engine_version": null,
+            "capabilities": {
+              "streaming": "supported",
+              "reasoning_events": "supported",
+              "usage": "supported",
+              "thinking": "supported",
+              "reasoning_effort": "supported",
+              "max_output_tokens": "supported",
+              "system_role": "unsupported",
+              "tool_calling": "unsupported",
+              "assistant_reasoning_input": "unknown",
+              "detached_generation": "unsupported",
+              "replay": "unsupported",
+              "live_steering": "unsupported",
+              "model_control": "unsupported"
+            },
+            "limits": {
+              "context_tokens": 65536,
+              "max_output_tokens": null,
+              "request_bytes": 1048576,
+              "history_messages": 128,
+              "history_chars": 240000,
+              "message_chars": 131072,
+              "response_chars": 1048576,
+              "stream_bytes": 8388608,
+              "idle_timeout_seconds": 300
+            },
+            "launch_configuration": {
+              "actual_config_id": null,
+              "actual_revision": null,
+              "default_config_id": null,
+              "default_revision": null,
+              "hardware_profile_id": null,
+              "configuration_lab": "unsupported"
+            },
+            "allowed_operations": [
+              "chat"
+            ]
+          },
+          {
+            "target_id": "tgt_87215939e4c65631f12839e87dee959fa784895b6b0a0117ff27593a3d7bb651",
+            "bridge_id": "bridge-fixture",
+            "manager_id": "manager-other",
+            "slot_id": "slot2",
+            "model_key": "kat-coder",
+            "model_id": "KAT-Coder-V2.5",
+            "instance_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "model_revision": null,
+            "display_name": "KAT-Coder V2.5",
+            "manager_name": "Manager other",
+            "status": "BUSY",
+            "execution_mode": "CPU",
+            "engine": "colibri",
+            "engine_version": null,
+            "capabilities": {
+              "streaming": "supported",
+              "reasoning_events": "supported",
+              "usage": "supported",
+              "thinking": "supported",
+              "reasoning_effort": "supported",
+              "max_output_tokens": "supported",
+              "system_role": "unsupported",
+              "tool_calling": "unsupported",
+              "assistant_reasoning_input": "unknown",
+              "detached_generation": "unsupported",
+              "replay": "unsupported",
+              "live_steering": "unsupported",
+              "model_control": "unsupported"
+            },
+            "limits": {
+              "context_tokens": 65536,
+              "max_output_tokens": null,
+              "request_bytes": 1048576,
+              "history_messages": 128,
+              "history_chars": 240000,
+              "message_chars": 131072,
+              "response_chars": 1048576,
+              "stream_bytes": 8388608,
+              "idle_timeout_seconds": 300
+            },
+            "launch_configuration": {
+              "actual_config_id": null,
+              "actual_revision": null,
+              "default_config_id": null,
+              "default_revision": null,
+              "hardware_profile_id": null,
+              "configuration_lab": "unsupported"
+            },
+            "allowed_operations": []
+          }
+        ]
+      }
+    },
+    {
+      "schema": "ChatRequest",
+      "value": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "catalog_revision": "catalog-1",
+        "conversation_id": "chat-fixture",
+        "turn_id": "turn-fixture",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Test"
+          }
+        ],
+        "options": {
+          "thinking": "on",
+          "reasoning_effort": "high"
+        }
+      }
+    },
+    {
+      "schema": "CancelRequest",
+      "value": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "schema": "CancelResponse",
+      "value": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "state": "CANCEL_REQUESTED",
+        "cancel_accepted": true,
+        "stop_confirmed": false
+      }
+    },
+    {
+      "schema": "RequestStatus",
+      "value": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "state": "UNKNOWN",
+        "created_at": "2026-11-22T10:10:00Z",
+        "updated_at": "2026-11-22T10:10:00Z",
+        "terminal_at": "2026-11-22T10:10:00Z",
+        "last_sequence": 3,
+        "usage": {
+          "status": "unavailable",
+          "prompt_tokens": null,
+          "completion_tokens": null,
+          "total_tokens": null,
+          "reasoning_tokens": null,
+          "cached_prompt_tokens": null,
+          "source": "unavailable",
+          "prompt_basis": "unknown"
+        },
+        "error": {
+          "code": "transport_timeout",
+          "message": "Upstream outcome unknown",
+          "request_id": "11111111111111111111111111111111",
+          "retryable": false
+        },
+        "finish_reason": null,
+        "details_retained": true
+      }
+    },
+    {
+      "schema": "Usage",
+      "value": {
+        "status": "unavailable",
+        "prompt_tokens": null,
+        "completion_tokens": null,
+        "total_tokens": null,
+        "reasoning_tokens": null,
+        "cached_prompt_tokens": null,
+        "source": "unavailable",
+        "prompt_basis": "unknown"
+      }
+    },
+    {
+      "schema": "Usage",
+      "value": {
+        "status": "partial",
+        "prompt_tokens": 17,
+        "completion_tokens": 23,
+        "total_tokens": 40,
+        "reasoning_tokens": null,
+        "cached_prompt_tokens": null,
+        "source": "provider_and_derived_total",
+        "prompt_basis": "unknown"
+      }
+    },
+    {
+      "schema": "Error",
+      "value": {
+        "code": "slot_busy",
+        "message": "Selected slot is busy",
+        "request_id": "11111111111111111111111111111111",
+        "retryable": false
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "schema": "ChatRequest",
+      "value": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": null,
+        "catalog_revision": "catalog-1",
+        "conversation_id": "chat-fixture",
+        "turn_id": "turn-fixture",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Test"
+          }
+        ],
+        "options": {
+          "thinking": "on",
+          "reasoning_effort": "high"
+        }
+      }
+    },
+    {
+      "schema": "ChatRequest",
+      "value": {
+        "request_id": "bad",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "catalog_revision": "catalog-1",
+        "conversation_id": "chat-fixture",
+        "turn_id": "turn-fixture",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Test"
+          }
+        ],
+        "options": {
+          "thinking": "on",
+          "reasoning_effort": "high"
+        }
+      }
+    },
+    {
+      "schema": "ChatRequest",
+      "value": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "catalog_revision": "catalog-1",
+        "conversation_id": "chat-fixture",
+        "turn_id": "turn-fixture",
+        "messages": [],
+        "options": {
+          "thinking": "on",
+          "reasoning_effort": "high"
+        }
+      }
+    },
+    {
+      "schema": "ChatRequest",
+      "value": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "catalog_revision": "catalog-1",
+        "conversation_id": "chat-fixture",
+        "turn_id": "turn-fixture",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Test"
+          }
+        ],
+        "options": {
+          "thinking": "off",
+          "reasoning_effort": "high"
+        }
+      }
+    },
+    {
+      "schema": "ChatRequest",
+      "value": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "catalog_revision": "catalog-1",
+        "conversation_id": "chat-fixture",
+        "turn_id": "turn-fixture",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Test"
+          }
+        ],
+        "options": {
+          "max_output_tokens": 0
+        }
+      }
+    },
+    {
+      "schema": "Usage",
+      "value": {
+        "status": "unavailable",
+        "prompt_tokens": -1,
+        "completion_tokens": null,
+        "total_tokens": null,
+        "reasoning_tokens": null,
+        "cached_prompt_tokens": null,
+        "source": "unavailable",
+        "prompt_basis": "unknown"
+      }
+    },
+    {
+      "schema": "CancelRequest",
+      "value": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5"
+      }
+    },
+    {
+      "schema": "Target",
+      "value": {
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "bridge_id": "bridge-fixture",
+        "manager_id": "manager-77",
+        "slot_id": "slot1",
+        "model_key": "kat-coder",
+        "model_id": "KAT-Coder-V2.5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "model_revision": null,
+        "display_name": "KAT-Coder V2.5",
+        "manager_name": "Manager 77",
+        "status": "READY",
+        "execution_mode": "CUDA",
+        "engine": "colibri",
+        "engine_version": null,
+        "capabilities": {
+          "streaming": "supported",
+          "reasoning_events": "supported",
+          "usage": "supported",
+          "thinking": "supported",
+          "reasoning_effort": "supported",
+          "max_output_tokens": "supported",
+          "system_role": "unsupported",
+          "tool_calling": "supported",
+          "assistant_reasoning_input": "unknown",
+          "detached_generation": "unsupported",
+          "replay": "unsupported",
+          "live_steering": "unsupported",
+          "model_control": "unsupported"
+        },
+        "limits": {
+          "context_tokens": 65536,
+          "max_output_tokens": null,
+          "request_bytes": 1048576,
+          "history_messages": 128,
+          "history_chars": 240000,
+          "message_chars": 131072,
+          "response_chars": 1048576,
+          "stream_bytes": 8388608,
+          "idle_timeout_seconds": 300
+        },
+        "launch_configuration": {
+          "actual_config_id": null,
+          "actual_revision": null,
+          "default_config_id": null,
+          "default_revision": null,
+          "hardware_profile_id": null,
+          "configuration_lab": "unsupported"
+        },
+        "allowed_operations": [
+          "chat"
+        ]
+      }
+    },
+    {
+      "schema": "CancelResponse",
+      "value": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "state": "CANCEL_REQUESTED",
+        "cancel_accepted": true,
+        "stop_confirmed": true
+      }
+    },
+    {
+      "schema": "CancelResponse",
+      "value": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "state": "CANCELLED",
+        "cancel_accepted": true,
+        "stop_confirmed": false
+      }
+    },
+    {
+      "schema": "Usage",
+      "value": {
+        "status": "unavailable",
+        "prompt_tokens": 0,
+        "completion_tokens": null,
+        "total_tokens": null,
+        "reasoning_tokens": null,
+        "cached_prompt_tokens": null,
+        "source": "unavailable",
+        "prompt_basis": "unknown"
+      }
+    },
+    {
+      "schema": "RequestStatus",
+      "value": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "state": "UNKNOWN",
+        "created_at": "2026-11-22T10:10:00Z",
+        "updated_at": "2026-11-22T10:10:00Z",
+        "terminal_at": null,
+        "last_sequence": 3,
+        "usage": {
+          "status": "unavailable",
+          "prompt_tokens": null,
+          "completion_tokens": null,
+          "total_tokens": null,
+          "reasoning_tokens": null,
+          "cached_prompt_tokens": null,
+          "source": "unavailable",
+          "prompt_basis": "unknown"
+        },
+        "error": {
+          "code": "transport_timeout",
+          "message": "Upstream outcome unknown",
+          "request_id": "11111111111111111111111111111111",
+          "retryable": false
+        },
+        "finish_reason": null,
+        "details_retained": true
+      }
+    },
+    {
+      "schema": "Target",
+      "value": {
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "bridge_id": "bridge-fixture",
+        "manager_id": "manager-77",
+        "slot_id": "slot1",
+        "model_key": "kat-coder",
+        "model_id": "KAT-Coder-V2.5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "model_revision": null,
+        "display_name": "KAT-Coder V2.5",
+        "manager_name": "Manager 77",
+        "status": "BUSY",
+        "execution_mode": "CUDA",
+        "engine": "colibri",
+        "engine_version": null,
+        "capabilities": {
+          "streaming": "supported",
+          "reasoning_events": "supported",
+          "usage": "supported",
+          "thinking": "supported",
+          "reasoning_effort": "supported",
+          "max_output_tokens": "supported",
+          "system_role": "unsupported",
+          "tool_calling": "unsupported",
+          "assistant_reasoning_input": "unknown",
+          "detached_generation": "unsupported",
+          "replay": "unsupported",
+          "live_steering": "unsupported",
+          "model_control": "unsupported"
+        },
+        "limits": {
+          "context_tokens": 65536,
+          "max_output_tokens": null,
+          "request_bytes": 1048576,
+          "history_messages": 128,
+          "history_chars": 240000,
+          "message_chars": 131072,
+          "response_chars": 1048576,
+          "stream_bytes": 8388608,
+          "idle_timeout_seconds": 300
+        },
+        "launch_configuration": {
+          "actual_config_id": null,
+          "actual_revision": null,
+          "default_config_id": null,
+          "default_revision": null,
+          "hardware_profile_id": null,
+          "configuration_lab": "unsupported"
+        },
+        "allowed_operations": [
+          "chat"
+        ]
+      }
+    }
+  ],
+  "streams": [
+    {
+      "name": "success",
+      "events": [
+        {
+          "type": "meta",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 0,
+          "bridge_id": "bridge-fixture",
+          "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+          "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "manager_id": "manager-77",
+          "slot_id": "slot1",
+          "model_id": "KAT-Coder-V2.5",
+          "protocol_version": "1.0.0",
+          "catalog_revision": "catalog-1",
+          "execution_mode": "CUDA",
+          "limits": {
+            "context_tokens": 65536,
+            "max_output_tokens": null,
+            "request_bytes": 1048576,
+            "history_messages": 128,
+            "history_chars": 240000,
+            "message_chars": 131072,
+            "response_chars": 1048576,
+            "stream_bytes": 8388608,
+            "idle_timeout_seconds": 300
+          },
+          "capabilities": {
+            "streaming": "supported",
+            "reasoning_events": "supported",
+            "usage": "supported",
+            "thinking": "supported",
+            "reasoning_effort": "supported",
+            "max_output_tokens": "supported",
+            "system_role": "unsupported",
+            "tool_calling": "unsupported",
+            "assistant_reasoning_input": "unknown",
+            "detached_generation": "unsupported",
+            "replay": "unsupported",
+            "live_steering": "unsupported",
+            "model_control": "unsupported"
+          },
+          "launch_configuration": {
+            "actual_config_id": null,
+            "actual_revision": null,
+            "default_config_id": null,
+            "default_revision": null,
+            "hardware_profile_id": null,
+            "configuration_lab": "unsupported"
+          }
+        },
+        {
+          "type": "status",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 1,
+          "state": "RUNNING"
+        },
+        {
+          "type": "reasoning",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 2,
+          "text": "Working"
+        },
+        {
+          "type": "delta",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 3,
+          "text": "Answer"
+        },
+        {
+          "type": "usage",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 4,
+          "usage": {
+            "status": "partial",
+            "prompt_tokens": 17,
+            "completion_tokens": 23,
+            "total_tokens": 40,
+            "reasoning_tokens": null,
+            "cached_prompt_tokens": null,
+            "source": "provider_and_derived_total",
+            "prompt_basis": "unknown"
+          }
+        },
+        {
+          "type": "telemetry",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 5,
+          "telemetry": {
+            "bridge_ttft_ms": 4,
+            "engine_ttft_ms": null
+          }
+        },
+        {
+          "type": "done",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 6,
+          "state": "SUCCEEDED",
+          "finish_reason": "stop",
+          "usage": {
+            "status": "partial",
+            "prompt_tokens": 17,
+            "completion_tokens": 23,
+            "total_tokens": 40,
+            "reasoning_tokens": null,
+            "cached_prompt_tokens": null,
+            "source": "provider_and_derived_total",
+            "prompt_basis": "unknown"
+          },
+          "error": null
+        }
+      ]
+    },
+    {
+      "name": "cancelled",
+      "events": [
+        {
+          "type": "meta",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 0,
+          "bridge_id": "bridge-fixture",
+          "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+          "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "manager_id": "manager-77",
+          "slot_id": "slot1",
+          "model_id": "KAT-Coder-V2.5",
+          "protocol_version": "1.0.0",
+          "catalog_revision": "catalog-1",
+          "execution_mode": "CUDA",
+          "limits": {
+            "context_tokens": 65536,
+            "max_output_tokens": null,
+            "request_bytes": 1048576,
+            "history_messages": 128,
+            "history_chars": 240000,
+            "message_chars": 131072,
+            "response_chars": 1048576,
+            "stream_bytes": 8388608,
+            "idle_timeout_seconds": 300
+          },
+          "capabilities": {
+            "streaming": "supported",
+            "reasoning_events": "supported",
+            "usage": "supported",
+            "thinking": "supported",
+            "reasoning_effort": "supported",
+            "max_output_tokens": "supported",
+            "system_role": "unsupported",
+            "tool_calling": "unsupported",
+            "assistant_reasoning_input": "unknown",
+            "detached_generation": "unsupported",
+            "replay": "unsupported",
+            "live_steering": "unsupported",
+            "model_control": "unsupported"
+          },
+          "launch_configuration": {
+            "actual_config_id": null,
+            "actual_revision": null,
+            "default_config_id": null,
+            "default_revision": null,
+            "hardware_profile_id": null,
+            "configuration_lab": "unsupported"
+          }
+        },
+        {
+          "type": "status",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 1,
+          "state": "RUNNING"
+        },
+        {
+          "type": "status",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 2,
+          "state": "CANCEL_REQUESTED"
+        },
+        {
+          "type": "done",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 3,
+          "state": "CANCELLED",
+          "finish_reason": null,
+          "usage": {
+            "status": "unavailable",
+            "prompt_tokens": null,
+            "completion_tokens": null,
+            "total_tokens": null,
+            "reasoning_tokens": null,
+            "cached_prompt_tokens": null,
+            "source": "unavailable",
+            "prompt_basis": "unknown"
+          },
+          "error": null
+        }
+      ]
+    },
+    {
+      "name": "unknown",
+      "events": [
+        {
+          "type": "meta",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 0,
+          "bridge_id": "bridge-fixture",
+          "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+          "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "manager_id": "manager-77",
+          "slot_id": "slot1",
+          "model_id": "KAT-Coder-V2.5",
+          "protocol_version": "1.0.0",
+          "catalog_revision": "catalog-1",
+          "execution_mode": "CUDA",
+          "limits": {
+            "context_tokens": 65536,
+            "max_output_tokens": null,
+            "request_bytes": 1048576,
+            "history_messages": 128,
+            "history_chars": 240000,
+            "message_chars": 131072,
+            "response_chars": 1048576,
+            "stream_bytes": 8388608,
+            "idle_timeout_seconds": 300
+          },
+          "capabilities": {
+            "streaming": "supported",
+            "reasoning_events": "supported",
+            "usage": "supported",
+            "thinking": "supported",
+            "reasoning_effort": "supported",
+            "max_output_tokens": "supported",
+            "system_role": "unsupported",
+            "tool_calling": "unsupported",
+            "assistant_reasoning_input": "unknown",
+            "detached_generation": "unsupported",
+            "replay": "unsupported",
+            "live_steering": "unsupported",
+            "model_control": "unsupported"
+          },
+          "launch_configuration": {
+            "actual_config_id": null,
+            "actual_revision": null,
+            "default_config_id": null,
+            "default_revision": null,
+            "hardware_profile_id": null,
+            "configuration_lab": "unsupported"
+          }
+        },
+        {
+          "type": "status",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 1,
+          "state": "RUNNING"
+        },
+        {
+          "type": "error",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 2,
+          "error": {
+            "code": "transport_timeout",
+            "message": "Upstream outcome unknown",
+            "request_id": "11111111111111111111111111111111",
+            "retryable": false
+          }
+        },
+        {
+          "type": "done",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 3,
+          "state": "UNKNOWN",
+          "finish_reason": null,
+          "usage": {
+            "status": "unavailable",
+            "prompt_tokens": null,
+            "completion_tokens": null,
+            "total_tokens": null,
+            "reasoning_tokens": null,
+            "cached_prompt_tokens": null,
+            "source": "unavailable",
+            "prompt_basis": "unknown"
+          },
+          "error": {
+            "code": "transport_timeout",
+            "message": "Upstream outcome unknown",
+            "request_id": "11111111111111111111111111111111",
+            "retryable": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "failed",
+      "events": [
+        {
+          "type": "meta",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 0,
+          "bridge_id": "bridge-fixture",
+          "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+          "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "manager_id": "manager-77",
+          "slot_id": "slot1",
+          "model_id": "KAT-Coder-V2.5",
+          "protocol_version": "1.0.0",
+          "catalog_revision": "catalog-1",
+          "execution_mode": "CUDA",
+          "limits": {
+            "context_tokens": 65536,
+            "max_output_tokens": null,
+            "request_bytes": 1048576,
+            "history_messages": 128,
+            "history_chars": 240000,
+            "message_chars": 131072,
+            "response_chars": 1048576,
+            "stream_bytes": 8388608,
+            "idle_timeout_seconds": 300
+          },
+          "capabilities": {
+            "streaming": "supported",
+            "reasoning_events": "supported",
+            "usage": "supported",
+            "thinking": "supported",
+            "reasoning_effort": "supported",
+            "max_output_tokens": "supported",
+            "system_role": "unsupported",
+            "tool_calling": "unsupported",
+            "assistant_reasoning_input": "unknown",
+            "detached_generation": "unsupported",
+            "replay": "unsupported",
+            "live_steering": "unsupported",
+            "model_control": "unsupported"
+          },
+          "launch_configuration": {
+            "actual_config_id": null,
+            "actual_revision": null,
+            "default_config_id": null,
+            "default_revision": null,
+            "hardware_profile_id": null,
+            "configuration_lab": "unsupported"
+          }
+        },
+        {
+          "type": "status",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 1,
+          "state": "RUNNING"
+        },
+        {
+          "type": "error",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 2,
+          "error": {
+            "code": "upstream_failed",
+            "message": "Confirmed upstream failure",
+            "request_id": "11111111111111111111111111111111",
+            "retryable": false
+          }
+        },
+        {
+          "type": "done",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 3,
+          "state": "FAILED",
+          "finish_reason": null,
+          "usage": {
+            "status": "unavailable",
+            "prompt_tokens": null,
+            "completion_tokens": null,
+            "total_tokens": null,
+            "reasoning_tokens": null,
+            "cached_prompt_tokens": null,
+            "source": "unavailable",
+            "prompt_basis": "unknown"
+          },
+          "error": {
+            "code": "upstream_failed",
+            "message": "Confirmed upstream failure",
+            "request_id": "11111111111111111111111111111111",
+            "retryable": false
+          }
+        }
+      ]
+    }
+  ],
+  "invalid_streams": [
+    {
+      "name": "sequence_gap",
+      "events": [
+        {
+          "type": "meta",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 0,
+          "bridge_id": "bridge-fixture",
+          "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+          "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "manager_id": "manager-77",
+          "slot_id": "slot1",
+          "model_id": "KAT-Coder-V2.5",
+          "protocol_version": "1.0.0",
+          "catalog_revision": "catalog-1",
+          "execution_mode": "CUDA",
+          "limits": {
+            "context_tokens": 65536,
+            "max_output_tokens": null,
+            "request_bytes": 1048576,
+            "history_messages": 128,
+            "history_chars": 240000,
+            "message_chars": 131072,
+            "response_chars": 1048576,
+            "stream_bytes": 8388608,
+            "idle_timeout_seconds": 300
+          },
+          "capabilities": {
+            "streaming": "supported",
+            "reasoning_events": "supported",
+            "usage": "supported",
+            "thinking": "supported",
+            "reasoning_effort": "supported",
+            "max_output_tokens": "supported",
+            "system_role": "unsupported",
+            "tool_calling": "unsupported",
+            "assistant_reasoning_input": "unknown",
+            "detached_generation": "unsupported",
+            "replay": "unsupported",
+            "live_steering": "unsupported",
+            "model_control": "unsupported"
+          },
+          "launch_configuration": {
+            "actual_config_id": null,
+            "actual_revision": null,
+            "default_config_id": null,
+            "default_revision": null,
+            "hardware_profile_id": null,
+            "configuration_lab": "unsupported"
+          }
+        },
+        {
+          "type": "status",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 1,
+          "state": "RUNNING"
+        },
+        {
+          "type": "reasoning",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 99,
+          "text": "Working"
+        },
+        {
+          "type": "delta",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 3,
+          "text": "Answer"
+        },
+        {
+          "type": "usage",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 4,
+          "usage": {
+            "status": "partial",
+            "prompt_tokens": 17,
+            "completion_tokens": 23,
+            "total_tokens": 40,
+            "reasoning_tokens": null,
+            "cached_prompt_tokens": null,
+            "source": "provider_and_derived_total",
+            "prompt_basis": "unknown"
+          }
+        },
+        {
+          "type": "telemetry",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 5,
+          "telemetry": {
+            "bridge_ttft_ms": 4,
+            "engine_ttft_ms": null
+          }
+        },
+        {
+          "type": "done",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 6,
+          "state": "SUCCEEDED",
+          "finish_reason": "stop",
+          "usage": {
+            "status": "partial",
+            "prompt_tokens": 17,
+            "completion_tokens": 23,
+            "total_tokens": 40,
+            "reasoning_tokens": null,
+            "cached_prompt_tokens": null,
+            "source": "provider_and_derived_total",
+            "prompt_basis": "unknown"
+          },
+          "error": null
+        }
+      ]
+    },
+    {
+      "name": "missing_done",
+      "events": [
+        {
+          "type": "meta",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 0,
+          "bridge_id": "bridge-fixture",
+          "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+          "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "manager_id": "manager-77",
+          "slot_id": "slot1",
+          "model_id": "KAT-Coder-V2.5",
+          "protocol_version": "1.0.0",
+          "catalog_revision": "catalog-1",
+          "execution_mode": "CUDA",
+          "limits": {
+            "context_tokens": 65536,
+            "max_output_tokens": null,
+            "request_bytes": 1048576,
+            "history_messages": 128,
+            "history_chars": 240000,
+            "message_chars": 131072,
+            "response_chars": 1048576,
+            "stream_bytes": 8388608,
+            "idle_timeout_seconds": 300
+          },
+          "capabilities": {
+            "streaming": "supported",
+            "reasoning_events": "supported",
+            "usage": "supported",
+            "thinking": "supported",
+            "reasoning_effort": "supported",
+            "max_output_tokens": "supported",
+            "system_role": "unsupported",
+            "tool_calling": "unsupported",
+            "assistant_reasoning_input": "unknown",
+            "detached_generation": "unsupported",
+            "replay": "unsupported",
+            "live_steering": "unsupported",
+            "model_control": "unsupported"
+          },
+          "launch_configuration": {
+            "actual_config_id": null,
+            "actual_revision": null,
+            "default_config_id": null,
+            "default_revision": null,
+            "hardware_profile_id": null,
+            "configuration_lab": "unsupported"
+          }
+        },
+        {
+          "type": "status",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 1,
+          "state": "RUNNING"
+        },
+        {
+          "type": "reasoning",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 2,
+          "text": "Working"
+        },
+        {
+          "type": "delta",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 3,
+          "text": "Answer"
+        },
+        {
+          "type": "usage",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 4,
+          "usage": {
+            "status": "partial",
+            "prompt_tokens": 17,
+            "completion_tokens": 23,
+            "total_tokens": 40,
+            "reasoning_tokens": null,
+            "cached_prompt_tokens": null,
+            "source": "provider_and_derived_total",
+            "prompt_basis": "unknown"
+          }
+        },
+        {
+          "type": "telemetry",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 5,
+          "telemetry": {
+            "bridge_ttft_ms": 4,
+            "engine_ttft_ms": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "wrong_request",
+      "events": [
+        {
+          "type": "meta",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 0,
+          "bridge_id": "bridge-fixture",
+          "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+          "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "manager_id": "manager-77",
+          "slot_id": "slot1",
+          "model_id": "KAT-Coder-V2.5",
+          "protocol_version": "1.0.0",
+          "catalog_revision": "catalog-1",
+          "execution_mode": "CUDA",
+          "limits": {
+            "context_tokens": 65536,
+            "max_output_tokens": null,
+            "request_bytes": 1048576,
+            "history_messages": 128,
+            "history_chars": 240000,
+            "message_chars": 131072,
+            "response_chars": 1048576,
+            "stream_bytes": 8388608,
+            "idle_timeout_seconds": 300
+          },
+          "capabilities": {
+            "streaming": "supported",
+            "reasoning_events": "supported",
+            "usage": "supported",
+            "thinking": "supported",
+            "reasoning_effort": "supported",
+            "max_output_tokens": "supported",
+            "system_role": "unsupported",
+            "tool_calling": "unsupported",
+            "assistant_reasoning_input": "unknown",
+            "detached_generation": "unsupported",
+            "replay": "unsupported",
+            "live_steering": "unsupported",
+            "model_control": "unsupported"
+          },
+          "launch_configuration": {
+            "actual_config_id": null,
+            "actual_revision": null,
+            "default_config_id": null,
+            "default_revision": null,
+            "hardware_profile_id": null,
+            "configuration_lab": "unsupported"
+          }
+        },
+        {
+          "type": "status",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 1,
+          "state": "RUNNING"
+        },
+        {
+          "type": "reasoning",
+          "request_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "sequence": 2,
+          "text": "Working"
+        },
+        {
+          "type": "delta",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 3,
+          "text": "Answer"
+        },
+        {
+          "type": "usage",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 4,
+          "usage": {
+            "status": "partial",
+            "prompt_tokens": 17,
+            "completion_tokens": 23,
+            "total_tokens": 40,
+            "reasoning_tokens": null,
+            "cached_prompt_tokens": null,
+            "source": "provider_and_derived_total",
+            "prompt_basis": "unknown"
+          }
+        },
+        {
+          "type": "telemetry",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 5,
+          "telemetry": {
+            "bridge_ttft_ms": 4,
+            "engine_ttft_ms": null
+          }
+        },
+        {
+          "type": "done",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 6,
+          "state": "SUCCEEDED",
+          "finish_reason": "stop",
+          "usage": {
+            "status": "partial",
+            "prompt_tokens": 17,
+            "completion_tokens": 23,
+            "total_tokens": 40,
+            "reasoning_tokens": null,
+            "cached_prompt_tokens": null,
+            "source": "provider_and_derived_total",
+            "prompt_basis": "unknown"
+          },
+          "error": null
+        }
+      ]
+    },
+    {
+      "name": "event_after_done",
+      "events": [
+        {
+          "type": "meta",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 0,
+          "bridge_id": "bridge-fixture",
+          "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+          "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "manager_id": "manager-77",
+          "slot_id": "slot1",
+          "model_id": "KAT-Coder-V2.5",
+          "protocol_version": "1.0.0",
+          "catalog_revision": "catalog-1",
+          "execution_mode": "CUDA",
+          "limits": {
+            "context_tokens": 65536,
+            "max_output_tokens": null,
+            "request_bytes": 1048576,
+            "history_messages": 128,
+            "history_chars": 240000,
+            "message_chars": 131072,
+            "response_chars": 1048576,
+            "stream_bytes": 8388608,
+            "idle_timeout_seconds": 300
+          },
+          "capabilities": {
+            "streaming": "supported",
+            "reasoning_events": "supported",
+            "usage": "supported",
+            "thinking": "supported",
+            "reasoning_effort": "supported",
+            "max_output_tokens": "supported",
+            "system_role": "unsupported",
+            "tool_calling": "unsupported",
+            "assistant_reasoning_input": "unknown",
+            "detached_generation": "unsupported",
+            "replay": "unsupported",
+            "live_steering": "unsupported",
+            "model_control": "unsupported"
+          },
+          "launch_configuration": {
+            "actual_config_id": null,
+            "actual_revision": null,
+            "default_config_id": null,
+            "default_revision": null,
+            "hardware_profile_id": null,
+            "configuration_lab": "unsupported"
+          }
+        },
+        {
+          "type": "status",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 1,
+          "state": "RUNNING"
+        },
+        {
+          "type": "reasoning",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 2,
+          "text": "Working"
+        },
+        {
+          "type": "delta",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 3,
+          "text": "Answer"
+        },
+        {
+          "type": "usage",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 4,
+          "usage": {
+            "status": "partial",
+            "prompt_tokens": 17,
+            "completion_tokens": 23,
+            "total_tokens": 40,
+            "reasoning_tokens": null,
+            "cached_prompt_tokens": null,
+            "source": "provider_and_derived_total",
+            "prompt_basis": "unknown"
+          }
+        },
+        {
+          "type": "telemetry",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 5,
+          "telemetry": {
+            "bridge_ttft_ms": 4,
+            "engine_ttft_ms": null
+          }
+        },
+        {
+          "type": "done",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 6,
+          "state": "SUCCEEDED",
+          "finish_reason": "stop",
+          "usage": {
+            "status": "partial",
+            "prompt_tokens": 17,
+            "completion_tokens": 23,
+            "total_tokens": 40,
+            "reasoning_tokens": null,
+            "cached_prompt_tokens": null,
+            "source": "provider_and_derived_total",
+            "prompt_basis": "unknown"
+          },
+          "error": null
+        },
+        {
+          "type": "delta",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 7,
+          "text": "late"
+        }
+      ]
+    },
+    {
+      "name": "bad_delta",
+      "events": [
+        {
+          "type": "meta",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 0,
+          "bridge_id": "bridge-fixture",
+          "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+          "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "manager_id": "manager-77",
+          "slot_id": "slot1",
+          "model_id": "KAT-Coder-V2.5",
+          "protocol_version": "1.0.0",
+          "catalog_revision": "catalog-1",
+          "execution_mode": "CUDA",
+          "limits": {
+            "context_tokens": 65536,
+            "max_output_tokens": null,
+            "request_bytes": 1048576,
+            "history_messages": 128,
+            "history_chars": 240000,
+            "message_chars": 131072,
+            "response_chars": 1048576,
+            "stream_bytes": 8388608,
+            "idle_timeout_seconds": 300
+          },
+          "capabilities": {
+            "streaming": "supported",
+            "reasoning_events": "supported",
+            "usage": "supported",
+            "thinking": "supported",
+            "reasoning_effort": "supported",
+            "max_output_tokens": "supported",
+            "system_role": "unsupported",
+            "tool_calling": "unsupported",
+            "assistant_reasoning_input": "unknown",
+            "detached_generation": "unsupported",
+            "replay": "unsupported",
+            "live_steering": "unsupported",
+            "model_control": "unsupported"
+          },
+          "launch_configuration": {
+            "actual_config_id": null,
+            "actual_revision": null,
+            "default_config_id": null,
+            "default_revision": null,
+            "hardware_profile_id": null,
+            "configuration_lab": "unsupported"
+          }
+        },
+        {
+          "type": "delta",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 1,
+          "text": ""
+        },
+        {
+          "type": "done",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 2,
+          "state": "SUCCEEDED",
+          "finish_reason": "stop",
+          "usage": {
+            "status": "unavailable",
+            "prompt_tokens": null,
+            "completion_tokens": null,
+            "total_tokens": null,
+            "reasoning_tokens": null,
+            "cached_prompt_tokens": null,
+            "source": "unavailable",
+            "prompt_basis": "unknown"
+          },
+          "error": null
+        }
+      ]
+    },
+    {
+      "name": "unknown_without_error",
+      "events": [
+        {
+          "type": "meta",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 0,
+          "bridge_id": "bridge-fixture",
+          "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+          "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "manager_id": "manager-77",
+          "slot_id": "slot1",
+          "model_id": "KAT-Coder-V2.5",
+          "protocol_version": "1.0.0",
+          "catalog_revision": "catalog-1",
+          "execution_mode": "CUDA",
+          "limits": {
+            "context_tokens": 65536,
+            "max_output_tokens": null,
+            "request_bytes": 1048576,
+            "history_messages": 128,
+            "history_chars": 240000,
+            "message_chars": 131072,
+            "response_chars": 1048576,
+            "stream_bytes": 8388608,
+            "idle_timeout_seconds": 300
+          },
+          "capabilities": {
+            "streaming": "supported",
+            "reasoning_events": "supported",
+            "usage": "supported",
+            "thinking": "supported",
+            "reasoning_effort": "supported",
+            "max_output_tokens": "supported",
+            "system_role": "unsupported",
+            "tool_calling": "unsupported",
+            "assistant_reasoning_input": "unknown",
+            "detached_generation": "unsupported",
+            "replay": "unsupported",
+            "live_steering": "unsupported",
+            "model_control": "unsupported"
+          },
+          "launch_configuration": {
+            "actual_config_id": null,
+            "actual_revision": null,
+            "default_config_id": null,
+            "default_revision": null,
+            "hardware_profile_id": null,
+            "configuration_lab": "unsupported"
+          }
+        },
+        {
+          "type": "done",
+          "request_id": "11111111111111111111111111111111",
+          "sequence": 1,
+          "state": "UNKNOWN",
+          "finish_reason": null,
+          "usage": {
+            "status": "unavailable",
+            "prompt_tokens": null,
+            "completion_tokens": null,
+            "total_tokens": null,
+            "reasoning_tokens": null,
+            "cached_prompt_tokens": null,
+            "source": "unavailable",
+            "prompt_basis": "unknown"
+          },
+          "error": null
+        }
+      ]
+    }
+  ],
+  "admission_cases": [
+    {
+      "name": "system role",
+      "request": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "catalog_revision": "catalog-1",
+        "conversation_id": "chat-fixture",
+        "turn_id": "turn-fixture",
+        "messages": [
+          {
+            "role": "system",
+            "content": "instruction"
+          },
+          {
+            "role": "user",
+            "content": "question"
+          }
+        ],
+        "options": {
+          "thinking": "on",
+          "reasoning_effort": "high"
+        }
+      },
+      "http": 422,
+      "code": "unsupported_capability"
+    },
+    {
+      "name": "tool role",
+      "request": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "catalog_revision": "catalog-1",
+        "conversation_id": "chat-fixture",
+        "turn_id": "turn-fixture",
+        "messages": [
+          {
+            "role": "tool",
+            "content": "result"
+          },
+          {
+            "role": "user",
+            "content": "question"
+          }
+        ],
+        "options": {
+          "thinking": "on",
+          "reasoning_effort": "high"
+        }
+      },
+      "http": 422,
+      "code": "unsupported_capability"
+    },
+    {
+      "name": "stale instance",
+      "request": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "catalog_revision": "catalog-1",
+        "conversation_id": "chat-fixture",
+        "turn_id": "turn-fixture",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Test"
+          }
+        ],
+        "options": {
+          "thinking": "on",
+          "reasoning_effort": "high"
+        }
+      },
+      "http": 409,
+      "code": "stale_instance"
+    },
+    {
+      "name": "unknown target",
+      "request": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "catalog_revision": "catalog-1",
+        "conversation_id": "chat-fixture",
+        "turn_id": "turn-fixture",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Test"
+          }
+        ],
+        "options": {
+          "thinking": "on",
+          "reasoning_effort": "high"
+        }
+      },
+      "http": 404,
+      "code": "unknown_target"
+    },
+    {
+      "name": "busy slot",
+      "request": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_87215939e4c65631f12839e87dee959fa784895b6b0a0117ff27593a3d7bb651",
+        "instance_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "catalog_revision": "catalog-1",
+        "conversation_id": "chat-fixture",
+        "turn_id": "turn-fixture",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Test"
+          }
+        ],
+        "options": {
+          "thinking": "on",
+          "reasoning_effort": "high"
+        }
+      },
+      "http": 409,
+      "code": "slot_busy"
+    },
+    {
+      "name": "repeat identical request",
+      "request": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "catalog_revision": "catalog-1",
+        "conversation_id": "chat-fixture",
+        "turn_id": "turn-fixture",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Test"
+          }
+        ],
+        "options": {
+          "thinking": "on",
+          "reasoning_effort": "high"
+        }
+      },
+      "http": 409,
+      "code": "request_already_attempted"
+    },
+    {
+      "name": "repeat changed digest",
+      "request": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "catalog_revision": "catalog-1",
+        "conversation_id": "chat-fixture",
+        "turn_id": "turn-fixture",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Changed"
+          }
+        ],
+        "options": {
+          "thinking": "on",
+          "reasoning_effort": "high"
+        }
+      },
+      "http": 409,
+      "code": "request_conflict"
+    },
+    {
+      "name": "invalid bearer",
+      "request": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "catalog_revision": "catalog-1",
+        "conversation_id": "chat-fixture",
+        "turn_id": "turn-fixture",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Test"
+          }
+        ],
+        "options": {
+          "thinking": "on",
+          "reasoning_effort": "high"
+        }
+      },
+      "http": 401,
+      "code": "unauthorized"
+    }
+  ],
+  "identity_cases": [
+    {
+      "tuple": [
+        "bridge-fixture",
+        "manager-77",
+        "slot1",
+        "kat-coder"
+      ],
+      "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+      "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "tuple": [
+        "bridge-fixture",
+        "manager-77",
+        "slot1",
+        "kat-coder"
+      ],
+      "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+      "instance_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    {
+      "tuple": [
+        "bridge-fixture",
+        "manager-other",
+        "slot2",
+        "kat-coder"
+      ],
+      "target_id": "tgt_87215939e4c65631f12839e87dee959fa784895b6b0a0117ff27593a3d7bb651",
+      "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "tuple": [
+        "bridge-fixture",
+        "manager-77",
+        "slot1",
+        "qwen"
+      ],
+      "target_id": "tgt_755ec2ecd8a34a22a58160ad9447b394c7a78c42054b9c29e783cd51d5568659",
+      "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "state_cases": [
+    [
+      "ACCEPTED",
+      "RUNNING",
+      true
+    ],
+    [
+      "ACCEPTED",
+      "FAILED",
+      true
+    ],
+    [
+      "RUNNING",
+      "SUCCEEDED",
+      true
+    ],
+    [
+      "RUNNING",
+      "CANCEL_REQUESTED",
+      true
+    ],
+    [
+      "CANCEL_REQUESTED",
+      "SUCCEEDED",
+      true
+    ],
+    [
+      "CANCEL_REQUESTED",
+      "CANCELLED",
+      true
+    ],
+    [
+      "RUNNING",
+      "UNKNOWN",
+      true
+    ],
+    [
+      "UNKNOWN",
+      "CANCELLED",
+      true
+    ],
+    [
+      "UNKNOWN",
+      "RUNNING",
+      false
+    ],
+    [
+      "SUCCEEDED",
+      "CANCELLED",
+      false
+    ],
+    [
+      "FAILED",
+      "RUNNING",
+      false
+    ],
+    [
+      "CANCELLED",
+      "RUNNING",
+      false
+    ],
+    [
+      "CANCEL_REQUESTED",
+      "RUNNING",
+      false
+    ],
+    [
+      "ACCEPTED",
+      "SUCCEEDED",
+      false
+    ]
+  ],
+  "digest_cases": [
+    {
+      "name": "revision only",
+      "base": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "catalog_revision": "catalog-1",
+        "conversation_id": "chat-fixture",
+        "turn_id": "turn-fixture",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Test"
+          }
+        ],
+        "options": {
+          "thinking": "on",
+          "reasoning_effort": "high"
+        }
+      },
+      "other": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "catalog_revision": "catalog-2",
+        "conversation_id": "chat-fixture",
+        "turn_id": "turn-fixture",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Test"
+          }
+        ],
+        "options": {
+          "thinking": "on",
+          "reasoning_effort": "high"
+        }
+      },
+      "equal": true
+    },
+    {
+      "name": "key order only",
+      "base": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "catalog_revision": "catalog-1",
+        "conversation_id": "chat-fixture",
+        "turn_id": "turn-fixture",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Test"
+          }
+        ],
+        "options": {
+          "thinking": "on",
+          "reasoning_effort": "high"
+        }
+      },
+      "other": {
+        "options": {
+          "thinking": "on",
+          "reasoning_effort": "high"
+        },
+        "messages": [
+          {
+            "role": "user",
+            "content": "Test"
+          }
+        ],
+        "turn_id": "turn-fixture",
+        "conversation_id": "chat-fixture",
+        "catalog_revision": "catalog-1",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "request_id": "11111111111111111111111111111111"
+      },
+      "equal": true
+    },
+    {
+      "name": "changed content",
+      "base": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "catalog_revision": "catalog-1",
+        "conversation_id": "chat-fixture",
+        "turn_id": "turn-fixture",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Test"
+          }
+        ],
+        "options": {
+          "thinking": "on",
+          "reasoning_effort": "high"
+        }
+      },
+      "other": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "catalog_revision": "catalog-1",
+        "conversation_id": "chat-fixture",
+        "turn_id": "turn-fixture",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Different"
+          }
+        ],
+        "options": {
+          "thinking": "on",
+          "reasoning_effort": "high"
+        }
+      },
+      "equal": false
+    },
+    {
+      "name": "changed instance",
+      "base": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "catalog_revision": "catalog-1",
+        "conversation_id": "chat-fixture",
+        "turn_id": "turn-fixture",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Test"
+          }
+        ],
+        "options": {
+          "thinking": "on",
+          "reasoning_effort": "high"
+        }
+      },
+      "other": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "catalog_revision": "catalog-1",
+        "conversation_id": "chat-fixture",
+        "turn_id": "turn-fixture",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Test"
+          }
+        ],
+        "options": {
+          "thinking": "on",
+          "reasoning_effort": "high"
+        }
+      },
+      "equal": false
+    },
+    {
+      "name": "explicit auto versus omitted",
+      "base": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "catalog_revision": "catalog-1",
+        "conversation_id": "chat-fixture",
+        "turn_id": "turn-fixture",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Test"
+          }
+        ],
+        "options": {}
+      },
+      "other": {
+        "request_id": "11111111111111111111111111111111",
+        "target_id": "tgt_b96b2babcb0c4debdc5cd13d402d3f9eec46980d1269a385bb656374dba88dc5",
+        "instance_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "catalog_revision": "catalog-1",
+        "conversation_id": "chat-fixture",
+        "turn_id": "turn-fixture",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Test"
+          }
+        ],
+        "options": {
+          "thinking": "auto"
+        }
+      },
+      "equal": false
+    }
+  ]
+}
