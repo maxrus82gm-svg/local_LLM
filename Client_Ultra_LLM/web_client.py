@@ -33,6 +33,7 @@ from urllib.parse import urlsplit
 import webbrowser
 
 from live_client import fetch_all, load_profiles
+from bridge_runtime import ClientBridge, dispatch as dispatch_bridge
 from pairing_client import _require_private_acl, _run_windows_powershell, enroll
 from chat_client import ChatClientError, send_chat, stream_chat, control_request, cancel_chat, live_query
 from chat_store import (validate_key, validate_chat_id, history as load_chat_history, legacy_chat_id, wire_bytes,
@@ -575,7 +576,7 @@ def _secure_host(handler, port: int) -> bool:
     return handler.headers.get("Host", "") == f"127.0.0.1:{port}"
 
 
-def make_handler(folder: Path, port_getter, csrf: str):
+def make_handler(folder: Path, port_getter, csrf: str, *, bridge=None):
     class WebHandler(BaseHTTPRequestHandler):
         server_version = "UltraLLMWeb/1.0"
         sys_version = ""
@@ -633,6 +634,8 @@ def make_handler(folder: Path, port_getter, csrf: str):
                 return True
             return False
         def do_GET(self):
+            if self.path.startswith("/bridge/v1/"):
+                return dispatch_bridge(self, bridge, port_getter())
             if self._bad_host():
                 return
             # Tracking parameters added by browsers/link wrappers must not
@@ -780,6 +783,8 @@ def make_handler(folder: Path, port_getter, csrf: str):
                     return self._send_json(403, {"error": "pairing_admin_required_or_offline"})
             return self._send_json(404, {"error": "not_found"})
         def do_POST(self):
+            if self.path.startswith("/bridge/v1/"):
+                return dispatch_bridge(self, bridge, port_getter())
             if self._bad_host():
                 return
             origin = self.headers.get("Origin", "")
@@ -934,7 +939,7 @@ def _instance_mutex(folder: Path):
     return (kernel, handle), (ctypes.get_last_error() == 183)
 
 
-def run_server(folder: Path, *, port: int = 0, open_browser: bool = True):
+def run_server(folder: Path, *, port: int = 0, open_browser: bool = True, enable_bridge: bool = False):
     folder = ensure_private_dir(folder)
     handle, duplicate = _instance_mutex(folder)
     if duplicate:
@@ -948,13 +953,18 @@ def run_server(folder: Path, *, port: int = 0, open_browser: bool = True):
     holder = {"port": 0}
     port_path = folder / ".web-client.port"
     server = None
+    bridge = None
     try:
-        handler = make_handler(folder, lambda: holder["port"], session_key)
+        if enable_bridge:
+            bridge = ClientBridge(folder)
+        handler = make_handler(folder, lambda: holder["port"], session_key, bridge=bridge)
         server = ThreadingHTTPServer(("127.0.0.1", port), handler)
         server.daemon_threads = True
         holder["port"] = server.server_address[1]
         address = f"http://127.0.0.1:{holder['port']}/"
         port_path.write_text(str(holder["port"]), encoding="ascii")
+        if bridge is not None:
+            bridge.publish(holder["port"])
         # --windowed/--noconsole PyInstaller sets sys.stdout to None.
         # Diagnostics must never prevent a GUI-only package from starting.
         if sys.stdout is not None:
@@ -965,6 +975,8 @@ def run_server(folder: Path, *, port: int = 0, open_browser: bool = True):
     finally:
         if server is not None:
             server.server_close()
+        if bridge is not None:
+            bridge.unpublish()
         if port_path.is_file() and port_path.read_text(encoding="ascii").strip() == str(holder["port"]):
             port_path.unlink()
         if handle:
@@ -976,8 +988,9 @@ def main():
     parser.add_argument("--config-dir", type=Path, default=config_directory())
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--port", type=int, default=0)
+    parser.add_argument("--enable-bridge", action="store_true", help="Explicitly enable private local WUA backend API")
     a = parser.parse_args()
-    run_server(a.config_dir, port=a.port, open_browser=not a.no_browser)
+    run_server(a.config_dir, port=a.port, open_browser=not a.no_browser, enable_bridge=a.enable_bridge)
 
 
 if __name__ == "__main__":
