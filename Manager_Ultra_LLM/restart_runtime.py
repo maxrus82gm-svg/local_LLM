@@ -181,6 +181,38 @@ def _worker(controller, owner, request_id, old_spec, new_spec, old_id, new_id, r
         release()
 
 
+def _validate_context_before_stop(controller, model_key, context_tokens):
+    """Validate requested model capacity from trusted installed metadata first.
+
+    A full runner preflight requires the port to be free, so it happens after
+    Stop; this early capacity check must not interrupt a healthy old instance.
+    """
+    if context_tokens is None:
+        return
+    from pathlib import Path
+    from resource_catalog import initial_catalogue
+    from server_preflight import read_profiles
+    from colibri2_runner import validate_context_capacity, StartDenied
+
+    models_root = Path(controller.config["models_root"]).resolve()
+    profiles = read_profiles(Path(controller.config["colibri_root"]) / "ULTRA-CONTROL.py")
+    choice = initial_catalogue()[model_key]
+    profile = profiles.get(choice.profile)
+    if (type(profile) is not dict or type(profile.get("folder")) is not str or
+            type(profile.get("subfolder", "")) is not str):
+        raise ControlError("model_files_unverified")
+    model = (models_root / profile["folder"] / profile.get("subfolder", "")).resolve()
+    if not model.is_relative_to(models_root):
+        raise ControlError("model_files_unverified")
+    try:
+        validate_context_capacity(model, context_tokens)
+    except (OSError, ValueError, StartDenied) as error:
+        reason = str(error)
+        if reason in ("context_capacity_exceeded", "context_capacity_unknown"):
+            raise ControlError(reason) from None
+        raise ControlError("runtime_preflight_unverified") from None
+
+
 def request(controller, principal, payload):
     controller._auth(principal)
     required = {"op", "slot_id", "instance_id", "expected_revision", "request_id"}
@@ -247,6 +279,7 @@ def request(controller, principal, payload):
             telemetry = controller.backend.telemetry()
             rows = [r for r in controller._rows(db) if r["instance_id"] != old_id]
             assessment = controller._gate(key, mode, telemetry, rows, context, saved)
+            _validate_context_before_stop(controller, key, context)
             if assessment["requires_ack"]:
                 if not assessment["risk_ack_allowed"]:
                     raise ControlError("resource_risk_not_permitted", 403)

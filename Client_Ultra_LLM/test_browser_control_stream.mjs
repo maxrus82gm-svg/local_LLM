@@ -186,7 +186,8 @@ try {
   assert.equal(await evaluate('byId("chat-form").contains(byId("chat-thinking"))'),true);
   assert.equal(await evaluate('byId("chat-form").contains(byId("chat-effort")) && byId("chat-form").contains(byId("chat-history-messages"))'),true);
   assert.equal(await evaluate('document.querySelector(".chat-inspector").contains(byId("chat-effort")) || document.querySelector(".chat-inspector").contains(byId("chat-history-messages"))'),false);
-  assert.equal(await evaluate('document.querySelectorAll("#chat-form .chat-tip[data-tip]").length'),5);
+  assert.equal(await evaluate('document.querySelectorAll("#chat-form .chat-tip[data-tip]").length'),6);
+  assert.equal(await evaluate('!!document.getElementById("chat-restart")'),true);
   assert.equal(await evaluate('Boolean(byId("chat-context-tip").dataset.tip)'),true);
   // Let composer layout/focus settle before synthetic hover; scroll dismisses tips.
   await delay(350);

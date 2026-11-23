@@ -4,6 +4,7 @@ import unittest
 import uuid
 
 from control_runtime import ControlError
+from unittest.mock import patch
 from colibri2_runner import RunnerSpec
 from test_control_runtime import AdmissionTests
 
@@ -117,6 +118,31 @@ class RestartTests(unittest.TestCase):
             row=next(x for x in self.core._rows(db) if x["instance_id"]==result["new_instance_id"])
         spec=RunnerSpec(**json.loads(row["spec"]))
         self.assertEqual(spec.review["launch"]["cuda_profile"],saved)
+
+    def test_context_capacity_is_checked_before_stop(self):
+        started, rev = self.ready()
+        with patch("restart_runtime._validate_context_before_stop",
+                   side_effect=ControlError("context_capacity_exceeded")):
+            with self.assertRaisesRegex(ControlError, "context_capacity_exceeded"):
+                self.restart(started, rev, context_tokens=262144)
+        self.assertFalse(self.backend.stops)
+        self.assertFalse(self.pending)
+        with self.core.db() as db:
+            active = [row for row in self.core._rows(db) if not row["released"]]
+        self.assertEqual(active[0]["state"], "READY")
+
+    def test_trusted_model_metadata_limits_context(self):
+        from restart_runtime import _validate_context_before_stop
+        from resource_catalog import initial_catalogue
+        model = self.folder / "qa-metadata"
+        model.mkdir()
+        (model / "config.json").write_text(json.dumps({"max_position_embeddings":8192}), encoding="utf-8")
+        profile = initial_catalogue()["kat"].profile
+        with patch("server_preflight.read_profiles",
+                   return_value={profile:{"folder":"qa-metadata"}}):
+            _validate_context_before_stop(self.core, "kat", 8192)
+            with self.assertRaisesRegex(ControlError,"context_capacity_exceeded"):
+                _validate_context_before_stop(self.core, "kat", 8193)
 
     def test_interrupted_restart_never_resumes_by_itself(self):
         started,rev=self.ready()

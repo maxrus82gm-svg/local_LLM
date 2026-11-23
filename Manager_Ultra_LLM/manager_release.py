@@ -17,7 +17,7 @@ VERSION = "R5-compat-20261113.1"
 TASK = "CODEX-UL-MANAGER-R5-COMPAT-RELEASE-20261113-001"
 RUNTIME = tuple(sorted((
     "live_manager.py", "chat_runtime.py", "chat_settings.py", "control_runtime.py",
-    "slot_registry.py", "resource_policy.py", "cuda_profile.py", "colibri2_runner.py", "windows_process.py",
+    "restart_runtime.py", "slot_registry.py", "resource_policy.py", "cuda_profile.py", "colibri2_runner.py", "windows_process.py",
     "manager_core.py", "launch_contract.py", "resource_catalog.py", "server_preflight.py",
     "server_runner.py", "pairing_server.py", "pairing_inbox.py", "pairing_workflow.py",
     "service_core.py", "index.html", "manager_release.py")))
