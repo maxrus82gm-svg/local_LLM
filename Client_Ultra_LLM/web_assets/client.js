@@ -111,7 +111,18 @@ function controlReason(reason) {
     gateway_exited:"Процесс Gateway завершился",
     load_timeout:"Превышено время загрузки модели",
     stream_idle_timeout:"Нет новых фрагментов ответа в течение тайм-аута бездействия",
-    runtime_or_telemetry_unverified:"Runtime или состояние сервера не подтверждены"
+    runtime_or_telemetry_unverified:"Runtime или состояние сервера не подтверждены",
+    restart_activity_unknown:"Нельзя подтвердить, что слот свободен",
+    restart_guard_unavailable:"Manager ещё не поддерживает Restart",
+    restart_port_not_free:"Порт модели не освободился",
+    restart_resources_changed:"Ресурсы изменились после остановки",
+    restart_stop_timeout:"Остановка модели не подтвердилась",
+    restart_start_timeout:"Запуск модели не подтвердился",
+    restart_interrupted:"Операция была прервана; автоматического повтора нет",
+    restart_identity_changed:"Изменился экземпляр — повторный запуск запрещён",
+    restart_not_found:"Операция Restart не найдена",
+    restart_preflight_failed:"Проверка запуска не пройдена",
+    runner_action_unconfirmed:"Результат операции не подтверждён"
   };
   return labels[reason] ? labels[reason] + " (" + reason + ")" : reason;
 }
@@ -727,6 +738,95 @@ let chatTargets = [];
 let streamMetrics = {};
 let historyRevision = 0;
 let chatMutation = false;
+let chatRestartJob = null;
+const RESTART_STAGE = {
+  STOPPING:"Остановка модели…",
+  WAITING_RELEASE:"Ожидание освобождения…",
+  CHECKING:"Проверка перед запуском…",
+  STARTING:"Запуск модели…",
+  READY:"Модель перезапущена",
+  ERROR:"Ошибка Restart"
+};
+function restartSelection(chat) {
+  if (!chat || chat.legacy || chat.target_conflict) return null;
+  const manager = (chatSnapshot?.managers || []).find(m => m.manager_id === chat.manager_id && m.status === "online");
+  const control = manager?.data?.control;
+  const slot = control?.slots?.find(s => s.slot_id === chat.slot_id);
+  const instance = control?.instances?.find(i => i.slot_id === chat.slot_id &&
+    i.model_id === chat.model_id && i.state === "READY" && i.released === false &&
+    i.can_stop === true && ["cpu","cuda"].includes(i.mode));
+  if (!control?.control_models || !slot || !Number.isInteger(slot.revision) || !instance) return null;
+  return {instance_id:instance.instance_id, expected_revision:slot.revision};
+}
+async function restartState(job) {
+  return api("/api/chat/restart?" + new URLSearchParams({
+    chat_id:job.chatId, manager_id:job.managerId, request_id:job.requestId
+  }), {signal:AbortSignal.timeout(9000)});
+}
+async function restartSelectedChat() {
+  if (chatRestartJob || chatMutation) return;
+  const chat = currentChat();
+  const target = liveTarget(chat);
+  const selection = restartSelection(chat);
+  if (!selection || !assignedChatOwnsTarget(chat,target) || !chatReady(target) ||
+      conversation(chat.chat_id).request || selectedManagerId(chat) !== chat.manager_id) return;
+  if (!confirm("Перезапустить выбранную модель? Она будет остановлена и запущена снова с сохранёнными настройками.")) return;
+  const job = {chatId:chat.chat_id,managerId:chat.manager_id,
+    requestId:crypto.randomUUID().replaceAll("-",""),stage:"STOPPING"};
+  chatRestartJob=job;
+  renderChatControls();
+  const body={chat_id:chat.chat_id,...targetFields(chat),...selection,request_id:job.requestId};
+  let result;
+  try {
+    try { result=await pairingPost("/api/chat/restart",body); }
+    catch(error){
+      // Lost response may mean the operation was accepted. Never retry blindly.
+      try { result=await restartState(job); }
+      catch { throw Error("Невозможно подтвердить Restart: "+controlReason(error.message)); }
+    }
+    if(result.stage==="RISK_CONFIRMATION_REQUIRED"){
+      const reasons=Array.isArray(result.warnings) ? result.warnings.map(controlReason).join(", ") : "";
+      if(!confirm("Ресурсный прогноз требует отдельного подтверждения. "+
+          (reasons ? reasons+". " : "")+"Продолжить?")) return;
+      try { result=await pairingPost("/api/chat/restart",{...body,risk_ack:true,risk_token:result.risk_token}); }
+      catch(error) {
+        try { result=await restartState(job); }
+        catch { throw Error("Состояние Restart неизвестно: "+controlReason(error.message)); }
+      }
+    }
+    if(!["STOPPING","WAITING_RELEASE","CHECKING","STARTING","READY","ERROR"].includes(result.stage))
+      throw Error("Manager не подтвердил запуск операции Restart");
+    for(let attempt=0;attempt<450;attempt++){
+      job.stage=result.stage;
+      renderChatControls();
+      if(result.stage==="READY"){
+        // Mutating the chat binding is a CSRF-protected POST, never a GET poll.
+        const complete=await pairingPost("/api/chat/restart/complete",{
+          chat_id:job.chatId,manager_id:job.managerId,request_id:job.requestId
+        });
+        if(complete.stage!=="READY" || !complete.new_instance_id)
+          throw Error("Менеджер не подтвердил новую привязку");
+        await refresh(true);
+        await syncChatBindings();
+        if(chatSelected===job.chatId)setChatNotice("Модель перезапущена. История чата сохранена.");
+        return;
+      }
+      if(result.stage==="ERROR")throw Error(controlReason(result.reason || "runner_action_unconfirmed"));
+      await new Promise(resolve=>setTimeout(resolve,1000));
+      try { result=await restartState(job); }
+      catch(error){
+        // Allow transient network loss, but never claim success without READY.
+        if(attempt>=5)throw Error("Нет подтверждённого результата: "+controlReason(error.message));
+      }
+    }
+    throw Error("Время ожидания истекло. Повторный запуск не выполнялся.");
+  } catch(error) {
+    if(chatSelected===job.chatId)setChatNotice("Restart: "+error.message);
+  } finally {
+    if(chatRestartJob===job)chatRestartJob=null;
+    renderChatControls();
+  }
+}
 let loadingChats = false;
 const conversations = new Map();
 const releasingSlots = new Map();
@@ -948,6 +1048,8 @@ function renderChatControls() {
   const chat = currentChat();
   const target = liveTarget(chat);
   const active = chat && conversation(chat.chat_id).request;
+  const restarting = Boolean(chat && chatRestartJob?.chatId===chat.chat_id);
+  const restartOption = restartSelection(chat);
   const managerSelector = byId("chat-manager");
   const modelSelector = byId("chat-model");
   const managerId = selectedManagerId(chat);
@@ -962,23 +1064,23 @@ function renderChatControls() {
   managerSelector.replaceChildren(new Option("Выберите Manager", ""),
     ...[...managers].map(([id, name]) => new Option(name, id)));
   managerSelector.value = managerId;
-  managerSelector.disabled = !chat || Boolean(active) || chatMutation;
+  managerSelector.disabled = !chat || Boolean(active) || restarting || chatMutation;
   const options = [];
   for (const item of choices.filter(item => item.manager_id === managerId && item.engine_state === "ready")) {
     options.push(new Option(modelLabel(item), targetKey(item)));
   }
   modelSelector.replaceChildren(...options);
   modelSelector.value = value;
-  modelSelector.disabled = !chat || !managerId || !options.length || Boolean(active) || chatMutation;
+  modelSelector.disabled = !chat || !managerId || !options.length || Boolean(active) || restarting || chatMutation;
   byId("chat-detach-model").classList.toggle("hidden", !chat?.model_id);
-  byId("chat-detach-model").disabled = !chat || Boolean(active) || chatMutation;
+  byId("chat-detach-model").disabled = !chat || Boolean(active) || restarting || chatMutation;
   const mode = owns && managerId === chat?.manager_id ? actualChatMode(target) : "";
   byId("chat-active-mode").replaceChildren(...(mode ? [chatModeBadge(mode)] : []));
   byId("chat-title").textContent = chat?.title || "Выберите чат";
   byId("chat-subtitle").textContent = chat?.context_after ? "Контекст начинается после сброса" : "";
   byId("chat-popout").disabled = !chat;
   byId("chat-new").disabled = chatMutation || loadingChats;
-  byId("chat-input").disabled = !chat || Boolean(active);
+  byId("chat-input").disabled = !chat || Boolean(active) || restarting;
   const send = byId("chat-send");
   send.type = active ? "button" : "submit";
   const canCancel = Boolean(active?.controller);
@@ -991,15 +1093,21 @@ function renderChatControls() {
   send.dataset.tip = sendLabel;
   send.setAttribute("aria-label", sendLabel);
   send.disabled = active ? !active.controller || Boolean(active.cancelling) :
-    !owns || !chatReady(target) || chatMutation || managerId !== chat.manager_id;
-  byId("chat-stream").disabled = !chat || Boolean(active) || chatMutation || Boolean(target && !target.streaming);
-  byId("chat-thinking").disabled = !chat || Boolean(active) || chatMutation || Boolean(target && !target.streaming);
+    !owns || !chatReady(target) || restarting || chatMutation || managerId !== chat.manager_id;
+  byId("chat-stream").disabled = !chat || Boolean(active) || restarting || chatMutation || Boolean(target && !target.streaming);
+  byId("chat-thinking").disabled = !chat || Boolean(active) || restarting || chatMutation || Boolean(target && !target.streaming);
   byId("chat-thinking-tip").dataset.tip = target && !target.streaming ? "Этот Manager не сообщает поддержку параметров генерации." : "Включает режим рассуждения у поддерживаемых моделей.";
-  byId("chat-effort").disabled = !chat || Boolean(active) || chatMutation || !byId("chat-thinking").checked || Boolean(target && !target.streaming);
-  renderContextSize(chat,target,!chat || Boolean(active) || chatMutation || Boolean(chat?.legacy));
+  byId("chat-effort").disabled = !chat || Boolean(active) || restarting || chatMutation || !byId("chat-thinking").checked || Boolean(target && !target.streaming);
+  renderContextSize(chat,target,!chat || Boolean(active) || restarting || chatMutation || Boolean(chat?.legacy));
+  const restartButton=byId("chat-restart");
+  restartButton.disabled = !owns || !chatReady(target) || !restartOption ||
+    Boolean(active) || Boolean(chatRestartJob) || chatMutation || managerId!==chat?.manager_id;
+  restartButton.dataset.tip = restarting ? RESTART_STAGE[chatRestartJob.stage] :
+    "Применить сохранённые настройки: перезапустить модель";
   renderCudaPanel(chat,target);
   const status = byId("chat-state");
   if (active) status.textContent = active.cancelling ? "Отменяем запрос…" : "Модель отвечает";
+  else if (restarting) status.textContent = RESTART_STAGE[chatRestartJob.stage] || "Перезапуск…";
   else if (!chat) status.textContent = "";
   else if (managerId !== chat.manager_id || !chat.model_id || chat.legacy) status.textContent = "";
   else if (slotChatOwner(chat)?.chat_id!==chat.chat_id) status.textContent = "Слот уже назначен другому чату.";
@@ -1170,7 +1278,7 @@ function renderCudaPanel(chat,target) {
   const mayEdit=control.control_models===true && (instance.released||instance.can_stop);
   for(const id of cudaInputIds)byId(id).disabled=!mayEdit||cudaSaving;
   byId("cuda-rows").disabled=!mayEdit||cudaSaving||byId("cuda-chain").value==="off";
-  byId("cuda-save").disabled=!mayEdit||cudaSaving;
+  byId("cuda-save").disabled=!mayEdit||cudaSaving||Boolean(chatRestartJob && chatRestartJob.chatId===chat?.chat_id);
   byId("cuda-reset").disabled=!cudaDirty||cudaSaving;
   put("cuda-slot-label",slot.slot_id);
   const applied=instance.cuda_profile;
@@ -1276,7 +1384,8 @@ function selectChat(id) {
   if (chat) loadStatistics(id);
 }
 async function changeChat(op, values = {}, id = chatSelected) {
-  if (chatMutation || (op !== "create" && (!chatItems.some(item => item.chat_id === id) || conversation(id).request))) return;
+  if (chatMutation || (chatRestartJob?.chatId===id && op!=="create") ||
+      (op !== "create" && (!chatItems.some(item => item.chat_id === id) || conversation(id).request))) return;
   chatMutation = true;
   renderChatList(chatSnapshot);
   try {
@@ -1759,7 +1868,8 @@ async function submitChat(event) {
   const target = liveTarget(chat);
   const input = byId("chat-input");
   const message = input.value.trim();
-  if (!assignedChatOwnsTarget(chat,target) || !chatReady(target) || chatMutation || selectedManagerId(chat) !== chat.manager_id ||
+  if (!assignedChatOwnsTarget(chat,target) || !chatReady(target) || chatMutation ||
+      chatRestartJob?.chatId===chat?.chat_id || selectedManagerId(chat) !== chat.manager_id ||
       !message || message.length > 131072) return;
   const id = chat.chat_id;
   const view = conversation(id);
@@ -1844,6 +1954,7 @@ async function submitChat(event) {
 byId("nav-overview").addEventListener("click", showOverview);
 byId("nav-chats").addEventListener("click", showChats);
 byId("chat-reload").addEventListener("click", () => refresh(true));
+byId("chat-restart").addEventListener("click",restartSelectedChat);
 byId("chat-new").addEventListener("click", () => {
   changeChat("create");
 });

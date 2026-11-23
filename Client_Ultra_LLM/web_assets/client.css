@@ -271,3 +271,10 @@ dialog{color:#ebf1fc;background:transparent;border:0;max-width:min(650px,calc(10
 #chat-view .message-copy svg{width:15px;height:15px;pointer-events:none}
 #chat-view .message-copy:disabled{opacity:.35;cursor:default}
 @media(max-width:900px){#chat-view .chat-cuda-panel{flex:none}}
+
+/* Compact restart control directly after context size. */
+#chat-view .chat-restart-icon{display:inline-flex;align-items:center;justify-content:center;flex:none;width:27px;height:29px;padding:4px;border:1px solid #526584;border-radius:6px;background:#172332;color:#d4deed;cursor:pointer}
+#chat-view .chat-restart-icon svg{width:16px;height:17px}
+#chat-view .chat-restart-icon:hover:not(:disabled){background:#26344b;color:#f2d47e;border-color:#8da5cc}
+#chat-view .chat-restart-icon:disabled{opacity:.36;cursor:default}
+#chat-view .chat-restart-icon:focus-visible{outline:2px solid #a7c5ea;outline-offset:2px}

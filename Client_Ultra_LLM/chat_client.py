@@ -96,6 +96,22 @@ def control_request(profile, payload=None):
         raise ChatClientError("invalid_control_response") from None
 
 
+def restart_query(profile, request_id):
+    from urllib.parse import urlencode
+    with manager_open(profile, "/v1/control/restart?" + urlencode({"request_id":request_id}), timeout=6) as r:
+        raw = r.read(8193)
+    try:
+        if len(raw)>8192:
+            raise ValueError()
+        data = json.loads(raw)
+        if (data.get("manager_id") != profile["manager_id"] or
+                data.get("request_id") != request_id):
+            raise ValueError()
+        return data
+    except (TypeError, ValueError, AttributeError):
+        raise ChatClientError("invalid_restart_response") from None
+
+
 @contextmanager
 def stream_guard(response, deadline):
     sock = getattr(getattr(getattr(response, "fp", None), "raw", None), "_sock", None)

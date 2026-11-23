@@ -138,6 +138,8 @@ class ModelControl:
                 db.execute("CREATE TABLE IF NOT EXISTS requests (owner TEXT, id TEXT, fingerprint TEXT NOT NULL, instance TEXT NOT NULL, PRIMARY KEY(owner,id))")
                 self.registry.initialize(db)
                 self._initialize_instance_events(db)
+                from restart_runtime import initialize as initialize_restarts
+                initialize_restarts(db)
                 db.commit()
 
     @staticmethod
@@ -175,6 +177,10 @@ class ModelControl:
             raise ControlError("control_models_required", 403)
         if self.db_path is None:
             raise ControlError("owner_go_required", 503)
+
+    def restart_status(self, principal, request_id):
+        from restart_runtime import status
+        return status(self, principal, request_id)
 
     def _spec(self, slot, key, mode):
         options = self.config.get("control", {})
@@ -277,6 +283,13 @@ class ModelControl:
 
     def _sync(self, db):
         for row in self._rows(db):
+            # A confirmed Restart owns this slot until its replacement is
+            # reserved atomically. Do not release it through status polling.
+            if db.execute("""SELECT 1 FROM restart_jobs
+                  WHERE old_instance=? AND stage IN
+                  ('STOPPING','WAITING_RELEASE','CHECKING','STARTING')""",
+                  (row["instance_id"],)).fetchone() and not row["released"]:
+                continue
             # Keep an accepted STOP exclusive during the runner's 60s wait,
             # including a margin for dispatch and final identity verification.
             grace = {"STARTING": 10, "STOPPING": 70}.get(row["state"], 0)
@@ -502,6 +515,9 @@ class ModelControl:
         self._auth(principal)
         principal=self.effective_principal(principal)
         op = payload.get("op") if type(payload) is dict else None
+        if op == "restart":
+            from restart_runtime import request
+            return request(self, principal, payload)
         fields = {"start": {"op", "model_key", "mode", "request_id"},
                   "check": {"op", "model_key", "mode", "request_id"},
                   "stop": {"op", "instance_id", "request_id"},

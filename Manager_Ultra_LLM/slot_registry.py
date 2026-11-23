@@ -80,6 +80,7 @@ class SlotRegistry:
             if slot["model_key"]!=payload["model_key"]:raise ValueError("slot_selection_changed")
             active=next((r for r in rows if r["slot_id"]==slot["slot_id"] and not r["released"]),None)
             if active:
+                if active["state"]!="READY":raise ValueError("slot_in_use")
                 if active["owner"]!=owner:raise PermissionError("instance_not_authorized")
                 if active["mode"]!="cuda" or active["model_key"]!=slot["model_key"]:
                     raise ValueError("slot_selection_changed")

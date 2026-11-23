@@ -35,7 +35,7 @@ import webbrowser
 from live_client import fetch_all, load_profiles
 from bridge_runtime import ClientBridge, dispatch as dispatch_bridge
 from pairing_client import _require_private_acl, _run_windows_powershell, enroll
-from chat_client import ChatClientError, send_chat, stream_chat, control_request, cancel_chat, live_query
+from chat_client import ChatClientError, send_chat, stream_chat, control_request, cancel_chat, live_query, restart_query
 from chat_store import (validate_key, validate_chat_id, history as load_chat_history, legacy_chat_id, wire_bytes,
                         context_for, request_context, append_exchange, claim_request, fail_request,
                         utc_now, get_chat, list_chats, manage_chat, recent_metrics,
@@ -193,6 +193,74 @@ def selected_profile(folder, manager_id):
     if profile is None:
         raise ChatClientError("unknown_manager", 404)
     return profile
+
+
+def restart_chat(folder, data):
+    required = {"chat_id", "manager_id", "slot_id", "model_id", "instance_id",
+                "expected_revision", "request_id"}
+    optional = {"risk_ack", "risk_token"}
+    if (type(data) is not dict or not required <= set(data) or set(data)-required-optional
+            or type(data["expected_revision"]) is not int
+            or type(data["instance_id"]) is not str
+            or not re.fullmatch(r"[a-f0-9]{32}", data["instance_id"])
+            or type(data["request_id"]) is not str
+            or not re.fullmatch(r"[a-f0-9]{32}", data["request_id"])
+            or ("risk_ack" in data and type(data["risk_ack"]) is not bool)):
+        raise ValueError("invalid_restart_fields")
+    key = validate_key(*(data[k] for k in ("manager_id","slot_id","model_id")))
+    chat_id = validate_chat_id(data["chat_id"])
+    with chat_lock((folder,chat_id)):
+        chat = chat_record(folder, chat_id)
+        if (chat.get("legacy") or chat.get("target_conflict")
+                or tuple(chat[k] for k in ("manager_id","slot_id","model_id")) != key):
+            raise ChatClientError("chat_target_changed",409)
+        profile = selected_profile(folder,key[0])
+        request = {"op":"restart","slot_id":key[1],"instance_id":data["instance_id"],
+                   "expected_revision":data["expected_revision"],
+                   "request_id":data["request_id"]}
+        if chat.get("context_tokens") is not None:
+            request["context_tokens"] = chat["context_tokens"]
+        for name in optional:
+            if name in data:
+                request[name] = data[name]
+        result = control_request(profile,request)
+        if (result.get("slot_id") != key[1] or
+                result.get("instance_id") != data["instance_id"] or
+                result.get("request_id") != data["request_id"]):
+            raise ChatClientError("invalid_restart_response")
+        return result
+
+
+def chat_restart_status(folder, manager_id, chat_id, request_id, *, rebind=False):
+    validate_chat_id(chat_id)
+    if type(request_id) is not str or not re.fullmatch(r"[a-f0-9]{32}", request_id):
+        raise ValueError("invalid_request_id")
+    with chat_lock((folder,chat_id)):
+        chat = chat_record(folder, chat_id)
+        if chat.get("legacy") or chat["manager_id"] != manager_id or not chat.get("slot_id"):
+            raise ChatClientError("chat_target_changed",409)
+        result = restart_query(selected_profile(folder,manager_id), request_id)
+        if (result.get("slot_id") != chat["slot_id"] or
+                result.get("original_model_id") != chat["model_id"]):
+            raise ChatClientError("restart_identity_changed",409)
+        if result.get("stage") == "READY":
+            model_id = result.get("model_id")
+            if type(model_id) is not str or not model_id:
+                raise ChatClientError("invalid_restart_response")
+            if model_id != chat["model_id"] and rebind:
+                manage_chat(folder, "target", {"chat_id":chat_id,
+                    "target":{"manager_id":manager_id,"slot_id":chat["slot_id"],"model_id":model_id}})
+        return result
+
+
+def complete_chat_restart(folder, data):
+    if type(data) is not dict or set(data)!={"chat_id","manager_id","request_id"}:
+        raise ValueError("invalid_restart_complete_fields")
+    result=chat_restart_status(folder, data["manager_id"], data["chat_id"],
+                               data["request_id"], rebind=True)
+    if result.get("stage")!="READY" or not result.get("new_instance_id"):
+        raise ChatClientError("restart_not_ready",409)
+    return result
 
 
 def chat_parameters(payload, *, stream=False):
@@ -683,6 +751,21 @@ def make_handler(folder: Path, port_getter, csrf: str, *, bridge=None):
                         "configured": True, "managers": results})
                 except (OSError, ValueError, KeyError):
                     return self._send_json(503, {"error": "manager_config_unavailable"})
+            if path.startswith("/api/chat/restart?"):
+                from urllib.parse import parse_qs
+                try:
+                    if len(path)>512:
+                        raise ValueError()
+                    q=parse_qs(urlsplit(path).query,strict_parsing=True)
+                    if set(q)!={"chat_id","manager_id","request_id"} or any(len(v)!=1 for v in q.values()):
+                        raise ValueError()
+                    result=chat_restart_status(folder,q["manager_id"][0],
+                        q["chat_id"][0],q["request_id"][0])
+                    return self._send_json(200,result)
+                except ChatClientError as error:
+                    return self._send_json(error.status,{"error":error.reason})
+                except (OSError,ValueError,KeyError):
+                    return self._send_json(400,{"error":"invalid_restart_query"})
             if path.startswith(("/api/chat/telemetry?","/api/control/cuda_status?")):
                 from urllib.parse import parse_qs
                 try:
@@ -793,7 +876,7 @@ def make_handler(folder: Path, port_getter, csrf: str, *, bridge=None):
                     not secrets.compare_digest(
                         self.headers.get("X-Ultra-CSRF", ""), csrf)):
                 return self._reject_post(403, {"error": "request_not_authorised"})
-            if self.path not in ("/api/global-prompt", "/api/chats", "/api/chat/send", "/api/chat/stream", "/api/chat/cancel", "/api/control", "/api/enroll", "/api/shutdown",
+            if self.path not in ("/api/global-prompt", "/api/chats", "/api/chat/send", "/api/chat/stream", "/api/chat/cancel", "/api/chat/restart", "/api/chat/restart/complete", "/api/control", "/api/enroll", "/api/shutdown",
                                   "/api/pairing/retry",
                                   "/api/pairing/approve",
                                   "/api/pairing/deny"):
@@ -840,6 +923,10 @@ def make_handler(folder: Path, port_getter, csrf: str, *, bridge=None):
                         except (ChatClientError, ValueError, OSError):
                             pass
                     return self._send_json(200, {"cancelled": flag is not None, "upstream_cancelled": confirmed})
+                if self.path == "/api/chat/restart":
+                    return self._send_json(202, restart_chat(folder,data))
+                if self.path == "/api/chat/restart/complete":
+                    return self._send_json(200, complete_chat_restart(folder,data))
                 if self.path == "/api/control":
                     profile = selected_profile(folder, data.get("manager_id"))
                     return self._send_json(200, control_request(profile,

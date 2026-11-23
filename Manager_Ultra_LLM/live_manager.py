@@ -434,6 +434,37 @@ def make_handler(config_file, config, inbox, *, controller=None):
     active_streams = {}
     streams_guard = threading.Lock()
     controller = controller or ModelControl(config)
+
+    def restart_gate(slot_id, instance_id, principal):
+        # Hold the same slot lock used by all Manager chat requests until READY
+        # or ERROR. This is independent of browser tabs and Client instances.
+        with streams_guard:
+            lock = chat_locks.setdefault(slot_id, threading.Lock())
+        if not lock.acquire(blocking=False):
+            raise ControlError("slot_chat_in_progress", 409)
+
+        def verify_idle():
+            try:
+                current = controller.runtime_config(load_config(config_file))
+                slot = next(s for s in current["slots"] if s["slot_id"] == slot_id)
+                port = slot["api_port"]
+                listener = _chat_listener(port)
+                health = _local_api_json(port, "/health")
+                queue = health.get("scheduler") if isinstance(health, dict) else None
+                if (health.get("status") != "ok" or
+                        not isinstance(queue, dict) or
+                        any(type(queue.get(k)) is not int for k in ("active", "queued", "capacity")) or
+                        queue["active"] != 0 or queue["queued"] != 0 or queue["capacity"] <= 0 or
+                        _chat_listener(port) != listener):
+                    raise ControlError("restart_activity_unknown", 409)
+            except ControlError:
+                raise
+            except Exception:
+                raise ControlError("restart_activity_unknown", 409) from None
+
+        return lock.release, verify_idle
+
+    controller.restart_gate = restart_gate
     class Handler(BaseHTTPRequestHandler):
         server_version = "UltraLLMManager/1.0"
         sys_version = ""
@@ -497,6 +528,20 @@ def make_handler(config_file, config, inbox, *, controller=None):
             current = self._current()
             if current is None:
                 return
+            if self.path.startswith("/v1/control/restart?"):
+                principal = _authorized_client(current, self.headers.get("Authorization", ""))
+                if principal is None:
+                    return self._reply(401, {"error": "unauthorized"})
+                try:
+                    q = parse_qs(urlsplit(self.path).query, strict_parsing=True)
+                    if (len(self.path) > 256 or set(q) != {"request_id"}
+                            or len(q["request_id"]) != 1):
+                        raise ValueError()
+                    return self._reply(200, controller.restart_status(principal, q["request_id"][0]))
+                except ValueError:
+                    return self._reply(400, {"error": "invalid_request_id"})
+                except ControlError as error:
+                    return self._reply(error.status, {"error": error.reason})
             if self.path.startswith("/v1/control/cuda_status?"):
                 principal=_authorized_client(current,self.headers.get("Authorization",""))
                 if principal is None:return self._reply(401,{"error":"unauthorized"})
