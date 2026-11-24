@@ -214,6 +214,35 @@ try {
   await older;
   assert.equal(await evaluate('byId("chat-live-status").textContent'),'Остановлен','Older READY response must not overwrite STOPPED');
   phase='READY';await evaluate('refresh()');
+  const completionOrder=await evaluate(`(async()=>{
+    const originalFetch=window.fetch, sample=structuredClone(chatSnapshot), pending=[];
+    const response=ok=>new Response(JSON.stringify(ok?sample:{error:"qa_status_failed"}),{
+      status:ok?200:503,headers:{"Content-Type":"application/json"}});
+    const status=()=>readStatus().catch(()=>false);
+    window.fetch=(input,options)=>input==="/api/status"?
+      new Promise(resolve=>pending.push(resolve)):originalFetch.call(window,input,options);
+    try {
+      statusSampleTime=0;renderChatControls();
+      const a=status(), b=status();
+      pending[0](response(true));const usable=await a;
+      const readyWhilePending=byId("chat-live-status").textContent;
+      pending[1](response(false));await b;
+      const afterFailure=[byId("chat-live-status").textContent,byId("chat-send").disabled];
+      const c=status(),d=status();
+      pending[3](response(false));await d;
+      pending[2](response(true));const ignored=await c;
+      const lateReady=[byId("chat-live-status").textContent,byId("chat-send").disabled];
+      const e=status(),f=status();
+      pending[5](response(true));await f;
+      pending[4](response(false));await e;
+      return {usable,readyWhilePending,afterFailure,ignored,lateReady,
+        lateFailure:[byId("chat-live-status").textContent,byId("chat-send").disabled]};
+    } finally {window.fetch=originalFetch;}
+  })()`);
+  assert.deepEqual(completionOrder,{usable:true,readyWhilePending:'Запущен',
+    afterFailure:['Состояние неизвестно',true],ignored:false,
+    lateReady:['Состояние неизвестно',true],lateFailure:['Запущен',false]});
+  results.push('PASS: pending newer GET cannot discard completed usable status; newer failure wins; late failure cannot invalidate newer success');
   results.push('PASS: offline, old backend, external replacement, out-of-order snapshots');
   results.push('PASS: selected instance READY/STOPPING/STARTING/ERROR/STOPPED, stale fail-closed; header outside scroll');
   await delay(150);

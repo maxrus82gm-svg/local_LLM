@@ -173,10 +173,21 @@ try{
     await evaluate(`{const target=chatTargets.find(t=>t.slot_id===${JSON.stringify(slot)});
       const manager=byId('chat-manager');manager.value=target.manager_id;manager.dispatchEvent(new Event('change'));
       const select=byId('chat-model');select.value=targetKey(target);select.dispatchEvent(new Event('change'));}`);
-    await until('!byId("chat-send").disabled');
-    await evaluate(`byId('chat-stream').checked=false;byId('chat-input').value=${JSON.stringify(message)};byId('chat-form').requestSubmit()`);
+    await until(`!chatMutation && currentChat()?.chat_id===${JSON.stringify(chatId)} &&
+      currentChat()?.slot_id===${JSON.stringify(slot)} && !byId("chat-send").disabled`);
+    const submitted=await evaluate(`(()=>{
+      byId('chat-stream').checked=false;byId('chat-input').value=${JSON.stringify(message)};
+      byId('chat-form').requestSubmit();
+      const request=conversation(${JSON.stringify(chatId)}).request;
+      return {started:!!request,slot:request?.target.slot_id??null};
+    })()`);
+    assert.deepEqual(submitted,{started:true,slot},'One explicit UI submit must start the exact chat/slot; no retry');
+    mark('ui_chat_submitted_'+slot);
     await until(`byId('chat-messages').textContent.includes(${JSON.stringify(message)}) &&
-      byId('chat-messages').textContent.includes('Фиктивный ответ экземпляра') && !byId('chat-send').disabled`);
+      byId('chat-messages').textContent.includes('Фиктивный ответ экземпляра') &&
+      !conversation(${JSON.stringify(chatId)}).request &&
+      !releasingSlots.has(slotKey(currentChat())) && !byId('chat-send').disabled`);
+    mark('ui_chat_completed_'+slot);
     assert.equal(await evaluate('document.querySelectorAll(".chat-message-metrics").length'),2);
     return chatId;
   }

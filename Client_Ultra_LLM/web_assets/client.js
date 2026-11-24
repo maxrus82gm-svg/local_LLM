@@ -9,6 +9,7 @@ let isRefreshing = false;
 let refreshQueued = false;
 let statusRequest = 0;
 let appliedStatusRequest = 0;
+let statusReadsInFlight = 0;
 let firstSetup = false;
 let lastEnrolledManagerId = "";
 let adminManagers = [];
@@ -500,9 +501,8 @@ async function refresh(force=false) {
   try {
     await readStatus();
   } catch (err) {
-    setNotice("Не удалось обновить данные: " + err.message);
-    statusSampleTime=0;
-    renderLiveStatus();
+    // A late failed refresh must not invalidate a newer successful sample.
+    if (!statusSampleTime) setNotice("Не удалось обновить данные: " + err.message);
   } finally {
     isRefreshing = false;
     button.disabled = false;
@@ -511,15 +511,27 @@ async function refresh(force=false) {
 }
 async function readStatus(options) {
   const id = ++statusRequest;
+  statusReadsInFlight++;
   try {
     const status = await api("/api/status", options);
-    if (id === statusRequest && id > appliedStatusRequest) {
+    // Order completed outcomes, not requests that have merely been issued.
+    // A newer pending GET must not discard a useful completed foreground read.
+    if (id > appliedStatusRequest) {
       appliedStatusRequest = id;
       render(status);
     }
+    // A later completed failure is also a watermark; do not use old READY.
+    return statusSampleTime > 0 && performance.now()-statusSampleTime <= 7000;
   } catch (error) {
-    if (id === statusRequest) {statusSampleTime=0;renderLiveStatus();}
+    if (id >= appliedStatusRequest) {
+      appliedStatusRequest=id;
+      statusSampleTime=0;
+      if (chatOpen) renderChatControls();
+      else renderLiveStatus();
+    }
     throw error;
+  } finally {
+    statusReadsInFlight--;
   }
 }
 async function init() {
@@ -730,9 +742,23 @@ byId("setup-form").addEventListener("submit", async event => {
   } finally { submit.disabled = false; }
 });
 init();
-setInterval(refresh, 25000);
-setInterval(() => { if (chatOpen || chatSnapshot?.managers?.some(m =>
-  m.data?.control?.instances?.some(i => ["STARTING","STOPPING"].includes(i.state)))) refresh(); }, 2000);
+// Foreground reads already refresh the full TLS Manager snapshot. Avoid
+// adding periodic work while they or a slot-release check are in flight.
+function backgroundStatus() {
+  if (statusReadsInFlight || chatMutation || releasingSlots.size) return;
+  void refresh();
+}
+setInterval(backgroundStatus, 25000);
+setInterval(() => {
+  if (chatOpen) {
+    if (statusSampleTime && performance.now()-statusSampleTime > 7000) {
+      statusSampleTime=0;
+      renderChatControls();
+    } else renderLiveStatus();
+  }
+  if (chatOpen || chatSnapshot?.managers?.some(m =>
+    m.data?.control?.instances?.some(i => ["STARTING","STOPPING"].includes(i.state)))) backgroundStatus();
+}, 2000);
 
 /* CHAT-01: model slots are discovered dynamically from live Manager snapshots.
    They are never predefined as "three" or tied to hard-coded IP addresses. */
@@ -994,7 +1020,7 @@ async function createAutomatically(values) {
   chatItems = (await api("/api/chats")).chats;
   let plan;
   try {
-    await readStatus();
+    if (!await readStatus()) throw Error("status_not_current");
     plan = automaticChatPlan();
   } catch {
     plan = {managerId:"", candidates:[]};
@@ -1017,7 +1043,8 @@ async function createAutomatically(values) {
   return {row, managerId:plan.managerId};
 }
 function chatReady(target) {
-  return target?.engine_state === "ready" && target.availability === "ready_unreserved" &&
+  return statusSampleTime > 0 && performance.now()-statusSampleTime <= 7000 &&
+    target?.engine_state === "ready" && target.availability === "ready_unreserved" &&
     !releasingSlots.has(slotKey(target)) && !unknownSlots.has(slotKey(target)) && !localSlotActive(target);
 }
 function localSlotActive(target) {
@@ -1924,7 +1951,12 @@ async function waitForSlot(target, view, request) {
   try {
     for (const pause of [0, 120, 300, 650, 1250]) {
       if (pause) await new Promise(resolve => setTimeout(resolve, pause));
-      try { await readStatus({signal:AbortSignal.timeout(1800)}); } catch {
+      try {
+        if (!await readStatus({signal:AbortSignal.timeout(1800)})) {
+          checks.push("unknown");
+          continue;
+        }
+      } catch {
         checks.push("unknown");
         continue;
       }
