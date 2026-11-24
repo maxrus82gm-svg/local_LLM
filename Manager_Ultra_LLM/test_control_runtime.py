@@ -408,6 +408,45 @@ class AdmissionTests(unittest.TestCase):
         self.assertFalse(check["requires_ack"])
         self.assertEqual(self.start(key="qwen36",mode="cuda")["state"],"STARTING")
 
+    def test_manual_cuda_opt_in_is_not_measurement(self):
+        from resource_policy import assess
+        from copy import deepcopy
+        cfg=deepcopy(self.config)
+        cfg["control"]["resources"]={"allow_risk_ack":True}
+        review={"evidence":"bounded_owner_trial","source_hashes":{"a":"b"},
+                "ram_gib":None,"vram_gib":None}
+        telemetry=self.backend.telemetry()
+        for flag in (None,False,1,"true"):
+            candidate={**review,"manual_cuda_trial":flag}
+            with self.assertRaisesRegex(ValueError,"cuda_measurement_unverified"):
+                assess(cfg,candidate,"cuda",telemetry,[])
+        review["manual_cuda_trial"]=True
+        admission=assess(cfg,review,"cuda",telemetry,[])
+        self.assertTrue(admission["requires_ack"])
+        self.assertTrue(admission["risk_ack_allowed"])
+        self.assertEqual(admission["forecast"]["estimate_evidence"],"bounded_owner_trial")
+        self.assertIsNone(admission["forecast"]["vram_estimate_gib"])
+        self.assertIn("ram_estimate_unknown",admission["warnings"])
+        self.assertIn("vram_estimate_unknown",admission["warnings"])
+        with self.assertRaisesRegex(ValueError,"vram_telemetry_unknown"):
+            assess(cfg,review,"cuda",{**telemetry,"vram_free_gib":None},[])
+        exe=self.folder/"qwen36.exe"
+        dll=exe.with_name("coli_cuda.dll")
+        dll.write_bytes(b"fake")
+        plan={"source_engine":str(exe),"source_hashes":{"a":"b"}}
+        with configured(RunnerSpec("slot2",8001,"kat","cuda",review=review)):
+            with patch("resource_policy.read_vram",return_value={"free_gib":1,"total_gib":8}):
+                verify_review(plan)
+                with self.assertRaisesRegex(StartDenied,"runtime_or_model_changed"):
+                    verify_review({**plan,"source_hashes":{"a":"changed"}})
+                review["manual_cuda_trial"]=False
+                with self.assertRaisesRegex(StartDenied,"cuda_runtime_or_measurement_unverified"):
+                    verify_review(plan)
+                review["manual_cuda_trial"]=True
+                dll.unlink()
+                with self.assertRaisesRegex(StartDenied,"cuda_runtime_or_measurement_unverified"):
+                    verify_review(plan)
+
     def test_runner_checks_gpu_and_review_but_not_forecast(self):
         exe=self.folder/"qwen36.exe"
         dll=self.folder/"coli_cuda.dll"

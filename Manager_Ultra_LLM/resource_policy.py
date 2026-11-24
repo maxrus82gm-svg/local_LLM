@@ -106,6 +106,11 @@ def validate_settings(config):
     return settings
 
 
+def owner_manual_cuda(review):
+    """Explicit server-owner opt-in, never a measurement or HTTP override."""
+    return review.get("evidence") == "bounded_owner_trial" and review.get("manual_cuda_trial") is True
+
+
 def assess(config, review, mode, telemetry, reservations):
     if (telemetry.get("verified") is not True or not number(telemetry.get("free_gib"))
             or not number(telemetry.get("sampled")) or not 0 <= time.monotonic()-telemetry["sampled"] <= 5
@@ -139,7 +144,10 @@ def assess(config, review, mode, telemetry, reservations):
         if not number(vram_free):
             raise ValueError("vram_telemetry_unknown")
         if review.get("evidence") != "measured":
-            raise ValueError("cuda_measurement_unverified")
+            if not owner_manual_cuda(review):
+                raise ValueError("cuda_measurement_unverified")
+            # Unknown/unmeasured RAM already requires explicit risk confirmation.
+            # Manual CUDA is a trusted, opt-in owner trial; never call it measured.
         if vram is not None and (not number(vram) or not 0 < vram < 1024):
             raise ValueError("invalid_resource_estimate")
         # Estimates are advisory; actual allocation success belongs to the engine.

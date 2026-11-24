@@ -166,7 +166,8 @@ def verify_review(plan):
     if review.get("source_hashes") != plan["source_hashes"]:
         raise StartDenied("runtime_or_model_changed")
     if spec.backend == "cuda":
-        if review.get("evidence") != "measured" or not Path(plan["source_engine"]).with_name("coli_cuda.dll").is_file():
+        from resource_policy import owner_manual_cuda
+        if (review.get("evidence") != "measured" and not owner_manual_cuda(review)) or not Path(plan["source_engine"]).with_name("coli_cuda.dll").is_file():
             raise StartDenied("cuda_runtime_or_measurement_unverified")
         estimate = review.get("vram_gib")
         if estimate is not None and (type(estimate) not in (int,float) or not 0 < estimate < 1024):
