@@ -599,6 +599,8 @@ SHA архива:
 
 #### NEXT / DRAFT — CPU threads: native discovery, sync and measurements
 
+OWNER benchmark checkpoint: №18 HOME/Server77 compact tables. Verify Colibri actual worker team and engine-specific overrides, phase-specific CPU utilization during inference; test matched thread counts, VRAM budgets and Chain settings separately. Multi-instance goal per №13/18; not part of immediate implementation acceptance.
+
 **TASK ID:** `CODEX-UL-CPU-THREADS-20261125-001` — DRAFT / AWAITING OWNER START; P1 (next performance/UI task). Base #139 doc-only, source #127. Full source work only after OWNER activation in BLOCK 1; use existing test harnesses, no new permanent files without OWNER. Scope: hardware CPU topology/capacity + threads selection/save/sync + native measurement + bounded test design. Do not perform LIVE update/real launch, touch active Qwen, Server77, WORK, WUA, weights, network or change legacy profile defaults; owner real benchmarks separately.
 
 1. **Inventory & discovery.** Verify installed Colibri launch/env paths and engine capabilities; distinguish physical cores, logical CPUs, usable process CPU sets/affinity/job restrictions and groups, topology/P/E hints when reliably available. In-process native Windows APIs, cached static data, no recurrent PS/CMD (NATIVE-TELEMETRY-01). Manager returns host hardware and permitted launch range from verified effective constraints; unknown explicit, never hard-code 12/28/1024 as host capacity. Separate hardware maximum from engine-supported maximum and remaining shared resources; no fake affinity or exclusivity.
