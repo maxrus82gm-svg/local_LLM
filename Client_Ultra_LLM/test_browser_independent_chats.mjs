@@ -103,6 +103,8 @@ try {
 
   await activate();
   const a = await create(1);
+  assert.equal(await evaluate('currentChat().context_tokens'),65536);
+  assert.equal(await evaluate('byId("chat-context-preset").value'),"65536");
   assert.equal(await evaluate('document.querySelector(".chat-stream-options").contains(byId("chat-context-preset"))'),true);
   await evaluate('byId("chat-context-preset").value="16384";byId("chat-context-preset").dispatchEvent(new Event("change"))');
   await until('!chatMutation && currentChat().context_tokens===16384');
@@ -168,7 +170,7 @@ try {
   assert.equal(await evaluate('Boolean(currentChat().model_id)'),false);
   assert.equal(await evaluate('byId("chat-model").options.length'),0);
   assert.notEqual(a,b);
-  assert.equal(await evaluate("currentChat().context_tokens"),null);
+  assert.equal(await evaluate("currentChat().context_tokens"),65536);
   assert.equal(await evaluate('byId("chat-send").disabled'),true);
   assert.equal(await evaluate('chatHolder.querySelector(".chat-bubble")===null'),true);
   await select(a);

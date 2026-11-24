@@ -284,7 +284,7 @@ try{
   await until('!chatMutation && currentChat().context_tokens===16384');
   await evaluate(`selectChat(${JSON.stringify(chatB)})`);
   await until('byId("chat-messages").textContent.includes("qa-ui-two")');
-  assert.equal(await evaluate("currentChat().context_tokens"),null);
+  assert.equal(await evaluate("currentChat().context_tokens"),65536);
   assert.equal(await evaluate('byId("chat-send").disabled'),false,'Other model remains available');
   await evaluate('showOverview()');
   // A burst of unavailable snapshots must hit a finite deadline, never READY.

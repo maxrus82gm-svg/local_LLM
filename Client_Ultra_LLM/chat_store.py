@@ -17,6 +17,7 @@ _ID = re.compile(r"[a-f0-9]{32}")
 _LOCK = threading.RLock()
 DEFAULT_CONTEXT = {"max_messages": 100, "max_chars": 200000}
 DEFAULT_PREFERENCES = {"stream": True, "thinking": True}
+DEFAULT_NEW_CHAT_CONTEXT_TOKENS = 65536
 
 
 def utc_now():
@@ -243,8 +244,10 @@ def manage_chat(folder, op, data):
             chat_id = uuid.uuid4().hex
             target = _target(data.get("target"))
             _require_target_owner(db, target)
-            db.execute("INSERT INTO chats(chat_id,title,created_at,manager_id,slot_id,model_id) VALUES(?,?,?,?,?,?)",
-                       (chat_id, _title(data.get("title", "Новый чат")), utc_now(), *target))
+            # Persist only for new explicit chats; never migrate older choices.
+            saved = json.dumps({"context_tokens": DEFAULT_NEW_CHAT_CONTEXT_TOKENS})
+            db.execute("INSERT INTO chats(chat_id,title,created_at,manager_id,slot_id,model_id,settings) VALUES(?,?,?,?,?,?,?)",
+                       (chat_id, _title(data.get("title", "Новый чат")), utc_now(), *target, saved))
         else:
             chat_id = data["chat_id"]
             current = _get_chat(db, chat_id)

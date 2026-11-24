@@ -44,7 +44,8 @@ class IndependentChatTests(unittest.TestCase):
 
     def test_context_tokens_are_independent_and_survive_other_preferences(self):
         a, b = self.chat(None), self.chat(None)
-        self.assertIsNone(store.get_chat(self.folder,a)["context_tokens"])
+        self.assertEqual(store.get_chat(self.folder,a)["context_tokens"],65536)
+        self.assertEqual(store.get_chat(self.folder,b)["context_tokens"],65536)
         self.action(a,"context_tokens",context_tokens=16384)
         self.action(b,"context_tokens",context_tokens=123456)
         self.action(a,"settings",context={"max_messages":0,"max_chars":100})

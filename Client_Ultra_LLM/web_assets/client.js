@@ -1224,7 +1224,7 @@ function showContextCustom(show) {
 }
 function syncContextSize(chat) {
   const actual=liveTarget(chat)?.context_tokens;
-  const value=String(chat?.context_tokens ?? (Number.isInteger(actual) && actual>0 ? actual : 8192));
+  const value=String(chat?.context_tokens ?? (Number.isInteger(actual) && actual>0 ? actual : 65536));
   const preset=CONTEXT_PRESETS.includes(value);
   contextCustomDraft=false;
   byId("chat-context-preset").value=preset ? value : "custom";
