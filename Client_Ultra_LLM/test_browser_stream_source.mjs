@@ -92,9 +92,9 @@ try{
   assert.equal(before.generation_options.stream_options.include_usage,true);
   assert.equal(before.generation_options.context_compaction,'off');
   await fetch(host.upstream+'/__qa/done');
-  await until('document.getElementById("chat-messages").textContent.includes("и завершение") && !document.getElementById("chat-send").disabled');
+  await until('document.getElementById("chat-messages").textContent.includes("и завершение") && !conversation(chatSelected).request');
   assert.equal(await value(),'');
-  assert.equal(await evaluate(`document.activeElement===${input}`),true,'Keyboard focus must return to the chat input');
+  await until(`document.activeElement===${input}`);
   await delay(100);
   const metrics=await evaluate('streamMetrics');
   for(const key of ['manager_received_unix_ms','manager_preflight_ms','colibri_request_started_unix_ms',

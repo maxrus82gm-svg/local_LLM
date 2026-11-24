@@ -50,6 +50,10 @@ Codex работает **на компьютере владельца**, поэ�
 
 ### БЛОК 1 — ТЕКУЩАЯ ЗАДАЧА
 
+**Свободен после авторской сдачи 24.11.2026; независимая приёмка и OWNER публикация OPEN.**
+
+### БЛОК 1.1 — ПОСЛЕДНЯЯ СДАННАЯ ЗАДАЧА (ДОСЛОВНЫЙ ОРИГИНАЛ)
+
 # CODEX-UL-CHAT-LIVE-STATUS-20261124-001
 
 **TASK ID:** `CODEX-UL-CHAT-LIVE-STATUS-20261124-001`
@@ -75,29 +79,13 @@ Codex работает **на компьютере владельца**, поэ�
 
 **Отчёт:** DONE / CHANGED / DIFF / TESTS (команды, counts, FAIL/SKIP, evidence) / PROBLEMS / QUESTIONS / DOC IMPACT / NEXT. Записать checkpoints №05/09/13/18, сохранить исходные FAIL, task-local logs. При сдаче штатная ротация полного оригинала с AMENDMENT в 1.1 только после проверки неизменяемого адреса прежней 1.1; освободить 1. БЛОК 4 — только координатор. Публикация владельцем. Следующий этап — independent review/CI и отдельный OWNER rollout/UX.
 
-### БЛОК 1.1 — ПОСЛЕДНЯЯ СДАННАЯ ЗАДАЧА (ДОСЛОВНЫЙ ОРИГИНАЛ)
+## AMENDMENT 24.11.2026 — авторская сдача
 
-**SUBMITTED / ITERATION CLOSED PARTIAL / REVIEW PENDING.** Previous BLOCK 1.1 preserved verbatim in owner commit 86f0656ad2d58cb5c864587b166fc6a92999a6c9 / Documents/07; verified exact content before rotation. Current original follows unchanged.
-
-# CODEX-UL-COLIBRI-CUDA-LIVE-20261120-001
-
-**TASK ID:** `CODEX-UL-COLIBRI-CUDA-LIVE-20261120-001`
-**Дата:** 20.11.2026
-**Исполнитель:** ChatGPT (временно вместо Codex).
-**Baseline:** №86 cea7e1f.
-**Цель:** реальный CUDA-запуск KAT-Coder V2.5 Dev и Qwen3.6 через Colibri → Manager → Client на Server77; сохранить CPU и историю чатов.
-
-Read matrix: AGENTS.md, №000/00/03/07/13, релевантные разделы №18 и R5 multi-LLM report. Сверить LIVE Manager и исходники до правок.
-
-- P1: read-only preflight Server77: GPU/драйвер, свободная VRAM/RAM, CUDA runtime/hashes, модели и блокировки Manager.
-- P2: по одному изолированному CUDA-тесту KAT и Qwen при достаточных ресурсах и точном OWNER GO на внешний путь/операцию. Замеры peak VRAM/RAM, TTFT, decode TPS, GPU activity, READY и STOP только собственного экземпляра. Не отключать gates и не выдавать CPU fallback за CUDA.
-- P3: минимальные локальные правки Manager/профилей с измеренными review, regression CPU/CUDA, проверка START → READY → ответ Client → STOP. LIVE deployment/config только по отдельному точному OWNER GO; предусмотреть rollback. Недостаток ресурсов или несовместимость = честный PARTIAL/BLOCKED.
-
-Scope: локальные исходники Manager, необходимые тесты Client/Manager и существующие документы №05/06/07/13/18. Scratch только Test/<TASK-ID>. Новые документы без отдельного разрешения не создавать. Внешнее чтение разрешено; внешние записи, реальный запуск и изменение LIVE по №000. Не трогать Valheim, чужие процессы, рабочие CPU-модели, переписки, Gemma/GPT-OSS/LLaMA. Без Git write.
-
-После каждого этапа/блокера записывать №13 и №05: статус, изменения, тесты, остаток и точный NEXT. Продолжать автономно в разрешённом scope. При сдаче зафиксировать DONE/CHANGED/DIFF/TESTS/PROBLEMS/QUESTIONS/DOC IMPACT/NEXT в №13, ротировать полный оригинал в 1.1 с проверкой immutable истории, не заявлять независимую приёмку собственной работы. Публикация владельцем.
+**AUTHOR TESTED / REVIEW PENDING.** Полный отчёт: `Documents/Reports/CODEX-UL-CHAT-LIVE-STATUS-20261124-001/Final/report.md`. Прежний БЛОК 1.1 дословно сохранён в immutable owner #118 `39943ba4a5dda26f2f5a6575abdf2aac10c38858`, `Documents/07_Задачи Codex.md`, строки 78–99; сравнение текущего текста прежнего БЛОКА 1.1 с #118 до ротации — exact PASS. БЛОК 4 не изменён.
 
 ### БЛОК 2 — ПОСЛЕДНИЕ ПЯТЬ ЗАДАЧ (КОРОТКИЙ ИНДЕКС)
+
+- **CODEX-UL-CHAT-LIVE-STATUS-20261124-001 / 24.11:** AUTHOR TESTED / REVIEW PENDING; Client Python 84 (1 SKIP), Chrome control/stream/independent/slots PASS. Exact identity/stale/offline/Restart success 3 s; LIVE badge/CI/OWNER UX NOT RUN. Оригинал в БЛОКЕ 1.1, отчёт в `Documents/Reports/CODEX-UL-CHAT-LIVE-STATUS-20261124-001/Final/report.md`.
 
 - **CODEX-UL-COLIBRI-CUDA-LIVE-20261120-001 / 21.11:** ITERATION CLOSED PARTIAL; real standalone GPU KAT/Qwen PASS, CONFIG LIVE PASS, owner observed responses PASS, cold latency/VRAM forecast/independent review OPEN; original BLOCK 1.1; №05/09/13/18.
 
@@ -108,14 +96,13 @@ Scope: локальные исходники Manager, необходимые т�
 
 - **CODEX-UL-R5-CHROME-STABILITY-20261117-001 / 18.11:** OWNER №63 CI P1 FAIL → №64 fix → INDEPENDENT OFFLINE SOURCE ACCEPTED / Windows CI PASS twice; REAL RELEASE HOLD; DOC-UL-R5-CHROME-INDEPENDENT-20261118-001. Original in BLOCK1.1.
 
-- **CODEX-UL-R5-GATE2-REGRESSION-FIX-20261114-001 / 14.11:** OFFLINE source fix **SCOPED CLOSED / INDEPENDENT TECHNICAL+CI PASS**: №56 `d79e7fb0aeabb49c96cbbb643376ab910b4a6cb5`, [independent CI attempt 2](https://github.com/maxrus82gm-svg/local_LLM/actions/runs/43599309587/attempts/2) 336 Manager PASS/1 SKIP, Client49 PASS, Chrome/5 controls PASS. REAL/ZIP rebuild NOT RUN; RELEASE HOLD.
 
 
 **Дополнительные OPEN вне завершённой пятёрки:** `CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001` — A/B SUBMITTED, Stage B Gate2, C/D NOT RUN/OWNER GO absent; полная задача и AMENDMENT immutable №54. F3 backup provenance pin; F4 Chrome first-run; versioned R5 release/re-stage после source fixes. Все ранние задачи остаются в №09/immutable Git.
 
 ### БЛОК 3 — OPEN / NEXT
 
-- **NOW 24.11 — CODEX-UL-CHAT-LIVE-STATUS-20261124-001:** ASSIGNED / AWAITING OWNER START, индикатор состояния в «События чата», success 3s, source-only. После — independent/CI/OWNER UX.
+- **NOW 24.11 — CODEX-UL-CHAT-LIVE-STATUS-20261124-001:** AUTHOR TESTED / REVIEW PENDING, индикатор состояния в «События чата» source/Chrome PASS; GitHub CI и LIVE badge/OWNER GUI NOT RUN. Следующее: owner publication → independent review/CI → отдельный OWNER GO на Client rollout.
 - **SUSPENDED / PARTIAL, не закрыта:** `CODEX-UL-MANAGER-UI-PROFILES-20261121-001` по явной смене приоритета владельцем освобождена из БЛОКА 1. Полный дословный оригинал со всеми AMENDMENT и checkpoint сохранён [immutable #117, №07 БЛОК 1](https://github.com/maxrus82gm-svg/local_LLM/blob/07029bd3e4fa3498f124d64ba3ceb7e07afb8abd/Documents/07_%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B8%20Codex.md#L51-L114); №05/09 сохраняют TASK ID, незавершённые native Manager UI, HOME CUDA/profile review, global multi-client assignment, средние/пики telemetry и прочие OPEN. Не объявлять DONE и не возобновлять без назначения. Старый БЛОК 1.1 оставлен неизменным.
 - **Порядок владельца:** индикатор → HOME Manager update / CPU+CUDA review → третий Manager рабочий ПК → full multi-host Start/Stop/Restart → совместный WUA LIVE после отдельного GO. Скорость Qwen отдельно.
 
@@ -136,6 +123,9 @@ Scope: локальные исходники Manager, необходимые т�
 - **История/согласование:** №05/07.00/09/13/18 и №00 обновлены одним doc-only №57 в `GPT_2_local`, `main` меняет только владелец. §5.3 publication guard / test protocol продолжают действовать, новых UI изменений нет, OWNER UX NOT REQUIRED.
 
 ### БЛОК 4 — НЕЗАВИСИМАЯ ПРОВЕРКА (ТОЛЬКО КООРДИНАТОР)
+
+**24.11.2026 — DOC-UL-COORDINATOR-RESUME-20261124-001:** owner #119 `1b4e31b32687ffd06ed2228aa229df18d2179bd6` report/diff + exact hosted CI verified, OWNER GUI PASS reported by owner. Manager 436 PASS+1 SKIP, Client 83 PASS+1 SKIP, Chrome control/legacy/P0/independent PASS; P1 DOM deadline second chat FAIL, cause unknown. **INDEPENDENT PARTIAL / CI FAIL**, no LIVE repeat. Coordinator resumes implementation; Codex paused, BLOCK1 free, BLOCK1.1 unchanged. Next FIX-UL-CHAT-STATUS-P1-20261124-001; preserve original report. №05/06/09/13/18.
+
 
 **20.11.2026 - CODEX-UL-CLIENT-CHAT-COMPOSER-UX-20261120-001:** coordinator reviewed owner commit 85 and resumed P5; corrected model-label collisions and pending Manager submit/draft guards; 58 Python tests, 6 JS syntax checks and 4 Chrome regressions PASS. Local running Client HTML/CSS/JS byte match. Own corrections self-tested, not independent acceptance; user UX and final hosted CI NOT RUN. No production/Manager changes. Verdict: LOCAL SOURCE QA PASS / REVIEW PENDING / OWNER UX PENDING.
 

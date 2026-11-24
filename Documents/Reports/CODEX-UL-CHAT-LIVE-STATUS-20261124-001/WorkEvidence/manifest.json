@@ -1,0 +1,147 @@
+{
+  "entries": [
+    {
+      "task_id": "CODEX-UL-CHAT-LIVE-STATUS-20261124-001",
+      "relative_local_path": "Client_Ultra_LLM/web_assets/index.html",
+      "created_utc": "2026-11-23T20:08:55.5570354Z",
+      "size_bytes": 24716,
+      "sha256": "c907d8aedd93caa7ef49aca750f7b5adcaa97804d5c32ef86d32f740f1947cff",
+      "kind": "source_or_document",
+      "sanitized": true,
+      "publish_status": "LOCAL ONLY",
+      "cleanup_state": "CLEANUP PENDING"
+    },
+    {
+      "task_id": "CODEX-UL-CHAT-LIVE-STATUS-20261124-001",
+      "relative_local_path": "Client_Ultra_LLM/web_assets/client.css",
+      "created_utc": "2026-11-23T20:08:55.5335216Z",
+      "size_bytes": 35219,
+      "sha256": "4d2c75950ca535b9d4aebdfeb5e674d59f03d651855f8fa11bc4f45ce6fb2d23",
+      "kind": "source_or_document",
+      "sanitized": true,
+      "publish_status": "LOCAL ONLY",
+      "cleanup_state": "CLEANUP PENDING"
+    },
+    {
+      "task_id": "CODEX-UL-CHAT-LIVE-STATUS-20261124-001",
+      "relative_local_path": "Client_Ultra_LLM/web_assets/client.js",
+      "created_utc": "2026-11-23T20:08:55.5515272Z",
+      "size_bytes": 132802,
+      "sha256": "5a9e1603ffa8907259e04b211aea1c2d2d1503a56a654d43788d635a8f0f3e68",
+      "kind": "source_or_document",
+      "sanitized": true,
+      "publish_status": "LOCAL ONLY",
+      "cleanup_state": "CLEANUP PENDING"
+    },
+    {
+      "task_id": "CODEX-UL-CHAT-LIVE-STATUS-20261124-001",
+      "relative_local_path": "Client_Ultra_LLM/test_browser_control_stream.mjs",
+      "created_utc": "2026-11-23T20:22:54.3205865Z",
+      "size_bytes": 29984,
+      "sha256": "aff46e94ae768859d5977369dbe44a9babcc352170163718e902885c9cb2144f",
+      "kind": "source_or_document",
+      "sanitized": true,
+      "publish_status": "LOCAL ONLY",
+      "cleanup_state": "CLEANUP PENDING"
+    },
+    {
+      "task_id": "CODEX-UL-CHAT-LIVE-STATUS-20261124-001",
+      "relative_local_path": "Client_Ultra_LLM/test_browser_stream_source.mjs",
+      "created_utc": "2026-11-21T19:23:55.4421224Z",
+      "size_bytes": 12770,
+      "sha256": "e9dd0f473075e5c66ba48efb2271621d45f6137ea677317afd08bc332b52f7d3",
+      "kind": "source_or_document",
+      "sanitized": true,
+      "publish_status": "LOCAL ONLY",
+      "cleanup_state": "CLEANUP PENDING"
+    },
+    {
+      "task_id": "CODEX-UL-CHAT-LIVE-STATUS-20261124-001",
+      "relative_local_path": "Documents/05_Реестр_задач.md",
+      "created_utc": "2026-11-24T07:20:54.0271394Z",
+      "size_bytes": 209974,
+      "sha256": "051b5607d0b94574242b7ae60d9e4afa5c3647ba63e02d92f17ceb64ab9ae06b",
+      "kind": "source_or_document",
+      "sanitized": true,
+      "publish_status": "LOCAL ONLY",
+      "cleanup_state": "CLEANUP PENDING"
+    },
+    {
+      "task_id": "CODEX-UL-CHAT-LIVE-STATUS-20261124-001",
+      "relative_local_path": "Documents/07_Задачи Codex.md",
+      "created_utc": "2026-11-24T07:20:54.0723390Z",
+      "size_bytes": 43229,
+      "sha256": "9d7cbf96d58b11afa156482e9105d2fc084c08c6035fc92ab511d71f5b164257",
+      "kind": "source_or_document",
+      "sanitized": true,
+      "publish_status": "LOCAL ONLY",
+      "cleanup_state": "CLEANUP PENDING"
+    },
+    {
+      "task_id": "CODEX-UL-CHAT-LIVE-STATUS-20261124-001",
+      "relative_local_path": "Documents/09_История_задач.md",
+      "created_utc": "2026-11-24T07:20:54.0751400Z",
+      "size_bytes": 335935,
+      "sha256": "a5e3b4ef44cb782aaa5e460d7804b78bb20020306f79a5caf132e8cb2f3ab977",
+      "kind": "source_or_document",
+      "sanitized": true,
+      "publish_status": "LOCAL ONLY",
+      "cleanup_state": "CLEANUP PENDING"
+    },
+    {
+      "task_id": "CODEX-UL-CHAT-LIVE-STATUS-20261124-001",
+      "relative_local_path": "Documents/13_Тактический_контекст.md",
+      "created_utc": "2026-11-24T07:20:54.0959972Z",
+      "size_bytes": 33421,
+      "sha256": "4d28ef70c809795109fc2b9fab7c3f0e6facee973785a927a6adf73d1d3c242f",
+      "kind": "source_or_document",
+      "sanitized": true,
+      "publish_status": "LOCAL ONLY",
+      "cleanup_state": "CLEANUP PENDING"
+    },
+    {
+      "task_id": "CODEX-UL-CHAT-LIVE-STATUS-20261124-001",
+      "relative_local_path": "Documents/18_Техническая_документация.md",
+      "created_utc": "2026-11-24T07:20:54.1024236Z",
+      "size_bytes": 270993,
+      "sha256": "831f832cb0d7b4e7d17c27d22d0365b86632a69937a333f9b1002f3ae9fd7f2c",
+      "kind": "source_or_document",
+      "sanitized": true,
+      "publish_status": "LOCAL ONLY",
+      "cleanup_state": "CLEANUP PENDING"
+    },
+    {
+      "task_id": "CODEX-UL-CHAT-LIVE-STATUS-20261124-001",
+      "relative_local_path": "Documents/Reports/CODEX-UL-CHAT-LIVE-STATUS-20261124-001/Final/report.md",
+      "created_utc": "2026-11-24T07:32:21.5881042Z",
+      "size_bytes": 5894,
+      "sha256": "ba5c29fa2d40031a6843ddcc5523c3bfbe70c10d859234ea172792bd93b9ba83",
+      "kind": "source_or_document",
+      "sanitized": true,
+      "publish_status": "LOCAL ONLY",
+      "cleanup_state": "CLEANUP PENDING"
+    },
+    {
+      "task_id": "CODEX-UL-CHAT-LIVE-STATUS-20261124-001",
+      "relative_local_path": "Documents/Reports/CODEX-UL-CHAT-LIVE-STATUS-20261124-001/WorkEvidence/summary.json",
+      "created_utc": "2026-11-24T07:48:28.3402289Z",
+      "size_bytes": 778,
+      "sha256": "8d4b52a1fabff65017f50ea6eeb725974504414689e1eb59b087f2b811c671b7",
+      "kind": "source_or_document",
+      "sanitized": true,
+      "publish_status": "LOCAL ONLY",
+      "cleanup_state": "CLEANUP PENDING"
+    },
+    {
+      "task_id": "CODEX-UL-CHAT-LIVE-STATUS-20261124-001",
+      "relative_local_path": "Client_Ultra_LLM/test_browser_independent_chats.mjs",
+      "created_utc": "2026-11-21T19:23:55.3949427Z",
+      "size_bytes": 28633,
+      "sha256": "58df314128ca01e758a80f738d46b9839189210dcdba5d38b6c623515ac8b056",
+      "kind": "source_or_document",
+      "sanitized": true,
+      "publish_status": "LOCAL ONLY",
+      "cleanup_state": "CLEANUP PENDING"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "task_id": "CODEX-UL-CHAT-LIVE-STATUS-20261124-001",
+  "baseline": "39943ba4a5dda26f2f5a6575abdf2aac10c38858",
+  "scope": "local Client SOURCE and synthetic Chrome only",
+  "verdict": "AUTHOR TESTED / REVIEW PENDING",
+  "tests": {
+    "client_python": {"total": 84, "passed": 83, "skipped": 1, "failed": 0},
+    "chrome_control_stream": "PASS",
+    "chrome_stream_source": "PASS",
+    "chrome_independent_chats": "PASS",
+    "chrome_slots_source": "PASS",
+    "javascript_syntax": "PASS",
+    "diff_whitespace": "PASS"
+  },
+  "cadence": "2 status GET requests in 4.3 seconds with one open chat",
+  "not_run": ["hosted CI on new bytes", "LIVE Client deployment", "OWNER GUI acceptance of the new badge"],
+  "publication": "LOCAL ONLY",
+  "cleanup_state": "CLEANUP PENDING"
+}
