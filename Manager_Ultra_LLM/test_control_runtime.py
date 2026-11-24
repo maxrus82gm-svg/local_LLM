@@ -90,14 +90,14 @@ class AdmissionTests(unittest.TestCase):
             spec=RunnerSpec(**json.loads(self.core._rows(db)[0]["spec"]))
         with configured(spec):
             command,env=command_and_environment({"paths":paths(),"launcher":"launcher","model":"model"})
-        self.assertEqual(command[command.index("--vram")+1],"3.5")
+        self.assertNotIn("--vram",command)
         self.assertEqual(env["COLI_CUDA_CHAIN"],"0")
         self.assertNotIn("COLI_CUDA_CHAIN_ROWS",env)
         self.assertEqual(started["cuda_profile"],DEFAULT_PROFILE)
         self.settle()
         state=self.core.catalog(self.alice)
         slot=next(x for x in state["slots"] if x["slot_id"]=="slot2")
-        changed={**DEFAULT_PROFILE,"chain":True,"rows":256,"target_gib":7.5}
+        changed={**DEFAULT_PROFILE,"budget_gib":10.0,"chain":True,"rows":256,"target_gib":7.0}
         self.operation("cuda_settings",slot_id="slot2",model_key="kat",expected_revision=slot["revision"],cuda_profile=changed)
         self.assertFalse(self.pending)
         active=next(x for x in self.core.catalog(self.alice)["instances"] if x["instance_id"]==started["instance_id"])
@@ -106,10 +106,11 @@ class AdmissionTests(unittest.TestCase):
             self.operation("cuda_settings",slot_id="slot2",model_key="kat",expected_revision=slot["revision"],cuda_profile=changed)
         with self.assertRaisesRegex(ControlError,"invalid_cuda_profile"):
             self.operation("cuda_settings",slot_id="slot2",model_key="kat",expected_revision=slot["revision"]+1,
-                           cuda_profile={**changed,"budget_gib":8})
+                           cuda_profile={**changed,"budget_gib":-1})
         with configured(RunnerSpec("slot3",8002,"kat","cuda",review={"launch":{"cuda_profile":changed}})):
             cmd,env=command_and_environment({"paths":paths(),"launcher":"launcher","model":"model"})
         self.assertEqual(env["COLI_CUDA_CHAIN_ROWS"],"256")
+        self.assertEqual(cmd[cmd.index("--vram")+1],"10.0")
         with configured(RunnerSpec("slot3",8002,"kat","cpu")):
             cmd,env=command_and_environment({"paths":paths(),"launcher":"launcher","model":"model"})
         self.assertNotIn("--vram",cmd)

@@ -91,7 +91,7 @@ function controlReason(reason) {
     model_already_managed:"Для модели уже зарезервирован экземпляр",
     no_free_authorized_slot:"Нет свободного разрешённого слота",
     invalid_context_tokens:"Введите положительное целое число до шести цифр",
-    invalid_cuda_profile:"Проверьте числа CUDA: бюджет не больше порога, блок 1–8192 или Auto",
+    invalid_cuda_profile:"Проверьте числа CUDA: положительный бюджет и порог либо пустое поле, блок 1–8192 или Auto",
     context_capacity_exceeded:"Контекст превышает заявленную ёмкость модели",
     context_capacity_unknown:"Максимальный контекст модели не подтверждён",
     context_override_unavailable:"Обновите Manager для управления контекстом из Client",
@@ -229,7 +229,7 @@ function workspaces(container,manager) {
       if(title!=="Стоп" && capability?.forecast) {
         const forecast=capability.forecast;
         button.dataset.tip+=" · Ожидаемый остаток RAM: "+(forecast.ram_after_gib===null ? "неизвестен" : formatNumber(forecast.ram_after_gib)+" GiB")+
-          " · VRAM: "+(forecast.vram_after_gib===null ? "не применяется" : formatNumber(forecast.vram_after_gib)+" GiB")+
+          " · VRAM: "+(forecast.vram_after_gib===null ? "неизвестен" : formatNumber(forecast.vram_after_gib)+" GiB")+
           " · Оценка: "+forecast.estimate_evidence;
       }
       if(title!=="Стоп" && capability?.warnings?.length)button.dataset.tip+=" · "+capability.warnings.map(controlReason).join("; ");
@@ -254,7 +254,7 @@ function workspaces(container,manager) {
             if(checked.requires_ack) {
               const forecast=checked.forecast;
               const details="Ожидаемый остаток RAM: "+(forecast.ram_after_gib===null ? "неизвестен" : formatNumber(forecast.ram_after_gib)+" GiB")+
-                "; VRAM: "+(forecast.vram_after_gib===null ? "не применяется" : formatNumber(forecast.vram_after_gib)+" GiB")+
+                "; VRAM: "+(forecast.vram_after_gib===null ? "неизвестен" : formatNumber(forecast.vram_after_gib)+" GiB")+
                 ". Достоверность: "+forecast.estimate_evidence+". Предупреждения: "+checked.warnings.join(", ");
               status.dataset.tip=details;
               if(!checked.risk_ack_allowed)throw Error("resource_risk_not_permitted");
@@ -1289,12 +1289,12 @@ function put(id,value) {
 function gib(x) {return Number.isFinite(x) ? x.toFixed(2)+" ГиБ" : "—";}
 function readCudaProfile(budget,chain,rows,target) {
   return {budget_gib:budget.value===""?null:Number(budget.value),chain:chain.value==="on",
-          rows:rows.value===""?null:Number(rows.value),target_gib:Number(target.value)};
+          rows:rows.value===""?null:Number(rows.value),target_gib:target.value===""?null:Number(target.value)};
 }
 function validCudaProfile(profile,inputs) {
   return !inputs.some(input=>input.validity.badInput)&&
-    Number.isFinite(profile.target_gib)&&profile.target_gib>0&&profile.target_gib<=1024&&
-    (profile.budget_gib===null||(Number.isFinite(profile.budget_gib)&&profile.budget_gib>0&&profile.budget_gib<=profile.target_gib))&&
+    (profile.target_gib===null||(Number.isFinite(profile.target_gib)&&profile.target_gib>0&&profile.target_gib<=1024))&&
+    (profile.budget_gib===null||(Number.isFinite(profile.budget_gib)&&profile.budget_gib>0&&profile.budget_gib<=1024))&&
     (profile.rows===null||(Number.isInteger(profile.rows)&&profile.rows>=1&&profile.rows<=8192));
 }
 function cudaProfileFromForm() {
@@ -1326,13 +1326,25 @@ function openPrelaunchCuda(manager,slot) {
   field("CUDA Chain",chain);
   const rows=field("Блок чтения",num("pre-cuda-rows",profile.rows,1,8192,1,"Auto"));
   rows.disabled=chain.value==="off";chain.addEventListener("change",()=>{rows.disabled=chain.value==="off";});
-  const target=field("Порог VRAM, ГиБ",num("pre-cuda-target",profile.target_gib,0.1,1024,0.1));
+  const target=field("Порог VRAM, ГиБ",num("pre-cuda-target",profile.target_gib,0.1,1024,0.1,"Без порога"));
+  const preview=node("p","manager-pairing-note");
+  function previewMemory(){
+    const gpu=performance.now()-statusSampleTime<20000?control.gpu:null;
+    const free=Number.isFinite(gpu?.free_gib)?gpu.free_gib:null;
+    const total=Number.isFinite(gpu?.total_gib)?gpu.total_gib:null;
+    const b=budget.value===""?null:Number(budget.value);
+    preview.textContent="GPU 0: свободно "+gib(free)+" из "+gib(total)+
+      ". Бюджет весов: "+(b===null?"Auto":gib(b))+
+      ". Полное потребление (включая KV/Chain и буферы) до замера неизвестно."+
+      (free!==null&&Number.isFinite(b)&&b>free?" Внимание: бюджет выше текущей свободной VRAM; сохранение разрешено.":"");
+  }
+  budget.addEventListener("input",previewMemory);previewMemory();
   const error=node("div","form-error hidden");error.setAttribute("role","status");
   const actions=node("div","dialog-actions");
   const cancel=node("button","btn secondary","Отмена");cancel.type="button";
   const save=node("button","btn primary","Сохранить");save.type="submit";
   save.id="pre-cuda-save";
-  actions.append(cancel,save);form.append(fields,error,actions);panel.append(form);dialog.append(panel);
+  actions.append(cancel,save);form.append(fields,preview,error,actions);panel.append(form);dialog.append(panel);
   let saving=false;
   cancel.addEventListener("click",()=>dialog.close());
   dialog.addEventListener("cancel",event=>{if(saving)event.preventDefault();});
@@ -1360,7 +1372,7 @@ function setCudaInputs(profile) {
   byId("cuda-budget").value=profile.budget_gib ?? "";
   byId("cuda-chain").value=profile.chain?"on":"off";
   byId("cuda-rows").value=profile.rows ?? "";
-  byId("cuda-target").value=profile.target_gib;
+  byId("cuda-target").value=profile.target_gib ?? "";
 }
 function sameLaunchProfile(a,b) {
   return Boolean(a&&b&&a.budget_gib===b.budget_gib&&a.chain===b.chain&&a.rows===b.rows);
@@ -1400,13 +1412,16 @@ function renderCudaPanel(chat,target) {
   put("cuda-dedicated",gib(mem?.vram_gib));
   put("cuda-shared",gib(mem?.vram_shared_gib));
   put("cuda-ram",gib(mem?.ram_gib));
-  const threshold=slot.cuda_profile?.target_gib??control.cuda_defaults?.target_gib;
+  const threshold=(slot.cuda_profile || control.cuda_defaults)?.target_gib;
   const over=used!=null&&Number.isFinite(threshold)&&used>=threshold;
   byId("cuda-meter-fill").style.width=total&&used!=null?Math.max(0,Math.min(100,used/total*100))+"%":"0%";
   byId("cuda-meter-fill").classList.toggle("warning",over);
-  put("cuda-telemetry-warning",over?"Внимание: GPU достиг порога "+gib(threshold)+". Модель не остановлена автоматически.":
+  const free=Number.isFinite(gpu?.free_gib)?gpu.free_gib:null;
+  const draftBudget=cudaProfileFromForm().budget_gib;
+  const memoryHint=" Свободно: "+gib(free)+". Полное потребление нового профиля неизвестно до замера."+(free!==null&&Number.isFinite(draftBudget)&&draftBudget>free?" Бюджет выше текущей свободной VRAM; сохранение разрешено.":"");
+  put("cuda-telemetry-warning",(over?"Внимание: GPU достиг порога "+gib(threshold)+". Модель не остановлена автоматически.":
     used==null?"Измерение GPU сейчас недоступно.":
-    total!=null&&threshold>total?"Порог выше физической VRAM.":"Последний замер GPU 0; порог — "+gib(threshold)+".");
+    total!=null&&threshold>total?"Порог выше физической VRAM.":threshold==null?"Последний замер GPU 0; ручной порог отключён.":"Последний замер GPU 0; порог — "+gib(threshold)+".")+memoryHint);
 }
 for(const id of cudaInputIds)byId(id).addEventListener("input",()=>{
   cudaDirty=true;cudaStatusText="";renderCudaPanel(currentChat(),liveTarget(currentChat()));
