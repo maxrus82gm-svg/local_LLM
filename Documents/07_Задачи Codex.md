@@ -56,6 +56,10 @@ Codex работает **на компьютере владельца**, поэ�
 
 ### БЛОК 1 — ТЕКУЩАЯ ЗАДАЧА
 
+**СВОБОДЕН после авторской сдачи `FIX-UL-HOME-RELEASE-DRIFT-20261124-001`.** Новую TASK назначает только владелец. OWNER real KAT acceptance и отдельное решение CUDA остаются в БЛОКЕ 3, но не являются автоматически назначенной задачей.
+
+### БЛОК 1.1 — ПОСЛЕДНЯЯ СДАННАЯ ЗАДАЧА (ДОСЛОВНЫЙ ОРИГИНАЛ)
+
 # БЛОК 1 — Восстановление и обновление домашнего Manager
 
 **TASK ID:** `FIX-UL-HOME-RELEASE-DRIFT-20261124-001`
@@ -535,7 +539,13 @@ SHA архива:
 
 Главная цель — получить исправный, совместимый и воспроизводимо устанавливаемый HOME Manager, а не просто формально обновить несколько файлов.
 
-### БЛОК 1.1 — ПОСЛЕДНЯЯ СДАННАЯ ЗАДАЧА (ДОСЛОВНЫЙ ОРИГИНАЛ)
+## AMENDMENT 24.11.2026 — авторская сдача FIX-UL-HOME-RELEASE-DRIFT-20261124-001
+
+**INSTALLED / TECHNICALLY VERIFIED / OWNER MODEL ACCEPTANCE PENDING.** Full report: `Documents/Reports/FIX-UL-HOME-RELEASE-DRIFT-20261124-001/report.md`; sanitized evidence: `evidence.json`. HOME full Manager release #127 installed 23/23 exact, native restart_jobs migration PASS, Manager22224 and Client35376 ONLINE, same IDs/ports/config/TLS/registrations/history. Manager442/1skip, Client84/1skip, negative controls and four Chrome harness PASS; physical 85 samples/11+11 reads found 0 PS/CMD child/visible shell. Backups `release-home-133-20261124-233316` pin `6bb4e0dd…603b1` and fail-closed rollback checkpoint `...233009` pin `0f8c9d9a…6af13`. KAT CPU real Start/Restart 8192→16384/generate/Stop and CUDA NOT RUN by owner gate. №18 has permanent deployment/rollback procedure. LOCAL-PLAN-01 23:42:50+05 unchanged. БЛОК 4 не изменён.
+
+Прежний БЛОК 1.1 `CODEX-UL-CHAT-LIVE-STATUS-20261124-001` дословно сохранён ниже и в immutable owner #135 `2bdb7f249bf593b14a46f1d2793fb97e9a2aa6cd`, `Documents/07_Задачи Codex.md`, строки 538–567 до этой ротации.
+
+### АРХИВ ПРЕДЫДУЩЕГО БЛОКА 1.1 — ДОСЛОВНЫЙ ОРИГИНАЛ
 
 # CODEX-UL-CHAT-LIVE-STATUS-20261124-001
 
@@ -568,6 +578,8 @@ SHA архива:
 
 ### БЛОК 2 — ПОСЛЕДНИЕ ПЯТЬ ЗАДАЧ (КОРОТКИЙ ИНДЕКС)
 
+- **FIX-UL-HOME-RELEASE-DRIFT-20261124-001 / 24.11:** HOME Manager №127 installed 23/23, restart schema/API/history/registrations/native telemetry PASS; Manager442, Client84, Chrome4 PASS. OWNER real KAT lifecycle/context/UX and CUDA NOT RUN. Оригинал в БЛОКЕ 1.1, report/evidence `Documents/Reports/FIX-UL-HOME-RELEASE-DRIFT-20261124-001/`.
+
 - **CODEX-UL-CHAT-LIVE-STATUS-20261124-001 / 24.11:** AUTHOR TESTED / REVIEW PENDING; Client Python 84 (1 SKIP), Chrome control/stream/independent/slots PASS. Exact identity/stale/offline/Restart success 3 s; LIVE badge/CI/OWNER UX NOT RUN. Оригинал в БЛОКЕ 1.1, отчёт в `Documents/Reports/CODEX-UL-CHAT-LIVE-STATUS-20261124-001/Final/report.md`.
 
 - **CODEX-UL-COLIBRI-CUDA-LIVE-20261120-001 / 21.11:** ITERATION CLOSED PARTIAL; real standalone GPU KAT/Qwen PASS, CONFIG LIVE PASS, owner observed responses PASS, cold latency/VRAM forecast/independent review OPEN; original BLOCK 1.1; №05/09/13/18.
@@ -577,14 +589,11 @@ SHA архива:
 
 - **CODEX-UL-R5-MODEL-CONTROL-UI-LIVE-GATE-20261120-001 / 20.11:** AUTHOR LOCAL QA PASS, три regression-цикла Manager 354/Client 58/Chrome, LIVE/CI/OWNER UX OPEN; дословная TASK в БЛОКЕ 1.1, evidence в task-local Test, детали №05/№13. Original in immutable commit 85 / Documents/07 (prior BLOCK 1.1).
 
-- **CODEX-UL-R5-CHROME-STABILITY-20261117-001 / 18.11:** OWNER №63 CI P1 FAIL → №64 fix → INDEPENDENT OFFLINE SOURCE ACCEPTED / Windows CI PASS twice; REAL RELEASE HOLD; DOC-UL-R5-CHROME-INDEPENDENT-20261118-001. Original in BLOCK1.1.
-
-
-
 **Дополнительные OPEN вне завершённой пятёрки:** `CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001` — A/B SUBMITTED, Stage B Gate2, C/D NOT RUN/OWNER GO absent; полная задача и AMENDMENT immutable №54. F3 backup provenance pin; F4 Chrome first-run; versioned R5 release/re-stage после source fixes. Все ранние задачи остаются в №09/immutable Git.
 
 ### БЛОК 3 — OPEN / NEXT
 
+- **NOW 24.11 — FIX-UL-HOME-RELEASE-DRIFT-20261124-001:** technical rollout PASS, owner model acceptance OPEN. OWNER вручную выполняет KAT CPU Start8192→answer→Restart16384/new instance/effective context/status/brain/history→second answer→exact Stop/cleanup по процедуре report. До CPU PASS CUDA не запускать; KAT/Qwen CUDA сейчас `runtime_review_required`, отдельный OWNER decision/GO. БЛОК 1 свободен, NEXT не является новой назначенной TASK.
 - **NOW 24.11 — CODEX-UL-CHAT-LIVE-STATUS-20261124-001:** AUTHOR TESTED / REVIEW PENDING, индикатор состояния в «События чата» source/Chrome PASS; GitHub CI и LIVE badge/OWNER GUI NOT RUN. Следующее: owner publication → independent review/CI → отдельный OWNER GO на Client rollout.
 - **SUSPENDED / PARTIAL, не закрыта:** `CODEX-UL-MANAGER-UI-PROFILES-20261121-001` по явной смене приоритета владельцем освобождена из БЛОКА 1. Полный дословный оригинал со всеми AMENDMENT и checkpoint сохранён [immutable #117, №07 БЛОК 1](https://github.com/maxrus82gm-svg/local_LLM/blob/07029bd3e4fa3498f124d64ba3ceb7e07afb8abd/Documents/07_%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B8%20Codex.md#L51-L114); №05/09 сохраняют TASK ID, незавершённые native Manager UI, HOME CUDA/profile review, global multi-client assignment, средние/пики telemetry и прочие OPEN. Не объявлять DONE и не возобновлять без назначения. Старый БЛОК 1.1 оставлен неизменным.
 - **Порядок владельца:** индикатор → HOME Manager update / CPU+CUDA review → третий Manager рабочий ПК → full multi-host Start/Stop/Restart → совместный WUA LIVE после отдельного GO. Скорость Qwen отдельно.
