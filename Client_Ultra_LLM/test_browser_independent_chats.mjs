@@ -379,6 +379,8 @@ try {
     await new Promise(resolve=>setTimeout(resolve,50));
   }
   assert.equal(detachedChat,a,'Detached window must open the same chat_id');
+  const poppedBadge=await call('Runtime.evaluate',{expression:'!!document.querySelector("#chat-live-status") && !document.querySelector("#chat-events-scroll").contains(document.querySelector("#chat-live-status"))',returnByValue:true},attached.sessionId);
+  assert.equal(poppedBadge.result.value,true,'Detached chat must retain the fixed status heading');
   results.popout_chat_id = true;
   results.per_message_measurements = {rows:beforeRestartFootnotes.length, separate_exchanges:true, persisted:true};
   await evaluate('byId("chat-statistics").open=true');

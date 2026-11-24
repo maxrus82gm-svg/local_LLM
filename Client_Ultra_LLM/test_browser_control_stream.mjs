@@ -12,6 +12,10 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
 const tmp=await fs.mkdtemp(path.join(process.env.UL_QA_ROOT || here,'.chrome-qa-'));
 let chrome,ws,server,release;
 let phase='STOPPED', lastControl=null, streamBody=null, normalBody=null;
+let restartRisk=false,restartPosts=0,restartPolls=0,restartNew=false,controlEnabled=false,restartFault='';
+let statusDelayNext=0;
+let statusCount=0;
+const runtimeId=()=> (restartNew?'c':'f').repeat(32);
 const chats=[];
 const errors=[];
 const results=[];
@@ -24,9 +28,9 @@ function snapshot(){
   return {configured:true,managers:[{manager_id:'manager-b',name:'Manager B',status:'online',data:{host:'QA B',
     chat:{streaming:true},memory:{state:'live',ddr_generation:'DDR5',installed_gib:64,free_gib:40},models:[{directory_name:'KAT'}],
     slots:Array.from({length:5},(_,i)=>({slot_id:`slot${i+1}`,models:i===0?['legacy']:i===1&&phase==='READY'?['ultra-slot2-kat-cpu']:[],
-      engine_state:i===0||i===1&&phase==='READY'?'ready':'not_running',availability:i===0||i===1&&phase==='READY'?'ready_unreserved':'not_running',...(i===1&&phase==='READY'?{instance_id:'f'.repeat(32)}:{})})),
-    control:{models:[{...model,modes:{...model.modes,cpu:{available:phase==='STOPPED'}}}],
-      instances:phase==='STOPPED'?[]:[{instance_id:'f'.repeat(32),model_key:'kat',model_id:'ultra-slot2-kat-cpu',mode:'cpu',slot_id:'slot2',state:phase,can_stop:phase==='READY'}]}}},
+      engine_state:i===0||i===1&&phase==='READY'?'ready':'not_running',availability:i===0||i===1&&phase==='READY'?'ready_unreserved':'not_running',...(i===1&&phase==='READY'?{instance_id:runtimeId()}:{})})),
+    control:{...(controlEnabled?{control_models:true,slots:[{slot_id:'slot2',revision:1}]}:{}),models:[{...model,modes:{...model.modes,cpu:{available:phase==='STOPPED'}}}],
+      instances:phase==='STOPPED'?[]:[{instance_id:runtimeId(),model_key:'kat',model_id:'ultra-slot2-kat-cpu',mode:'cpu',slot_id:'slot2',state:phase,released:false,can_stop:phase==='READY'}]}}},
     {manager_id:'manager-a',name:'Manager A',status:'online',data:{host:'QA A',memory:{state:'unknown'},models:[],chat:{streaming:true},
       slots:[{slot_id:'slot1',models:['ultra-slot2-kat-cpu'],instance_id:'e'.repeat(32),
         engine_state:'ready',availability:'ready_unreserved'}],
@@ -38,7 +42,12 @@ try {
     const json=(data,status=200)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(data));};
     if(req.url==='/api/session')return json({csrf:'QA-CSRF'});
     if(req.url==='/api/config')return json({configured:true});
-    if(req.url==='/api/status'){markOnce('first_status_request');return json(snapshot());}
+    if(req.url==='/api/status'){
+      statusCount++;
+      markOnce('first_status_request');const sample=snapshot();const wait=statusDelayNext;statusDelayNext=0;
+      if(wait)await delay(wait);
+      return json(sample);
+    }
     if(req.url==='/api/chats'){
       if(req.method==='GET')return json({chats});
       const command=JSON.parse(raw);
@@ -57,6 +66,21 @@ try {
     }
     if(req.url.startsWith('/api/chat/history?'))return json({messages:[]});
     if(req.url.startsWith('/api/chat/metrics?'))return json({results:[]});
+    if(req.url.startsWith('/api/chat/restart?')){
+      if(restartFault==='timeout')return json({error:'qa_timeout'},503);
+      restartPolls++;
+      return json({stage:['WAITING_RELEASE','CHECKING','STARTING','READY'][Math.min(restartPolls-1,3)]});
+    }
+    if(req.url==='/api/chat/restart'){
+      restartPosts++;
+      if(restartFault==='timeout')return json({error:'qa_timeout'},503);
+      if(restartFault==='error')return json({stage:'ERROR',reason:'qa_runner_error'});
+      return json(restartRisk?{stage:'RISK_CONFIRMATION_REQUIRED',risk_token:'qa-risk',warnings:[]}:{stage:'STOPPING'});
+    }
+    if(req.url==='/api/chat/restart/complete'){
+      restartNew=true;
+      return json({stage:'READY',new_instance_id:runtimeId()});
+    }
     if(req.url==='/api/control'){
       lastControl=JSON.parse(raw);phase=lastControl.op==='start'?'STARTING':'STOPPING';
       return json({state:phase,slot_id:'slot2',instance_id:'f'.repeat(32)});
@@ -98,12 +122,14 @@ try {
   ws=new WebSocket(tabs.find(t=>t.type==='page').webSocketDebuggerUrl);
   await new Promise((resolve,reject)=>{ws.onopen=resolve;ws.onerror=reject;});
   mark('cdp_connected');
-  let id=0;const pending=new Map();
+  let id=0;const pending=new Map(),dialogReplies=[];
   ws.onmessage=e=>{const msg=JSON.parse(e.data);if(msg.id){const p=pending.get(msg.id);pending.delete(msg.id);
     if(msg.error)p.reject(Error(msg.error.message));else p.resolve(msg.result);}
-    if(msg.method==='Runtime.exceptionThrown')errors.push(msg.params.exceptionDetails.text);};
+    if(msg.method==='Runtime.exceptionThrown')errors.push(msg.params.exceptionDetails.text);
+    if(msg.method==='Page.javascriptDialogOpening')call('Page.handleJavaScriptDialog',{accept:dialogReplies.shift()===true});};
   const call=(method,params={})=>new Promise((resolve,reject)=>{const n=++id;pending.set(n,{resolve,reject});ws.send(JSON.stringify({id:n,method,params}));});
   await call('Runtime.enable');
+  await call('Page.enable');
   mark('runtime_enabled');
   const evaluate=async expression=>{const r=await call('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});
     if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
@@ -152,6 +178,44 @@ try {
   assert.equal(await evaluate('byId("chat-model").textContent.includes("eeeeeeee")'),false);
   await evaluate('(() => { const manager=byId("chat-manager"); manager.value="manager-b"; manager.dispatchEvent(new Event("change")); const select=byId("chat-model"); select.value=targetKey(chatTargets.find(t=>t.model_id==="ultra-slot2-kat-cpu")); select.dispatchEvent(new Event("change")); })()');
   await until('byId("chat-send").disabled===false');
+  await evaluate('localStorage.setItem("ultra.chat.instance."+chatSelected,"f".repeat(32));renderLiveStatus()');
+  assert.equal(await evaluate('byId("chat-live-status").textContent'),'Запущен');
+  assert.equal(await evaluate('byId("chat-events-scroll").contains(byId("chat-live-status"))'),false);
+  for(const [state,label] of [['STOPPING','Останавливается'],['STARTING','Запускается'],['ERROR','Ошибка'],['STOPPED','Остановлен'],['READY','Запущен']]){
+    phase=state;await evaluate('refresh()');
+    assert.equal(await evaluate('byId("chat-live-status").textContent'),label,state);
+  }
+  await evaluate('statusSampleTime=performance.now()-8000;renderLiveStatus()');
+  assert.equal(await evaluate('byId("chat-live-status").textContent'),'Состояние неизвестно');
+  await evaluate('refresh()');
+  assert.equal(await evaluate('byId("chat-live-status").textContent'),'Запущен');
+  const fallbacks=await evaluate(`(() => {
+    const original=chatSnapshot;
+    const manager=structuredClone(original);
+    manager.managers.find(m=>m.manager_id==='manager-b').status='unreachable';
+    chatSnapshot=manager;renderLiveStatus();const offline=byId('chat-live-status').textContent;
+    manager.managers.find(m=>m.manager_id==='manager-b').status='online';
+    delete manager.managers.find(m=>m.manager_id==='manager-b').data.control;
+    renderLiveStatus();const oldBackend=byId('chat-live-status').textContent;
+    chatSnapshot=structuredClone(original);
+    const own=chatSnapshot.managers.find(m=>m.manager_id==='manager-b');
+    const slot=own.data.slots.find(s=>s.slot_id==='slot2');
+    slot.instance_id='e'.repeat(32);
+    own.data.control.instances.find(i=>i.slot_id==='slot2').instance_id='e'.repeat(32);
+    renderLiveStatus();const replaced=byId('chat-live-status').textContent;
+    chatSnapshot=original;renderLiveStatus();
+    return {offline,oldBackend,replaced};
+  })()`);
+  assert.deepEqual(fallbacks,{offline:'Нет связи',oldBackend:'Состояние неизвестно',replaced:'Перепривяжите модель'});
+  statusDelayNext=250;
+  const older=evaluate('readStatus()');
+  await delay(40);
+  phase='STOPPED';await evaluate('readStatus()');
+  await older;
+  assert.equal(await evaluate('byId("chat-live-status").textContent'),'Остановлен','Older READY response must not overwrite STOPPED');
+  phase='READY';await evaluate('refresh()');
+  results.push('PASS: offline, old backend, external replacement, out-of-order snapshots');
+  results.push('PASS: selected instance READY/STOPPING/STARTING/ERROR/STOPPED, stale fail-closed; header outside scroll');
   await delay(150);
   const started=performance.now();
   await evaluate('document.getElementById("chat-input").value="Привет";document.getElementById("chat-form").requestSubmit()');
@@ -233,6 +297,40 @@ try {
   assert.equal(await evaluate('byId("chat-manager").value'),'manager-a');
   await evaluate('selectChat('+JSON.stringify(secondChat)+')');
   assert.equal(await evaluate('byId("chat-manager").value'),'manager-b');
+  controlEnabled=true;
+  await evaluate('refresh()');
+  await evaluate('localStorage.setItem("ultra.chat.instance."+chatSelected,"f".repeat(32));renderLiveStatus()');
+  assert.equal(await evaluate('byId("chat-live-status").textContent'),'Запущен');
+  dialogReplies.push(false);
+  await evaluate('byId("chat-restart").click()');
+  assert.equal(restartPosts,0,'Initial cancel must not dispatch Restart');
+  restartRisk=true;dialogReplies.push(true,false);
+  await evaluate('byId("chat-restart").click()');
+  await until('chatRestartJob===null');
+  assert.equal(restartPosts,1,'Risk cancel must not dispatch second POST');
+  assert.equal(await evaluate('byId("chat-live-status").textContent'),'Запущен');
+  restartRisk=false;restartFault='error';dialogReplies.push(true);
+  await evaluate('byId("chat-restart").click()');
+  await until('chatRestartJob===null && byId("chat-live-status").textContent==="Ошибка"');
+  restartFault='timeout';dialogReplies.push(true);
+  await evaluate('byId("chat-restart").click()');
+  await until('chatRestartJob===null && byId("chat-live-status").textContent==="Состояние неизвестно"');
+  restartFault='';
+  restartRisk=false;restartPolls=0;dialogReplies.push(true);
+  await evaluate('byId("chat-restart").click()');
+  for (const label of ['Остановка модели…','Ожидание освобождения…','Проверка перед запуском…','Запуск модели…'])
+    await until('byId("chat-live-status").textContent==='+JSON.stringify(label),label);
+  await until('byId("chat-live-status").textContent==="Перезапуск завершён"');
+  assert.equal(restartPosts,4,'Each attempt must use one POST, with no automatic retry');
+  assert.equal(await evaluate('chatRestartSuccess.instanceId'), 'c'.repeat(32));
+  await evaluate('selectChat('+JSON.stringify(firstChat)+')');
+  assert.notEqual(await evaluate('byId("chat-live-status").textContent'),'Перезапуск завершён');
+  await evaluate('selectChat('+JSON.stringify(secondChat)+')');
+  assert.equal(await evaluate('byId("chat-live-status").textContent'),'Перезапуск завершён');
+  await delay(1600);
+  assert.equal(await evaluate('byId("chat-live-status").textContent'),'Перезапуск завершён');
+  await until('byId("chat-live-status").textContent==="Запущен"');
+  results.push('PASS: Restart confirmations, ERROR/timeout, stages, exact rebind, 3s success and no duplicate POST');
   await evaluate('byId("chat-new").click()');
   await until('document.querySelectorAll(".chat-choice").length===3');
   const thirdChat=await evaluate('chatSelected');
@@ -293,6 +391,11 @@ try {
   await until('byId("chat-manager").value==="" && byId("chat-send").disabled');
   assert.equal(await evaluate('currentChat().manager_id'),'manager-b');
   results.push('PASS: explicitly empty Manager choice remains a draft after F5; direct submit blocked');
+  const pollCount=statusCount;
+  await delay(4300);
+  const observedPolls=statusCount-pollCount;
+  assert(observedPolls>=2 && observedPolls<=4,'Open chat must reuse bounded status cadence');
+  results.push(`PASS: open-chat refresh cadence ${observedPolls} GETs in 4.3s, one shared poller`);
   results.push('PASS: dependent Manager/model lists, no silent switch, per-chat F5 persistence');
   assert.deepEqual(errors,[]);
   console.log(JSON.stringify({status:'PASS',browser:'Chrome headless (separate temporary profile)',tests:results,

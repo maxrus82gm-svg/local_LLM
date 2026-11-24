@@ -501,6 +501,8 @@ async function refresh(force=false) {
     await readStatus();
   } catch (err) {
     setNotice("Не удалось обновить данные: " + err.message);
+    statusSampleTime=0;
+    renderLiveStatus();
   } finally {
     isRefreshing = false;
     button.disabled = false;
@@ -509,10 +511,15 @@ async function refresh(force=false) {
 }
 async function readStatus(options) {
   const id = ++statusRequest;
-  const status = await api("/api/status", options);
-  if (id > appliedStatusRequest) {
-    appliedStatusRequest = id;
-    render(status);
+  try {
+    const status = await api("/api/status", options);
+    if (id === statusRequest && id > appliedStatusRequest) {
+      appliedStatusRequest = id;
+      render(status);
+    }
+  } catch (error) {
+    if (id === statusRequest) {statusSampleTime=0;renderLiveStatus();}
+    throw error;
   }
 }
 async function init() {
@@ -724,7 +731,7 @@ byId("setup-form").addEventListener("submit", async event => {
 });
 init();
 setInterval(refresh, 25000);
-setInterval(() => { if (chatSnapshot?.managers?.some(m =>
+setInterval(() => { if (chatOpen || chatSnapshot?.managers?.some(m =>
   m.data?.control?.instances?.some(i => ["STARTING","STOPPING"].includes(i.state)))) refresh(); }, 2000);
 
 /* CHAT-01: model slots are discovered dynamically from live Manager snapshots.
@@ -739,14 +746,68 @@ let streamMetrics = {};
 let historyRevision = 0;
 let chatMutation = false;
 let chatRestartJob = null;
+let chatRestartSuccess = null;
+let chatRestartHold = null;
 const RESTART_STAGE = {
+  PENDING:"Ожидает подтверждения",
+  RISK_CONFIRMATION_REQUIRED:"Ожидает подтверждения",
   STOPPING:"Остановка модели…",
   WAITING_RELEASE:"Ожидание освобождения…",
   CHECKING:"Проверка перед запуском…",
   STARTING:"Запуск модели…",
   READY:"Модель перезапущена",
-  ERROR:"Ошибка Restart"
+  ERROR:"Ошибка Restart",
+  UNKNOWN:"Состояние неизвестно"
 };
+function renderLiveStatus() {
+  const badge=byId("chat-live-status");
+  if (!badge) return;
+  const chat=currentChat();
+  let text="Не назначена",tone="neutral";
+  if (chat?.manager_id && chat?.slot_id && chat?.model_id) {
+    const manager=(chatSnapshot?.managers || []).find(m=>m.manager_id===chat.manager_id);
+    const job=chatRestartJob?.chatId===chat.chat_id && chatRestartJob.managerId===chat.manager_id && chatRestartJob.slotId===chat.slot_id && chatRestartJob.modelId===chat.model_id ? chatRestartJob : null;
+    const hold=chatRestartHold?.chatId===chat.chat_id && chatRestartHold.managerId===chat.manager_id && chatRestartHold.slotId===chat.slot_id && chatRestartHold.modelId===chat.model_id ? chatRestartHold : null;
+    if (!manager || manager.status!=="online") {text="Нет связи";tone="neutral";}
+    else if (!statusSampleTime || performance.now()-statusSampleTime>7000) {text="Состояние неизвестно";tone="neutral";}
+    else if (job) {
+      text=RESTART_STAGE[job.stage] || "Состояние неизвестно";
+      tone=job.stage==="ERROR"?"error":job.stage==="UNKNOWN"?"neutral":
+        ["PENDING","RISK_CONFIRMATION_REQUIRED"].includes(job.stage)?"pending":"progress";
+    } else if (hold) {text=hold.type==="unknown"?"Состояние неизвестно":"Ошибка";tone=hold.type==="unknown"?"neutral":"error";}
+    else {
+      const slot=manager.data?.slots?.find(s=>s.slot_id===chat.slot_id);
+      const control=manager.data?.control;
+      const instances=Array.isArray(control?.instances)?control.instances:[];
+      const current=instances.find(i=>i.slot_id===chat.slot_id && i.released===false);
+      const exact=current && current.model_id===chat.model_id && slot?.instance_id===current.instance_id;
+      const identityInModel=exact && chat.model_id.endsWith(current.instance_id);
+      const pinKey="ultra.chat.instance."+chat.chat_id;
+      const pinned=localStorage.getItem(pinKey);
+      const knownIdentity=current && current.model_id===chat.model_id &&
+        (chat.model_id.endsWith(current.instance_id) || pinned===current.instance_id);
+      if (!slot || !control || !Array.isArray(control.instances) || chat.target_conflict) {text="Состояние неизвестно";}
+      else if (current?.state==="ERROR" && knownIdentity) {text="Ошибка";tone="error";}
+      else if (current?.state==="STOPPING" && knownIdentity) {text="Останавливается";tone="progress";}
+      else if (current?.state==="STARTING" && knownIdentity) {text="Запускается";tone="progress";}
+      else if (current && !exact) {text="Перепривяжите модель";tone="pending";}
+      else if (current?.state==="ERROR") {text="Ошибка";tone="error";}
+      else if (current?.state==="READY" && slot.engine_state==="ready" && exact && (identityInModel || pinned===current.instance_id)) {
+        if (!pinned && identityInModel) localStorage.setItem(pinKey,current.instance_id);
+        if (chatRestartSuccess?.chatId===chat.chat_id && chatRestartSuccess.managerId===chat.manager_id &&
+            chatRestartSuccess.slotId===chat.slot_id && chatRestartSuccess.modelId===chat.model_id && chatRestartSuccess.instanceId===current.instance_id &&
+            performance.now()<chatRestartSuccess.expiresAt) text="Перезапуск завершён";
+        else text="Запущен";
+        tone="ready";
+      } else if (current?.state==="READY" && exact) {text="Перепривяжите модель";tone="pending";}
+      else if (slot.engine_state==="not_running" && !current) {text="Остановлен";tone="stopped";}
+      else if (instances.some(i=>i.slot_id===chat.slot_id && i.state==="ERROR")) {text="Ошибка";tone="error";}
+      else {text="Состояние неизвестно";}
+    }
+  }
+  if (badge.textContent!==text) badge.textContent=text;
+  if (!badge.classList.contains(tone)) badge.className="chat-live-status "+tone;
+}
 function restartSelection(chat) {
   if (!chat || chat.legacy || chat.target_conflict) return null;
   const manager = (chatSnapshot?.managers || []).find(m => m.manager_id === chat.manager_id && m.status === "online");
@@ -772,8 +833,9 @@ async function restartSelectedChat() {
       conversation(chat.chat_id).request || selectedManagerId(chat) !== chat.manager_id) return;
   if (!confirm("Перезапустить выбранную модель? Она будет остановлена и запущена снова с сохранёнными настройками.")) return;
   const job = {chatId:chat.chat_id,managerId:chat.manager_id,
-    requestId:crypto.randomUUID().replaceAll("-",""),stage:"STOPPING"};
+    slotId:chat.slot_id,modelId:chat.model_id,requestId:crypto.randomUUID().replaceAll("-",""),stage:"PENDING"};
   chatRestartJob=job;
+  chatRestartHold=null;
   renderChatControls();
   const body={chat_id:chat.chat_id,...targetFields(chat),...selection,request_id:job.requestId};
   let result;
@@ -785,6 +847,8 @@ async function restartSelectedChat() {
       catch { throw Error("Невозможно подтвердить Restart: "+controlReason(error.message)); }
     }
     if(result.stage==="RISK_CONFIRMATION_REQUIRED"){
+      job.stage="RISK_CONFIRMATION_REQUIRED";
+      renderChatControls();
       const reasons=Array.isArray(result.warnings) ? result.warnings.map(controlReason).join(", ") : "";
       if(!confirm("Ресурсный прогноз требует отдельного подтверждения. "+
           (reasons ? reasons+". " : "")+"Продолжить?")) return;
@@ -808,6 +872,12 @@ async function restartSelectedChat() {
           throw Error("Менеджер не подтвердил новую привязку");
         await refresh(true);
         await syncChatBindings();
+        chatRestartSuccess={chatId:job.chatId,managerId:job.managerId,slotId:job.slotId,
+          modelId:chatItems.find(item=>item.chat_id===job.chatId)?.model_id || job.modelId,
+          requestId:job.requestId,instanceId:complete.new_instance_id,expiresAt:performance.now()+3000};
+        localStorage.setItem("ultra.chat.instance."+job.chatId,complete.new_instance_id);
+        const success=chatRestartSuccess;
+        setTimeout(()=>{if(chatRestartSuccess===success){chatRestartSuccess=null;renderLiveStatus();}},3000);
         if(chatSelected===job.chatId)setChatNotice("Модель перезапущена. История чата сохранена.");
         return;
       }
@@ -821,6 +891,8 @@ async function restartSelectedChat() {
     }
     throw Error("Время ожидания истекло. Повторный запуск не выполнялся.");
   } catch(error) {
+    chatRestartHold={chatId:job.chatId,managerId:job.managerId,slotId:job.slotId,modelId:job.modelId,
+      requestId:job.requestId,type:/неизвестно|подтвердить|подтверждённого результата/i.test(error.message)?"unknown":"error"};
     if(chatSelected===job.chatId)setChatNotice("Restart: "+error.message);
   } finally {
     if(chatRestartJob===job)chatRestartJob=null;
@@ -1114,6 +1186,7 @@ function renderChatControls() {
   else if (target && (releasingSlots.has(slotKey(target)) || target.availability === "busy" || localSlotActive(target))) {
     status.textContent = "Модель занята. Ожидаем освобождения слота.";
   } else status.textContent = chatReady(target) ? "" : "Назначенная модель сейчас недоступна.";
+  renderLiveStatus();
 }
 const CONTEXT_PRESETS = ["2048","4096","8192","16384","32768","65536"];
 let contextCustomDraft = false;
@@ -1403,10 +1476,22 @@ async function changeChat(op, values = {}, id = chatSelected) {
       chatItems = chatItems.filter(item => item.chat_id !== id);
       conversations.delete(id);
       sessionStorage.removeItem("ultra.chat.manager." + id);
+      localStorage.removeItem("ultra.chat.instance." + id);
       try { localStorage.removeItem("ultra.chat.effort." + id); } catch {}
       if (chatSelected === id) selectChat(chatItems[0]?.chat_id || "");
     } else {
       chatItems = chatItems.map(item => item.chat_id === id ? row : item);
+      if (op === "target") {
+        localStorage.removeItem("ultra.chat.instance." + id);
+        if (chatRestartHold?.chatId===id) chatRestartHold=null;
+        if (chatRestartSuccess?.chatId===id) chatRestartSuccess=null;
+        const bound=liveTarget(row);
+        const manager=chatSnapshot?.managers?.find(item=>item.manager_id===row.manager_id && item.status==="online");
+        if (bound?.engine_state==="ready" && bound.instance_id &&
+            manager?.data?.control?.instances?.some(item=>item.instance_id===bound.instance_id &&
+              item.slot_id===row.slot_id && item.model_id===row.model_id && item.state==="READY" && item.released===false))
+          localStorage.setItem("ultra.chat.instance."+id,bound.instance_id);
+      }
       if (chatSelected !== id && ["clear", "restore"].includes(op)) conversation(id).messages = [];
       if (chatSelected === id && ["clear", "restore"].includes(op)) await loadChatHistory();
       if (chatSelected === id && op === "target" && conversation(id).messages.length) {
