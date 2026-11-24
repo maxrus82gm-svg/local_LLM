@@ -593,6 +593,10 @@ SHA архива:
 
 ### БЛОК 3 — OPEN / NEXT
 
+**NEXT / DRAFT — Events panel UX:** OWNER requests token metrics in «События чата» (existing current/average visible in screenshot; audit missing fields, distinguish first fragment/decode/overall, reasoning/output if supported); resizable panel; detachable movable panels including events, remember size/location/docked state per Client, restore on reopen/monitor changes. Verify current feature before adding, no duplicate metrics, preserve chat history and state, no implementation/assignment yet. CPU thread actual measurement remains part of CODEX-UL-CPU-THREADS-20261125-001.
+
+
+
 #### NEXT / DRAFT — CPU threads: native discovery, sync and measurements
 
 **TASK ID:** `CODEX-UL-CPU-THREADS-20261125-001` — DRAFT / AWAITING OWNER START; P1 (next performance/UI task). Base #139 doc-only, source #127. Full source work only after OWNER activation in BLOCK 1; use existing test harnesses, no new permanent files without OWNER. Scope: hardware CPU topology/capacity + threads selection/save/sync + native measurement + bounded test design. Do not perform LIVE update/real launch, touch active Qwen, Server77, WORK, WUA, weights, network or change legacy profile defaults; owner real benchmarks separately.
