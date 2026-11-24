@@ -51,42 +51,94 @@ def process_vram():
         return {}
 
 
-def process_gpu_memory():
-    """WDDM per-process dedicated/shared memory. Unknown is not zero.
-    Read-only, bounded query; no caller-supplied command/PID or paths.
-    Localized Windows counter names may be unavailable; retain NVML fallback.
-    """
-    import os
-    import re
-    import json
-    import subprocess
-    from pathlib import Path
-    exe=Path(os.environ.get("SystemRoot",r"C:\Windows"))/"System32"/"WindowsPowerShell"/"v1.0"/"powershell.exe"
-    if not exe.is_file():return {}
-    script=r"""
-$ErrorActionPreference='Stop'
-@( (Get-Counter '\GPU Process Memory(*)\Dedicated Usage','\GPU Process Memory(*)\Shared Usage').CounterSamples |
-ForEach-Object { [pscustomobject]@{ instance=$_.InstanceName; path=$_.Path; bytes=$_.CookedValue } } ) |
-ConvertTo-Json -Compress
-"""
+def _pdh_gpu_samples():
+    """Read WDDM gauge counters in-process; no shell or caller-supplied path."""
+    import ctypes as c
+    from ctypes import wintypes as w
+
+    class ValueUnion(c.Union):
+        _fields_ = [("long_value", w.LONG), ("double_value", c.c_double),
+                    ("large_value", c.c_longlong), ("pointer", c.c_void_p)]
+
+    class Value(c.Structure):
+        _fields_ = [("status", w.DWORD), ("value", ValueUnion)]
+
+    class Item(c.Structure):
+        _fields_ = [("name", c.c_wchar_p), ("formatted", Value)]
+
+    dll = c.WinDLL("pdh", use_last_error=True)
+    handle = c.c_void_p
+    dword_ptr = c.POINTER(w.DWORD)
+
+    def bind(name, *args):
+        fn = getattr(dll, name)
+        fn.argtypes, fn.restype = list(args), w.LONG
+        return fn
+
+    open_query = bind("PdhOpenQueryW", c.c_wchar_p, c.c_size_t, c.POINTER(handle))
+    add = bind("PdhAddEnglishCounterW", handle, c.c_wchar_p, c.c_size_t, c.POINTER(handle))
+    collect = bind("PdhCollectQueryData", handle)
+    array = bind("PdhGetFormattedCounterArrayW", handle, w.DWORD, dword_ptr, dword_ptr, c.c_void_p)
+    close = bind("PdhCloseQuery", handle)
+    query = handle()
+    if open_query(None, 0, c.byref(query)) != 0:
+        return []
+    samples = []
     try:
-        result=subprocess.run([str(exe),"-NoProfile","-NonInteractive","-Command",script],
-            capture_output=True,text=True,timeout=4,check=True,
-            creationflags=getattr(subprocess,"CREATE_NO_WINDOW",0))
-        records=json.loads(result.stdout)
-        if type(records) is dict:records=[records]
-        if type(records) is not list:return {}
-        values={}
-        for row in records:
-            match=re.match(r"^pid_(\d+)_",row.get("instance",""),re.I)
-            kind=str(row.get("path","")).rsplit("\\",1)[-1].lower()
-            field={"dedicated usage":"dedicated_gib","shared usage":"shared_gib"}.get(kind)
-            amount=row.get("bytes")
-            if match and field and number(amount):
-                item=values.setdefault(int(match[1]),{})
-                item[field]=item.get(field,0)+amount/(2**30)
-        return values
-    except (OSError,ValueError,TypeError,AttributeError,subprocess.SubprocessError):
+        counters = {}
+        for field, label in (("dedicated_gib", "Dedicated Usage"), ("shared_gib", "Shared Usage")):
+            counter = handle()
+            path = "\\GPU Process Memory(*)\\" + label
+            if add(query, path, 0, c.byref(counter)) == 0:
+                counters[field] = counter
+        if not counters or collect(query) != 0:
+            return []
+        for field, counter in counters.items():
+            size, count = w.DWORD(), w.DWORD()
+            # PDH_FMT_DOUBLE | PDH_FMT_NOCAP100; GPU memory is a byte gauge.
+            fmt = 0x00000200 | 0x00008000
+            code = array(counter, fmt, c.byref(size), c.byref(count), None) & 0xffffffff
+            if code != 0x800007d2 or not 0 < size.value <= 32 * 1024 * 1024:
+                continue
+            buf = c.create_string_buffer(size.value)
+            capacity = size.value
+            if array(counter, fmt, c.byref(size), c.byref(count), buf) != 0:
+                continue
+            if count.value * c.sizeof(Item) > capacity:
+                continue
+            items = c.cast(buf, c.POINTER(Item))
+            for i in range(count.value):
+                item = items[i]
+                if item.name:
+                    value = item.formatted.value.double_value if item.formatted.status in (0, 1) else None
+                    samples.append((field, item.name, value))
+        return samples
+    finally:
+        close(query)
+
+
+def process_gpu_memory():
+    """WDDM PID dedicated/shared memory via native PDH; unknown is not zero."""
+    import re
+    try:
+        values = {}
+        invalid = set()
+        for field, instance, amount in _pdh_gpu_samples():
+            match = re.match(r"^pid_(\d+)_", instance, re.I)
+            if not match or field not in ("dedicated_gib", "shared_gib"):
+                continue
+            pid = int(match[1])
+            key = (pid, field)
+            if not number(amount):
+                invalid.add(key)
+                continue
+            item = values.setdefault(pid, {})
+            item[field] = item.get(field, 0) + amount / (2**30)
+        for pid, field in invalid:
+            if pid in values:
+                values[pid].pop(field, None)
+        return {pid: fields for pid, fields in values.items() if fields}
+    except (OSError, ValueError, TypeError, AttributeError, OverflowError):
         return {}
 
 

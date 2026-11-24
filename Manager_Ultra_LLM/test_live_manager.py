@@ -71,6 +71,51 @@ class LiveSecurityTests(unittest.TestCase):
         self.assertNotIn("ddr_generation", result["memory"])
         self.assertNotIn("installed_gib", result["memory"])
 
+    def test_regular_telemetry_native_and_hardware_probe_cached(self):
+        import subprocess
+        from unittest.mock import Mock
+        native = Mock()
+        native.memory.return_value = {"total_gib": 48, "free_gib": 30}
+        native.listeners.return_value = [{"port": 8000, "pid": 17}, {"port": 9999, "pid": 99}]
+        completed = Mock(returncode=0, stdout='{"ddr_generation":"DDR4","installed_gib":48}')
+        with patch.object(live, "_HARDWARE_RAM_CACHE", None), \
+                patch("windows_process.NativeWindows", return_value=native), \
+                patch.object(live.subprocess, "run", return_value=completed) as run, \
+                patch.object(subprocess, "CREATE_NO_WINDOW", 0x08000000, create=True):
+            for _ in range(4):
+                data = live._os_telemetry([8000])
+                self.assertEqual(data["listeners"], [{"port": 8000, "pid": 17}])
+                self.assertEqual(data["ddr_generation"], "DDR4")
+            self.assertEqual(native.memory.call_count, 4)
+            self.assertEqual(native.listeners.call_count, 4)
+            run.assert_called_once()
+            self.assertEqual(run.call_args.kwargs["creationflags"], 0x08000000)
+
+    def test_failed_optional_hardware_probe_is_not_repeated(self):
+        with patch.object(live, "_HARDWARE_RAM_CACHE", None), \
+                patch.object(live.subprocess, "run", side_effect=OSError("unavailable")) as run:
+            self.assertEqual(live._hardware_ram(), {})
+            self.assertEqual(live._hardware_ram(), {})
+            run.assert_called_once()
+
+    def test_native_gpu_aggregation_and_unknown_counters(self):
+        import resource_policy as resources
+        samples = [("dedicated_gib", "pid_42_luid_a", 2**30),
+                   ("dedicated_gib", "pid_42_luid_b", 2**29),
+                   ("shared_gib", "pid_42_luid_a", 2**28),
+                   ("shared_gib", "pid_43_luid_a", None),
+                   ("shared_gib", "pid_43_luid_b", 2**30),
+                   ("dedicated_gib", "pid_44_luid_a", 0),
+                   ("dedicated_gib", "not_a_pid", 2**30)]
+        with patch.object(resources, "_pdh_gpu_samples", return_value=samples), \
+                patch.object(live.subprocess, "run") as run:
+            self.assertEqual(resources.process_gpu_memory(),
+                             {42: {"dedicated_gib": 1.5, "shared_gib": 0.25},
+                              44: {"dedicated_gib": 0}})
+            run.assert_not_called()
+        with patch.object(resources, "_pdh_gpu_samples", side_effect=OSError):
+            self.assertEqual(resources.process_gpu_memory(), {})
+
     def test_token_digest_and_missing_bearer_fail_closed(self):
         token = "SAMPLE-UNIT-TEST-ONLY-xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
         conf = {"clients": [{"client_id": "alice",
