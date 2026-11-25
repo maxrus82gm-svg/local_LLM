@@ -1071,7 +1071,7 @@ def run_server(folder: Path, *, port: int = 0, open_browser: bool = True, enable
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Ultra LLM browser-only Client")
+    parser = argparse.ArgumentParser(description="Неополис — Web Client")
     parser.add_argument("--config-dir", type=Path, default=config_directory())
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--port", type=int, default=0)
@@ -1089,7 +1089,7 @@ if __name__ == "__main__":
         if os.name == "nt" and sys.stderr is None:
             ctypes.windll.user32.MessageBoxW(
                 None,
-                "Не удалось запустить Ultra LLM Web Client. "
+                "Не удалось запустить Неополис Web Client. "
                 "Проверьте Python 3.12, права на защищённый каталог и файлы приложения.",
-                "Ultra LLM Client — ошибка запуска", 0x10)
+                "Неополис Web Client — ошибка запуска", 0x10)
         raise
