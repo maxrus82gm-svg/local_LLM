@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "07_Задачи Codex.md",
+                "file": "00_Старт.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "07_Задачи Codex"
+              "title": "00_Старт"
             }
           }
         ]
@@ -187,9 +187,11 @@
   },
   "active": "b830a0ae8b2d0ac5",
   "lastOpenFiles": [
+    "2026-11-25.md",
+    "Без названия.canvas",
+    "07_Задачи Codex.md",
     "22_Исследование.md",
     "21_Сборка_сервера.md",
-    "07_Задачи Codex.md",
     "Reports/CODEX-UL-CLIENT-CHAT-COMPOSER-UX-20261120-001/WorkEvidence/coordinator-qa-summary.json",
     "Reports/CODEX-UL-CLIENT-CHAT-COMPOSER-UX-20261120-001/WorkEvidence",
     "Reports/CODEX-UL-CLIENT-CHAT-COMPOSER-UX-20261120-001/Final/report.md",
@@ -223,8 +225,6 @@
     "Инструкция_GGUF_Ollama_Colibri_Qwen38_2026-11-01.md",
     "Reports/KAT-Coder_MAYAK-47_R3_Старт.md",
     "17.1_KAT-Coder-V2.5_кратко.md",
-    "Шаблон_карточки_теста.md",
-    "17_KAT-Coder-V2.5.md",
-    "16_МАЯК-47_эталон.md"
+    "Шаблон_карточки_теста.md"
   ]
 }
