@@ -285,7 +285,12 @@ function workspaces(container,manager) {
     contextLabel.dataset.tip=actualContext!=null ?
       "Фактическая ёмкость контекста работающего экземпляра по health. Не объём RAM/VRAM KV-кэша." :
       "Фактический контекст не подтверждён. Значение появится после готовности экземпляра и получения health.";
-    line.append(status,modeLabel,memoryLabel,contextLabel);
+    const perf=confirmedReady?nativeModelPerformance(live):null;
+    const speed=node("span","slot-performance",perf&&validModelRate(perf.current_tok_s)
+      ? "LIVE "+liveRate(perf.current_tok_s)+" т/с" : "AVG —");
+    speed.dataset.tip="LIVE: нативная скорость декодирования; AVG: накопительная скорость, пока нет данных.";
+    speed.classList.toggle("model-performance-live",Boolean(perf&&validModelRate(perf.current_tok_s)));
+    line.append(status,modeLabel,memoryLabel,contextLabel,speed);
     list.append(line);
   }
   area.append(list);container.append(area);
@@ -755,9 +760,16 @@ setInterval(() => {
       statusSampleTime=0;
       renderChatControls();
     } else renderLiveStatus();
+    renderModelPerformance();
+  }
+  if (!statusSampleTime || performance.now()-statusSampleTime>7000) {
+    for(const label of document.querySelectorAll(".slot-performance.model-performance-live")) {
+      label.textContent="AVG —"; label.classList.remove("model-performance-live");
+    }
   }
   if (chatOpen || chatSnapshot?.managers?.some(m =>
-    m.data?.control?.instances?.some(i => ["STARTING","STOPPING"].includes(i.state)))) backgroundStatus();
+    m.data?.control?.instances?.some(i => ["STARTING","STOPPING"].includes(i.state)) ||
+    m.data?.slots?.some(s => Number.isInteger(s.scheduler?.active)&&s.scheduler.active>0))) backgroundStatus();
 }, 2000);
 
 /* CHAT-01: model slots are discovered dynamically from live Manager snapshots.
@@ -977,6 +989,38 @@ function modelName(id) {
 function modelLabel(target) {
   return modelName(target.model_id) + (target.slot_id ? ` · ${target.slot_id}` : "");
 }
+function validModelRate(value) {
+  return typeof value==="number" && Number.isFinite(value) && value>=0 && value<=1e12;
+}
+function nativeModelPerformance(target) {
+  if(!target || target.engine_state!=="ready" || !target.instance_id ||
+     !statusSampleTime || performance.now()-statusSampleTime>7000) return null;
+  const sample=target.live_performance;
+  if(!sample || sample.source!=="engine_health" || sample.instance_id!==target.instance_id) return null;
+  return sample;
+}
+function modelOptionLabel(target) {
+  const mode=actualChatMode(target);
+  const sample=nativeModelPerformance(target);
+  return modelLabel(target)+(mode?" · "+mode:"")+
+    (sample&&validModelRate(sample.current_tok_s)?" · LIVE "+liveRate(sample.current_tok_s)+" т/с":" · AVG —");
+}
+function renderModelPerformance() {
+  const chat=currentChat(), target=liveTarget(chat);
+  const bound=target && assignedChatOwnsTarget(chat,target) && selectedManagerId(chat)===chat.manager_id;
+  const selected=bound?target:null;
+  const sample=nativeModelPerformance(selected);
+  const fresh=Boolean(selected && statusSampleTime && performance.now()-statusSampleTime<=7000);
+  put("model-perf-name",chat?.model_id?modelLabel(chat):"Модель не выбрана");
+  put("model-perf-manager",selected?.manager_name||chat?.manager_id||"—");
+  put("model-perf-mode",fresh?actualChatMode(selected)||"—":"—");
+  put("model-perf-state",!chat?.model_id?"—":!fresh?"Не подтверждено":sample?"Генерация":selected.engine_state==="ready"?"Запущена":"Не подтверждено");
+  put("model-perf-context",fresh&&Number.isSafeInteger(selected.context_tokens)?selected.context_tokens.toLocaleString("ru-RU")+" ток.":"—");
+  put("model-perf-live",sample&&validModelRate(sample.current_tok_s)?liveRate(sample.current_tok_s):"—");
+  put("model-perf-request-mean",sample&&validModelRate(sample.request_mean_tok_s)?liveRate(sample.request_mean_tok_s):"—");
+  put("model-perf-avg","—");
+  put("model-perf-note",sample?"Источник: health движка. AVG — накопительная статистика ещё не доступна.":"Накопительная статистика пока недоступна; отсутствие измерения не равно нулю.");
+}
 function actualChatMode(target) {
   return target?.engine_state === "ready" && ["cpu","cuda"].includes(target.mode) ? target.mode.toUpperCase() : "";
 }
@@ -1106,7 +1150,8 @@ function renderChatList(payload) {
           mode:slot.engine_state === "ready" && slot.instance_id ? (manager.data.control?.instances?.find(row => !row.released && row.state === "READY" && row.instance_id === slot.instance_id)?.mode || "") : "",
           streaming:manager.data.chat?.streaming === true, engine_state:slot.engine_state,
           availability:slot.availability, transport:manager.data.chat?.transport_policy,
-          context_tokens:slot.context_tokens, live_telemetry:manager.data.chat?.live_telemetry===true
+          context_tokens:slot.context_tokens, live_telemetry:manager.data.chat?.live_telemetry===true,
+          live_performance:slot.live_performance
         });
       }
     }
@@ -1166,7 +1211,7 @@ function renderChatControls() {
   managerSelector.disabled = !chat || Boolean(active) || restarting || chatMutation;
   const options = [];
   for (const item of choices.filter(item => item.manager_id === managerId && item.engine_state === "ready")) {
-    options.push(new Option(modelLabel(item), targetKey(item)));
+    options.push(new Option(modelOptionLabel(item), targetKey(item)));
   }
   modelSelector.replaceChildren(...options);
   modelSelector.value = value;
@@ -1204,6 +1249,7 @@ function renderChatControls() {
   restartButton.dataset.tip = restarting ? RESTART_STAGE[chatRestartJob.stage] :
     "Применить сохранённые настройки: перезапустить модель";
   renderCudaPanel(chat,target);
+  renderModelPerformance();
   const status = byId("chat-state");
   if (active) status.textContent = active.cancelling ? "Отменяем запрос…" : "Модель отвечает";
   else if (restarting) status.textContent = RESTART_STAGE[chatRestartJob.stage] || "Перезапуск…";
@@ -2154,6 +2200,102 @@ byId("chat-form").addEventListener("submit", submitChat);
 byId("chat-input").addEventListener("input", event => {
   if (chatSelected) conversation(chatSelected).draft = event.target.value;
 });
+// Inspector layout preferences are local UI state, never chat or Manager configuration.
+function initializeInspectorPanels() {
+  const inspector=document.querySelector("#chat-view .chat-inspector");
+  const defs=[["metrics",".model-performance-panel"],["cuda",".chat-cuda-panel"],
+    ["events",".chat-events-panel"],["settings",".chat-inspector-settings"]];
+  const panels=new Map(defs.map(([key,selector])=>[key,inspector.querySelector(selector)]));
+  const prefKey="ultra.inspector.layout.v1";
+  let pref={};
+  try{pref=JSON.parse(localStorage.getItem(prefKey)||"{}")||{};}catch{}
+  let dragging=null;
+  function save(){
+    const order=[...inspector.querySelectorAll(":scope > [data-inspector-panel]")].map(p=>p.dataset.inspectorPanel);
+    const heights=Object.fromEntries([...panels].map(([key,p])=>[key,Number.parseInt(p.style.height,10)||null]));
+    try{localStorage.setItem(prefKey,JSON.stringify({order,heights}));}catch{}
+  }
+  function resize(panel,height){
+    panel.style.height=Math.round(Math.max(110,Math.min(720,height)))+"px";
+  }
+  function move(panel,other,before){
+    if(!other||other===panel)return;
+    if(before)inspector.insertBefore(panel,other);
+    else inspector.insertBefore(panel,other.nextSibling);
+    save();
+  }
+  for(const [key,panel] of panels){
+    panel.dataset.inspectorPanel=key;
+    panel.classList.add("inspector-adjustable");
+    if(key!=="events"){
+      const body=node("div","inspector-panel-body");
+      while(panel.firstChild)body.append(panel.firstChild);
+      panel.append(body);
+    }
+    const bar=node("div","inspector-panel-tools");
+    const grip=node("button","inspector-panel-grip","⠿");
+    grip.type="button";grip.draggable=true;grip.title="Перетащить панель";
+    grip.setAttribute("aria-label","Перетащить панель");
+    grip.addEventListener("dragstart",event=>{
+      dragging=panel;event.dataTransfer.effectAllowed="move";
+      event.dataTransfer.setData("text/plain",key);
+    });
+    grip.addEventListener("dragend",()=>{dragging=null;});
+    bar.append(grip);
+    for(const [label,dir] of [["↑",-1],["↓",1]]){
+      const button=node("button","inspector-panel-move",label);button.type="button";
+      button.setAttribute("aria-label",dir<0?"Панель выше":"Панель ниже");
+      button.addEventListener("click",()=>{
+        let next=dir<0?panel.previousElementSibling:panel.nextElementSibling;
+        while(next&&!next.dataset.inspectorPanel)next=dir<0?next.previousElementSibling:next.nextElementSibling;
+        move(panel,next,dir<0);
+      });
+      bar.append(button);
+    }
+    panel.prepend(bar);
+    panel.addEventListener("dragover",event=>{if(dragging&&dragging!==panel){event.preventDefault();event.dataTransfer.dropEffect="move";}});
+    panel.addEventListener("drop",event=>{
+      if(!dragging||dragging===panel)return;
+      event.preventDefault();
+      const rect=panel.getBoundingClientRect();
+      move(dragging,panel,event.clientY<rect.top+rect.height/2);
+      dragging=null;
+    });
+    const handle=node("button","inspector-panel-resize","━");
+    handle.type="button";handle.setAttribute("aria-label","Изменить высоту панели");
+    let start=null;
+    handle.addEventListener("pointerdown",event=>{
+      if(event.button!==0)return;
+      event.preventDefault();
+      const zoom=Number.parseFloat(getComputedStyle(document.body).zoom)||1;
+      start={y:event.clientY,height:panel.getBoundingClientRect().height/zoom,zoom};
+      handle.setPointerCapture(event.pointerId);
+    });
+    handle.addEventListener("pointermove",event=>{
+      if(start)resize(panel,start.height+(event.clientY-start.y)/start.zoom);
+    });
+    const finish=()=>{if(start){start=null;save();}};
+    for(const type of ["pointerup","pointercancel","lostpointercapture"])handle.addEventListener(type,finish);
+    handle.addEventListener("keydown",event=>{
+      if(!["ArrowUp","ArrowDown"].includes(event.key))return;
+      event.preventDefault();resize(panel,panel.offsetHeight+(event.key==="ArrowUp"?-20:20));save();
+    });
+    panel.append(handle);
+    const saved=pref.heights?.[key];
+    if(Number.isFinite(saved)&&saved>=110&&saved<=720)resize(panel,saved);
+  }
+  if(Array.isArray(pref.order)){
+    for(const key of [...new Set(pref.order)])if(panels.has(key))inspector.append(panels.get(key));
+  }
+  const reset=node("button","inspector-reset-layout","Сбросить расположение панелей");
+  reset.type="button";
+  reset.addEventListener("click",()=>{
+    for(const panel of panels.values()){panel.style.removeProperty("height");inspector.insertBefore(panel,reset);}
+    try{localStorage.removeItem(prefKey);}catch{}
+  });
+  inspector.append(reset);
+}
+initializeInspectorPanels();
 const inputResizeHandle = byId("chat-input-resize");
 let inputResizeStart = null;
 function resizeChatInput(height) {

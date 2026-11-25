@@ -56,7 +56,7 @@ Codex работает **на компьютере владельца**, поэ�
 
 ### БЛОК 1 — ТЕКУЩАЯ ЗАДАЧА
 
-**СВОБОДЕН после авторской сдачи `FIX-UL-HOME-RELEASE-DRIFT-20261124-001`.** Новую TASK назначает только владелец. OWNER real KAT acceptance и отдельное решение CUDA остаются в БЛОКЕ 3, но не являются автоматически назначенной задачей.
+**СВОБОДЕН.** OWNER 26.11.2026 отменил передачу статистики/панелей Codex до начала исполнения. Исходная постановка сохранена в неизменяемом [№149](https://github.com/maxrus82gm-svg/local_LLM/commit/ab96a65b8f9e6120a3ac7a02d19d816a4f642df4). Работу ведёт непосредственно ChatGPT-координатор на GPT_2_local, ID CHATGPT-UL-MODEL-METRICS-PANELS-20261126-001. Не запускать Codex и не ротировать отменённую карточку как выполненную. Прежний БЛОК 1.1 сохранён.
 
 ### БЛОК 1.1 — ПОСЛЕДНЯЯ СДАННАЯ ЗАДАЧА (ДОСЛОВНЫЙ ОРИГИНАЛ)
 
@@ -592,6 +592,8 @@ SHA архива:
 **Дополнительные OPEN вне завершённой пятёрки:** `CODEX-UL-MANAGER-R5-SAFE-CUTOVER-20261113-001` — A/B SUBMITTED, Stage B Gate2, C/D NOT RUN/OWNER GO absent; полная задача и AMENDMENT immutable №54. F3 backup provenance pin; F4 Chrome first-run; versioned R5 release/re-stage после source fixes. Все ранние задачи остаются в №09/immutable Git.
 
 ### БЛОК 3 — OPEN / NEXT
+
+**26.11.2026 — DOC-UL-CONTINUITY-20261126-001:** WEB35 integration preparation per OWNER; no new assignment. #147 visible brand accepted visually by OWNER (running build not independently verified), Windows CI45689521300 FAILURE: Client unit PASS, Manager unit/Chrome legacy/streaming FAIL; root cause UNKNOWN. Separate triage task only after OWNER and fresh LOCAL-PLAN-01. Bridge readiness matrix in №13 §5, M1-10 HOLD at last plan. No runtime/Manager/model changes; BLOCK1/1.1 unchanged. WireGuard and CPU/multi-GPU work deferred.
 
 **ISSUE-UL-CLIENT-CLOSE-RELEASE-20261125-001 — OWNER CLARIFIED / OPEN / OBSERVE ONLY.** 25.11.2026: предыдущая трактовка требования закрытия Client отменена владельцем. Закрытие браузера/Client НЕ останавливает работающие LLM: независимые Manager/instances продолжают работу, другие авторизованные клиенты могут подключаться. Проблема: после явного Stop всех экземпляров интерфейс показывает «Остановлен», счётчик работающих экземпляров 0, но по наблюдению владельца остаются процессы или занятая VRAM. Скриншот WORK (Colibri Work PC, три слота «Остановлен», 0 работающих экземпляров) подтверждает только UI, не остаточные процессы или фактическую VRAM. При повторении сопоставить штатный Stop, точные instance/session/PID, released, Supervisor/runner и дочерние процессы, порты и VRAM конкретного GPU/процесса до/после; отличать нормальное использование GPU другими приложениями и задержку освобождения от настоящего остаточного процесса. Причина ещё UNKNOWN; никаких heartbeat/lease/auto-stop по закрытию Client. Пока наблюдение, короткие скрытые проверки только при воспроизведении, без долгого фонового мониторинга, без новых активных задач, кода или LIVE изменений. История исходной трактовки сохранена в Git #145, но не действует. LOCAL-PLAN-01 недоступен (HOME offline при предыдущей попытке), новая задача не активируется; только уточнение записи.
 

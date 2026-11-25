@@ -13,6 +13,45 @@ MEM = {"total_gib": 48.0, "free_gib": 30.0,
 
 
 class LiveSecurityTests(unittest.TestCase):
+    def test_native_snapshot_performance_identity_and_cancel(self):
+        import threading
+        cancel = threading.Event()
+        listener = (17, "legacy-" + "a"*32)
+        binding = ("slot1", cancel, "b"*32, listener)
+        health = {"status": "ok", "scheduler": {"active": 1, "queued": 0},
+                  "live": [{"state": "writing", "tok_s_now": 12.5, "tok_s": 10}]}
+        with patch.object(live, "_chat_listener", return_value=listener):
+            sample = live._snapshot_performance(health, binding, 8000, listener)
+            self.assertEqual(sample, {"instance_id": "b"*32, "source": "engine_health",
+                                      "current_tok_s": 12.5, "request_mean_tok_s": 10})
+            self.assertIsNone(live._snapshot_performance(health, binding, 8000, None))
+            self.assertIsNone(live._snapshot_performance(
+                {**health, "scheduler": {"active": 2, "queued": 0}}, binding, 8000, listener))
+            cancel.set()
+            self.assertIsNone(live._snapshot_performance(health, binding, 8000, listener))
+        cancel.clear()
+        with patch.object(live, "_chat_listener", return_value=(18, "legacy-"+"c"*32)):
+            self.assertIsNone(live._snapshot_performance(health, binding, 8000, listener))
+
+    @patch.object(live, "_inventory_models", return_value=[])
+    @patch.object(live, "_os_telemetry", return_value=MEM)
+    @patch.object(live, "_local_api_json")
+    def test_snapshot_performance_respects_slot_grant(self, local, os_query, dirs):
+        import threading
+        listener = (17, "legacy-"+"a"*32)
+        binding = ("slot1", threading.Event(), "b"*32, listener)
+        local.side_effect = lambda port, path: (
+            {"status":"ok","scheduler":{"active":1,"queued":0,"capacity":1},
+             "live":[{"state":"writing","tok_s_now":9.0,"tok_s":8.0}]}
+            if path == "/health" else {"data":[{"id":"model-A"}]})
+        with patch.object(live, "_chat_listener", return_value=listener):
+            allowed = live.live_snapshot(CFG, {"client_id":"c","allowed_slots":["slot1"]},
+                                         performance_bindings={"slot1":binding})
+            denied = live.live_snapshot(CFG, {"client_id":"c","allowed_slots":[]},
+                                        performance_bindings={"slot1":binding})
+        self.assertEqual(allowed["slots"][0]["live_performance"]["current_tok_s"],9.0)
+        self.assertNotIn("live_performance",denied["slots"][0])
+
     @patch.object(live, "_inventory_models", return_value=[])
     @patch.object(live, "_os_telemetry", return_value=MEM)
     @patch.object(live, "_local_api_json")

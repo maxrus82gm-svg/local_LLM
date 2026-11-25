@@ -270,7 +270,7 @@ try {
   await evaluate('showChats()');
   await until('byId("chat-manager").value==="manager-b" && byId("chat-model").value!==""');
   assert.match(await evaluate('document.querySelector(".chat-choice small").textContent'),/^KAT-Coder V2.5 Dev.*CPU/);
-  assert(await evaluate('[...byId("chat-model").options].some(o=>o.text==="KAT-Coder V2.5 Dev · slot2")'));
+  assert(await evaluate('[...byId("chat-model").options].some(o=>o.text.startsWith("KAT-Coder V2.5 Dev · slot2 · CPU"))'));
   assert.match(await evaluate('document.querySelector(".chat-choice small").textContent'),/slot2.*CPU/);
   assert.equal(await evaluate('modelLabel({model_id:"Qwen3.6-35B-A3B",slot_id:"slot1",manager_id:"manager-a"})'),"Qwen 3.6 · slot1");
   assert.equal(await evaluate('document.querySelector(".chat-choice .chat-mode-confirmed").textContent'),"CPU");
@@ -405,7 +405,7 @@ try {
     } finally {chatSnapshot=original;renderChatList(original);}
   })()`);
   assert(duplicateResult.options.some(x=>x.includes("slot2")&&!x.includes("CPU")));
-  assert(duplicateResult.options.some(x=>x.includes("slot3")&&!x.includes("CUDA")));
+  assert(duplicateResult.options.some(x=>x.includes("slot3")&&x.includes("CUDA")));
   assert(!duplicateResult.options.some(x=>x.includes("dddddddd")));
   assert.equal(duplicateResult.idle,true);
   results.push('PASS: distinct runtime IDs share one display name; slot/mode distinguish duplicates; idle Manager visible');
