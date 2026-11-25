@@ -75,6 +75,22 @@
       </form>
     </section>
     <aside class="chat-inspector" aria-label="События и настройки чата">
+      <section id="model-performance-panel" class="model-performance-panel" aria-label="Статистика модели">
+        <h3>Статистика модели</h3>
+        <div class="chat-context-summary">
+          <strong id="model-perf-name">Модель не выбрана</strong>
+          <div id="model-perf-manager">—</div>
+          <div class="chat-context-summary-row"><span>Режим</span><strong id="model-perf-mode">—</strong></div>
+          <div class="chat-context-summary-row"><span>Состояние</span><strong id="model-perf-state">—</strong></div>
+          <div class="chat-context-summary-row"><span>Контекст фактически</span><strong id="model-perf-context">—</strong></div>
+          <div class="chat-live-grid">
+            <div><span>LIVE · ток/с</span><strong id="model-perf-live">—</strong></div>
+            <div><span>AVG · ток/с</span><strong id="model-perf-avg">—</strong></div>
+          </div>
+          <div class="chat-context-summary-row"><span>Ср. текущего запроса</span><strong id="model-perf-request-mean">—</strong></div>
+          <small id="model-perf-note">Нет подтверждённых накопительных измерений.</small>
+        </div>
+      </section>
       <section id="chat-cuda-panel" class="chat-cuda-panel hidden" aria-label="Настройки CUDA">
         <h3>Настройки CUDA <small id="cuda-slot-label"></small></h3>
         <div class="chat-cuda-fields">

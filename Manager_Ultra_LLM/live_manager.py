@@ -343,7 +343,25 @@ def _authorized_client(config, authorization):
     return selected
 
 
-def live_snapshot(config, client):
+def _snapshot_performance(health, binding, port, listener_before):
+    """Only native decode samples tied to a still-running Manager stream.
+    Never expose request/principal IDs or infer a cumulative average."""
+    if binding is None or binding[1].is_set() or listener_before != binding[3]:
+        return None
+    sample = live_request_sample(health)
+    if not sample or sample["state"] != "writing":
+        return None
+    try:
+        if _chat_listener(port) != binding[3] or binding[1].is_set():
+            return None
+    except Exception:
+        return None
+    return {"instance_id": binding[2], "source": "engine_health",
+            "current_tok_s": sample.get("tok_s_now"),
+            "request_mean_tok_s": sample.get("tok_s")}
+
+
+def live_snapshot(config, client, *, performance_bindings=None):
     slots = config["slots"]
     result = {"schema": "ultra.manager.live.v1", "source": "LIVE_HOST",
               "manager_id": config["manager_id"],
@@ -392,7 +410,18 @@ def live_snapshot(config, client):
             if allowed:
                 row["availability"] = "not_running"
         elif port in listening:
+            binding = (performance_bindings or {}).get(slot_id) if allowed else None
+            listener_before = None
+            if binding is not None:
+                try:
+                    listener_before = _chat_listener(port)
+                except Exception:
+                    pass
             health = _local_api_json(port, "/health")
+            if binding is not None:
+                performance = _snapshot_performance(health, binding, port, listener_before)
+                if performance is not None:
+                    row["live_performance"] = performance
             models = _local_api_json(port, "/v1/models")
             if isinstance(health, dict) and health.get("status") == "ok":
                 row["engine_state"] = "ready"
@@ -602,7 +631,11 @@ def make_handler(config_file, config, inbox, *, controller=None):
                 if not _MAX_REQUESTS.acquire(blocking=False):
                     return self._reply(503, {"error": "busy"})
                 try:
-                    data = live_snapshot(current, client)
+                    with streams_guard:
+                        bindings = {item[0]: item for item in active_streams.values()
+                                    if item[0] in client["allowed_slots"] and not item[1].is_set()}
+                    data = (live_snapshot(current, client, performance_bindings=bindings)
+                            if bindings else live_snapshot(current, client))
                     data["control"] = controller.catalog(client)
                     by_slot = {i["slot_id"]:i for i in data["control"].get("instances",[]) if not i.get("released")}
                     for row in data["slots"]:
@@ -613,6 +646,19 @@ def make_handler(config_file, config, inbox, *, controller=None):
                                 row["instance_id"] = _chat_listener(row["api_port"])[1]
                             except Exception:
                                 row["instance_id"] = None
+                    # A stream may finish or restart while catalog is being read.
+                    with streams_guard:
+                        active = {item[0]: item for item in active_streams.values()
+                                  if not item[1].is_set()}
+                        for row in data["slots"]:
+                            sample = row.get("live_performance")
+                            if sample is not None and (
+                                row["slot_id"] not in client["allowed_slots"]
+                                or active.get(row["slot_id"]) is not bindings.get(row["slot_id"])
+                                or row.get("instance_id") != sample["instance_id"]
+                                or row.get("engine_state") != "ready"
+                            ):
+                                row.pop("live_performance", None)
                     data["chat"] = {"streaming":True, "reasoning_events":True, "live_telemetry":True,
                                     "transport_policy":chat_policy(current)}
                     self._reply(200, data)

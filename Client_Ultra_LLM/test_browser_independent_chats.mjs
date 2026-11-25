@@ -119,6 +119,12 @@ try {
   assert.equal(await evaluate('byId("chat-context-kv").textContent'),"Нет данных");
   assert.equal(await evaluate('document.querySelector(".chat-events-panel").contains(byId("chat-live-tokens"))'),true);
   assert.equal(await evaluate('byId("chat-cuda-panel").classList.contains("hidden")'),true);
+  assert.equal(await evaluate('byId("model-performance-panel").dataset.inspectorPanel'),"metrics");
+  assert.equal(await evaluate('byId("model-perf-avg").textContent'),"—");
+  assert.equal(await evaluate('(() => {const p=byId("model-performance-panel"); const h=p.offsetHeight; p.querySelector(".inspector-panel-resize").dispatchEvent(new KeyboardEvent("keydown",{key:"ArrowDown",bubbles:true})); return p.offsetHeight>h && JSON.parse(localStorage.getItem("ultra.inspector.layout.v1")).heights.metrics>h;})()'),true);
+  assert.equal(await evaluate('(() => {const p=byId("model-performance-panel");p.querySelectorAll(".inspector-panel-move")[1].click();return JSON.parse(localStorage.getItem("ultra.inspector.layout.v1")).order[0]!=="metrics";})()'),true);
+  await evaluate('document.querySelector(".inspector-reset-layout").click()');
+  assert.equal(await evaluate('document.querySelector(".chat-inspector > section").id'),"model-performance-panel");
   assert.equal(await evaluate('byId("chat-live-chars").textContent'),"0");
   // Clipboard writes are intercepted only in this disposable browser fixture.
   const copied=await evaluate(`(async()=>{
