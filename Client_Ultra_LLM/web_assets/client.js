@@ -660,13 +660,13 @@ byId("add").addEventListener("click", showSetup);
 byId("nav-add").addEventListener("click", showSetup);
 byId("refresh").addEventListener("click", refresh);
 byId("quit-client").addEventListener("click", async () => {
-  if (!confirm("Завершить только локальный Web Client? Работа Manager и Colibri не изменится.")) return;
+  if (!confirm("Завершить только локальный Web Client? Работа Manager и моделей не изменится.")) return;
   try {
     await api("/api/shutdown", {
       method:"POST",headers:{"X-Ultra-CSRF":csrf,"Content-Type":"application/json"}
     });
     document.body.replaceChildren(node("div", "placeholder",
-      "Ultra LLM Web Client завершён. Эту вкладку можно закрыть. Manager продолжает работать."));
+      "Неополис Web Client завершён. Эту вкладку можно закрыть. Manager продолжает работать."));
     document.body.style.padding = "15vh 8vw";
   } catch (err) {
     setNotice("Не удалось завершить клиент: " + err.message);

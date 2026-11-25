@@ -70,6 +70,24 @@ class WebClientP1Tests(unittest.TestCase):
         self.assertEqual(code, 200)
         self.assertFalse(json.loads(data)["configured"])
 
+    def test_neopolis_visible_brand_preserves_transport_identity(self):
+        code, data, headers = self.request("/")
+        self.assertEqual(code, 200)
+        html = data.decode("utf-8")
+        for label in ("<title>Неополис — Web Client</title>",
+                      '<span class="brand-mark">N</span>',
+                      "<strong>НЕОПОЛИС</strong>", "<small>WEB CLIENT</small>",
+                      "Чаты Неополис", "Чаты <span>Неополис</span>",
+                      "НЕОПОЛИС · WEB P1", "Добавить Неополис — Manager"):
+            self.assertIn(label, html)
+        for old in ("ULTRA LLM", "Ultra LLM", "Чаты LLM", "Чаты <span>Colibri</span>"):
+            self.assertNotIn(old, html)
+        self.assertTrue(headers["Server"].startswith("UltraLLMWeb/"))
+        code, script, _ = self.request("/client.js")
+        self.assertEqual(code, 200)
+        self.assertIn("Неополис Web Client завершён.", script.decode("utf-8"))
+        self.assertIn("Работа Manager и моделей не изменится.", script.decode("utf-8"))
+
     def test_loopback_host_rebinding_is_blocked(self):
         code, body, _ = self.request("/api/status", host="evil.example")
         self.assertEqual(code, 403)
