@@ -267,6 +267,10 @@ class ModelControl:
             if placement is not None:
                 result["policy"]["gpu_placement"]=placement["gpu_ids"]
                 result["forecast"]["gpu_placement"]=placement
+                if "gpu_weight_cap_gib" in placement:
+                    result["policy"]["gpu_weight_cap_gib"]=placement["gpu_weight_cap_gib"]
+                    result["warnings"].append("gpu_reserve_estimate_only")
+                    result["requires_ack"]=True
                 if placement["budget_exceeds_hint"] and "low_vram_forecast" not in result["warnings"]:
                     result["warnings"].append("low_vram_forecast")
             if context_tokens is not None:
@@ -541,7 +545,7 @@ class ModelControl:
                         if isinstance(devices,list) else None,
                        "legacy_active":any(not group for group in groups),
                        "explicit_active":bool(reserved),
-                       "exclusive_managed_groups":True}
+                       "exclusive_managed_groups":True, "per_device_reserves":True}
         return {"manager_id": self.config["manager_id"], "models": models, "instances": instances, "context_override":True,
                 "cuda_profiles":self.db_path is not None, "cuda_defaults":DEFAULT_PROFILE,
                 "gpu_selection":selection,
@@ -658,7 +662,8 @@ class ModelControl:
                     reason = str(error)
                     if reason not in ("runtime_review_required", "runtime_or_model_changed",
                                       "cuda_runtime_or_measurement_unverified", "context_capacity_exceeded", "context_capacity_unknown",
-                                      "gpu_selection_unavailable", "gpu_inventory_unknown", "invalid_gpu_ids"):
+                                      "gpu_selection_unavailable", "gpu_inventory_unknown", "invalid_gpu_ids",
+                                      "gpu_reserve_invalid", "gpu_reserve_insufficient"):
                         reason = "runtime_preflight_unverified"
                     raise ControlError(reason) from None
                 db.execute("INSERT OR REPLACE INTO model_checks VALUES(?,?,?,?)",(key,mode,json.dumps(self._spec(slot,key,mode).review,sort_keys=True),time.time()))

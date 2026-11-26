@@ -35,6 +35,32 @@ class MultiGpuTests(unittest.TestCase):
         self.assertEqual(resolve_placement(profile("full"),inventory(),[A])["gpu_ids"],[B])
         self.assertTrue(resolve_placement(profile("full",budget=23),inventory(),[])["budget_exceeds_hint"])
 
+    def test_explicit_full_reserve_and_conservative_cap(self):
+        selected = {**profile("full", [A,B], 20), "gpu_reserves_gib": {A:3,B:1}}
+        plan = resolve_placement(selected, inventory(), [])
+        self.assertEqual(plan["gpu_ids"], [A,B])
+        self.assertEqual(plan["gpu_weight_cap_gib"], 4.0)
+        self.assertEqual(plan["weight_capacity_hint_gib"], 14)
+        self.assertTrue(plan["budget_exceeds_hint"])
+        self.assertEqual(plan["gpu_reserve_details"][0]["reserve_gib"], 3)
+        self.assertEqual(plan["gpu_reserve_details"][1]["reserve_gib"], 1)
+        self.assertEqual(resolve_placement({**selected,"gpu_ids":[A],
+            "gpu_reserves_gib":{A:3}},inventory(),[])["gpu_ids"],[A])
+        with self.assertRaisesRegex(ValueError,"gpu_selection_reserved"):
+            resolve_placement(selected,inventory(),[B])
+        with self.assertRaisesRegex(ValueError,"gpu_reserve_insufficient"):
+            resolve_placement({**selected,"gpu_reserves_gib":{A:3,B:6}},inventory(),[])
+        with self.assertRaisesRegex(ValueError,"gpu_reserve_invalid"):
+            resolve_placement({**selected,"gpu_reserves_gib":{A:3,B:8}},inventory(),[])
+
+    def test_restricted_auto_and_reserve_schema(self):
+        p = {**profile("auto",[B],None),"gpu_reserves_gib":{B:1}}
+        self.assertEqual(resolve_placement(p,inventory(),[])["gpu_ids"],[B])
+        self.assertEqual(resolve_placement(p,inventory(),[])["gpu_weight_cap_gib"],4)
+        for bad in ({}, {B:-1}, {B:True}, {A:1}, {B:float("nan")}):
+            with self.assertRaises(ValueError):
+                normalize({**p,"gpu_reserves_gib":bad})
+
     def test_manual_groups_and_isolation(self):
         devices=inventory()+[
             {"uuid":D,"total_gib":8,"free_gib":7,"compute_capability":"8.6"},

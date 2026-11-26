@@ -93,6 +93,9 @@ function controlReason(reason) {
     invalid_context_tokens:"Введите положительное целое число до шести цифр",
     invalid_cuda_profile:"Проверьте числа CUDA и выбранные видеокарты",
     invalid_gpu_ids:"Неверные идентификаторы GPU",
+    gpu_reserve_invalid:"Резерв должен быть меньше физической VRAM карты",
+    gpu_reserve_insufficient:"Недостаточно свободной VRAM для выбранного резерва и служебного запаса",
+    gpu_reserve_estimate_only:"Консервативный бюджет весов; жёсткая квота VRAM движком не гарантируется",
     gpu_inventory_unknown:"Нет подтверждённого списка GPU. Проверьте Manager и драйвер",
     gpu_selection_unavailable:"Выбранная совместимая свободная видеокарта недоступна",
     gpu_selection_reserved:"Видеокарта зарезервирована другим управляемым экземпляром",
@@ -265,7 +268,8 @@ function workspaces(container,manager) {
                 ". Достоверность: "+forecast.estimate_evidence+". Предупреждения: "+checked.warnings.map(controlReason).join(", ")+
                 (forecast.gpu_placement?" · Группа: "+forecast.gpu_placement.gpu_ids.map(id=>{
                   const d=gpuDevices(control.gpu_selection)?.find(x=>x.uuid===id);return d?d.name:id;
-                }).join(" + ")+" · физически "+gib(forecast.gpu_placement.total_gib):"");
+                }).join(" + ")+" · физически "+gib(forecast.gpu_placement.total_gib)+
+                (Number.isFinite(forecast.gpu_placement.gpu_weight_cap_gib)?" · передаваемый бюджет весов "+gib(forecast.gpu_placement.gpu_weight_cap_gib):""):"");
               status.dataset.tip=details;
               if(!checked.risk_ack_allowed)throw Error("resource_risk_not_permitted");
               ack=confirm(details+". Возможны замедление других моделей и программ сервера. Подтвердить риск этого запуска?");
@@ -1370,7 +1374,12 @@ function validCudaProfile(profile,inputs) {
   const placement=profile.gpu_mode===undefined||
     (["auto","full","manual"].includes(profile.gpu_mode)&&Array.isArray(profile.gpu_ids)&&
      profile.gpu_ids.every(id=>gpuUuid.test(id))&&new Set(profile.gpu_ids).size===profile.gpu_ids.length&&
-     (profile.gpu_mode==="manual")===Boolean(profile.gpu_ids.length));
+     (profile.gpu_reserves_gib!==undefined?
+       profile.gpu_ids.length>0 && profile.gpu_reserves_gib && typeof profile.gpu_reserves_gib==="object" &&
+       !Array.isArray(profile.gpu_reserves_gib) &&
+       Object.keys(profile.gpu_reserves_gib).length===profile.gpu_ids.length &&
+       profile.gpu_ids.every(id=>Number.isFinite(profile.gpu_reserves_gib[id])&&profile.gpu_reserves_gib[id]>=0&&profile.gpu_reserves_gib[id]<=1024)
+       :(profile.gpu_mode==="manual")===Boolean(profile.gpu_ids.length)));
   return placement&&!inputs.some(input=>input.validity.badInput)&&
     (profile.target_gib===null||(Number.isFinite(profile.target_gib)&&profile.target_gib>0&&profile.target_gib<=1024))&&
     (profile.budget_gib===null||(Number.isFinite(profile.budget_gib)&&profile.budget_gib>0&&profile.budget_gib<=1024))&&
@@ -1392,6 +1401,21 @@ function gpuSummary(devices) {
 function gpuPreview(profile,selection) {
   const devices=gpuDevices(selection);
   if(!devices||!profile?.gpu_mode)return null;
+  if(profile.gpu_reserves_gib!==undefined){
+    if(selection.legacy_active||!profile.gpu_ids.length)return null;
+    let list=profile.gpu_ids.map(id=>devices.find(d=>d.uuid===id));
+    if(!list.every(d=>d&&gpuCompatible(d)))return null;
+    if(profile.gpu_mode==="auto")list=list.filter(d=>!d.reserved).sort((a,b)=>
+      Math.max(0,b.free_gib-profile.gpu_reserves_gib[b.uuid])-Math.max(0,a.free_gib-profile.gpu_reserves_gib[a.uuid])||
+      b.total_gib-a.total_gib||a.uuid.localeCompare(b.uuid)).slice(0,1);
+    else if(list.some(d=>d.reserved))return null;
+    const summary=gpuSummary(list);
+    if(!summary)return null;
+    if(list.some(d=>!Number.isFinite(profile.gpu_reserves_gib[d.uuid])||profile.gpu_reserves_gib[d.uuid]<0||profile.gpu_reserves_gib[d.uuid]>=d.total_gib))return null;
+    const rooms=list.map(d=>Math.max(0,d.free_gib-profile.gpu_reserves_gib[d.uuid]-2));
+    return {...summary,reserve_capacity_gib:rooms.reduce((a,b)=>a+b,0),
+      common_weight_cap_gib:Math.floor(Math.min(...rooms)*10)/10};
+  }
   if(profile.gpu_mode==="manual"){
     const list=profile.gpu_ids.map(id=>devices.find(d=>d.uuid===id));
     return list.every(Boolean)?gpuSummary(list):null;
@@ -1408,27 +1432,50 @@ function gpuPicker(host,prefix,onChange) {
   const cards=node("div","gpu-device-list");cards.id=prefix+"-gpu-devices";
   const hint=node("p","cuda-status");hint.id=prefix+"-gpu-hint";
   const legend=node("p","cuda-status","Auto: одна свободная GPU · Full: все свободные совместимые GPU · Вручную: выбранная группа.");
-  host.append(label,cards,hint,legend);
-  let ids=[],selection=null,mayEdit=false,signature="";
-  function current(){return mode.value==="legacy"?{}:{gpu_mode:mode.value,gpu_ids:mode.value==="manual"?[...ids]:[]};}
+  const limit=node("input","");limit.type="checkbox";limit.id=prefix+"-gpu-reserve-enabled";
+  const limitLabel=node("label","gpu-mode-label");limitLabel.append(limit,node("span","","Приоритет выбранных GPU и индивидуальный резерв (бюджет весов)"));
+  host.append(label,limitLabel,cards,hint,legend);
+  let ids=[],reserves={},limited=false,selection=null,mayEdit=false,signature="";
+  function current(){
+    if(mode.value==="legacy")return {};
+    const p={gpu_mode:mode.value,gpu_ids:limited||mode.value==="manual"?[...ids]:[]};
+    if(limited)p.gpu_reserves_gib=Object.fromEntries(ids.map(id=>[id,reserves[id]??2]));
+    return p;
+  }
+  limit.addEventListener("change",()=>{
+    limited=limit.checked;
+    if(limited&&!ids.length)ids=(gpuDevices(selection)||[]).filter(gpuCompatible).map(d=>d.uuid);
+    if(!limited&&mode.value!=="manual")ids=[];
+    draw();onChange();
+  });
   function draw(){
     const inventory=gpuDevices(selection),supported=selection!=null;
     mode.disabled=!mayEdit||!supported;
+    limit.checked=limited;
+    limit.disabled=!mayEdit||selection?.per_device_reserves!==true||mode.value==="legacy";
+    limitLabel.classList.toggle("hidden",mode.value==="legacy"||(!limited&&selection?.per_device_reserves!==true));
     // Preserve saved UUIDs on unavailable/disconnected devices. No silent retarget.
     const devices=inventory||[];
     const missing=ids.filter(id=>!devices.some(d=>d.uuid===id)).map(uuid=>({uuid,name:"GPU не обнаружена",missing:true}));
-    const next=JSON.stringify([devices.map(d=>[d.uuid,d.name,d.index,d.compute_capability,d.reserved]),missing.map(d=>d.uuid),ids,mode.value,mayEdit,supported]);
+    const next=JSON.stringify([devices.map(d=>[d.uuid,d.name,d.index,d.compute_capability,d.reserved]),missing.map(d=>d.uuid),ids,mode.value,mayEdit,supported,limited,selection?.per_device_reserves]);
     if(next!==signature){
       signature=next;cards.replaceChildren();
       for(const d of [...devices,...missing]){
         const row=node("div","gpu-device-row"),top=node("label","gpu-device-label");
         const check=node("input","");check.type="checkbox";check.dataset.gpuId=d.uuid;
         check.checked=ids.includes(d.uuid);
-        check.disabled=!mayEdit||!supported||mode.value!=="manual"||(!gpuCompatible(d)&&!check.checked);
+        check.disabled=!mayEdit||!supported||mode.value==="legacy"||(!limited&&mode.value!=="manual")||(!gpuCompatible(d)&&!check.checked);
         check.addEventListener("change",()=>{ids=check.checked?[...new Set([...ids,d.uuid])]:ids.filter(x=>x!==d.uuid);draw();onChange();});
         top.append(check,node("span","",d.missing?"GPU не обнаружена · "+d.uuid.slice(-12):
           "GPU "+d.index+" · "+d.name+(gpuCompatible(d)?"":" · несовместима с текущей сборкой")));
         row.append(top);
+        if(limited&&ids.includes(d.uuid)){
+          const reserve=node("input","");reserve.type="number";reserve.min="0";reserve.max=String(Math.max(0,(d.total_gib??1024)-0.1));reserve.step="0.1";
+          reserve.value=Number.isFinite(reserves[d.uuid]??2)?String(reserves[d.uuid]??2):"";
+          reserve.dataset.gpuReserve=d.uuid;reserve.disabled=!mayEdit||selection?.per_device_reserves!==true;
+          const reserveLabel=node("label","gpu-mode-label","Резерв свободной VRAM, ГиБ");reserveLabel.append(reserve);row.append(reserveLabel);
+          reserve.addEventListener("input",()=>{reserves[d.uuid]=reserve.value===""?NaN:reserve.valueAsNumber;onChange();});
+        }
         const info=node("small","gpu-device-detail");info.dataset.gpuDetail=d.uuid;row.append(info);
         cards.append(row);
       }
@@ -1443,15 +1490,19 @@ function gpuPicker(host,prefix,onChange) {
     const p=current(),summary=gpuPreview(p,selection);
     hint.textContent=!supported?"Manager не поддерживает выбор GPU; прежний профиль сохранён.":
       !inventory?"Список GPU недоступен; сохранённые UUID не заменяются.":
-      p.gpu_mode==="manual"&&!p.gpu_ids.length?"Выберите хотя бы одну видеокарту.":
+      (limited||p.gpu_mode==="manual")&&!p.gpu_ids.length?"Выберите хотя бы одну видеокарту.":
       p.gpu_mode?(summary?"Группа на следующий запуск: "+gib(summary.total_gib)+" физически, свободно "+gib(summary.free_gib)+". ":
-        "Группа будет проверена Manager перед запуском. ")+(selection.legacy_active?"Сначала остановите прежние CUDA-экземпляры.":"Назначение и бюджет не являются лимитом VRAM.") :
+        "Группа будет проверена Manager перед запуском. ")+(limited&&summary?
+        "Общий консервативный потолок параметра весов: "+gib(summary.common_weight_cap_gib)+". Дополнительный запас движка: 2 ГиБ/GPU. ":"")+(selection.legacy_active?"Сначала остановите прежние CUDA-экземпляры.":"Назначение и бюджет не являются лимитом VRAM.") :
       "Прежнее назначение GPU 0. Для распределения выберите новый режим.";
   }
   mode.addEventListener("change",()=>{draw();onChange();});
   return {current,update(profile,data,editable,reset=true){
     selection=data;mayEdit=editable;
-    if(reset){mode.value=profile?.gpu_mode||"legacy";ids=Array.isArray(profile?.gpu_ids)?[...profile.gpu_ids]:[];}
+    if(reset){mode.value=profile?.gpu_mode||"legacy";ids=Array.isArray(profile?.gpu_ids)?[...profile.gpu_ids]:[];
+      const nextReserves={...(profile?.gpu_reserves_gib||{})};
+      if(JSON.stringify(Object.entries(reserves).sort())!==JSON.stringify(Object.entries(nextReserves).sort()))signature="";
+      limited=profile?.gpu_reserves_gib!==undefined;reserves=nextReserves;}
     draw();
   }};
 }
@@ -1543,7 +1594,8 @@ function setCudaInputs(profile) {
 }
 function sameLaunchProfile(a,b) {
   return Boolean(a&&b&&a.budget_gib===b.budget_gib&&a.chain===b.chain&&a.rows===b.rows&&
-    (a.gpu_mode||"legacy")===(b.gpu_mode||"legacy")&&JSON.stringify(a.gpu_ids||[])===JSON.stringify(b.gpu_ids||[]));
+    (a.gpu_mode||"legacy")===(b.gpu_mode||"legacy")&&JSON.stringify(a.gpu_ids||[])===JSON.stringify(b.gpu_ids||[])&&
+    JSON.stringify(Object.entries(a.gpu_reserves_gib||{}).sort())===JSON.stringify(Object.entries(b.gpu_reserves_gib||{}).sort()));
 }
 function renderCudaPanel(chat,target) {
   const binding=cudaBinding(chat,target), panel=byId("chat-cuda-panel");

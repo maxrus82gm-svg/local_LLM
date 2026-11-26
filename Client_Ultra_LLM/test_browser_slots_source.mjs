@@ -344,6 +344,20 @@ try{
   // New explicit groups coexist with legacy profiles only after all legacy
   // managed CUDA instances have released. Existing CPU chats remain untouched.
   const A='GPU-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',B='GPU-bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+  const reserveUi=await evaluate(`(()=>{
+    const holder=document.createElement("div"),picker=gpuPicker(holder,"qa-reserve",()=>{});
+    const devices=[{uuid:"GPU-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",name:"A",compute_capability:"8.9",index:0,total_gib:16,free_gib:15,used_gib:1},
+                   {uuid:"GPU-bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",name:"B",compute_capability:"8.6",index:1,total_gib:8,free_gib:7,used_gib:1}];
+    picker.update({gpu_mode:"full",gpu_ids:[]},{devices,per_device_reserves:true},true);
+    holder.querySelector("#qa-reserve-gpu-reserve-enabled").click();
+    const input=holder.querySelector("[data-gpu-reserve]");
+    input.value="3";input.dispatchEvent(new Event("input"));
+    const checks=holder.querySelectorAll("[data-gpu-id]");
+    checks[1].click();
+    const p=picker.current();
+    return {count:p.gpu_ids.length,reserve:p.gpu_reserves_gib[p.gpu_ids[0]],mode:p.gpu_mode,preview:gpuPreview(p,{devices}).common_weight_cap_gib};
+  })()`);
+  assert.deepEqual(reserveUi,{count:1,reserve:3,mode:"full",preview:10});
   const uiGpuNegative=await evaluate(`(()=>{
     const holder=document.createElement("div"),picker=gpuPicker(holder,"qa-gpu",()=>{});
     const profile={gpu_mode:"manual",gpu_ids:["GPU-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]};

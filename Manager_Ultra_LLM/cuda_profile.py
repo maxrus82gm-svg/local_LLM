@@ -15,7 +15,9 @@ def number(value):
 
 
 def normalize(profile):
-    if type(profile) is not dict or set(profile) not in (set(DEFAULT_PROFILE), set(DEFAULT_PROFILE)|{"gpu_mode","gpu_ids"}):
+    base = set(DEFAULT_PROFILE)
+    explicit = base | {"gpu_mode", "gpu_ids"}
+    if type(profile) is not dict or set(profile) not in (base, explicit, explicit | {"gpu_reserves_gib"}):
         raise ValueError("invalid_cuda_profile")
     budget, target, chain, rows = (profile[k] for k in ("budget_gib", "target_gib", "chain", "rows"))
     if ((target is not None and not number(target)) or
@@ -28,9 +30,19 @@ def normalize(profile):
     if "gpu_mode" in profile:
         mode = profile["gpu_mode"]
         ids = validate_gpu_ids(profile["gpu_ids"], allow_empty=True)
-        if mode not in ("auto", "full", "manual") or (mode == "manual") != bool(ids):
+        restricted = "gpu_reserves_gib" in profile
+        if mode not in ("auto", "full", "manual") or (not restricted and (mode == "manual") != bool(ids)):
             raise ValueError("invalid_cuda_profile")
         normalized.update(gpu_mode=mode, gpu_ids=ids)
+        if restricted:
+            values = profile["gpu_reserves_gib"]
+            if not ids or type(values) is not dict:
+                raise ValueError("invalid_cuda_profile")
+            keys = validate_gpu_ids(list(values))
+            if set(keys) != set(ids) or any(type(v) not in (int, float) or not math.isfinite(v)
+                                            or not 0 <= v <= 1024 for v in values.values()):
+                raise ValueError("invalid_cuda_profile")
+            normalized["gpu_reserves_gib"] = dict(sorted(zip(keys, map(float, values.values()))))
     return normalized
 
 
@@ -91,7 +103,24 @@ def resolve_placement(profile, devices, occupied, *, legacy_active=False):
     occupied = set(occupied)
     free = {i: d for i, d in eligible.items() if i not in occupied}
     mode = profile["gpu_mode"]
-    if mode == "manual":
+    restricted = "gpu_reserves_gib" in profile
+    if restricted:
+        allowed = profile["gpu_ids"]
+        if any(i not in eligible for i in allowed):
+            raise ValueError("gpu_selection_unavailable")
+        if any(profile["gpu_reserves_gib"][i] >= eligible[i]["total_gib"] for i in allowed):
+            raise ValueError("gpu_reserve_invalid")
+        if mode in ("full", "manual"):
+            if any(i in occupied for i in allowed):
+                raise ValueError("gpu_selection_reserved")
+            ids = allowed
+        else:
+            ids = sorted((i for i in allowed if i in free),
+                         key=lambda i: (-max(0, free[i]["free_gib"] - profile["gpu_reserves_gib"][i]),
+                                        -free[i]["total_gib"], i))[:1]
+            if not ids:
+                raise ValueError("gpu_selection_unavailable")
+    elif mode == "manual":
         ids = profile["gpu_ids"]
         if any(i not in eligible for i in ids):
             raise ValueError("gpu_selection_unavailable")
@@ -107,9 +136,45 @@ def resolve_placement(profile, devices, occupied, *, legacy_active=False):
     total = sum(eligible[i]["total_gib"] for i in ids)
     available = sum(eligible[i]["free_gib"] for i in ids)
     headroom = sum(max(0, eligible[i]["free_gib"] - HEADROOM_GIB) for i in ids)
-    return {"gpu_ids": ids, "total_gib": total, "free_gib": available,
-            "weight_capacity_hint_gib": headroom,
-            "budget_exceeds_hint": profile["budget_gib"] is not None and profile["budget_gib"] > headroom}
+    result = {"gpu_ids": ids, "total_gib": total, "free_gib": available,
+              "weight_capacity_hint_gib": headroom,
+              "budget_exceeds_hint": profile["budget_gib"] is not None and profile["budget_gib"] > headroom}
+    if restricted:
+        result.update(reserve_plan(profile, eligible, ids))
+        result["budget_exceeds_hint"] = (profile["budget_gib"] is not None and
+                                         profile["budget_gib"] > result["gpu_weight_cap_gib"])
+    return result
+
+
+def reserve_plan(profile, eligible, ids):
+    """Conservative common numeric weight cap, not an OS allocation limit.
+
+    Stock Colibri paths interpret the numeric budget differently (group vs
+    device). Never pass the sum of asymmetric budgets as a per-device cap.
+    Reserve is additional currently-free memory; fixed headroom is extra.
+    The engine's auxiliary allocations and external processes remain unbounded.
+    """
+    profile = normalize(profile)
+    reserves = profile["gpu_reserves_gib"]
+    if not ids or any(i not in reserves or i not in eligible for i in ids):
+        raise ValueError("gpu_selection_unavailable")
+    details = []
+    for i in ids:
+        d = eligible[i]
+        reserve = reserves[i]
+        if reserve >= d["total_gib"]:
+            raise ValueError("gpu_reserve_invalid")
+        capacity = max(0.0, d["free_gib"] - reserve - HEADROOM_GIB)
+        details.append({"uuid": i, "reserve_gib": reserve,
+                        "free_gib": d["free_gib"], "weight_capacity_gib": capacity})
+    common = min(d["weight_capacity_gib"] for d in details)
+    requested = profile["budget_gib"]
+    cap = math.floor(min(common, requested if requested is not None else common) * 10) / 10
+    if cap < 0.1:
+        raise ValueError("gpu_reserve_insufficient")
+    return {"gpu_weight_cap_gib": cap, "gpu_reserve_details": details,
+            "weight_capacity_hint_gib": sum(d["weight_capacity_gib"] for d in details),
+            "gpu_reserve_enforcement": "conservative_weight_cap_not_os_quota"}
 
 
 def placement_launch(ids):
