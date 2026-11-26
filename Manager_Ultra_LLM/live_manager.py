@@ -266,6 +266,27 @@ def save_vpn_settings(config_file, expected, draft):
             raise RuntimeError("VPN configuration readback mismatch")
 
 
+def save_process_inventory_timeout(config_file, expected, seconds):
+    """Local admin; independent from VPN configuration; applies on explicit restart."""
+    from pairing_server import manager_config_lock, _write_config
+    from windows_process import validate_process_inventory_timeout
+    import uuid
+    seconds = validate_process_inventory_timeout(seconds)
+    with manager_config_lock(config_file):
+        current = load_config(config_file)
+        if current.get("process_inventory_timeout_seconds") != expected:
+            raise ValueError("Process inventory timeout changed; reopen settings before saving")
+        if expected == seconds:
+            return
+        backup = config_file.parent / ("manager.pre-timeout-" + uuid.uuid4().hex + ".json")
+        with backup.open("xb") as stream:
+            stream.write(config_file.read_bytes())
+        current["process_inventory_timeout_seconds"] = seconds
+        _write_config(config_file, current, new=False)
+        if load_config(config_file).get("process_inventory_timeout_seconds") != seconds:
+            raise RuntimeError("Process inventory timeout readback mismatch")
+
+
 def open_network_settings(config_file):
     """Local Windows desktop admin dialog; no web/remote administration API."""
     import tkinter as tk
@@ -282,7 +303,7 @@ def open_network_settings(config_file):
     grant = existing.get("client", {})
     root = tk.Tk()
     root.title("Нейрополис Manager — Сеть и доступ")
-    root.minsize(660, 520)
+    root.minsize(660, 600)
     frame = ttk.Frame(root, padding=16)
     frame.pack(fill="both", expand=True)
     frame.columnconfigure(1, weight=1)
@@ -325,6 +346,10 @@ def open_network_settings(config_file):
     ttk.Label(frame, text="SHA-256 берётся из мастера регистрации Client. "
               "Пустое поле сохраняет прежний SHA только для того же Client ID.").grid(
                   row=11, column=0, columnspan=3, sticky="w")
+    from windows_process import DEFAULT_PROCESS_INVENTORY_TIMEOUT_SECONDS
+    saved_timeout = config.get("process_inventory_timeout_seconds")
+    timeout_value = tk.StringVar(value=str(saved_timeout if saved_timeout is not None
+                                           else DEFAULT_PROCESS_INVENTORY_TIMEOUT_SECONDS))
     status = tk.StringVar(value="Сохранённые настройки; фактический VPN-доступ не проверен.")
     ttk.Label(frame, textvariable=status, wraplength=740).grid(
         row=15, column=0, columnspan=3, sticky="w", pady=10)
@@ -350,6 +375,23 @@ def open_network_settings(config_file):
             # Exception messages from external tools/credentials are not displayed.
             messagebox.showerror("Настройка не выполнена", type(error).__name__ +
                                  ": проверьте поля, права и файлы сертификата.")
+
+    def save_timeout():
+        nonlocal saved_timeout
+        seconds = int(timeout_value.get().strip())
+        if not messagebox.askyesno("Тайм-аут", "Сохранить лимит проверки процессов? "
+                "Действует после явного перезапуска Manager; VPN не изменяется."):
+            return
+        save_process_inventory_timeout(config_file, saved_timeout, seconds)
+        saved_timeout = seconds
+        timeout_value.set(str(seconds))
+        status.set("Тайм-аут сохранён (секунды); применяется после явного перезапуска Manager.")
+
+    ttk.Label(frame, text="PowerShell: проверка процессов, с (10–120)").grid(
+        row=14, column=0, sticky="w", pady=4)
+    ttk.Entry(frame, textvariable=timeout_value).grid(row=14, column=1, sticky="ew", padx=8)
+    ttk.Button(frame, text="Сохранить тайм-аут", command=lambda: guarded(save_timeout)).grid(
+        row=14, column=2)
 
     def generate():
         ip = _vpn_ip(fields["bind_host"].get().strip())
@@ -462,6 +504,9 @@ def load_config(file: Path):
     raw = _read_json(file)
     if not isinstance(raw, dict):
         raise ValueError("Invalid config")
+    from windows_process import DEFAULT_PROCESS_INVENTORY_TIMEOUT_SECONDS, validate_process_inventory_timeout
+    validate_process_inventory_timeout(raw.get("process_inventory_timeout_seconds",
+                                               DEFAULT_PROCESS_INVENTORY_TIMEOUT_SECONDS))
     _text_id(raw.get("manager_id"), "manager_id")
     name = raw.get("display_name")
     if not isinstance(name, str) or not 1 <= len(name.strip()) <= 80:

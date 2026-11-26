@@ -2,18 +2,30 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {spawn} from 'node:child_process';
 export const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+// QA-only: independent from Manager/Client runtime networking settings.
+export async function waitForDevToolsPort(child,folder){
+  const started=performance.now();
+  const seconds=Number(globalThis.process.env.UL_QA_CHROME_STARTUP_SECONDS ?? '30');
+  if(!Number.isInteger(seconds)||seconds<10||seconds>120)throw Error('Invalid Chrome startup seconds (10–120)');
+  let spawnError;
+  child.once('error',error=>{spawnError=error;});
+  while(performance.now()-started<seconds*1000){
+    if(spawnError)throw Error('Chrome spawn failed: '+(spawnError.code||spawnError.name));
+    if(child.exitCode!==null||child.signalCode!==null)throw Error('Chrome exited before DevTools: '+(child.exitCode??child.signalCode));
+    let port;
+    try{port=Number((await fs.readFile(path.join(folder,'DevToolsActivePort'),'utf8')).split('\n')[0]);}catch{}
+    if(Number.isInteger(port)&&port>0&&port<=65535)return port;
+    await delay(100);
+  }
+  throw Error('Chrome DevTools startup deadline: '+seconds+'s; elapsed '+Math.round(performance.now()-started)+'ms; exit='+child.exitCode);
+}
 export async function chromeSession(url,folder){
   const process=spawn('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',[
     '--headless=new','--disable-gpu','--no-first-run','--no-default-browser-check','--disable-background-networking',
     `--user-data-dir=${folder}`,'--remote-debugging-port=0',url],{windowsHide:true,stdio:'ignore'});
   let ws;
   try{
-    let port;
-    for(let i=0;i<150;i++){
-      try{port=Number((await fs.readFile(path.join(folder,'DevToolsActivePort'),'utf8')).split('\n')[0]);break;}catch{}
-      await delay(100);
-    }
-    if(!port)throw Error('Chrome startup deadline');
+    const port=await waitForDevToolsPort(process,folder);
     const tabs=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json();
     ws=new WebSocket(tabs.find(t=>t.type==='page').webSocketDebuggerUrl);
     await new Promise((resolve,reject)=>{ws.onopen=resolve;ws.onerror=reject;});

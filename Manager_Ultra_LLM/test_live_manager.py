@@ -264,6 +264,36 @@ class LiveSecurityTests(unittest.TestCase):
                 tls.assert_called_once_with(vpn,config)
                 self.assertEqual(len(list(root.glob("manager.pre-vpn-*.json"))),2)
 
+    def test_process_inventory_timeout_save_is_independent(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            config=root/"manager.json"
+            primary={"manager_id":"server-test","display_name":"Server",
+                "bind_host":"127.0.0.1","listen_port":18443,
+                "cert_file":str(root/"primary.cert"),"key_file":str(root/"primary.key"),
+                "colibri_root":str(root/"engine"),"models_root":str(root/"models"),
+                "slots":[{"slot_id":"slot1","api_port":8000}],
+                "allowed_client_ips":["127.0.0.1"],"clients":[{"client_id":"local",
+                    "sha256":"a"*64,"allowed_slots":["slot1"],"control_models":True}]}
+            config.write_text(json.dumps(primary),encoding="utf-8")
+            original=config.read_bytes()
+            with patch("pairing_server._require_private_acl"):
+                live.save_process_inventory_timeout(config,None,60)
+                self.assertEqual(live.load_config(config),{**primary,"process_inventory_timeout_seconds":60})
+                backup=list(root.glob("manager.pre-timeout-*.json"))
+                self.assertEqual(len(backup),1)
+                self.assertEqual(backup[0].read_bytes(),original)
+                before=config.read_bytes()
+                with self.assertRaises(ValueError):
+                    live.save_process_inventory_timeout(config,None,30)
+                with self.assertRaises(ValueError):
+                    live.save_process_inventory_timeout(config,60,4)
+                self.assertEqual(config.read_bytes(),before)
+                self.assertEqual(list(root.glob("manager.pre-timeout-*.json")),backup)
+
     def test_vpn_rejects_wrong_tcp_peer_before_tls(self):
         from unittest.mock import Mock
         server=object.__new__(live.VPNManagerHTTPServer)

@@ -14,6 +14,15 @@ import socket
 import subprocess
 
 
+DEFAULT_PROCESS_INVENTORY_TIMEOUT_SECONDS = 30
+
+
+def validate_process_inventory_timeout(value):
+    if type(value) is not int or not 10 <= value <= 120:
+        raise ValueError("process_inventory_timeout_seconds must be an integer from 10 to 120")
+    return value
+
+
 class WindowsError(RuntimeError):
     pass
 
@@ -69,7 +78,8 @@ class ProcessMemoryCounters(c.Structure):
 
 
 class NativeWindows:
-    def __init__(self):
+    def __init__(self, *, process_inventory_timeout_seconds=DEFAULT_PROCESS_INVENTORY_TIMEOUT_SECONDS):
+        self.process_inventory_timeout_seconds = validate_process_inventory_timeout(process_inventory_timeout_seconds)
         if os.name != "nt":
             raise WindowsError("Windows only")
         self.k = c.WinDLL("kernel32", use_last_error=True)
@@ -349,7 +359,7 @@ class NativeWindows:
                                   "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
         result = subprocess.run([executable, "-NoLogo", "-NoProfile", "-NonInteractive",
                                  "-Command", script], env=env, capture_output=True,
-                                text=True, timeout=4, check=True,
+                                text=True, timeout=self.process_inventory_timeout_seconds, check=True,
                                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         ids = json.loads(result.stdout.strip())
         if type(ids) is not list or any(type(p) is not int or p <= 0 for p in ids):

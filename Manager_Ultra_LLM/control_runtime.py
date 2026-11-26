@@ -36,6 +36,11 @@ def number(value):
 
 class ColibriBackend:
     """Adapter to the existing supervisor, handles, jobs, stop events and watchdog."""
+    def __init__(self, *, process_inventory_timeout_seconds=None):
+        from windows_process import DEFAULT_PROCESS_INVENTORY_TIMEOUT_SECONDS, validate_process_inventory_timeout
+        self.process_inventory_timeout_seconds = validate_process_inventory_timeout(
+            DEFAULT_PROCESS_INVENTORY_TIMEOUT_SECONDS if process_inventory_timeout_seconds is None else process_inventory_timeout_seconds)
+
     def telemetry(self):
         # ModelControl checks configured host before invoking this adapter.
         from windows_process import NativeWindows
@@ -86,7 +91,8 @@ class ColibriBackend:
         if recover and state.get("supervisor_verified") is False:
             try:
                 with configured(spec):
-                    if runner.recover_orphan(runner.NativeWindows(), instance_id):
+                    if runner.recover_orphan(runner.NativeWindows(
+                            process_inventory_timeout_seconds=self.process_inventory_timeout_seconds), instance_id):
                         return {"state":"STOPPED", "released":True, "reason":"orphan_recovered"}
             except Exception:
                 return {"state":"ERROR", "released":False, "reason":"recovery_unverified"}
@@ -110,7 +116,9 @@ class ColibriBackend:
 class ModelControl:
     def __init__(self, config, *, backend=None, dispatch=None):
         self.config = config
-        self.backend = backend or ColibriBackend()
+        from windows_process import DEFAULT_PROCESS_INVENTORY_TIMEOUT_SECONDS
+        self.backend = backend or ColibriBackend(process_inventory_timeout_seconds=config.get(
+            "process_inventory_timeout_seconds", DEFAULT_PROCESS_INVENTORY_TIMEOUT_SECONDS))
         self.dispatch = dispatch or self._dispatch
         self.db_path = None
         self._memory_lock = threading.Lock()
