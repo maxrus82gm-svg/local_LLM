@@ -57,6 +57,16 @@ class LiveClientValidation(unittest.TestCase):
         self.assertEqual(response["error"], "connection_or_config_error")
         self.assertIsNone(response["data"])
 
+    def test_connection_diagnostic_preserves_error_categories(self):
+        import ssl
+        from urllib.error import URLError
+        self.assertEqual(live_client.connection_diagnostic(
+            URLError(ssl.SSLCertVerificationError("wrong address"))),"tls_certificate")
+        self.assertEqual(live_client.connection_diagnostic(
+            URLError(ConnectionRefusedError())),"tcp_refused")
+        self.assertEqual(live_client.connection_diagnostic(TimeoutError()),"network_timeout")
+        self.assertEqual(live_client.connection_diagnostic(FileNotFoundError()),"profile_or_response")
+
 
 if __name__ == "__main__":
     unittest.main()
