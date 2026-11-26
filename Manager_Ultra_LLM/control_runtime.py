@@ -231,7 +231,13 @@ class ModelControl:
             clients=[self.registry.principal(db,p) for p in current["clients"]]
         return {**current,"slots":slots,"clients":clients}
 
-    def _gate(self,key,mode,telemetry,rows,context_tokens=None,cuda_profile=None,*,placement_check=False):
+    @staticmethod
+    def gpu_restart_active(db):
+        return db.execute("""SELECT 1 FROM restart_jobs WHERE mode='cuda'
+            AND stage IN ('STOPPING','WAITING_RELEASE','CHECKING','STARTING') LIMIT 1""").fetchone() is not None
+
+    def _gate(self,key,mode,telemetry,rows,context_tokens=None,cuda_profile=None,*,placement_check=False,
+              pinned_gpu_ids=None,defer_gpu_reserve=False):
         review=self.config.get("control",{}).get("reviews",{}).get(key,{}).get(mode,{})
         if review.get("evidence") not in ("measured","bounded_owner_trial") or not review.get("source_hashes"):
             raise ControlError("runtime_review_required")
@@ -256,7 +262,8 @@ class ModelControl:
                 if explicit:
                     placement=resolve_placement(cuda_profile,telemetry.get("gpu_devices"),
                         [i for group in active if group for i in group],
-                        legacy_active=any(not group for group in active))
+                        legacy_active=any(not group for group in active), pinned_ids=pinned_gpu_ids,
+                        defer_reserve=defer_gpu_reserve)
                     telemetry={**telemetry,"vram_free_gib":placement["free_gib"],
                         "vram_total_gib":placement["total_gib"]}
                     # Exclusive managed groups do not share VRAM reservations.
@@ -267,6 +274,9 @@ class ModelControl:
             if placement is not None:
                 result["policy"]["gpu_placement"]=placement["gpu_ids"]
                 result["forecast"]["gpu_placement"]=placement
+                if defer_gpu_reserve:
+                    result["warnings"].append("gpu_restart_memory_recheck")
+                    result["requires_ack"]=True
                 if "gpu_weight_cap_gib" in placement:
                     result["policy"]["gpu_weight_cap_gib"]=placement["gpu_weight_cap_gib"]
                     result["warnings"].append("gpu_reserve_estimate_only")
@@ -468,6 +478,7 @@ class ModelControl:
         definitions=self.config["slots"]
         instances = []
         all_rows = []
+        restarting_cuda = False
         if self.db_path:
             with self.db() as db:
                 db.execute("BEGIN IMMEDIATE")
@@ -477,6 +488,7 @@ class ModelControl:
                     if slot["slot_id"] in principal["allowed_slots"] and not slot["protected"] and slot["model_key"]:
                         slot["cuda_profile"]=self.registry.cuda_profile(db,slot["slot_id"],slot["model_key"])
                 all_rows = self._rows(db)
+                restarting_cuda = self.gpu_restart_active(db)
                 visible = [r for r in all_rows if not r["released"]]
                 active_slots = {r["slot_id"] for r in visible}
                 latest = {}
@@ -510,6 +522,8 @@ class ModelControl:
                     if telemetry is None:
                         telemetry = self.backend.telemetry()
                     t = telemetry
+                    if mode=="cuda" and restarting_cuda:
+                        raise ControlError("gpu_restart_in_progress")
                     assessment=self._gate(key, mode, t, all_rows)
                     if not any(not s.get("protected") and s["slot_id"] in principal["allowed_slots"]
                                and s["api_port"] != self.config.get("listen_port",8443)
@@ -545,7 +559,8 @@ class ModelControl:
                         if isinstance(devices,list) else None,
                        "legacy_active":any(not group for group in groups),
                        "explicit_active":bool(reserved),
-                       "exclusive_managed_groups":True, "per_device_reserves":True}
+                       "exclusive_managed_groups":True, "per_device_reserves":True,
+                       "gpu_restart_supported":True, "gpu_restart_in_progress":restarting_cuda}
         return {"manager_id": self.config["manager_id"], "models": models, "instances": instances, "context_override":True,
                 "cuda_profiles":self.db_path is not None, "cuda_defaults":DEFAULT_PROFILE,
                 "gpu_selection":selection,
@@ -623,6 +638,8 @@ class ModelControl:
             if op in ("start", "check"):
                 key, mode = payload["model_key"], payload["mode"]
                 self._model_allowed(principal,key,mode)
+                if mode=="cuda" and self.gpu_restart_active(db):
+                    raise ControlError("gpu_restart_in_progress")
                 try:
                     telemetry = self.backend.telemetry()
                 except Exception:
@@ -690,6 +707,10 @@ class ModelControl:
                 row = next((r for r in rows if r["instance_id"] == payload["instance_id"]), None)
                 if not row or row["owner"] != owner or row["slot_id"] not in principal["allowed_slots"]:
                     raise ControlError("instance_not_authorized", 403)
+                if db.execute("""SELECT 1 FROM restart_jobs WHERE (old_instance=? OR new_instance=?)
+                    AND stage IN ('STOPPING','WAITING_RELEASE','CHECKING','STARTING')""",
+                    (row["instance_id"],row["instance_id"])).fetchone():
+                    raise ControlError("restart_in_progress")
                 if row["released"] or row["state"] not in ("READY", "STARTING"):
                     raise ControlError("instance_not_stoppable")
                 spec = RunnerSpec(**json.loads(row["spec"]))

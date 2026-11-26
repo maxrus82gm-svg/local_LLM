@@ -102,6 +102,9 @@ function controlReason(reason) {
     gpu_legacy_assignment_unknown:"Сначала остановите CUDA-экземпляры с прежним назначением GPU 0",
     gpu_selection_required:"Сохраните Auto, Full или ручную группу перед запуском рядом с новой GPU-группой",
     gpu_restart_requires_stop_start:"Для GPU-группы требуется явный Стоп → Старт; автоматический перезапуск пока недоступен",
+    gpu_restart_in_progress:"Manager завершает перезапуск CUDA: новый запуск CUDA временно заблокирован",
+    restart_in_progress:"Экземпляр участвует в перезапуске; отдельный Стоп недоступен",
+    gpu_restart_memory_recheck:"После подтверждённой остановки Manager повторно проверит выбранные GPU и свободную память; при нехватке памяти модель останется остановленной",
     context_capacity_exceeded:"Контекст превышает заявленную ёмкость модели",
     context_capacity_unknown:"Максимальный контекст модели не подтверждён",
     context_override_unavailable:"Обновите Manager для управления контекстом из Client",
@@ -882,8 +885,9 @@ function restartSelection(chat) {
     i.model_id === chat.model_id && i.state === "READY" && i.released === false &&
     i.can_stop === true && ["cpu","cuda"].includes(i.mode));
   if (!control?.control_models || !slot || !Number.isInteger(slot.revision) || !instance) return null;
-  if(instance.mode==="cuda" && (slot.cuda_profile?.gpu_mode || instance.gpu_placement?.length ||
-      control.gpu_selection?.explicit_active))return null;
+  if(instance.mode==="cuda" && (control.gpu_selection?.gpu_restart_in_progress ||
+      (control.gpu_selection?.gpu_restart_supported!==true &&
+       (slot.cuda_profile?.gpu_mode || instance.gpu_placement?.length || control.gpu_selection?.explicit_active))))return null;
   return {instance_id:instance.instance_id, expected_revision:slot.revision};
 }
 async function restartState(job) {
@@ -917,8 +921,10 @@ async function restartSelectedChat() {
       job.stage="RISK_CONFIRMATION_REQUIRED";
       renderChatControls();
       const reasons=Array.isArray(result.warnings) ? result.warnings.map(controlReason).join(", ") : "";
+      const placement=result.forecast?.gpu_placement;
+      const names=placement?.gpu_ids?.map(id=>{const d=gpuDevices(chatSnapshot?.managers?.find(m=>m.manager_id===job.managerId)?.data?.control?.gpu_selection)?.find(x=>x.uuid===id);return d?.name||id;});
       if(!confirm("Ресурсный прогноз требует отдельного подтверждения. "+
-          (reasons ? reasons+". " : "")+"Продолжить?")) return;
+          (reasons ? reasons+". " : "")+(names?.length?"Группа: "+names.join(" + ")+". ":"")+"Продолжить?")) return;
       try { result=await pairingPost("/api/chat/restart",{...body,risk_ack:true,risk_token:result.risk_token}); }
       catch(error) {
         try { result=await restartState(job); }
@@ -1274,7 +1280,7 @@ function renderChatControls() {
   renderContextSize(chat,target,!chat || Boolean(active) || restarting || chatMutation || Boolean(chat?.legacy));
   const restartButton=byId("chat-restart");
   const cudaRestart=cudaBinding(chat,target);
-  const gpuStopStart=Boolean(cudaRestart&&(cudaRestart.slot.cuda_profile?.gpu_mode||
+  const gpuStopStart=Boolean(cudaRestart&&cudaRestart.control.gpu_selection?.gpu_restart_supported!==true&&(cudaRestart.slot.cuda_profile?.gpu_mode||
     cudaRestart.instance.gpu_placement?.length||cudaRestart.control.gpu_selection?.explicit_active));
   restartButton.disabled = !owns || !chatReady(target) || !restartOption ||
     Boolean(active) || Boolean(chatRestartJob) || chatMutation || managerId!==chat?.manager_id;
@@ -1627,7 +1633,7 @@ function renderCudaPanel(chat,target) {
   put("cuda-slot-label",slot.slot_id);
   const applied=instance.cuda_profile;
   let message=slot.cuda_profile ? (!instance.released&&!sameLaunchProfile(slot.cuda_profile,applied) ?
-    "Сохранено: для бюджета/Chain/блока/группы GPU нужен Стоп → Старт LLM." :
+    (control.gpu_selection?.gpu_restart_supported===true?"Сохранено: применить бюджет/Chain/блок/группу GPU через Перезапуск или Стоп → Старт LLM.":"Сохранено: для бюджета/Chain/блока/группы GPU нужен Стоп → Старт LLM.") :
     (instance.released?"Сохранено для следующего запуска.":"Профиль запуска применён.")) :
     "Профиль по умолчанию для следующего запуска. Действующий экземпляр не изменён.";
   if(applied&&!instance.released)message+=" Сейчас: "+(applied.budget_gib??"Auto")+" ГиБ · Chain "+(applied.chain?"вкл.":"выкл.") +

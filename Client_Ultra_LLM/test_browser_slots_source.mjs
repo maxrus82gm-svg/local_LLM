@@ -333,7 +333,8 @@ try{
   assert.equal(savedProfile.slots.find(s=>s.slot_id==='slot4').cuda_profile.gpu_mode,'full');
   assert.deepEqual(savedProfile.slots.find(s=>s.slot_id==='slot4').cuda_profile.gpu_ids,[]);
   assert.equal(await evaluate('byId("cuda-gpu-mode").value'),"full");
-  assert.equal(await evaluate('byId("chat-restart").disabled'),true);
+  assert.equal(savedProfile.gpu_selection.gpu_restart_supported,true);
+  await until('!byId("chat-restart").disabled');
   assert.deepEqual(savedProfile.slots.find(s=>s.slot_id==='slot5').cuda_profile,{budget_gib:null,chain:false,rows:null,target_gib:null});
   assert.equal(savedProfile.instances.find(i=>i.slot_id==='slot4'&&!i.released).instance_id,beforeProfile.instance_id);
   assert.deepEqual(beforeProfile.cuda_profile,{budget_gib:null,chain:false,rows:null,target_gib:7.1});

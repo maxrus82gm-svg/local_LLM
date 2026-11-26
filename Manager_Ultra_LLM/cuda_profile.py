@@ -88,7 +88,7 @@ def eligible_devices(devices):
     return result
 
 
-def resolve_placement(profile, devices, occupied, *, legacy_active=False):
+def resolve_placement(profile, devices, occupied, *, legacy_active=False, pinned_ids=None, defer_reserve=False):
     """Exclusive managed-device selection. No driver allocation or process IO.
     
     A legacy unmasked process has no verified GPU identity: do not guess.
@@ -110,6 +110,19 @@ def resolve_placement(profile, devices, occupied, *, legacy_active=False):
             raise ValueError("gpu_selection_unavailable")
         if any(profile["gpu_reserves_gib"][i] >= eligible[i]["total_gib"] for i in allowed):
             raise ValueError("gpu_reserve_invalid")
+    if pinned_ids is not None:
+        ids = validate_gpu_ids(pinned_ids)
+        if any(i not in eligible for i in ids):
+            raise ValueError("gpu_selection_unavailable")
+        if any(i in occupied for i in ids):
+            raise ValueError("gpu_selection_reserved")
+        if mode == "auto" and len(ids) != 1:
+            raise ValueError("gpu_selection_unavailable")
+        if restricted and any(i not in allowed for i in ids):
+            raise ValueError("gpu_selection_unavailable")
+        if (mode == "manual" or restricted and mode == "full") and ids != profile["gpu_ids"]:
+            raise ValueError("gpu_selection_unavailable")
+    elif restricted:
         if mode in ("full", "manual"):
             if any(i in occupied for i in allowed):
                 raise ValueError("gpu_selection_reserved")
@@ -140,9 +153,16 @@ def resolve_placement(profile, devices, occupied, *, legacy_active=False):
               "weight_capacity_hint_gib": headroom,
               "budget_exceeds_hint": profile["budget_gib"] is not None and profile["budget_gib"] > headroom}
     if restricted:
-        result.update(reserve_plan(profile, eligible, ids))
-        result["budget_exceeds_hint"] = (profile["budget_gib"] is not None and
-                                         profile["budget_gib"] > result["gpu_weight_cap_gib"])
+        if defer_reserve:
+            # A running instance still owns its VRAM. Never fabricate memory
+            # released by that instance or approve a launch based on it.
+            if any(eligible[i]["total_gib"] - profile["gpu_reserves_gib"][i] - HEADROOM_GIB < 0.1 for i in ids):
+                raise ValueError("gpu_reserve_insufficient")
+            result["gpu_reserve_enforcement"] = "recheck_after_confirmed_release"
+        else:
+            result.update(reserve_plan(profile, eligible, ids))
+            result["budget_exceeds_hint"] = (profile["budget_gib"] is not None and
+                                             profile["budget_gib"] > result["gpu_weight_cap_gib"])
     return result
 
 

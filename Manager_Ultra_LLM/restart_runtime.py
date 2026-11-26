@@ -114,7 +114,8 @@ def _worker(controller, owner, request_id, old_spec, new_spec, old_id, new_id, r
             rows = [r for r in controller._rows(db) if r["instance_id"] != old_id]
             assessment = controller._gate(new_spec.model_key, new_spec.backend, telemetry, rows,
                 new_spec.review.get("launch", {}).get("context_tokens"),
-                new_spec.review.get("launch", {}).get("cuda_profile") if new_spec.backend == "cuda" else None)
+                new_spec.review.get("launch", {}).get("cuda_profile") if new_spec.backend == "cuda" else None,
+                placement_check=new_spec.backend=="cuda", pinned_gpu_ids=new_spec.resources.get("gpu_placement"))
             # Free RAM inevitably changes after the old process exits. Keep
             # the accepted admission threshold, but reject changed launch
             # policy and a post-stop memory drop beyond that threshold.
@@ -122,7 +123,7 @@ def _worker(controller, owner, request_id, old_spec, new_spec, old_id, new_id, r
             after = assessment["policy"]
             if any(after.get(k) != before.get(k) for k in
                    ("ram_gib","vram_gib","job_limit_gib","ram_warning_gib",
-                    "context_tokens","cuda_profile")):
+                    "context_tokens","cuda_profile","gpu_placement")):
                 raise ControlError("restart_resources_changed")
             if telemetry.get("free_gib", 0) < before["min_free_at_start_gib"]:
                 raise ControlError("restart_resources_changed")
@@ -159,7 +160,9 @@ def _worker(controller, owner, request_id, old_spec, new_spec, old_id, new_id, r
                           "restart_start_timeout", "restart_identity_changed", "restart_port_not_free",
                           "restart_resources_changed", "slot_in_use", "runtime_review_required",
                           "resource_telemetry_unknown", "context_capacity_exceeded", "context_capacity_unknown",
-                          "runtime_or_model_changed"}:
+                          "runtime_or_model_changed", "gpu_selection_unavailable", "gpu_selection_reserved",
+                          "gpu_inventory_unknown", "gpu_reserve_invalid", "gpu_reserve_insufficient",
+                          "gpu_legacy_assignment_unknown", "gpu_selection_required"}:
             reason = "restart_preflight_failed" if phase == "check" else "runner_action_unconfirmed"
         try:
             if released_confirmed:
@@ -274,18 +277,18 @@ def request(controller, principal, payload):
             saved = controller.registry.cuda_profile(db, slot_id, key) if mode == "cuda" else None
             if mode == "cuda" and saved is None and old_spec.review.get("launch", {}).get("cuda_profile") is not None:
                 saved = old_spec.review["launch"]["cuda_profile"]
-            # Explicit placement must be re-admitted atomically after release.
-            # Until the restart worker supports GPU holds, use explicit Stop/Start.
-            if mode=="cuda" and ((saved is not None and "gpu_mode" in saved)
-                    or old_spec.resources.get("gpu_placement") or any(
-                        not r["released"] and r["mode"]=="cuda" and json.loads(r["spec"]).get("resources",{}).get("gpu_placement")
-                        for r in controller._rows(db))):
-                raise ControlError("gpu_restart_requires_stop_start")
+            # Global CUDA launch/restart admission is serialized for the short
+            # lifetime of this job. Other existing instances remain running.
+            # This protects the newly selected group until its new instance
+            # row has been atomically reserved, including legacy-to-group moves.
+            if mode=="cuda" and controller.gpu_restart_active(db):
+                raise ControlError("gpu_restart_in_progress")
             context = payload.get("context_tokens",
                                   old_spec.review.get("launch", {}).get("context_tokens"))
             telemetry = controller.backend.telemetry()
             rows = [r for r in controller._rows(db) if r["instance_id"] != old_id]
-            assessment = controller._gate(key, mode, telemetry, rows, context, saved)
+            assessment = controller._gate(key, mode, telemetry, rows, context, saved,
+                placement_check=mode=="cuda", defer_gpu_reserve=mode=="cuda")
             _validate_context_before_stop(controller, key, context)
             if assessment["requires_ack"]:
                 if not assessment["risk_ack_allowed"]:
