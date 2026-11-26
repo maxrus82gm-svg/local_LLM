@@ -43,6 +43,54 @@ class AdmissionTests(unittest.TestCase):
     def operation(self,op,**fields):
         return self.core.handle(self.alice,{"op":op,"request_id":uuid.uuid4().hex,**fields})
 
+    def test_explicit_gpu_groups_bound_to_admission_and_runner(self):
+        from test_multi_gpu import A,B,inventory,profile
+        self.config["control"]["resources"]={"allow_risk_ack":True}
+        original=self.backend.telemetry
+        self.backend.telemetry=lambda:{**original(),"gpu_devices":inventory()}
+        for slot,ids in (("slot2",[A]),("slot3",[B])):
+            selection=self.operation("select",slot_id=slot,model_key="kat",mode="cuda")
+            self.operation("cuda_settings",slot_id=slot,model_key="kat",
+                expected_revision=selection["revision"],cuda_profile=profile("manual",ids,5))
+        first=self.operation("check",slot_id="slot2",model_key="kat",mode="cuda")
+        self.assertEqual(first["forecast"]["gpu_placement"]["gpu_ids"],[A])
+        started=self.start(mode="cuda",slot_id="slot2",risk_ack=True,risk_token=first["risk_token"])
+        second=self.operation("check",slot_id="slot3",model_key="kat",mode="cuda")
+        other=self.start(mode="cuda",slot_id="slot3",risk_ack=True,risk_token=second["risk_token"])
+        self.assertEqual(started["gpu_placement"],[A])
+        self.assertEqual(other["gpu_placement"],[B])
+        with self.core.db() as db:
+            spec=RunnerSpec(**json.loads(next(r for r in self.core._rows(db) if r["slot_id"]=="slot3")["spec"]))
+        with configured(spec):
+            cmd,env=command_and_environment({"paths":paths(),"launcher":"launcher","model":"model"})
+        self.assertEqual(cmd[cmd.index("--gpu")+1],"0")
+        self.assertEqual(env["CUDA_VISIBLE_DEVICES"],B)
+        self.assertEqual(cmd[cmd.index("--vram")+1],"5.0")
+        self.settle()
+        self.operation("stop",instance_id=started["instance_id"]);self.settle()
+        self.assertEqual(next(i for i in self.core.catalog(self.alice)["instances"] if i["instance_id"]==other["instance_id"])["state"],"READY")
+
+    def test_full_gpu_group_does_not_admit_overlapping_managed_launch(self):
+        from test_multi_gpu import A,B,inventory,profile
+        self.config["control"]["resources"]={"allow_risk_ack":True}
+        original=self.backend.telemetry
+        self.backend.telemetry=lambda:{**original(),"gpu_devices":inventory()}
+        for slot,p in (("slot2",profile("full")),("slot3",profile("manual",[B]))):
+            selection=self.operation("select",slot_id=slot,model_key="kat",mode="cuda")
+            self.operation("cuda_settings",slot_id=slot,model_key="kat",
+                expected_revision=selection["revision"],cuda_profile=p)
+        checked=self.operation("check",slot_id="slot2",model_key="kat",mode="cuda")
+        started=self.start(mode="cuda",slot_id="slot2",risk_ack=True,risk_token=checked["risk_token"])
+        self.assertEqual(started["gpu_placement"],[A,B])
+        with self.assertRaisesRegex(ControlError,"gpu_selection_reserved"):
+            self.operation("check",slot_id="slot3",model_key="kat",mode="cuda")
+        with self.core.db() as db:
+            spec=RunnerSpec(**json.loads(self.core._rows(db)[0]["spec"]))
+        with configured(spec):
+            cmd,env=command_and_environment({"paths":paths(),"launcher":"launcher","model":"model"})
+        self.assertEqual(cmd[cmd.index("--gpu")+1],"0,1")
+        self.assertEqual(env["CUDA_VISIBLE_DEVICES"],A+","+B)
+
     def test_context_override_isolated_bound_to_risk_and_forwarded_to_cli(self):
         self.config["control"]["resources"]={"allow_risk_ack":True}
         review=self.config["control"]["reviews"]["kat"]["cuda"]

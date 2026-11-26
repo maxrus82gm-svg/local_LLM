@@ -18,7 +18,7 @@ import uuid
 
 from resource_catalog import initial_catalogue
 from resource_policy import assess
-from cuda_profile import normalize, DEFAULT_PROFILE
+from cuda_profile import normalize, DEFAULT_PROFILE, resolve_placement
 from slot_registry import SlotRegistry
 from colibri2_runner import RunnerSpec, configured
 import colibri2_runner as runner
@@ -45,7 +45,8 @@ class ColibriBackend:
         return {**native.memory(), "ports": [r["port"] for r in native.listeners()],
                 "sampled": time.monotonic(), "verified": True,
                 "vram_free_gib":gpu["free_gib"] if gpu else None,
-                "vram_total_gib":gpu["total_gib"] if gpu else None}
+                "vram_total_gib":gpu["total_gib"] if gpu else None,
+                "gpu_devices":gpu.get("devices") if gpu else None}
 
     def preflight(self, spec):
         with configured(spec):
@@ -222,7 +223,7 @@ class ModelControl:
             clients=[self.registry.principal(db,p) for p in current["clients"]]
         return {**current,"slots":slots,"clients":clients}
 
-    def _gate(self,key,mode,telemetry,rows,context_tokens=None,cuda_profile=None):
+    def _gate(self,key,mode,telemetry,rows,context_tokens=None,cuda_profile=None,*,placement_check=False):
         review=self.config.get("control",{}).get("reviews",{}).get(key,{}).get(mode,{})
         if review.get("evidence") not in ("measured","bounded_owner_trial") or not review.get("source_hashes"):
             raise ControlError("runtime_review_required")
@@ -239,7 +240,27 @@ class ModelControl:
         if cuda_profile is not None or (context_tokens is not None and context_tokens != review.get("launch",{}).get("context_tokens")):
             estimated={**review,"ram_gib":None,"vram_gib":None}
         try:
+            placement=None
+            if mode=="cuda" and placement_check:
+                active=[json.loads(r["spec"]).get("resources",{}).get("gpu_placement")
+                        for r in rows if r["mode"]=="cuda" and not r["released"]]
+                explicit=cuda_profile is not None and "gpu_mode" in cuda_profile
+                if explicit:
+                    placement=resolve_placement(cuda_profile,telemetry.get("gpu_devices"),
+                        [i for group in active if group for i in group],
+                        legacy_active=any(not group for group in active))
+                    telemetry={**telemetry,"vram_free_gib":placement["free_gib"],
+                        "vram_total_gib":placement["total_gib"]}
+                    # Exclusive managed groups do not share VRAM reservations.
+                    reservations=[{**r,"vram_gib":0} for r in reservations]
+                elif any(active):
+                    raise ValueError("gpu_selection_required")
             result=assess(self.config,estimated,mode,telemetry,reservations)
+            if placement is not None:
+                result["policy"]["gpu_placement"]=placement["gpu_ids"]
+                result["forecast"]["gpu_placement"]=placement
+                if placement["budget_exceeds_hint"] and "low_vram_forecast" not in result["warnings"]:
+                    result["warnings"].append("low_vram_forecast")
             if context_tokens is not None:
                 result["policy"]["context_tokens"]=context_tokens
                 result["forecast"]["context_tokens"]=context_tokens
@@ -409,7 +430,9 @@ class ModelControl:
         spec=RunnerSpec(**json.loads(row["spec"]))
         return {k:row[k] for k in ("instance_id", "slot_id", "model_key", "mode", "state", "reason")} | {
             "model_id": spec.api_id,
-            **({"cuda_profile":spec.review.get("launch",{}).get("cuda_profile")} if row["mode"]=="cuda" else {}),
+            **({"cuda_profile":spec.review.get("launch",{}).get("cuda_profile"),
+                **({"gpu_placement":spec.resources["gpu_placement"]} if spec.resources.get("gpu_placement") else {})}
+               if row["mode"]=="cuda" else {}),
             "released": bool(row["released"]),
             "can_stop": row["owner"] == principal["client_id"] and not row["released"]
                         and row["state"] in ("STARTING", "READY") and principal.get("control_models") is True}
@@ -594,7 +617,7 @@ class ModelControl:
                 # Unselected/automatic legacy calls retain their reviewed contract.
                 if mode=="cuda" and cuda_profile is None and requested is not None and slot["model_key"]==key:
                     cuda_profile=dict(DEFAULT_PROFILE)
-                assessment=self._gate(key,mode,telemetry,rows,context_tokens,cuda_profile)
+                assessment=self._gate(key,mode,telemetry,rows,context_tokens,cuda_profile,placement_check=True)
                 if cuda_profile is not None:
                     spec=replace(spec,review={**spec.review,"launch":{**spec.review.get("launch",{}),"cuda_profile":cuda_profile}})
                 if context_tokens is not None:
@@ -609,7 +632,8 @@ class ModelControl:
                 except Exception as error:
                     reason = str(error)
                     if reason not in ("runtime_review_required", "runtime_or_model_changed",
-                                      "cuda_runtime_or_measurement_unverified", "context_capacity_exceeded", "context_capacity_unknown"):
+                                      "cuda_runtime_or_measurement_unverified", "context_capacity_exceeded", "context_capacity_unknown",
+                                      "gpu_selection_unavailable", "gpu_inventory_unknown", "invalid_gpu_ids"):
                         reason = "runtime_preflight_unverified"
                     raise ControlError(reason) from None
                 db.execute("INSERT OR REPLACE INTO model_checks VALUES(?,?,?,?)",(key,mode,json.dumps(self._spec(slot,key,mode).review,sort_keys=True),time.time()))
