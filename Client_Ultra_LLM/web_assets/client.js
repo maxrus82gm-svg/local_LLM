@@ -1480,7 +1480,7 @@ function gpuPicker(host,prefix,onChange) {
           reserve.value=Number.isFinite(reserves[d.uuid]??2)?String(reserves[d.uuid]??2):"";
           reserve.dataset.gpuReserve=d.uuid;reserve.disabled=!mayEdit||selection?.per_device_reserves!==true;
           const reserveLabel=node("label","gpu-mode-label","Резерв свободной VRAM, ГиБ");reserveLabel.append(reserve);row.append(reserveLabel);
-          reserve.addEventListener("input",()=>{reserves[d.uuid]=reserve.value===""?NaN:reserve.valueAsNumber;onChange();});
+          reserve.addEventListener("input",()=>{reserves[d.uuid]=reserve.value===""?NaN:reserve.valueAsNumber;draw();onChange();});
         }
         const info=node("small","gpu-device-detail");info.dataset.gpuDetail=d.uuid;row.append(info);
         cards.append(row);

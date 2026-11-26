@@ -349,16 +349,26 @@ try{
     const holder=document.createElement("div"),picker=gpuPicker(holder,"qa-reserve",()=>{});
     const devices=[{uuid:"GPU-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",name:"A",compute_capability:"8.9",index:0,total_gib:16,free_gib:15,used_gib:1},
                    {uuid:"GPU-bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",name:"B",compute_capability:"8.6",index:1,total_gib:8,free_gib:7,used_gib:1}];
-    picker.update({gpu_mode:"full",gpu_ids:[]},{devices,per_device_reserves:true},true);
-    holder.querySelector("#qa-reserve-gpu-reserve-enabled").click();
-    const input=holder.querySelector("[data-gpu-reserve]");
-    input.value="3";input.dispatchEvent(new Event("input"));
-    const checks=holder.querySelectorAll("[data-gpu-id]");
-    checks[1].click();
-    const p=picker.current();
-    return {count:p.gpu_ids.length,reserve:p.gpu_reserves_gib[p.gpu_ids[0]],mode:p.gpu_mode,preview:gpuPreview(p,{devices}).common_weight_cap_gib};
+    // Real checkbox activation dispatches input/change only in a connected DOM.
+    // Keep the production listeners intact and exercise actual .click().
+    document.body.append(holder);
+    try {
+      picker.update({gpu_mode:"full",gpu_ids:[]},{devices,per_device_reserves:true},true);
+      const toggle=holder.querySelector("#qa-reserve-gpu-reserve-enabled");
+      if(!toggle.isConnected||toggle.disabled)throw Error("Reserve toggle not interactive");
+      toggle.click();
+      const inputs=holder.querySelectorAll("[data-gpu-reserve]");
+      if(inputs.length!==2)throw Error("Expected two reserve inputs after checking toggle");
+      inputs[0].value="3";inputs[0].dispatchEvent(new Event("input"));
+      inputs[1].value="1";inputs[1].dispatchEvent(new Event("input"));
+      const before=picker.current(), both=Object.values(before.gpu_reserves_gib).sort((a,b)=>a-b);
+      const checks=holder.querySelectorAll("[data-gpu-id]");
+      checks[1].click();
+      const p=picker.current();
+      return {both,count:p.gpu_ids.length,reserve:p.gpu_reserves_gib[p.gpu_ids[0]],mode:p.gpu_mode,preview:gpuPreview(p,{devices}).common_weight_cap_gib};
+    } finally {holder.remove();}
   })()`);
-  assert.deepEqual(reserveUi,{count:1,reserve:3,mode:"full",preview:10});
+  assert.deepEqual(reserveUi,{both:[1,3],count:1,reserve:3,mode:"full",preview:10});
   const uiGpuNegative=await evaluate(`(()=>{
     const holder=document.createElement("div"),picker=gpuPicker(holder,"qa-gpu",()=>{});
     const profile={gpu_mode:"manual",gpu_ids:["GPU-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]};
@@ -405,6 +415,30 @@ try{
   await stopGpu('slot4');
   assert.equal((await data()).control.instances.find(i=>i.slot_id==='slot5'&&!i.released).state,'READY');
   await stopGpu('slot5');
+  // The real prelaunch dialog must persist the allowlist and individual
+  // reserves through Client -> authenticated Manager -> SQLite -> UI reload.
+  await until('Boolean(document.querySelector(\'[data-slot-id="slot4"] .slot-cuda-config\'))');
+  await evaluate('document.querySelector(\'[data-slot-id="slot4"] .slot-cuda-config\').click()');
+  await evaluate(`{const mode=byId('pre-cuda-gpu-mode');mode.value="full";mode.dispatchEvent(new Event("change"));byId('pre-cuda-gpu-reserve-enabled').click();}`);
+  await until('byId("pre-cuda-gpu-devices")?.querySelectorAll("[data-gpu-reserve]").length===2');
+  await evaluate(`{const box=byId("pre-cuda-gpu-devices");for(const [id,n] of [[${JSON.stringify(A)},3],[${JSON.stringify(B)},1]]){const input=[...box.querySelectorAll("[data-gpu-reserve]")].find(x=>x.dataset.gpuReserve===id);input.value=String(n);input.dispatchEvent(new Event("input"));}const check=[...box.querySelectorAll("[data-gpu-id]")].find(x=>x.dataset.gpuId===${JSON.stringify(B)});if(check.checked)check.click();}`);
+  await evaluate('byId("pre-cuda-save").click()');
+  await until('!byId("cuda-prelaunch-dialog") && !isRefreshing && !refreshQueued');
+  let reserveState=(await data()).control;
+  let savedReserve=reserveState.slots.find(s=>s.slot_id==='slot4').cuda_profile;
+  assert.equal(savedReserve.gpu_mode,'full');
+  assert.deepEqual(savedReserve.gpu_ids,[A]);
+  assert.deepEqual(savedReserve.gpu_reserves_gib,{[A]:3});
+  await evaluate('document.querySelector(\'[data-slot-id="slot4"] .slot-cuda-config\').click()');
+  assert.equal(await evaluate('byId("pre-cuda-gpu-reserve-enabled").checked'),true);
+  assert.equal(await evaluate(`[...byId("pre-cuda-gpu-devices").querySelectorAll("[data-gpu-reserve]")].find(x=>x.dataset.gpuReserve===${JSON.stringify(A)}).value`),"3");
+  await evaluate('byId("cuda-prelaunch-dialog").close()');
+  await until('!byId("cuda-prelaunch-dialog")');
+  await click('slot4','Старт CUDA');await ready('slot4');
+  reserveState=(await data()).control;
+  assert.deepEqual(reserveState.instances.find(i=>i.slot_id==='slot4'&&!i.released).gpu_placement,[A]);
+  await stopGpu('slot4');
+  mark('per_gpu_reserve_ui_roundtrip');
   mark('multi_gpu_ui_roundtrip');
   assert.deepEqual(browser.errors,[]);
   await evaluate('refresh(true)');
@@ -419,7 +453,7 @@ try{
     unique_instance_ids:true,ipv6_listener_skipped:true,concurrent_chats_isolated:true,
     stop_one_preserves_other:true,controller_and_browser_reload:true,history_preserved:true,
     two_ui_chats_bound_and_persisted:true,per_message_metrics_visible:true,
-    context_override_end_to_end:16384,risk_cancel_and_confirm:true,multi_gpu_ui_roundtrip:true,status_faults:['null','partial','503','delay','disconnect','bounded_503_burst'],
+    context_override_end_to_end:16384,risk_cancel_and_confirm:true,multi_gpu_ui_roundtrip:true,per_gpu_reserve_ui_roundtrip:true,status_faults:['null','partial','503','delay','disconnect','bounded_503_burst'],
     status_samples:statusTrace.length,status_classes:[...new Set(statusTrace.map(s=>s.kind+':'+s.http))],
     phase_trace:phaseTrace,bounded_failure_ms:boundedFailureMs,status_trace:statusTrace,
     console_errors:browser.errors},null,2));
