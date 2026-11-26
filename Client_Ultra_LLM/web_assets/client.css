@@ -299,3 +299,17 @@ dialog{color:#ebf1fc;background:transparent;border:0;max-width:min(650px,calc(10
 #chat-view .inspector-reset-layout{padding:5px;flex:none}
 #chat-view .chat-inspector button:focus-visible{outline:1px solid #8c9ebb}
 #chat-view .chat-inspector .chat-cuda-panel,#chat-view .chat-inspector .chat-inspector-settings{height:280px}
+
+/* Multi-GPU settings, scoped to both CUDA editors. */
+.gpu-picker{display:grid;gap:6px;margin:6px 0 10px;min-width:0}
+.gpu-mode-label{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;font-size:12px}
+.gpu-mode-label select{min-width:110px;max-width:100%}
+.gpu-device-list{display:grid;gap:5px;max-height:180px;overflow:auto;scrollbar-width:thin}
+.gpu-device-row{border:1px solid #354154;border-radius:7px;padding:5px;min-width:0}
+.gpu-device-label{display:flex;align-items:flex-start;gap:6px;overflow-wrap:anywhere}
+.gpu-device-label input{width:auto!important;flex:none;margin:2px 0 0}
+.gpu-device-detail{display:block;color:var(--muted);margin:3px 0 0 18px;overflow-wrap:anywhere}
+#chat-view .gpu-mode-label{font-size:11px}
+#chat-view .gpu-mode-label select{font-size:11px;padding:3px}
+#chat-view .gpu-device-label,#chat-view .gpu-device-detail{font-size:10px}
+#cuda-prelaunch-dialog .gpu-picker .cuda-status{font-size:12px;color:#bfcbdc;margin:0}

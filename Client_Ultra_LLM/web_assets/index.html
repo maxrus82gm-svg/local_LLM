@@ -93,16 +93,18 @@
       </section>
       <section id="chat-cuda-panel" class="chat-cuda-panel hidden" aria-label="Настройки CUDA">
         <h3>Настройки CUDA <small id="cuda-slot-label"></small></h3>
+        <div id="chat-gpu-picker" class="gpu-picker"></div>
+        <p id="cuda-active-group" class="cuda-status"></p>
         <div class="chat-cuda-fields">
           <label title="Пустое поле — Auto. Число задаёт бюджет весов и экспертов GPU, не общий лимит VRAM. Выберите бюджет для своей модели и GPU; Auto передаёт выбор движку.">Бюджет весов, ГиБ <input id="cuda-budget" type="number" min="0.1" max="1024" step="0.1" placeholder="Auto"></label>
           <label title="Выкл.: состояние на CPU, отдельные операции могут выполняться на GPU. Не гарантирует отсутствие OOM.">CUDA Chain <select id="cuda-chain"><option value="off">Выкл.</option><option value="on">Вкл.</option></select></label>
           <label title="Строки блока prefill. Пустое поле — Auto. Меньше (256–512) снижает размер временных буферов. Только при включённой Chain.">Блок чтения <input id="cuda-rows" type="number" min="1" max="8192" step="1" placeholder="Auto"></label>
-          <label title="Необязательный порог предупреждения GPU 0, включая Windows. Пустое поле отключает порог. Не ограничивает бюджет.">Порог VRAM, ГиБ <input id="cuda-target" type="number" min="0.1" max="1024" step="0.1" placeholder="Без порога"></label>
+          <label title="Необязательный порог предупреждения назначенной группы (или GPU 0 в прежнем режиме), включая Windows. Пустое поле отключает порог. Не ограничивает бюджет.">Порог VRAM, ГиБ <input id="cuda-target" type="number" min="0.1" max="1024" step="0.1" placeholder="Без порога"></label>
         </div>
         <button type="button" id="cuda-save" class="btn secondary small">Сохранить</button>
         <button type="button" id="cuda-reset" class="btn secondary small">Отмена правок</button>
         <p id="cuda-save-status" class="cuda-status" role="status"></p>
-        <div class="chat-context-summary-row"><span>GPU 0: занято / всего</span><strong id="cuda-total">—</strong></div>
+        <div class="chat-context-summary-row"><span id="cuda-total-label">GPU 0: занято / всего</span><strong id="cuda-total">—</strong></div>
         <div class="cuda-meter"><div id="cuda-meter-fill"></div></div>
         <div class="chat-context-summary-row"><span>VRAM экземпляра</span><strong id="cuda-dedicated">—</strong></div>
         <div class="chat-context-summary-row"><span>Общая GPU (DDR)</span><strong id="cuda-shared">—</strong></div>
@@ -110,7 +112,7 @@
         <div id="cuda-telemetry-warning" class="cuda-status" role="status"></div>
         <details class="cuda-help"><summary>Как настраивать</summary>
           <p>Для 8 ГиБ начните с бюджета 3,5 ГиБ, Chain выкл. и порога 7 ГиБ. Бюджет весов не включает все буферы и копию KV. При OOM уменьшайте бюджет или блок чтения. Auto может заполнить карту. Порог не прекращает генерацию.</p>
-          <p>Настройки можно сохранить и до первого запуска (⚙ в рабочем слоте). Бюджет, Chain и блок действуют при следующем явном запуске. Порог действует сразу. Manager перезапускать не нужно.</p>
+          <p>Настройки можно сохранить и до первого запуска (⚙ в рабочем слоте). Группа GPU, бюджет, Chain и блок действуют при следующем явном запуске. Порог действует сразу. Для группы используйте Стоп → Старт, без перезапуска Manager. Full объединяет ресурсы, а не физические адресные пространства; фактическое размещение определяет Colibrì.</p>
         </details>
       </section>
       <section class="chat-events-panel" aria-labelledby="chat-events-title">

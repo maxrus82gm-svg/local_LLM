@@ -518,8 +518,25 @@ class ModelControl:
                 "files_present":present,"installation_checked":True,"runtime_checked":compatible,
                 "running_instances":sum(r["model_key"]==key and r["state"]=="READY" and not r["released"] for r in all_rows),
                 "directory_name": directory_name, "api_ids": [profile["model_id"]] if type(profile) is dict and profile.get("model_id") else []})
+        # Global reservation hints intentionally expose no foreign slot or owner identity.
+        # The launch transaction re-evaluates inventory and ownership, not this UI view.
+        selection=None
+        if self.db_path is not None and principal["allowed_slots"]:
+            sample=self._gpu_for()
+            devices=sample.get("devices") if sample else None
+            if not devices and telemetry and telemetry.get("verified") is True:
+                devices=telemetry.get("gpu_devices")
+            groups=[json.loads(r["spec"]).get("resources",{}).get("gpu_placement")
+                    for r in all_rows if r["mode"]=="cuda" and not r["released"]]
+            reserved={i for group in groups if group for i in group}
+            selection={"devices": [{**d,"reserved":d["uuid"] in reserved} for d in devices]
+                        if isinstance(devices,list) else None,
+                       "legacy_active":any(not group for group in groups),
+                       "explicit_active":bool(reserved),
+                       "exclusive_managed_groups":True}
         return {"manager_id": self.config["manager_id"], "models": models, "instances": instances, "context_override":True,
                 "cuda_profiles":self.db_path is not None, "cuda_defaults":DEFAULT_PROFILE,
+                "gpu_selection":selection,
                 "gpu":self._gpu_for() if principal["allowed_slots"] else None,
                 "enabled":self.db_path is not None,
                 "control_models": principal.get("control_models") is True,
