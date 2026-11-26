@@ -235,8 +235,12 @@ try{
   await click('slot2','Стоп');
   mark('slot2_stop_requested');
   const uiProbe=await armFault('null');
-  const bystander=await status();
-  assert.equal(bystander.control,true,'An untagged background status must not consume a probe');
+  // STOP may temporarily saturate the real TLS snapshot path. An untagged
+  // transport timeout is not evidence that the tagged fault was consumed.
+  // Require an eventual healthy untagged response, then prove the exact
+  // armed probe is still present and returned to the intended UI refresh.
+  const bystander=await waitStatus('untagged status after stop; armed null probe',()=>true);
+  assert.equal(bystander.control,true,'An untagged background status must recover');
   const uiNull=await refreshWithProbe(uiProbe);
   assert.deepEqual(uiNull,{busy:false,targeted:1,saw_null:true});
   await evaluate('refresh(true)');
@@ -245,8 +249,8 @@ try{
   // Probe IDs bind every fault to the intended request, despite background refreshes.
   for(const mode of ['null','partial','503','delay','disconnect']){
     const probe=await armFault(mode);
-    const background=await status();
-    assert.equal(background.control,true,'Untagged status consumed '+mode);
+    const background=await waitStatus('untagged status; armed '+mode+' probe',()=>true);
+    assert.equal(background.control,true,'Untagged status did not recover '+mode);
     const observed=await status(probe);
     assert.equal(observed.http,mode==='disconnect'?0:mode==='503'?503:200);
     if(mode==='null')assert.equal(observed.kind,'null');

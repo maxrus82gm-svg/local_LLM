@@ -671,7 +671,7 @@ byId("quit-client").addEventListener("click", async () => {
       method:"POST",headers:{"X-Ultra-CSRF":csrf,"Content-Type":"application/json"}
     });
     document.body.replaceChildren(node("div", "placeholder",
-      "Неополис Web Client завершён. Эту вкладку можно закрыть. Manager продолжает работать."));
+      "Нейрополис Web Client завершён. Эту вкладку можно закрыть. Manager продолжает работать."));
     document.body.style.padding = "15vh 8vw";
   } catch (err) {
     setNotice("Не удалось завершить клиент: " + err.message);

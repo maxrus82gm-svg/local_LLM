@@ -22,7 +22,7 @@ class Controls(HTMLParser):
 
 class ClientMockSafetyTests(unittest.TestCase):
     def test_client_identity_and_explicit_offline_scope(self):
-        self.assertIn("Ultra LLM Client", HTML)
+        self.assertIn("Нейрополис — Client", HTML)
         self.assertIn("UL-CLIENT-P0 / МАКЕТ", HTML)
         self.assertIn("автономный HTML-макет без API", HTML)
 
