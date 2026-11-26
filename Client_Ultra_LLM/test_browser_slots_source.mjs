@@ -208,6 +208,8 @@ try{
       await evaluate('document.querySelector("[data-slot-id=slot4] .slot-cuda-config").click()');
       assert.equal(await evaluate('byId("pre-cuda-budget").value'),"");
       assert.equal(await evaluate('byId("pre-cuda-target").value'),"");
+      assert.equal(await evaluate('byId("pre-cuda-gpu-mode").value'),"legacy");
+      assert.equal(await evaluate('byId("pre-cuda-gpu-devices").querySelectorAll("[data-gpu-id]").length'),2);
       await evaluate('byId("pre-cuda-target").value="7.1";byId("pre-cuda-save").click()');
       await until('!byId("cuda-prelaunch-dialog") && !isRefreshing && !refreshQueued');
       const pre=(await data()).control;
@@ -323,11 +325,15 @@ try{
   assert.equal(await evaluate('byId("cuda-budget").value'),"");
   assert.equal(await evaluate('byId("cuda-target").value'),"7.1");
   const beforeProfile=(await data()).control.instances.find(i=>i.slot_id==='slot4'&&!i.released);
-  await evaluate('byId("cuda-budget").value="10";byId("cuda-budget").dispatchEvent(new Event("input"));byId("cuda-target").value="7.2";byId("cuda-target").dispatchEvent(new Event("input"));byId("cuda-save").click()');
+  await evaluate('byId("cuda-budget").value="10";byId("cuda-budget").dispatchEvent(new Event("input"));byId("cuda-target").value="7.2";byId("cuda-target").dispatchEvent(new Event("input"));byId("cuda-gpu-mode").value="full";byId("cuda-gpu-mode").dispatchEvent(new Event("change"));byId("cuda-save").click()');
   await until('!cudaSaving && !cudaDirty && byId("cuda-save-status").textContent.includes("Стоп → Старт")');
   const savedProfile=(await data()).control;
   assert.equal(savedProfile.slots.find(s=>s.slot_id==='slot4').cuda_profile.budget_gib,10);
   assert.equal(savedProfile.slots.find(s=>s.slot_id==='slot4').cuda_profile.target_gib,7.2);
+  assert.equal(savedProfile.slots.find(s=>s.slot_id==='slot4').cuda_profile.gpu_mode,'full');
+  assert.deepEqual(savedProfile.slots.find(s=>s.slot_id==='slot4').cuda_profile.gpu_ids,[]);
+  assert.equal(await evaluate('byId("cuda-gpu-mode").value'),"full");
+  assert.equal(await evaluate('byId("chat-restart").disabled'),true);
   assert.deepEqual(savedProfile.slots.find(s=>s.slot_id==='slot5').cuda_profile,{budget_gib:null,chain:false,rows:null,target_gib:null});
   assert.equal(savedProfile.instances.find(i=>i.slot_id==='slot4'&&!i.released).instance_id,beforeProfile.instance_id);
   assert.deepEqual(beforeProfile.cuda_profile,{budget_gib:null,chain:false,rows:null,target_gib:7.1});
@@ -335,6 +341,56 @@ try{
   await evaluate(`selectChat(${JSON.stringify(chatB)})`);
   assert.equal(await evaluate('byId("chat-cuda-panel").classList.contains("hidden")'),true);
   await evaluate('showOverview()');
+  // New explicit groups coexist with legacy profiles only after all legacy
+  // managed CUDA instances have released. Existing CPU chats remain untouched.
+  const A='GPU-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',B='GPU-bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+  const uiGpuNegative=await evaluate(`(()=>{
+    const holder=document.createElement("div"),picker=gpuPicker(holder,"qa-gpu",()=>{});
+    const profile={gpu_mode:"manual",gpu_ids:["GPU-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]};
+    picker.update(profile,{devices:null,legacy_active:false},true);
+    const missing=holder.querySelector("[data-gpu-id]");
+    const preserved=missing.checked && missing.dataset.gpuId===profile.gpu_ids[0] &&
+      picker.current().gpu_ids[0]===profile.gpu_ids[0];
+    picker.update(profile,null,true,false);
+    const disabled=holder.querySelector("select").disabled;
+    const emptyInvalid=!validCudaProfile({budget_gib:null,chain:false,rows:null,target_gib:null,
+      gpu_mode:"manual",gpu_ids:[]},[]);
+    return {preserved,disabled,emptyInvalid};
+  })()`);
+  assert.deepEqual(uiGpuNegative,{preserved:true,disabled:true,emptyInvalid:true});
+  browser.setDialogAcceptance(true);
+  async function stopGpu(slot) {
+    await click(slot,'Стоп');
+    await waitStatus('GPU release '+slot,s=>s.instances?.some(i=>i.slot===slot&&i.released&&i.state==='STOPPED'));
+    await evaluate('refresh(true)');await until('!isRefreshing && !refreshQueued');
+  }
+  async function saveGpu(slot,mode,ids=[]) {
+    await until(`Boolean(document.querySelector('[data-slot-id="${slot}"] .slot-cuda-config'))`);
+    await evaluate(`document.querySelector('[data-slot-id="${slot}"] .slot-cuda-config').click()`);
+    await evaluate(`{const mode=byId('pre-cuda-gpu-mode');mode.value=${JSON.stringify(mode)};mode.dispatchEvent(new Event('change'));}`);
+    for(const id of ids)await evaluate(`{const c=[...byId('pre-cuda-gpu-devices').querySelectorAll('[data-gpu-id]')].find(c=>c.dataset.gpuId===${JSON.stringify(id)});if(!c.checked)c.click();}`);
+    await evaluate('byId("pre-cuda-save").click()');
+    await until('!byId("cuda-prelaunch-dialog") && !isRefreshing && !refreshQueued');
+  }
+  await stopGpu('slot4');await stopGpu('slot5');
+  await click('slot4','Старт CUDA');await ready('slot4');
+  let gpuState=(await data()).control;
+  assert.deepEqual(gpuState.instances.find(i=>i.slot_id==='slot4'&&!i.released).gpu_placement,[A,B]);
+  assert(gpuState.gpu_selection.devices.every(d=>d.reserved));
+  await stopGpu('slot4');
+  await saveGpu('slot5','manual',[B]);
+  await click('slot5','Старт CUDA');await ready('slot5');
+  await saveGpu('slot4','auto');
+  await click('slot4','Старт CUDA');await ready('slot4');
+  gpuState=(await data()).control;
+  assert.deepEqual(gpuState.instances.find(i=>i.slot_id==='slot5'&&!i.released).gpu_placement,[B]);
+  assert.deepEqual(gpuState.instances.find(i=>i.slot_id==='slot4'&&!i.released).gpu_placement,[A]);
+  assert.equal(gpuState.slots.find(s=>s.slot_id==='slot4').cuda_profile.gpu_mode,'auto');
+  assert.deepEqual(gpuState.slots.find(s=>s.slot_id==='slot5').cuda_profile.gpu_ids,[B]);
+  await stopGpu('slot4');
+  assert.equal((await data()).control.instances.find(i=>i.slot_id==='slot5'&&!i.released).state,'READY');
+  await stopGpu('slot5');
+  mark('multi_gpu_ui_roundtrip');
   assert.deepEqual(browser.errors,[]);
   await evaluate('refresh(true)');
   await until('!isRefreshing && !refreshQueued');
@@ -348,7 +404,7 @@ try{
     unique_instance_ids:true,ipv6_listener_skipped:true,concurrent_chats_isolated:true,
     stop_one_preserves_other:true,controller_and_browser_reload:true,history_preserved:true,
     two_ui_chats_bound_and_persisted:true,per_message_metrics_visible:true,
-    context_override_end_to_end:16384,risk_cancel_and_confirm:true,status_faults:['null','partial','503','delay','disconnect','bounded_503_burst'],
+    context_override_end_to_end:16384,risk_cancel_and_confirm:true,multi_gpu_ui_roundtrip:true,status_faults:['null','partial','503','delay','disconnect','bounded_503_burst'],
     status_samples:statusTrace.length,status_classes:[...new Set(statusTrace.map(s=>s.kind+':'+s.http))],
     phase_trace:phaseTrace,bounded_failure_ms:boundedFailureMs,status_trace:statusTrace,
     console_errors:browser.errors},null,2));

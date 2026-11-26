@@ -91,7 +91,14 @@ function controlReason(reason) {
     model_already_managed:"Для модели уже зарезервирован экземпляр",
     no_free_authorized_slot:"Нет свободного разрешённого слота",
     invalid_context_tokens:"Введите положительное целое число до шести цифр",
-    invalid_cuda_profile:"Проверьте числа CUDA: положительный бюджет и порог либо пустое поле, блок 1–8192 или Auto",
+    invalid_cuda_profile:"Проверьте числа CUDA и выбранные видеокарты",
+    invalid_gpu_ids:"Неверные идентификаторы GPU",
+    gpu_inventory_unknown:"Нет подтверждённого списка GPU. Проверьте Manager и драйвер",
+    gpu_selection_unavailable:"Выбранная совместимая свободная видеокарта недоступна",
+    gpu_selection_reserved:"Видеокарта зарезервирована другим управляемым экземпляром",
+    gpu_legacy_assignment_unknown:"Сначала остановите CUDA-экземпляры с прежним назначением GPU 0",
+    gpu_selection_required:"Сохраните Auto, Full или ручную группу перед запуском рядом с новой GPU-группой",
+    gpu_restart_requires_stop_start:"Для GPU-группы требуется явный Стоп → Старт; автоматический перезапуск пока недоступен",
     context_capacity_exceeded:"Контекст превышает заявленную ёмкость модели",
     context_capacity_unknown:"Максимальный контекст модели не подтверждён",
     context_override_unavailable:"Обновите Manager для управления контекстом из Client",
@@ -255,7 +262,10 @@ function workspaces(container,manager) {
               const forecast=checked.forecast;
               const details="Ожидаемый остаток RAM: "+(forecast.ram_after_gib===null ? "неизвестен" : formatNumber(forecast.ram_after_gib)+" GiB")+
                 "; VRAM: "+(forecast.vram_after_gib===null ? "неизвестен" : formatNumber(forecast.vram_after_gib)+" GiB")+
-                ". Достоверность: "+forecast.estimate_evidence+". Предупреждения: "+checked.warnings.join(", ");
+                ". Достоверность: "+forecast.estimate_evidence+". Предупреждения: "+checked.warnings.map(controlReason).join(", ")+
+                (forecast.gpu_placement?" · Группа: "+forecast.gpu_placement.gpu_ids.map(id=>{
+                  const d=gpuDevices(control.gpu_selection)?.find(x=>x.uuid===id);return d?d.name:id;
+                }).join(" + ")+" · физически "+gib(forecast.gpu_placement.total_gib):"");
               status.dataset.tip=details;
               if(!checked.risk_ack_allowed)throw Error("resource_risk_not_permitted");
               ack=confirm(details+". Возможны замедление других моделей и программ сервера. Подтвердить риск этого запуска?");
@@ -270,6 +280,12 @@ function workspaces(container,manager) {
         finally{slotPending.delete(key);await refresh(true);}
       });
       line.append(button);
+    }
+    if(item?.gpu_placement?.length) {
+      modeLabel.dataset.tip+=" · назначено "+item.gpu_placement.map(id=>{
+        const device=gpuDevices(control.gpu_selection)?.find(d=>d.uuid===id);
+        return device?"GPU "+device.index+" "+device.name:id;
+      }).join("; ");
     }
     const measured=item?.memory;
     const validMemory=Boolean(measured && Number.isFinite(measured.ram_gib) && measured.ram_gib>=0);
@@ -855,6 +871,8 @@ function restartSelection(chat) {
     i.model_id === chat.model_id && i.state === "READY" && i.released === false &&
     i.can_stop === true && ["cpu","cuda"].includes(i.mode));
   if (!control?.control_models || !slot || !Number.isInteger(slot.revision) || !instance) return null;
+  if(instance.mode==="cuda" && (slot.cuda_profile?.gpu_mode || instance.gpu_placement?.length ||
+      control.gpu_selection?.explicit_active))return null;
   return {instance_id:instance.instance_id, expected_revision:slot.revision};
 }
 async function restartState(job) {
@@ -1244,9 +1262,13 @@ function renderChatControls() {
   byId("chat-effort").disabled = !chat || Boolean(active) || restarting || chatMutation || !byId("chat-thinking").checked || Boolean(target && !target.streaming);
   renderContextSize(chat,target,!chat || Boolean(active) || restarting || chatMutation || Boolean(chat?.legacy));
   const restartButton=byId("chat-restart");
+  const cudaRestart=cudaBinding(chat,target);
+  const gpuStopStart=Boolean(cudaRestart&&(cudaRestart.slot.cuda_profile?.gpu_mode||
+    cudaRestart.instance.gpu_placement?.length||cudaRestart.control.gpu_selection?.explicit_active));
   restartButton.disabled = !owns || !chatReady(target) || !restartOption ||
     Boolean(active) || Boolean(chatRestartJob) || chatMutation || managerId!==chat?.manager_id;
   restartButton.dataset.tip = restarting ? RESTART_STAGE[chatRestartJob.stage] :
+    gpuStopStart ? "Для GPU-группы: Стоп → Старт слота, затем назначьте новый экземпляр чату" :
     "Применить сохранённые настройки: перезапустить модель";
   renderCudaPanel(chat,target);
   renderModelPerformance();
@@ -1315,7 +1337,7 @@ function renderChatContextSummary(chat,target,pending) {
 }
 /* Settings belong to the Manager's slot/model, not a browser chat draft. */
 let cudaFormKey="", cudaRevision=null, cudaDirty=false, cudaSaving=false, cudaStatusText="";
-let cudaSample=null, cudaPollBusy=false;
+let cudaSample=null, cudaPollBusy=false, chatGpuPicker=null;
 const cudaInputIds=["cuda-budget","cuda-chain","cuda-rows","cuda-target"];
 function cudaBinding(chat,target) {
   if (!chat?.manager_id || chat.legacy || selectedManagerId(chat)!==chat.manager_id ||
@@ -1338,13 +1360,97 @@ function readCudaProfile(budget,chain,rows,target) {
           rows:rows.value===""?null:Number(rows.value),target_gib:target.value===""?null:Number(target.value)};
 }
 function validCudaProfile(profile,inputs) {
-  return !inputs.some(input=>input.validity.badInput)&&
+  const placement=profile.gpu_mode===undefined||
+    (["auto","full","manual"].includes(profile.gpu_mode)&&Array.isArray(profile.gpu_ids)&&
+     profile.gpu_ids.every(id=>gpuUuid.test(id))&&new Set(profile.gpu_ids).size===profile.gpu_ids.length&&
+     (profile.gpu_mode==="manual")===Boolean(profile.gpu_ids.length));
+  return placement&&!inputs.some(input=>input.validity.badInput)&&
     (profile.target_gib===null||(Number.isFinite(profile.target_gib)&&profile.target_gib>0&&profile.target_gib<=1024))&&
     (profile.budget_gib===null||(Number.isFinite(profile.budget_gib)&&profile.budget_gib>0&&profile.budget_gib<=1024))&&
     (profile.rows===null||(Number.isInteger(profile.rows)&&profile.rows>=1&&profile.rows<=8192));
 }
+// Device identity comes from Manager. Never infer CUDA ordinals from Windows indices.
+const gpuUuid=/^GPU-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+const gpuModes={legacy:"GPU 0 (прежний режим)",auto:"CUDA Auto",full:"CUDA Full",manual:"Вручную"};
+function gpuDevices(selection) {
+  return Array.isArray(selection?.devices)?selection.devices.filter(d=>d&&gpuUuid.test(d.uuid)):null;
+}
+function gpuCompatible(d) {
+  return typeof d?.compute_capability==="string" && Number(d.compute_capability.split(".")[0])>=8;
+}
+function gpuSummary(devices) {
+  if(!devices?.length||devices.some(d=>!["total_gib","free_gib","used_gib"].every(k=>Number.isFinite(d[k])&&d[k]>=0)))return null;
+  return Object.fromEntries(["total_gib","free_gib","used_gib"].map(k=>[k,devices.reduce((n,d)=>n+d[k],0)]));
+}
+function gpuPreview(profile,selection) {
+  const devices=gpuDevices(selection);
+  if(!devices||!profile?.gpu_mode)return null;
+  if(profile.gpu_mode==="manual"){
+    const list=profile.gpu_ids.map(id=>devices.find(d=>d.uuid===id));
+    return list.every(Boolean)?gpuSummary(list):null;
+  }
+  if(selection.legacy_active)return null;
+  const free=devices.filter(d=>gpuCompatible(d)&&!d.reserved).sort((a,b)=>
+    b.free_gib-a.free_gib||b.total_gib-a.total_gib||a.uuid.localeCompare(b.uuid));
+  return gpuSummary(profile.gpu_mode==="auto"?free.slice(0,1):free);
+}
+function gpuPicker(host,prefix,onChange) {
+  const mode=node("select","slot-model");mode.id=prefix+"-gpu-mode";
+  for(const [value,label] of Object.entries(gpuModes))mode.append(new Option(label,value));
+  const label=node("label","gpu-mode-label","Видеокарты");label.append(mode);
+  const cards=node("div","gpu-device-list");cards.id=prefix+"-gpu-devices";
+  const hint=node("p","cuda-status");hint.id=prefix+"-gpu-hint";
+  const legend=node("p","cuda-status","Auto: одна свободная GPU · Full: все свободные совместимые GPU · Вручную: выбранная группа.");
+  host.append(label,cards,hint,legend);
+  let ids=[],selection=null,mayEdit=false,signature="";
+  function current(){return mode.value==="legacy"?{}:{gpu_mode:mode.value,gpu_ids:mode.value==="manual"?[...ids]:[]};}
+  function draw(){
+    const inventory=gpuDevices(selection),supported=selection!=null;
+    mode.disabled=!mayEdit||!supported;
+    // Preserve saved UUIDs on unavailable/disconnected devices. No silent retarget.
+    const devices=inventory||[];
+    const missing=ids.filter(id=>!devices.some(d=>d.uuid===id)).map(uuid=>({uuid,name:"GPU не обнаружена",missing:true}));
+    const next=JSON.stringify([devices.map(d=>[d.uuid,d.name,d.index,d.compute_capability,d.reserved]),missing.map(d=>d.uuid),ids,mode.value,mayEdit,supported]);
+    if(next!==signature){
+      signature=next;cards.replaceChildren();
+      for(const d of [...devices,...missing]){
+        const row=node("div","gpu-device-row"),top=node("label","gpu-device-label");
+        const check=node("input","");check.type="checkbox";check.dataset.gpuId=d.uuid;
+        check.checked=ids.includes(d.uuid);
+        check.disabled=!mayEdit||!supported||mode.value!=="manual"||(!gpuCompatible(d)&&!check.checked);
+        check.addEventListener("change",()=>{ids=check.checked?[...new Set([...ids,d.uuid])]:ids.filter(x=>x!==d.uuid);draw();onChange();});
+        top.append(check,node("span","",d.missing?"GPU не обнаружена · "+d.uuid.slice(-12):
+          "GPU "+d.index+" · "+d.name+(gpuCompatible(d)?"":" · несовместима с текущей сборкой")));
+        row.append(top);
+        const info=node("small","gpu-device-detail");info.dataset.gpuDetail=d.uuid;row.append(info);
+        cards.append(row);
+      }
+    }
+    for(const d of [...devices,...missing]){
+      const info=[...cards.querySelectorAll("[data-gpu-detail]")].find(e=>e.dataset.gpuDetail===d.uuid);
+      if(info)info.textContent=d.missing?"Сохранённый UUID; Manager проверит доступность при запуске.":
+        "Занято "+gib(d.used_gib)+" / "+gib(d.total_gib)+" · свободно "+gib(d.free_gib)+
+        " · GPU "+(Number.isFinite(d.utilization_pct)?d.utilization_pct+"%":"—")+
+        (d.reserved?" · зарезервирована":"");
+    }
+    const p=current(),summary=gpuPreview(p,selection);
+    hint.textContent=!supported?"Manager не поддерживает выбор GPU; прежний профиль сохранён.":
+      !inventory?"Список GPU недоступен; сохранённые UUID не заменяются.":
+      p.gpu_mode==="manual"&&!p.gpu_ids.length?"Выберите хотя бы одну видеокарту.":
+      p.gpu_mode?(summary?"Группа на следующий запуск: "+gib(summary.total_gib)+" физически, свободно "+gib(summary.free_gib)+". ":
+        "Группа будет проверена Manager перед запуском. ")+(selection.legacy_active?"Сначала остановите прежние CUDA-экземпляры.":"Назначение и бюджет не являются лимитом VRAM.") :
+      "Прежнее назначение GPU 0. Для распределения выберите новый режим.";
+  }
+  mode.addEventListener("change",()=>{draw();onChange();});
+  return {current,update(profile,data,editable,reset=true){
+    selection=data;mayEdit=editable;
+    if(reset){mode.value=profile?.gpu_mode||"legacy";ids=Array.isArray(profile?.gpu_ids)?[...profile.gpu_ids]:[];}
+    draw();
+  }};
+}
 function cudaProfileFromForm() {
-  return readCudaProfile(byId("cuda-budget"),byId("cuda-chain"),byId("cuda-rows"),byId("cuda-target"));
+  return {...readCudaProfile(byId("cuda-budget"),byId("cuda-chain"),byId("cuda-rows"),byId("cuda-target")),
+    ...(chatGpuPicker?.current()||{})};
 }
 function openPrelaunchCuda(manager,slot) {
   if(byId("cuda-prelaunch-dialog"))return;
@@ -1366,6 +1472,11 @@ function openPrelaunchCuda(manager,slot) {
     const input=node("input","");input.id=id;input.type="number";input.min=min;input.max=max;
     input.step=step;input.placeholder=placeholder;input.value=value??"";return input;
   }
+  const gpuHost=node("div","gpu-picker");
+  form.append(gpuHost);
+  const picker=gpuPicker(gpuHost,"pre-cuda",()=>previewMemory());
+  const gpuSelection=performance.now()-statusSampleTime<20000?control.gpu_selection:
+    control.gpu_selection?{...control.gpu_selection,devices:null}:null;
   const budget=field("Бюджет весов, ГиБ",num("pre-cuda-budget",profile.budget_gib,0.1,1024,0.1,"Auto"));
   const chain=node("select","slot-model");chain.id="pre-cuda-chain";
   chain.append(new Option("Выкл.","off"),new Option("Вкл.","on"));chain.value=profile.chain?"on":"off";
@@ -1376,14 +1487,17 @@ function openPrelaunchCuda(manager,slot) {
   const preview=node("p","manager-pairing-note");
   function previewMemory(){
     const gpu=performance.now()-statusSampleTime<20000?control.gpu:null;
-    const free=Number.isFinite(gpu?.free_gib)?gpu.free_gib:null;
-    const total=Number.isFinite(gpu?.total_gib)?gpu.total_gib:null;
+    const placement=picker.current();
+    const group=placement.gpu_mode?gpuPreview(placement,gpuSelection):gpu;
+    const free=Number.isFinite(group?.free_gib)?group.free_gib:null;
+    const total=Number.isFinite(group?.total_gib)?group.total_gib:null;
     const b=budget.value===""?null:Number(budget.value);
-    preview.textContent="GPU 0: свободно "+gib(free)+" из "+gib(total)+
+    preview.textContent=(placement.gpu_mode?"Группа (прогноз): ":"GPU 0: ")+"свободно "+gib(free)+" из "+gib(total)+
       ". Бюджет весов: "+(b===null?"Auto":gib(b))+
-      ". Полное потребление (включая KV/Chain и буферы) до замера неизвестно."+
+      ". Снимок при открытии; Manager повторно проверит группу при запуске. Полное потребление (включая KV/Chain и буферы) до замера неизвестно."+
       (free!==null&&Number.isFinite(b)&&b>free?" Внимание: бюджет выше текущей свободной VRAM; сохранение разрешено.":"");
   }
+  picker.update(profile,gpuSelection??null,true);
   budget.addEventListener("input",previewMemory);previewMemory();
   const error=node("div","form-error hidden");error.setAttribute("role","status");
   const actions=node("div","dialog-actions");
@@ -1397,7 +1511,7 @@ function openPrelaunchCuda(manager,slot) {
   dialog.addEventListener("close",()=>dialog.remove());
   form.addEventListener("submit",async event=>{
     event.preventDefault();if(saving)return;
-    const next=readCudaProfile(budget,chain,rows,target);
+    const next={...readCudaProfile(budget,chain,rows,target),...picker.current()};
     if(!validCudaProfile(next,[budget,chain,rows,target])){
       error.textContent=controlReason("invalid_cuda_profile");error.classList.remove("hidden");return;
     }
@@ -1421,7 +1535,8 @@ function setCudaInputs(profile) {
   byId("cuda-target").value=profile.target_gib ?? "";
 }
 function sameLaunchProfile(a,b) {
-  return Boolean(a&&b&&a.budget_gib===b.budget_gib&&a.chain===b.chain&&a.rows===b.rows);
+  return Boolean(a&&b&&a.budget_gib===b.budget_gib&&a.chain===b.chain&&a.rows===b.rows&&
+    (a.gpu_mode||"legacy")===(b.gpu_mode||"legacy")&&JSON.stringify(a.gpu_ids||[])===JSON.stringify(b.gpu_ids||[]));
 }
 function renderCudaPanel(chat,target) {
   const binding=cudaBinding(chat,target), panel=byId("chat-cuda-panel");
@@ -1429,11 +1544,23 @@ function renderCudaPanel(chat,target) {
   if(!binding){cudaFormKey="";cudaDirty=false;cudaSample=null;return;}
   const {control,slot,instance,key}=binding;
   if(cudaFormKey!==key){cudaFormKey=key;cudaDirty=false;cudaStatusText="";cudaSample=null;}
+  const mayEdit=control.control_models===true && (instance.released||instance.can_stop);
+  if(!chatGpuPicker)chatGpuPicker=gpuPicker(byId("chat-gpu-picker"),"cuda",()=>{
+    cudaDirty=true;cudaStatusText="";renderCudaPanel(currentChat(),liveTarget(currentChat()));
+  });
+  const desired=slot.cuda_profile || control.cuda_defaults;
   if(!cudaDirty&&!cudaSaving) {
-    setCudaInputs(slot.cuda_profile || control.cuda_defaults);
+    setCudaInputs(desired);
     cudaRevision=slot.revision;
   }
-  const mayEdit=control.control_models===true && (instance.released||instance.can_stop);
+  const selection=performance.now()-statusSampleTime<20000?control.gpu_selection:
+    control.gpu_selection?{...control.gpu_selection,devices:null}:null;
+  chatGpuPicker.update(desired,selection??null,mayEdit&&!cudaSaving,!cudaDirty&&!cudaSaving);
+  const groupLabel=instance.released?"Нет работающего экземпляра":
+    instance.gpu_placement?.length?"Назначено: "+instance.gpu_placement.map(id=>{
+      const d=gpuDevices(selection)?.find(x=>x.uuid===id);return d?"GPU "+d.index+" · "+d.name:id;
+    }).join("; "):"Прежнее назначение GPU 0 (UUID не подтверждён)";
+  put("cuda-active-group",groupLabel);
   for(const id of cudaInputIds)byId(id).disabled=!mayEdit||cudaSaving;
   byId("cuda-rows").disabled=!mayEdit||cudaSaving||byId("cuda-chain").value==="off";
   byId("cuda-save").disabled=!mayEdit||cudaSaving||Boolean(chatRestartJob && chatRestartJob.chatId===chat?.chat_id);
@@ -1441,7 +1568,7 @@ function renderCudaPanel(chat,target) {
   put("cuda-slot-label",slot.slot_id);
   const applied=instance.cuda_profile;
   let message=slot.cuda_profile ? (!instance.released&&!sameLaunchProfile(slot.cuda_profile,applied) ?
-    "Сохранено: для бюджета/Chain/блока нужен Стоп → Старт LLM." :
+    "Сохранено: для бюджета/Chain/блока/группы GPU нужен Стоп → Старт LLM." :
     (instance.released?"Сохранено для следующего запуска.":"Профиль запуска применён.")) :
     "Профиль по умолчанию для следующего запуска. Действующий экземпляр не изменён.";
   if(applied&&!instance.released)message+=" Сейчас: "+(applied.budget_gib??"Auto")+" ГиБ · Chain "+(applied.chain?"вкл.":"выкл.") +
@@ -1452,8 +1579,14 @@ function renderCudaPanel(chat,target) {
   const snapshotAge=performance.now()-statusSampleTime;
   const gpu=sample?sample.gpu:snapshotAge<20000?control.gpu:null;
   const mem=instance.released?null:sample?sample.memory:snapshotAge<20000?instance.memory:null;
-  const total=Number.isFinite(gpu?.total_gib)&&gpu.total_gib>0?gpu.total_gib:null;
-  const used=Number.isFinite(gpu?.used_gib)?gpu.used_gib:null;
+  const activeIds=!instance.released&&Array.isArray(instance.gpu_placement)?instance.gpu_placement:[];
+  const inventory=gpuDevices(gpu)||gpuDevices(selection);
+  const activeDevices=activeIds.map(id=>inventory?.find(d=>d.uuid===id));
+  const group=activeIds.length?(activeDevices.every(Boolean)?gpuSummary(activeDevices):null):gpu;
+  const total=Number.isFinite(group?.total_gib)&&group.total_gib>0?group.total_gib:null;
+  const used=Number.isFinite(group?.used_gib)?group.used_gib:null;
+  const groupName=activeIds.length?"Назначенная группа GPU":"GPU 0";
+  put("cuda-total-label",groupName+": занято / всего");
   put("cuda-total",used!=null&&total!=null?used.toFixed(2)+" / "+gib(total):"Нет данных");
   put("cuda-dedicated",gib(mem?.vram_gib));
   put("cuda-shared",gib(mem?.vram_shared_gib));
@@ -1462,12 +1595,14 @@ function renderCudaPanel(chat,target) {
   const over=used!=null&&Number.isFinite(threshold)&&used>=threshold;
   byId("cuda-meter-fill").style.width=total&&used!=null?Math.max(0,Math.min(100,used/total*100))+"%":"0%";
   byId("cuda-meter-fill").classList.toggle("warning",over);
-  const free=Number.isFinite(gpu?.free_gib)?gpu.free_gib:null;
-  const draftBudget=cudaProfileFromForm().budget_gib;
-  const memoryHint=" Свободно: "+gib(free)+". Полное потребление нового профиля неизвестно до замера."+(free!==null&&Number.isFinite(draftBudget)&&draftBudget>free?" Бюджет выше текущей свободной VRAM; сохранение разрешено.":"");
+  const draft=cudaProfileFromForm();
+  const preview=draft.gpu_mode?gpuPreview(draft,selection):gpu;
+  const free=Number.isFinite(preview?.free_gib)?preview.free_gib:null;
+  const draftBudget=draft.budget_gib;
+  const memoryHint=" Свободно для предполагаемого запуска: "+gib(free)+". Полное потребление нового профиля неизвестно до замера."+(free!==null&&Number.isFinite(draftBudget)&&draftBudget>free?" Бюджет выше текущей свободной VRAM; сохранение разрешено.":"");
   put("cuda-telemetry-warning",(over?"Внимание: GPU достиг порога "+gib(threshold)+". Модель не остановлена автоматически.":
     used==null?"Измерение GPU сейчас недоступно.":
-    total!=null&&threshold>total?"Порог выше физической VRAM.":threshold==null?"Последний замер GPU 0; ручной порог отключён.":"Последний замер GPU 0; порог — "+gib(threshold)+".")+memoryHint);
+    total!=null&&threshold>total?"Порог выше физической VRAM.":threshold==null?"Последний замер: "+groupName+"; ручной порог отключён.":"Последний замер: "+groupName+"; порог — "+gib(threshold)+".")+memoryHint);
 }
 for(const id of cudaInputIds)byId(id).addEventListener("input",()=>{
   cudaDirty=true;cudaStatusText="";renderCudaPanel(currentChat(),liveTarget(currentChat()));

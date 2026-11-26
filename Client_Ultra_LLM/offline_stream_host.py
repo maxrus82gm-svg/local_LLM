@@ -229,11 +229,18 @@ def main():
             "resources":{"allow_risk_ack":True},
             "reviews":{k:{mode:{"evidence":"measured","source_hashes":{"fixture":"not-a-real-runtime"},
                                    "ram_gib":2,"vram_gib":2} for mode in ("cpu","cuda")} for k in ("kat","qwen36")}}
+        # Deliberately reverse physical enumeration vs available memory.
+        gpu_devices=[
+            {"uuid":"GPU-bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","index":0,"name":"QA RTX 3070",
+             "compute_capability":"8.6","total_gib":8,"used_gib":1,"free_gib":7,"utilization_pct":2},
+            {"uuid":"GPU-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","index":1,"name":"QA RTX 4070 Ti SUPER",
+             "compute_capability":"8.9","total_gib":16,"used_gib":1,"free_gib":15,"utilization_pct":5}]
         class FakeBackend:
             instances={}
             def telemetry(self):
                 return {"verified":True,"sampled":time.monotonic(),"free_gib":resource_memory[0],
-                        "ports":[r["port"] for r in NativeWindows().listeners()],"vram_free_gib":32}
+                        "ports":[r["port"] for r in NativeWindows().listeners()],"vram_free_gib":32,
+                        "gpu_devices":gpu_devices}
             def preflight(self,spec):pass
             def start(self,spec,identity):
                 handler=type("InstanceColibri",(Colibri,),{"model_id":spec.api_id,"context_tokens":spec.review.get("launch",{}).get("context_tokens",32768)})
