@@ -15,7 +15,7 @@ $shortcut = $shell.CreateShortcut($link)
 $shortcut.TargetPath = Join-Path $env:WINDIR 'System32\wscript.exe'
 $shortcut.Arguments = '"' + $launcher + '"'
 $shortcut.WorkingDirectory = $PSScriptRoot
-$shortcut.Description = 'Ultra LLM Web Client — browser-only local console-free launcher'
+$shortcut.Description = 'Neuropolis Web Client — browser-only local console-free launcher'
 $shortcut.IconLocation = (Join-Path $env:WINDIR 'System32\imageres.dll') + ',14'
 $shortcut.Save()
 Write-Output ('ULTRA_WEB_DESKTOP_SHORTCUT_CREATED='+$link)
