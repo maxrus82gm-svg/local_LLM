@@ -3,16 +3,69 @@ import math
 import time
 
 
-def read_vram():
-    """Read GPU 0 from the installed OS utility; never install or accept a path."""
+def read_gpu_inventory():
+    """One bounded, hidden NVIDIA probe. Unknown is never reported as zero."""
     import os
     import subprocess
     from pathlib import Path
     executable=Path(os.environ.get("SystemRoot",r"C:\Windows"))/"System32"/"nvidia-smi.exe"
     if not executable.is_file():return None
     try:
-        result=subprocess.run([str(executable),"--id=0","--query-gpu=memory.total,memory.used,memory.free",
+        result=subprocess.run([str(executable),
+            "--query-gpu=index,uuid,name,pci.bus_id,compute_cap,memory.total,memory.used,memory.free,utilization.gpu",
             "--format=csv,noheader,nounits"],capture_output=True,text=True,timeout=5,check=True,
+            creationflags=getattr(subprocess,"CREATE_NO_WINDOW",0))
+        return parse_gpu_inventory(result.stdout)
+    except (OSError,ValueError,subprocess.SubprocessError):return None
+
+
+def parse_gpu_inventory(raw):
+    import csv
+    from cuda_profile import validate_gpu_ids
+    devices=[]
+    for row in csv.reader(raw.splitlines(),skipinitialspace=True):
+        if not row:continue
+        if len(row)!=9:raise ValueError("gpu_inventory_unknown")
+        idx,uuid,name,bus,cap,total,used,free,load=(v.strip() for v in row)
+        uuid=validate_gpu_ids([uuid])[0]
+        t,u,f=map(float,(total,used,free))
+        if (not all(number(v) for v in (t,u,f)) or t<=0 or u+f>t+2 or f>t
+                or not name or not bus or not idx.isascii() or not idx.isdigit()):
+            raise ValueError("gpu_inventory_unknown")
+        try:
+            pct=float(load)
+            if not number(pct) or pct>100:pct=None
+        except ValueError:pct=None
+        devices.append({"index":int(idx),"uuid":uuid,"name":name,"pci_bus_id":bus,
+            "compute_capability":cap,"total_gib":t/1024,"used_gib":u/1024,
+            "free_gib":f/1024,"utilization_pct":pct})
+    if not devices:raise ValueError("gpu_inventory_unknown")
+    validate_gpu_ids([d["uuid"] for d in devices])
+    if len({d["index"] for d in devices})!=len(devices):raise ValueError("gpu_inventory_unknown")
+    return sorted(devices,key=lambda d:d["index"])
+
+
+def read_vram():
+    """Preserve legacy GPU-0 metrics; add physical inventory when available."""
+    deadline=time.monotonic()+5
+    devices=read_gpu_inventory()
+    if devices:
+        first=next((d for d in devices if d["index"]==0),None)
+        if first:
+            return {k:first[k] for k in ("free_gib","total_gib","used_gib")} | {"devices":devices}
+    # Older drivers may not expose all inventory fields. Preserve the existing
+    # single-GPU path but do not invent UUIDs or multi-device capabilities.
+
+    import os
+    import subprocess
+    from pathlib import Path
+    executable=Path(os.environ.get("SystemRoot",r"C:\Windows"))/"System32"/"nvidia-smi.exe"
+    if not executable.is_file():return None
+    remaining=deadline-time.monotonic()
+    if remaining<=0:return None
+    try:
+        result=subprocess.run([str(executable),"--id=0","--query-gpu=memory.total,memory.used,memory.free",
+            "--format=csv,noheader,nounits"],capture_output=True,text=True,timeout=remaining,check=True,
             creationflags=getattr(subprocess,"CREATE_NO_WINDOW",0))
         total,used,free=map(float,result.stdout.strip().split(','))
         if all(number(x) for x in (total,used,free)) and total>0 and used+free<=total+2:

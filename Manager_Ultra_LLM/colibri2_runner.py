@@ -37,7 +37,7 @@ import time
 import uuid
 
 from launch_contract import initial_instances, InstanceDefinition
-from cuda_profile import launch_values
+from cuda_profile import launch_values, placement_launch, eligible_devices, validate_gpu_ids
 from manager_core import SERVER, planned_paths, Slot
 from resource_catalog import initial_catalogue
 from server_preflight import (INSTALLATION_QUERY, PROJECT, probe_api, read_profiles,
@@ -175,6 +175,12 @@ def verify_review(plan):
         from resource_policy import read_vram
         vram=read_vram()
         if vram is None:raise StartDenied("vram_telemetry_unknown")
+        if spec.resources.get("gpu_placement") is not None:
+            try:
+                ids=validate_gpu_ids(spec.resources["gpu_placement"])
+                eligible=eligible_devices(vram.get("devices"))
+                if any(i not in eligible for i in ids):raise ValueError("gpu_selection_unavailable")
+            except ValueError as error:raise StartDenied(str(error)) from None
         # Do not deny based on the forecast; retain GPU presence and verified runtime.
 
 
@@ -522,6 +528,15 @@ def command_and_environment(plan):
             except ValueError:raise StartDenied("invalid_cuda_profile") from None
             command.extend(cuda_args)
             env.update(cuda_env)
+        placement=_SPEC.get().resources.get("gpu_placement")
+        explicit=type(launch.get("cuda_profile")) is dict and "gpu_mode" in launch["cuda_profile"]
+        if explicit != (placement is not None) or (placement is not None and setting("backend")!="cuda"):
+            raise StartDenied("invalid_gpu_placement")
+        if placement is not None:
+            try:gpu_arg,gpu_env=placement_launch(placement)
+            except ValueError:raise StartDenied("invalid_gpu_placement") from None
+            command[command.index("--gpu")+1]=gpu_arg
+            env.update(gpu_env)
         if launch.get("thinking") is not None:
             if type(launch["thinking"]) is not bool:raise StartDenied("invalid_launch_policy")
             env["COLI_THINK"]="1" if launch["thinking"] else "0"

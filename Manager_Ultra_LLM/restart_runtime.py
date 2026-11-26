@@ -274,6 +274,13 @@ def request(controller, principal, payload):
             saved = controller.registry.cuda_profile(db, slot_id, key) if mode == "cuda" else None
             if mode == "cuda" and saved is None and old_spec.review.get("launch", {}).get("cuda_profile") is not None:
                 saved = old_spec.review["launch"]["cuda_profile"]
+            # Explicit placement must be re-admitted atomically after release.
+            # Until the restart worker supports GPU holds, use explicit Stop/Start.
+            if mode=="cuda" and ((saved is not None and "gpu_mode" in saved)
+                    or old_spec.resources.get("gpu_placement") or any(
+                        not r["released"] and r["mode"]=="cuda" and json.loads(r["spec"]).get("resources",{}).get("gpu_placement")
+                        for r in controller._rows(db))):
+                raise ControlError("gpu_restart_requires_stop_start")
             context = payload.get("context_tokens",
                                   old_spec.review.get("launch", {}).get("context_tokens"))
             telemetry = controller.backend.telemetry()
