@@ -236,6 +236,7 @@ class LiveSecurityTests(unittest.TestCase):
                 "allowed_client_ips":["127.0.0.1"],"clients":[{"client_id":"local",
                     "sha256":"a"*64,"allowed_slots":["slot1"],"control_models":True}]}
             config.write_text(json.dumps(primary),encoding="utf-8")
+            original=config.read_bytes()
             vpn={"enabled":True,"bind_host":"10.7.0.3","source_ip":"10.7.0.2",
                  "cert_file":str(root/"vpn.cert"),"key_file":str(root/"vpn.key"),
                  "client":{"client_id":"vpn","sha256":"b"*64,
@@ -245,13 +246,23 @@ class LiveSecurityTests(unittest.TestCase):
                 live.save_vpn_settings(config,None,vpn)
                 tls.assert_called_once_with(vpn,config)
                 current=live.load_config(config)
-                self.assertEqual(current.pop("vpn_listener"),primary)
+                self.assertEqual(current.pop("vpn_listener"),vpn)
+                self.assertEqual(current,primary)
+                backups=list(root.glob("manager.pre-vpn-*.json"))
+                self.assertEqual(len(backups),1)
+                self.assertEqual(backups[0].read_bytes(),original)
                 before=config.read_bytes()
                 with self.assertRaisesRegex(ValueError,"changed"):
                     live.save_vpn_settings(config,None,vpn)
                 self.assertEqual(config.read_bytes(),before)
-                live.save_vpn_settings(config,vpn,{**vpn,"enabled":False})
-                self.assertFalse(live.load_config(config)["vpn_listener"]["enabled"])
+                self.assertEqual(list(root.glob("manager.pre-vpn-*.json")),backups)
+                disabled={**vpn,"enabled":False}
+                live.save_vpn_settings(config,vpn,disabled)
+                current=live.load_config(config)
+                self.assertEqual(current.pop("vpn_listener"),disabled)
+                self.assertEqual(current,primary)
+                tls.assert_called_once_with(vpn,config)
+                self.assertEqual(len(list(root.glob("manager.pre-vpn-*.json"))),2)
 
     def test_vpn_rejects_wrong_tcp_peer_before_tls(self):
         from unittest.mock import Mock
