@@ -1,5 +1,61 @@
 # 23 — Нейрополис: подключение и настройка Client, Manager и VPN
 
+## 26.11.2026 — LIVE-UL-WORK-RELEASE160-20261126-001 / VPN-HOME-WORK-01 — KAT CUDA LIVE PASS
+
+OWNER GO в чате: запустить текущий KAT slot1, принять предупреждение unknown RAM/VRAM forecast, получить реальный ответ через HOME Client → WORK Manager по WireGuard и остановить только тестовый экземпляр. #160 runtime, без изменения профилей/прав/туннеля/служб. Первый START принят, instance 10f930acdcf641a2a82d0598f557ee30; диагностический канал потерял session, проверка ошибочно ожидала постоянный model_id вместо instance-specific ID; точная причина выхода скрипта не сохранена. Независимо STOPPED/released=1, тестовый чат не создан. Повтор с правильным ID и локальным журналом: instance f291b286cc0048f79f2f5ad3b6aacfb2, START request ae2d977c6c5f4e29aa7d012106734c3e, READY 65.609 s, KAT CUDA сохранённый профиль budget 11 GiB / target 7 GiB / chain=true / rows=1024, GPU0 RTX4070 Ti SUPER, VRAM экземпляра 9.079 GiB; GPU1 не задействована. Реальный NDJSON stream через HOME Client API, chat e0131988a5c249e39702efeb71ebcb97, request 3d71ea00301a4b9db87a607bb30376ac: ответ “Test message received.”, 4 delta, 0 reasoning (thinking off), first fragment 4.344 s, total 4.906 s, provider usage 27 prompt / 4 completion, throughput 0.84 token/s включая prefill (не чистая скорость декодирования), history readback 2 messages. Explicit Stop → STOPPED/released=true, оба экземпляра освобождены, WORK DB unreleased=0; независимый nvidia-smi после остановки GPU0 2423 MiB и GPU1 0 MiB, совпадает с preflight, HOME catalog также 2.366 GiB / 0; Manager PID33392, local 127.0.0.1:18443 + VPN 10.253.77.3:18443, WORK Client PID34164 port56686 сохранены. Evidence: HOME protected client backup, live-kat-vpn-attempt2.jsonl, WORK SQLite/readback. LOCAL-PLAN-01 до/после PASS, plan SHA b215ef9882542d5e38590965b8635b8c8039320eaf87f7626f9c7137c97831ee, archive 1071b531a3985ecb08d474651f73cedaf5aeb73cec1108b19daf764848fb4102. Студия/Bridge не активированы, M1-10 HOLD. Первая обычная HOME→WORK генерация/Stop/release — PASS; длительная генерация, multi-GPU Full, VPN reconnect, visual UX owner, joint Studio acceptance — OPEN. Следующий этап согласовать отдельно; не запускать модели автоматически. #161 docs CI 45873457153 SUCCESS.
+
+## 26.11.2026 — LIVE-UL-WORK-RELEASE160-20261126-001 / VPN-HOME-WORK-01 — CONNECTION PASS / INFERENCE OPEN
+
+**Актуальная инструкция (проверена на HOME/WORK).** Эта запись заменяет прежние статусы «VPN не реализован/не проверен» в исторических разделах ниже. Подключение уже настроено; не повторять создание сертификата или регистрации поверх работающего профиля. Туннель уже существует. Это соединение Manager, не Bridge и не тест LLM.
+
+| Параметр | Значение на текущих ПК |
+| --- | --- |
+| HOME WireGuard IP | 10.253.77.2 |
+| WORK WireGuard IP | 10.253.77.3 |
+| Manager ID | work-43paebo |
+| Прежний локальный WORK endpoint | https://127.0.0.1:18443 |
+| Новый HOME→WORK endpoint | https://10.253.77.3:18443 |
+| Client ID (VPN) | home-rex-work-vpn |
+| VPN права P0 | slot1, запуск/остановка; не администратор |
+| Тайм-аут проверки процессов | 30 с (10–120 с) |
+| Firewall | Neuropolis-Manager-WireGuard-HOME-WORK-18443, только TCP .2→.3:18443, интерфейс NeyropoliWork, фактический python.exe |
+| Публичный TLS SHA-256 | 1753c4d5baa3ab0f997735d845491c0a9d6343fb17b2ec343c8bb14c8ed2a270 |
+
+**Как открыть настройки WORK:** в PowerShell на рабочем ПК из обычной Windows-сессии выполнить (действующий Manager не запускается второй раз):
+
+```powershell
+& 'C:\Users\Gamedev\AppData\Local\Programs\Python\Python312\python.exe' -B 'D:\Neyro\Menager\live_manager.py' --config 'D:\Neyro\Menager\private\manager.json' --network-settings
+```
+
+1. «Разрешить дополнительный VPN-вход» → локальный IP .3, разрешённый IP клиента .2. Основной адрес 127.0.0.1:18443 оставить. Для нового хоста сверить реальные адреса, не использовать wildcard.
+2. Для новой установки «Создать TLS» → доверенный OpenSSL, на WORK найден `C:\Program Files\Git\usr\bin\openssl.exe`. SAN = VPN IP; приватный ключ остаётся в private. «Экспорт публичного TLS» → только публичный PEM, сверить отпечаток независимым каналом. Для текущего подключения пара уже создана.
+3. HOME Client → «Обзор серверов» → «Подключить Manager», заполнить Manager ID, отдельный Client ID, IP .3, порт 18443, импортировать публичный сертификат. Мастер создаёт токен на HOME; на WORK переносить только SHA-256 регистрации, не токен. Первое not_submitted до появления listener ожидаемо, профиль остаётся.
+4. WORK → указать отдельный Client ID, SHA-256 регистрации, разрешённые slot ID, «Разрешить запуск и остановку моделей» для нужного пользователя; «Сохранить». В существующей регистрации пустой SHA сохраняет его для того же ID. Тайм-аут → 30 → «Сохранить тайм-аут». Явный restart Manager только после остановки активных моделей и проверки backup/idle. UI сам не перезапускает Manager и не создаёт firewall-rule.
+5. «Брандмауэр» → штатный Windows Firewall: входящее разрешение на точный TCP port, local/remote IP, приложение, WG interface; не открывать WAN/роутер и не отключать firewall. Проверить ActiveStore. На WORK правило уже создано штатным PowerShell API, совпадение фильтров проверено.
+6. «Проверить TCP» → основной и VPN TCP одного процесса есть. HOME Client → «Обновить», WORK ONLINE. Проверить TLS/auth и доступ к каталогу, не считать ping или TCP достаточными. Нельзя заменять прежний профиль или сертификат. При изменении сети не отключать TLS/ACL.
+
+**Фактическая процедура координатора:** файлы и состояние резервированы до переключения. Установлены точные исходники main #160; настройки сохранены через штатные функции save_vpn_settings/save_process_inventory_timeout и /api/enroll, не редактированием JSON; окно Tk программно открыто и поля/кнопка TCP проверены. Визуальная приёмка человеком не выполнена. BACKUP WORK `D:\Neyro\Menager\private\release-160-20261126\backup`, manifest, RESULT.json и VPN_RESULT.json в родительском каталоге; HOME прежний managers.json и consistent SQLite в защищённом backup-before-work-vpn-160-20261126 под Client private. Не публиковать секреты и не восстанавливать старые DB поверх новых чатов. При VPN rollback отключить только дополнительный вход через UI, сохранить и безопасно перезапустить, удалить только собственное scoped firewall-rule; прежние HOME/Server77 и локальный WORK оставить.
+
+| Попытка | Факт / причина | Результат |
+| --- | --- | --- |
+| #160 main CI attempt1 | P1 не дождался DOM статуса «Стоп → Старт», 10 s, строка 329; причина задержки UNKNOWN, не VPN | Повтор на том же SHA attempt2 SUCCESS |
+| WORK preflight | Вначале ошибка quoting PowerShell/Python диагностической команды (SyntaxError), не продукт | Python stdin корректно прочитал БД, active instances=0 |
+| WORK cutover attempt1 | Пустой список освобождённых портов вызвал ненулевой exit Get-NetTCPConnection -LocalPort | Автоматический rollback, local ONLINE, runtime не заменён; исправлена проверка пустого списка |
+| WORK cutover attempt2 | 39 exact blobs, проверенный ZIP, protected backup 49, config PASS | №160 technical install PASS; Client local ONLINE |
+| HOME enrollment до listener | not_submitted/manager_unreachable_or_untrusted, ожидаемый недоступный порт | Новый профиль сохранён, прежние неизменны |
+| WORK TLS/firewall/settings | SAN, key ACL, отдельный grant, ActiveStore rule, 30 с, два TCP одного PID | PASS |
+| HOME TLS/auth | HTTP 200 identity work-43paebo/home-rex-work-vpn; без/неверный token 401 | PASS; чужой источник .3 прерван до TLS |
+| HOME статус Client | HOME, Server77, WORK ONLINE; видит обе GPU WORK | CONNECTION PASS. Не inference PASS |
+| Реальная LLM | KAT/Qwen требуют risk acknowledgement (unknown RAM/VRAM estimate), активных экземпляров нет | NOT RUN, требуется явное подтверждение владельца; не менять профиль без согласования |
+
+OWNER GO: WORK #160 установлен из принятого main `ed47e88299bea6152bd5212e7a6778101756ce5b` (source #160 `02faba224aa91e10a5e9f518ac3d40585cb2db62`). [CI source 45868584541](https://github.com/maxrus82gm-svg/local_LLM/actions/runs/45868584541) SUCCESS attempt1; [CI main 45869830813](https://github.com/maxrus82gm-svg/local_LLM/actions/runs/45869830813) attempt1 FAIL Chrome P1 DOM deadline при сохранении CUDA (строка 329), остальные suites PASS; attempt2 job 140084451402 SUCCESS, тот же SHA, причина первого сбоя UNKNOWN. PowerShell 30 s установлен, диапазон UI 10–120 s; Chrome QA 30 s. Сетевые профили и восстановление стрима OPEN.
+
+WORK: 39 source blobs exact Git SHA/size, Manager ZIP 23 entries SHA256 1223e21a99416aa67014208f74f90b959d3846fcf68f3d70ecff00c3c3d1dfd6; 49 backup records, включая consistent SQLite обеих программ, manifest SHA256 505f55e74c74cdeffd2ebb3cd24b84b4710c5263f3fd35f56b75891de4734c12. Первая попытка переключения остановилась на собственной проверке освобождённых портов (Get-NetTCPConnection -LocalPort при пустом результате exit1), rollback LOCAL ONLINE, код не заменён. Повтор после исправления проверки: INSTALL PASS, 5 runtime + 2 metadata, все 39 blobs readback; private config/auth/TLS неизменны при обновлении. WORK Manager #160 после VPN restart PID 33392, Client PID 34164, ordinary session1. One Manager, 127.0.0.1:18443 и 10.253.77.3:18443; WORK Client 127.0.0.1:56686 ONLINE.
+
+VPN LIVE: HOME .2 → WORK .3, существующий WireGuard 16 ms, конфигурация туннеля/маршруты/службы не менялись. Отдельный TLS SAN .3, доверенный Git OpenSSL 3.2.3, проверка ACL/key/validity PASS. HOME Client enrollment через штатный /api/enroll, initial not_submitted ожидаем до listener, старые HOME/Server77 профили сохранены, новый work-43paebo / home-rex-work-vpn. Ограничение P0: только slot1 + control_models, без pairing_admin. Сохранено через те же валидируемые функции UI (не ручной JSON); отдельное узкое правило Windows Firewall local .3, remote .2, TCP18443, interface NeyropoliWork, python.exe; ActiveStore readback PASS. Настоящее локальное Tk окно программно проверено, «Проверить TCP» PASS и timeout 30, secret digest не показывается; визуальная приёмка владельцем OPEN. HOME HTTPS verified/auth 200, no token/wrong token 401, wrong source WORK .3 abort before TLS. HOME Client видит HOME/Server77/WORK ONLINE, WORK local ONLINE. Две GPU WORK видны из HOME (4070 Ti SUPER 16 GiB + 3060 Ti 8 GiB), объединение VRAM и реальная генерация NOT RUN.
+
+**NEXT:** slot1 KAT CUDA уже выбран, RAM/VRAM estimate unknown, UI requires_ack=true (оба KAT/Qwen CPU/CUDA). Не подтверждать риск за владельца. После явного GO запустить KAT текущим профилем, проверить реальный поток, usage/TPS, Stop и VRAM release; затем тест reconnect/изоляции, расширение доступа только согласованно. HOME Manager/Server77/Студия не обновлялись, HOME Client добавлен только профиль, его процесс не перезапускался. Не включать Bridge/фоновые службы/сон, M1-10 HOLD. LOCAL-PLAN-01 read до и после PASS, SHA b215ef9882542d5e38590965b8635b8c8039320eaf87f7626f9c7137c97831ee; archive 1071b531a3985ecb08d474651f73cedaf5aeb73cec1108b19daf764848fb4102, общий план не изменён. Подробная практическая инструкция и журнал проб — №23.
+
 ## 26.11.2026 — VPN-HOME-WORK-01 / TIMEOUT-POLICY-01 — SOURCE CANDIDATE
 
 [CI 45862810802](https://github.com/maxrus82gm-svg/local_LLM/actions/runs/45862810802): Manager ERROR — Get-CimInstance Win32_Process из локального PowerShell, deadline 4 s; Chrome legacy ERROR — локальный DevToolsActivePort не появился в ~10 s. Остальные Chrome сценарии и Client PASS. Это не задержка WireGuard; причина медленного запуска хостового процесса UNKNOWN. #159 повтор ранее PASS; предыдущие ошибки не считать доказанно устранёнными до нового CI.
@@ -131,7 +187,7 @@ Client — рабочее место пользователя: список се
 
 Manager сейчас допускает один числовой private/loopback bind_host. 0.0.0.0 не допускается. Смена bind/port/TLS требует согласованной проверки конфигурации и перезапуска, не простой правки на работающем сервере. Операции pairing не заменяют firewall или TLS. См. исходники `Manager_Ultra_LLM/live_manager.py` (load_config), `Client_Ultra_LLM/web_client.py` (enroll_profile), `Client_Ultra_LLM/pairing_client.py` и [мастер #147](https://github.com/maxrus82gm-svg/local_LLM/blob/aa78b3498d64f4d3601d192afc3cbfa178969e5a/Client_Ultra_LLM/web_assets/index.html).
 
-## 5. VPN HOME ↔ WORK: действующий план, пока не завершён
+## 5. VPN HOME ↔ WORK: исторический план настройки (фактическое состояние — верхняя запись CONNECTION PASS)
 
 Цель: обе машины видят друг друга по отдельной защищённой сети, обычный интернет/DNS/локальная сеть остаются без изменений. Прямая схема без VPS: HOME имеет статический публичный IPv4 (по сообщению владельца), принимает UDP 51820; WORK инициирует соединение. После handshake трафик двусторонний в разрешённых пределах. HOME WireGuard установлен, туннель/ключи и проброс UDP 51820 на HOME сообщены владельцем; фактическая конфигурация, WORK peer, handshake и HTTPS не подтверждены. Доступ к WORK был недоступен после сна/ожидания удалённого подтверждения; VPN отложен на время WEB35 интеграции. Не менять рабочую сеть без разрешения её администратора.
 
@@ -168,9 +224,9 @@ PersistentKeepalive = 25
 
 На HOME роутере только UDP 51820 → закреплённый LAN IP HOME:51820; Windows firewall разрешает этот UDP для WireGuard. На WORK роутере проброс не нужен. Не указывать AllowedIPs=0.0.0.0/0, ::/0, DNS, маршруты физических LAN, не включать ICS/forwarding/NAT; не менять V2Ray/3X-UI. Не открывать TCP18443/8443 или engine порты наружу. Активировать HOME, затем WORK. В WireGuard сверить latest handshake и счётчики Rx/Tx на обоих. Ping — дополнительная проверка, ICMP может блокироваться. Сверить прежние маршруты/DNS и работоспособность обычной сети; не отключать firewall ради диагностики.
 
-### 5.2. Подключение Manager через VPN — отдельная задача разработки
+### 5.2. Подключение Manager через VPN — историческое проектное решение; реализовано #158–160 и установлено на WORK
 
-**Важное ограничение:** WORK Manager сейчас слушает 127.0.0.1:18443. Если просто заменить адрес на VPN, существующий локальный WORK Client потеряет подключение. Нельзя запускать второй Manager с общей DB. Предложение (не реализовано): один Manager с двумя точными HTTPS listeners, primary прежний + optional VPN, общий handler/admission/DB, независимое восстановление VPN при позднем старте, единое завершение. HOME Manager аналогично сохраняет LAN bind и добавляет VPN listener только если WORK Client должен подключаться к нему. Ни wildcard, ни public bind.
+**Историческое ограничение #156:** WORK Manager слушал 127.0.0.1:18443. Замена адреса потеряла бы локальное подключение. Не запускать второй Manager с общей DB. Реализованное решение #160: один Manager с двумя точными HTTPS listeners, primary прежний + optional VPN, общий handler/admission/DB, независимое восстановление VPN при позднем старте, единое завершение. HOME Manager аналогично сохраняет LAN bind и добавляет VPN listener только если WORK Client должен подключаться к нему. Ни wildcard, ни public bind.
 
 | Направление | endpoint после реализации | source allowlist/firewall |
 | --- | --- | --- |
