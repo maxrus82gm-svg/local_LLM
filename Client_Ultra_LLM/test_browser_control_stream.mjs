@@ -8,6 +8,7 @@ import {fileURLToPath} from 'node:url';
 import assert from 'node:assert/strict';
 
 const here=path.dirname(fileURLToPath(import.meta.url));
+import {waitForDevToolsPort} from './browser_qa_helpers.mjs';
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 const tmp=await fs.mkdtemp(path.join(process.env.UL_QA_ROOT || here,'.chrome-qa-'));
 let chrome,ws,server,release;
@@ -111,12 +112,7 @@ try {
     '--disable-background-networking',`--user-data-dir=${tmp}`,'--remote-debugging-port=0',origin],
     {windowsHide:true,stdio:'ignore'});
   mark('chrome_spawned');
-  let port;
-  for(let i=0;i<100;i++){
-    try{port=Number((await fs.readFile(path.join(tmp,'DevToolsActivePort'),'utf8')).split('\n')[0]);break;}catch{}
-    await delay(100);
-  }
-  assert(port,'Chrome DevTools did not start');
+  const port=await waitForDevToolsPort(chrome,tmp);
   mark('devtools_port_ready');
   const tabs=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json();
   ws=new WebSocket(tabs.find(t=>t.type==='page').webSocketDebuggerUrl);

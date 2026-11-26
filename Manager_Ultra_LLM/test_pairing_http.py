@@ -138,5 +138,53 @@ class PairingProtocolTests(unittest.TestCase):
         self.assertEqual(body["error"],"read_only_stage")
 
 
+    def test_optional_vpn_and_primary_share_handler_without_grant_leak(self):
+        # HTTP-only synthetic socket harness: production exact bind/TLS is a
+        # separate test. Inject loopback as VPN peer after schema validation.
+        from copy import deepcopy
+        cfg=load_config(self.config_file)
+        cfg["vpn_listener"]={
+            "enabled":True,"bind_host":"10.7.0.3","source_ip":"10.7.0.2",
+            "cert_file":str(self.config_file.parent/"vpn-cert.pem"),
+            "key_file":str(self.config_file.parent/"vpn-key.pem"),
+            "client":{"client_id":"vpn","sha256":hashlib.sha256(b"TEST-VPN-ONLY-xxxxxxxxxxxxxxxxxxxxxxxx").hexdigest(),
+                      "allowed_slots":["slot2"],"control_models":False}}
+        self.config_file.write_text(json.dumps(cfg),encoding="utf-8")
+        self.assertEqual(load_config(self.config_file)["vpn_listener"],cfg["vpn_listener"])
+        startup=deepcopy(cfg)
+        startup["vpn_listener"]["source_ip"]="127.0.0.1"
+        handler=make_handler(self.config_file,startup,self.inbox)
+        self.server.RequestHandlerClass=handler
+        alternate=ThreadingHTTPServer(("127.0.0.1",0),handler)
+        alternate.daemon_threads=True
+        alternate.vpn_listener=startup["vpn_listener"]
+        thread=threading.Thread(target=alternate.serve_forever,daemon=True);thread.start()
+        self.addCleanup(lambda:thread.join(3))
+        self.addCleanup(alternate.server_close)
+        self.addCleanup(alternate.shutdown)
+        root=self.root
+        marker="TEST-VPN-ONLY-xxxxxxxxxxxxxxxxxxxxxxxx"
+        with patch("live_manager.load_config",return_value=startup), \
+             patch("live_manager.live_snapshot",side_effect=lambda cfg,client,**kw:
+                   {"manager_id":"srv-test","viewer_id":client["client_id"],"slots":[]}):
+            self.root=f"http://127.0.0.1:{alternate.server_address[1]}"
+            code,data=self.req("/v1/snapshot",token=marker)
+            self.assertEqual(code,200)
+            self.assertEqual(data["viewer_id"],"vpn")
+            self.assertEqual(self.req("/v1/snapshot",token=ADMIN_MARKER)[0],401)
+            self.assertEqual(self.req("/v1/snapshot")[0],401)
+            self.assertEqual(self.req("/v1/pairing/request","POST",
+                                      {"client_id":"other","token_sha256":"e"*64})[0],403)
+            self.assertEqual(self.req("/v1/control","POST",{},token=marker)[0],403)
+            self.root=root
+            self.assertEqual(self.req("/v1/snapshot",token=marker)[0],401)
+            self.assertEqual(self.req("/v1/snapshot",token=ADMIN_MARKER)[0],200)
+        disabled=deepcopy(startup);disabled["vpn_listener"]["enabled"]=False
+        with patch("live_manager.load_config",return_value=disabled):
+            self.root=f"http://127.0.0.1:{alternate.server_address[1]}"
+            self.assertEqual(self.req("/v1/snapshot",token=marker)[0],403)
+        self.root=root
+
+
 if __name__=="__main__":
     unittest.main()

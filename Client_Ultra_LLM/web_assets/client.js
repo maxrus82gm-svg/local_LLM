@@ -429,6 +429,13 @@ function makeManager(row) {
       row.error === "http_403" ? "Этот компьютер не разрешён на Manager" :
       "Нет соединения или ошибка настройки";
     body.append(node("p", "", err));
+    const diagnostic = {tls_certificate:"Сертификат не подтверждает адрес или доверие",
+      tls_handshake:"Не удалось установить TLS",
+      tcp_refused:"TCP-порт Manager недоступен: соединение отклонено",
+      network_timeout:"Истекло время ожидания сетевого ответа",
+      dns_error:"Не удалось определить сетевой адрес",
+      profile_or_response:"Проверьте профиль, сертификат и ответ Manager"}[row.diagnostic];
+    if (diagnostic) body.append(node("p", "manager-pairing-note", diagnostic));
     const states = {
       pending: "Заявка отправлена — ожидает подтверждения администратора",
       approved: "Заявка подтверждена; обновите соединение",

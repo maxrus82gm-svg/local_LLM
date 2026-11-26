@@ -166,5 +166,203 @@ class LiveSecurityTests(unittest.TestCase):
                          "alice")
 
 
+    def test_vpn_schema_exact_peer_and_separate_identity(self):
+        from copy import deepcopy
+        from pathlib import Path
+        cfg = {"bind_host": "127.0.0.1", "cert_file": str(Path("local.cert").absolute()),
+               "key_file": str(Path("local.key").absolute())}
+        client = {"client_id":"local", "sha256":"a"*64}
+        vpn = {"enabled":True,"bind_host":"10.7.0.3","source_ip":"10.7.0.2",
+               "cert_file":str(Path("vpn.cert").absolute()),"key_file":str(Path("vpn.key").absolute()),
+               "client":{"client_id":"vpn","sha256":"b"*64,"allowed_slots":["slot1"],
+                         "control_models":True}}
+        cfg["vpn_listener"]=vpn
+        live.validate_vpn(cfg, {"slot1"}, [client])
+        for field,value in (("bind_host","0.0.0.0"),("bind_host","8.8.8.8"),
+                            ("bind_host","127.0.0.1"),("bind_host","10.7.0.2"),
+                            ("source_ip","10.7.0.0/24"),("source_ip","127.0.0.1"),
+                            ("enabled",1),("cert_file",cfg["cert_file"])):
+            bad=deepcopy(cfg)
+            bad["vpn_listener"][field]=value
+            with self.subTest(field=field,value=value), self.assertRaises(ValueError):
+                live.validate_vpn(bad, {"slot1"}, [client])
+        for field,value in (("client_id","local"),("sha256","a"*64),
+                            ("allowed_slots",["slot9"]),("control_models",1),
+                            ("pairing_admin",True)):
+            bad=deepcopy(cfg)
+            bad["vpn_listener"]["client"][field]=value
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                live.validate_vpn(bad, {"slot1"}, [client])
+        self.assertIsNone(live.vpn_request_config(cfg,vpn,"10.7.0.4"))
+        current=live.vpn_request_config(cfg,vpn,"10.7.0.2")
+        self.assertEqual(current["clients"][0]["client_id"],"vpn")
+        self.assertFalse(current["clients"][0]["pairing_admin"])
+        changed=deepcopy(cfg);changed["vpn_listener"]["enabled"]=False
+        self.assertIsNone(live.vpn_request_config(changed,vpn,"10.7.0.2"))
+        self.assertIsNone(live.vpn_request_config(cfg,None,"10.7.0.2"))
+
+    def test_vpn_tls_rejects_wrong_san(self):
+        from pathlib import Path
+        from unittest.mock import Mock, MagicMock
+        vpn={"bind_host":"10.7.0.3","cert_file":"cert","key_file":"key"}
+        cert,key=MagicMock(spec=Path),MagicMock(spec=Path)
+        cert.resolve.return_value=Path("cert")
+        key.resolve.return_value=Path("key")
+        cert.__str__=Mock(return_value="cert")
+        key.__str__=Mock(return_value="key")
+        key.stat.return_value.st_mode=0o600
+        with patch("pairing_server._trusted_parent"), \
+             patch.object(live,"_vpn_private_file",side_effect=[cert,key]), \
+             patch.object(live.subprocess,"run",return_value=Mock(returncode=0)), \
+             patch.object(live.ssl._ssl,"_test_decode_cert",
+                          return_value={"subjectAltName":[("IP Address","127.0.0.1")]}):
+            with self.assertRaisesRegex(ValueError,"SAN"):
+                live.vpn_tls_context(vpn,Path("manager.json"))
+
+
+
+    def test_vpn_save_preserves_primary_and_requires_expected_state(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            config=root/"manager.json"
+            primary={"manager_id":"server-test","display_name":"Server",
+                "bind_host":"127.0.0.1","listen_port":18443,
+                "cert_file":str(root/"primary.cert"),"key_file":str(root/"primary.key"),
+                "colibri_root":str(root/"engine"),"models_root":str(root/"models"),
+                "slots":[{"slot_id":"slot1","api_port":8000}],
+                "allowed_client_ips":["127.0.0.1"],"clients":[{"client_id":"local",
+                    "sha256":"a"*64,"allowed_slots":["slot1"],"control_models":True}]}
+            config.write_text(json.dumps(primary),encoding="utf-8")
+            original=config.read_bytes()
+            vpn={"enabled":True,"bind_host":"10.7.0.3","source_ip":"10.7.0.2",
+                 "cert_file":str(root/"vpn.cert"),"key_file":str(root/"vpn.key"),
+                 "client":{"client_id":"vpn","sha256":"b"*64,
+                           "allowed_slots":["slot1"],"control_models":False}}
+            with patch("pairing_server._require_private_acl"), \
+                 patch.object(live,"vpn_tls_context") as tls:
+                live.save_vpn_settings(config,None,vpn)
+                tls.assert_called_once_with(vpn,config)
+                current=live.load_config(config)
+                self.assertEqual(current.pop("vpn_listener"),vpn)
+                self.assertEqual(current,primary)
+                backups=list(root.glob("manager.pre-vpn-*.json"))
+                self.assertEqual(len(backups),1)
+                self.assertEqual(backups[0].read_bytes(),original)
+                before=config.read_bytes()
+                with self.assertRaisesRegex(ValueError,"changed"):
+                    live.save_vpn_settings(config,None,vpn)
+                self.assertEqual(config.read_bytes(),before)
+                self.assertEqual(list(root.glob("manager.pre-vpn-*.json")),backups)
+                disabled={**vpn,"enabled":False}
+                live.save_vpn_settings(config,vpn,disabled)
+                current=live.load_config(config)
+                self.assertEqual(current.pop("vpn_listener"),disabled)
+                self.assertEqual(current,primary)
+                tls.assert_called_once_with(vpn,config)
+                self.assertEqual(len(list(root.glob("manager.pre-vpn-*.json"))),2)
+
+    def test_process_inventory_timeout_save_is_independent(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            config=root/"manager.json"
+            primary={"manager_id":"server-test","display_name":"Server",
+                "bind_host":"127.0.0.1","listen_port":18443,
+                "cert_file":str(root/"primary.cert"),"key_file":str(root/"primary.key"),
+                "colibri_root":str(root/"engine"),"models_root":str(root/"models"),
+                "slots":[{"slot_id":"slot1","api_port":8000}],
+                "allowed_client_ips":["127.0.0.1"],"clients":[{"client_id":"local",
+                    "sha256":"a"*64,"allowed_slots":["slot1"],"control_models":True}]}
+            config.write_text(json.dumps(primary),encoding="utf-8")
+            original=config.read_bytes()
+            with patch("pairing_server._require_private_acl"):
+                live.save_process_inventory_timeout(config,None,60)
+                self.assertEqual(live.load_config(config),{**primary,"process_inventory_timeout_seconds":60})
+                backup=list(root.glob("manager.pre-timeout-*.json"))
+                self.assertEqual(len(backup),1)
+                self.assertEqual(backup[0].read_bytes(),original)
+                before=config.read_bytes()
+                with self.assertRaises(ValueError):
+                    live.save_process_inventory_timeout(config,None,30)
+                with self.assertRaises(ValueError):
+                    live.save_process_inventory_timeout(config,60,4)
+                self.assertEqual(config.read_bytes(),before)
+                self.assertEqual(list(root.glob("manager.pre-timeout-*.json")),backup)
+
+    def test_vpn_rejects_wrong_tcp_peer_before_tls(self):
+        from unittest.mock import Mock
+        server=object.__new__(live.VPNManagerHTTPServer)
+        server.vpn_listener={"source_ip":"10.7.0.2"}
+        server.tls_context=Mock()
+        connection=Mock()
+        with patch.object(live.ShortTimeoutManagerHTTPServer,"get_request",
+                          return_value=(connection,("10.7.0.4",12345))):
+            with self.assertRaises(PermissionError):
+                server.get_request()
+        connection.close.assert_called_once()
+        server.tls_context.wrap_socket.assert_not_called()
+
+
+    def test_vpn_socket_real_tls_and_certificate_verification(self):
+        # Temporary synthetic key, no real Manager, Windows service or LLM.
+        import os
+        import shutil
+        import ssl
+        import socket
+        import subprocess
+        import tempfile
+        import threading
+        from http.server import BaseHTTPRequestHandler
+        from pathlib import Path
+        openssl=shutil.which("openssl")
+        if not openssl and os.name=="nt":
+            candidate=Path(os.environ.get("ProgramFiles",r"C:\Program Files"))/"Git/usr/bin/openssl.exe"
+            openssl=str(candidate) if candidate.is_file() else None
+        if not openssl:
+            self.skipTest("OpenSSL executable unavailable for ephemeral real TLS fixture")
+        with tempfile.TemporaryDirectory() as folder:
+            cert,key=Path(folder)/"cert.pem",Path(folder)/"key.pem"
+            subprocess.run([openssl,"req","-x509","-newkey","rsa:2048","-nodes",
+                    "-sha256","-days","1","-subj","/CN=127.0.0.1",
+                    "-addext","subjectAltName=IP:127.0.0.1",
+                    "-addext","extendedKeyUsage=serverAuth",
+                    "-addext","basicConstraints=critical,CA:FALSE",
+                    "-keyout",str(key),"-out",str(cert)],
+                    check=True,timeout=30,capture_output=True)
+            context=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            context.minimum_version=ssl.TLSVersion.TLSv1_2
+            context.load_cert_chain(str(cert),str(key))
+            class Handler(BaseHTTPRequestHandler):
+                def do_GET(self):
+                    self.send_response(200)
+                    self.send_header("Content-Length","2")
+                    self.end_headers()
+                    self.wfile.write(b"OK")
+                def log_message(self,*args):
+                    pass
+            server=live.VPNManagerHTTPServer(("127.0.0.1",0),Handler,
+                                             {"source_ip":"127.0.0.1"},context)
+            thread=threading.Thread(target=server.serve_forever,daemon=True)
+            thread.start()
+            try:
+                address=server.server_address
+                trusted=ssl.create_default_context(cafile=str(cert))
+                with socket.create_connection(address,timeout=4) as raw:
+                    with trusted.wrap_socket(raw,server_hostname="127.0.0.1") as tls:
+                        tls.sendall(b"GET / HTTP/1.0\r\nHost: localhost\r\n\r\n")
+                        self.assertIn(b"200",tls.recv(4096))
+                with socket.create_connection(address,timeout=4) as raw:
+                    with self.assertRaises(ssl.SSLCertVerificationError):
+                        trusted.wrap_socket(raw,server_hostname="10.7.0.3")
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(3)
+
 if __name__ == "__main__":
     unittest.main()

@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 import re
 import ssl
+import socket
 import sys
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
@@ -58,6 +59,21 @@ def load_profiles(config_path: Path) -> list[dict]:
     return result
 
 
+def connection_diagnostic(error):
+    reason = error.reason if isinstance(error, URLError) else error
+    if isinstance(reason, ssl.SSLCertVerificationError):
+        return "tls_certificate"
+    if isinstance(reason, ssl.SSLError):
+        return "tls_handshake"
+    if isinstance(reason, ConnectionRefusedError):
+        return "tcp_refused"
+    if isinstance(reason, TimeoutError):
+        return "network_timeout"
+    if isinstance(reason, socket.gaierror):
+        return "dns_error"
+    return "profile_or_response"
+
+
 def fetch_one(profile: dict, timeout: float = 6.0) -> dict:
     row = {"manager_id": profile["manager_id"],
            "name": profile["display_name"],
@@ -94,8 +110,9 @@ def fetch_one(profile: dict, timeout: float = 6.0) -> dict:
         row["error"] = ("unauthorized" if error.code == 401 else
                         "http_" + str(error.code))
     except (OSError, URLError, ssl.SSLError, ValueError, KeyError,
-            json.JSONDecodeError):
+            json.JSONDecodeError) as error:
         row["error"] = "connection_or_config_error"
+        row["diagnostic"] = connection_diagnostic(error)
     return row
 
 

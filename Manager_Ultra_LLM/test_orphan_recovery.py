@@ -12,7 +12,28 @@ import uuid
 import colibri2_runner as runner
 from control_runtime import ColibriBackend
 import test_control_runtime as admission
-from windows_process import NativeWindows, WindowsError
+from windows_process import (NativeWindows, WindowsError, DEFAULT_PROCESS_INVENTORY_TIMEOUT_SECONDS,
+                             validate_process_inventory_timeout)
+
+
+class ProcessInventoryTimeoutTests(unittest.TestCase):
+    def test_timeout_bounds_and_default(self):
+        self.assertEqual(DEFAULT_PROCESS_INVENTORY_TIMEOUT_SECONDS, 30)
+        for value in (10, 30, 60, 120):
+            self.assertEqual(validate_process_inventory_timeout(value), value)
+        for value in (0, 4, 121, -1, True, "30", 30.5, None):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                validate_process_inventory_timeout(value)
+
+    def test_inventory_uses_configured_deadline_and_propagates_timeout(self):
+        native = object.__new__(NativeWindows)
+        native.process_inventory_timeout_seconds = 60
+        with patch("windows_process.subprocess.run", return_value=Mock(stdout="[101]")) as run:
+            self.assertEqual(native.session_pids("a"*32), {101})
+            self.assertEqual(run.call_args.kwargs["timeout"], 60)
+        with patch("windows_process.subprocess.run", side_effect=subprocess.TimeoutExpired("qa", 60)):
+            with self.assertRaises(subprocess.TimeoutExpired):
+                native.session_pids("a"*32)
 
 
 class RecoveryTests(unittest.TestCase):
@@ -124,8 +145,9 @@ class RecoveryTests(unittest.TestCase):
     def test_backend_reports_recovered_after_verified_cleanup(self):
         with patch.object(runner,"run",return_value={**self.state,"state":"STALE","supervisor_verified":False}), \
              patch.object(runner,"recover_orphan",return_value=True), \
-             patch.object(runner,"NativeWindows",return_value=self.native):
-            status=ColibriBackend().recover_status(self.spec,self.session)
+             patch.object(runner,"NativeWindows",return_value=self.native) as native:
+            status=ColibriBackend(process_inventory_timeout_seconds=60).recover_status(self.spec,self.session)
+        native.assert_called_once_with(process_inventory_timeout_seconds=60)
         self.assertEqual(status,{"state":"STOPPED","released":True,"reason":"orphan_recovered"})
 
     def test_backend_retains_quarantine_on_recovery_exception(self):
@@ -170,7 +192,7 @@ class NativeRecoveryTests(unittest.TestCase):
         try:
             with open(Path(folder)/"out","wb") as out,open(Path(folder)/"err","wb") as err:
                     session=uuid.uuid4().hex
-                    cmd=[sys.executable,"-B","-c","import time;time.sleep(30)",session]
+                    cmd=[sys.executable,"-B","-c","import time;time.sleep(120)",session]
                     persisted=[]
                     hp,r=native.spawn_contained(cmd,os.environ.copy(),folder,out,err,a,before_resume=persisted.append)
                     handles.append(hp)

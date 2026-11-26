@@ -120,10 +120,393 @@ def _text_id(value, field):
     return value
 
 
+
+# Optional direct VPN ingress: one exact IPv4 peer and a distinct credential.
+# The existing primary listener and grants are never expanded by this option.
+_VPN_NETWORKS = tuple(ipaddress.ip_network(x) for x in
+                      ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"))
+
+
+def _vpn_ip(value):
+    if type(value) is not str:
+        raise ValueError("VPN requires literal private IPv4 addresses")
+    ip = ipaddress.IPv4Address(value)
+    if not any(ip in net for net in _VPN_NETWORKS):
+        raise ValueError("VPN requires RFC1918 IPv4 addresses")
+    return str(ip)
+
+
+def validate_vpn(raw, known_ids, primary_clients):
+    vpn = raw.get("vpn_listener")
+    if vpn is None:
+        return
+    fields = {"enabled", "bind_host", "source_ip", "cert_file", "key_file", "client"}
+    if type(vpn) is not dict or set(vpn) != fields or type(vpn["enabled"]) is not bool:
+        raise ValueError("Invalid VPN listener fields")
+    bind, peer = _vpn_ip(vpn["bind_host"]), _vpn_ip(vpn["source_ip"])
+    if bind == peer or bind == str(ipaddress.ip_address(raw["bind_host"])):
+        raise ValueError("VPN address must differ from peer and primary listener")
+    for field in ("cert_file", "key_file"):
+        if type(vpn[field]) is not str or not Path(vpn[field]).is_absolute():
+            raise ValueError("VPN certificate and key require absolute local paths")
+        if Path(vpn[field]).resolve() in (Path(raw["cert_file"]).resolve(),
+                                          Path(raw["key_file"]).resolve()):
+            raise ValueError("VPN TLS must not replace primary TLS files")
+    if Path(vpn["cert_file"]).resolve() == Path(vpn["key_file"]).resolve():
+        raise ValueError("Separate certificate and key files required")
+    client = vpn["client"]
+    if type(client) is not dict or set(client) != {
+            "client_id", "sha256", "allowed_slots", "control_models"}:
+        raise ValueError("VPN requires a separate, explicit client grant")
+    _text_id(client["client_id"], "VPN client ID")
+    if type(client["sha256"]) is not str or not re.fullmatch(r"[a-f0-9]{64}", client["sha256"]):
+        raise ValueError("VPN requires a client-generated SHA256, never the bearer token")
+    if any(client["client_id"] == c["client_id"] or
+           client["sha256"] == c["sha256"] for c in primary_clients):
+        raise ValueError("VPN client must not reuse primary identity or credential")
+    slots = client["allowed_slots"]
+    if (type(slots) is not list or any(type(x) is not str or x not in known_ids for x in slots)
+            or len(set(slots)) != len(slots) or type(client["control_models"]) is not bool):
+        raise ValueError("Invalid VPN client permissions")
+
+
+def vpn_request_config(current, startup_vpn, source_ip):
+    """A saved change invalidates old VPN access until explicit restart."""
+    if (not startup_vpn or not startup_vpn.get("enabled") or
+            current.get("vpn_listener") != startup_vpn or
+            source_ip != startup_vpn["source_ip"]):
+        return None
+    return {**current, "clients": [{**startup_vpn["client"], "pairing_admin": False}]}
+
+
+def _vpn_private_file(value, config_file):
+    path = Path(value)
+    parent = config_file.absolute().parent
+    if (not path.is_absolute() or path.parent.resolve() != parent.resolve()
+            or path.is_symlink() or not path.is_file()):
+        raise ValueError("VPN TLS files must be regular files in Manager private directory")
+    for node in (path, *path.parents):
+        if node.is_symlink() or node.is_junction():
+            raise ValueError("VPN TLS paths may not traverse links or junctions")
+    return path
+
+
+def vpn_tls_context(vpn, config_file):
+    from pairing_server import _trusted_parent
+    _trusted_parent(config_file)
+    cert = _vpn_private_file(vpn["cert_file"], config_file)
+    key = _vpn_private_file(vpn["key_file"], config_file)
+    if cert.resolve() == key.resolve():
+        raise ValueError("Separate TLS files required")
+    # A protected parent is necessary but an imported key may have its own
+    # explicit broad ACL. Reject those before using it.
+    import os
+    if os.name == "nt":
+        literal = "'" + str(key).replace("'", "''") + "'"
+        script = (
+            "$ErrorActionPreference='Stop'; $a=Get-Acl -LiteralPath " + literal +
+            "; $bad=@('S-1-1-0','S-1-5-11','S-1-5-32-545','S-1-5-2');"
+            "foreach($r in $a.Access){if($r.AccessControlType -eq 'Allow'){"
+            "if($bad -contains $r.IdentityReference.Translate("
+            "[Security.Principal.SecurityIdentifier]).Value){exit 8}}};exit 0")
+        result = subprocess.run([_POWERSHELL, "-NoProfile", "-NonInteractive",
+                    "-Command", script], capture_output=True, timeout=10,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        if result.returncode:
+            raise PermissionError("VPN private key ACL is not protected")
+    elif key.stat().st_mode & 0o077:
+        raise PermissionError("VPN private key must not be accessible by group/others")
+    details = ssl._ssl._test_decode_cert(str(cert))
+    names = details.get("subjectAltName", ())
+    if not any(kind == "IP Address" and
+               ipaddress.ip_address(value) == ipaddress.ip_address(vpn["bind_host"])
+               for kind, value in names):
+        raise ValueError("VPN certificate SAN does not match the VPN IP")
+    now = time.time()
+    if not (ssl.cert_time_to_seconds(details["notBefore"]) <= now <
+            ssl.cert_time_to_seconds(details["notAfter"])):
+        raise ValueError("VPN certificate is not currently valid")
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    context.load_cert_chain(str(cert), str(key))
+    return context
+
+
+def save_vpn_settings(config_file, expected, draft):
+    """Local admin operation, guarded by the existing configuration lock.
+    No model operation, firewall change, listener mutation or implicit restart.
+    """
+    from pairing_server import manager_config_lock, _write_config
+    with manager_config_lock(config_file):
+        current = load_config(config_file)
+        if current.get("vpn_listener") != expected:
+            raise ValueError("VPN settings changed; reopen settings before saving")
+        current["vpn_listener"] = draft
+        # Dynamic slot definitions are available even when not in static slots.
+        known_ids = {x["slot_id"] for x in current["slots"]}
+        options = current.get("control", {})
+        if options.get("owner_go"):
+            import sqlite3
+            from contextlib import closing
+            database = Path(options["state_dir"]) / "control.sqlite3"
+            with closing(sqlite3.connect(database.resolve().as_uri()+"?mode=ro",
+                                         uri=True, timeout=1)) as db:
+                known_ids.update(x[0] for x in db.execute("SELECT slot_id FROM slots"))
+        validate_vpn(current, known_ids, current["clients"])
+        if draft["enabled"]:
+            vpn_tls_context(draft, config_file)
+        # Keep the original bytes in the protected folder. Restore only the
+        # VPN settings, not the whole config over newer grants, on rollback.
+        import uuid
+        backup = config_file.parent / ("manager.pre-vpn-" + uuid.uuid4().hex + ".json")
+        with backup.open("xb") as stream:
+            stream.write(config_file.read_bytes())
+        _write_config(config_file, current, new=False)
+        if load_config(config_file).get("vpn_listener") != draft:
+            raise RuntimeError("VPN configuration readback mismatch")
+
+
+def save_process_inventory_timeout(config_file, expected, seconds):
+    """Local admin; independent from VPN configuration; applies on explicit restart."""
+    from pairing_server import manager_config_lock, _write_config
+    from windows_process import validate_process_inventory_timeout
+    import uuid
+    seconds = validate_process_inventory_timeout(seconds)
+    with manager_config_lock(config_file):
+        current = load_config(config_file)
+        if current.get("process_inventory_timeout_seconds") != expected:
+            raise ValueError("Process inventory timeout changed; reopen settings before saving")
+        if expected == seconds:
+            return
+        backup = config_file.parent / ("manager.pre-timeout-" + uuid.uuid4().hex + ".json")
+        with backup.open("xb") as stream:
+            stream.write(config_file.read_bytes())
+        current["process_inventory_timeout_seconds"] = seconds
+        _write_config(config_file, current, new=False)
+        if load_config(config_file).get("process_inventory_timeout_seconds") != seconds:
+            raise RuntimeError("Process inventory timeout readback mismatch")
+
+
+def open_network_settings(config_file):
+    """Local Windows desktop admin dialog; no web/remote administration API."""
+    import tkinter as tk
+    from tkinter import ttk, filedialog, messagebox
+    from pairing_server import _trusted_parent
+    import shutil
+    import uuid
+    import os
+    config_file = _trusted_parent(config_file)
+    config = load_config(config_file)
+    initial = config.get("vpn_listener")
+    saved = initial
+    existing = initial or {}
+    grant = existing.get("client", {})
+    root = tk.Tk()
+    root.title("Нейрополис Manager — Сеть и доступ")
+    root.minsize(660, 600)
+    frame = ttk.Frame(root, padding=16)
+    frame.pack(fill="both", expand=True)
+    frame.columnconfigure(1, weight=1)
+    ttk.Label(frame, text="Основное подключение (не изменяется): "
+              + config["bind_host"] + ":" + str(config["listen_port"])).grid(
+                  row=0, column=0, columnspan=3, sticky="w", pady=(0, 10))
+    enabled = tk.BooleanVar(value=existing.get("enabled", False))
+    ttk.Checkbutton(frame, text="Разрешить дополнительный VPN-вход",
+                    variable=enabled).grid(row=1, column=0, columnspan=3, sticky="w")
+    fields = {
+        "bind_host": tk.StringVar(value=existing.get("bind_host", "")),
+        "source_ip": tk.StringVar(value=existing.get("source_ip", "")),
+        "cert_file": tk.StringVar(value=existing.get("cert_file", "")),
+        "key_file": tk.StringVar(value=existing.get("key_file", "")),
+        "client_id": tk.StringVar(value=grant.get("client_id", "")),
+        "sha256": tk.StringVar(),
+        "slots": tk.StringVar(value=", ".join(grant.get("allowed_slots", []))),
+    }
+    names = [("bind_host", "Локальный VPN IP"), ("source_ip", "Разрешённый IP клиента"),
+             ("cert_file", "Публичный TLS-сертификат"), ("key_file", "Приватный TLS-ключ (файл)"),
+             ("client_id", "Отдельный Client ID"), ("sha256", "SHA-256 регистрации"),
+             ("slots", "Разрешённые slot ID (через запятую)")]
+    for row, (name, label) in enumerate(names, 2):
+        ttk.Label(frame, text=label).grid(row=row, column=0, sticky="w", pady=4)
+        ttk.Entry(frame, textvariable=fields[name], show="*" if name == "sha256" else "").grid(
+            row=row, column=1, sticky="ew", padx=8)
+        if name in ("cert_file", "key_file"):
+            def browse(field=name):
+                value = filedialog.askopenfilename(initialdir=config_file.parent,
+                            filetypes=[("PEM", "*.pem"), ("Все файлы", "*.*")])
+                if value:
+                    fields[field].set(value)
+            ttk.Button(frame, text="Выбрать…", command=browse).grid(row=row, column=2)
+    control = tk.BooleanVar(value=grant.get("control_models", False))
+    ttk.Checkbutton(frame, text="Разрешить запуск и остановку моделей (не администратор)",
+                    variable=control).grid(row=9, column=0, columnspan=3, sticky="w", pady=5)
+    ttk.Label(frame, text="Порт VPN совпадает с основным: " + str(config["listen_port"]) +
+              ". Один отдельный VPN-клиент; локальные права сохраняются.").grid(
+                  row=10, column=0, columnspan=3, sticky="w")
+    ttk.Label(frame, text="SHA-256 берётся из мастера регистрации Client. "
+              "Пустое поле сохраняет прежний SHA только для того же Client ID.").grid(
+                  row=11, column=0, columnspan=3, sticky="w")
+    from windows_process import DEFAULT_PROCESS_INVENTORY_TIMEOUT_SECONDS
+    saved_timeout = config.get("process_inventory_timeout_seconds")
+    timeout_value = tk.StringVar(value=str(saved_timeout if saved_timeout is not None
+                                           else DEFAULT_PROCESS_INVENTORY_TIMEOUT_SECONDS))
+    status = tk.StringVar(value="Сохранённые настройки; фактический VPN-доступ не проверен.")
+    ttk.Label(frame, textvariable=status, wraplength=740).grid(
+        row=15, column=0, columnspan=3, sticky="w", pady=10)
+
+    def draft():
+        cid = fields["client_id"].get().strip()
+        digest = fields["sha256"].get().strip().lower()
+        old_grant = (saved or {}).get("client", {})
+        if not digest and old_grant.get("client_id") == cid:
+            digest = old_grant.get("sha256", "")
+        return {"enabled": bool(enabled.get()), "bind_host": fields["bind_host"].get().strip(),
+                "source_ip": fields["source_ip"].get().strip(),
+                "cert_file": fields["cert_file"].get().strip(),
+                "key_file": fields["key_file"].get().strip(),
+                "client": {"client_id": cid, "sha256": digest,
+                           "allowed_slots": [v.strip() for v in fields["slots"].get().split(",") if v.strip()],
+                           "control_models": bool(control.get())}}
+
+    def guarded(action):
+        try:
+            action()
+        except (OSError, ValueError, RuntimeError, KeyError, TypeError, subprocess.SubprocessError) as error:
+            # Exception messages from external tools/credentials are not displayed.
+            messagebox.showerror("Настройка не выполнена", type(error).__name__ +
+                                 ": проверьте поля, права и файлы сертификата.")
+
+    def save_timeout():
+        nonlocal saved_timeout
+        seconds = int(timeout_value.get().strip())
+        if not messagebox.askyesno("Тайм-аут", "Сохранить лимит проверки процессов? "
+                "Действует после явного перезапуска Manager; VPN не изменяется."):
+            return
+        save_process_inventory_timeout(config_file, saved_timeout, seconds)
+        saved_timeout = seconds
+        timeout_value.set(str(seconds))
+        status.set("Тайм-аут сохранён (секунды); применяется после явного перезапуска Manager.")
+
+    ttk.Label(frame, text="PowerShell: проверка процессов, с (10–120)").grid(
+        row=14, column=0, sticky="w", pady=4)
+    ttk.Entry(frame, textvariable=timeout_value).grid(row=14, column=1, sticky="ew", padx=8)
+    ttk.Button(frame, text="Сохранить тайм-аут", command=lambda: guarded(save_timeout)).grid(
+        row=14, column=2)
+
+    def generate():
+        ip = _vpn_ip(fields["bind_host"].get().strip())
+        exe = shutil.which("openssl")
+        if not exe:
+            exe = filedialog.askopenfilename(title="Выберите доверенный openssl.exe",
+                                             filetypes=[("OpenSSL", "openssl.exe")])
+        if not exe:
+            return
+        if not messagebox.askyesno("Новый сертификат",
+              "Создать отдельный сертификат для " + ip + " в защищённой папке Manager?"):
+            return
+        ident = uuid.uuid4().hex
+        cert = config_file.parent / ("vpn-" + ident + ".cert.pem")
+        key = config_file.parent / ("vpn-" + ident + ".key.pem")
+        try:
+            subprocess.run([exe, "req", "-x509", "-newkey", "rsa:3072", "-nodes",
+                "-sha256", "-days", "365", "-subj", "/CN=" + ip,
+                "-addext", "subjectAltName=IP:" + ip,
+                "-addext", "extendedKeyUsage=serverAuth",
+                "-addext", "basicConstraints=critical,CA:FALSE",
+                "-keyout", str(key), "-out", str(cert)], check=True, timeout=35,
+                capture_output=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            vpn_tls_context({"bind_host": ip, "cert_file": str(cert), "key_file": str(key)}, config_file)
+        except BaseException:
+            cert.unlink(missing_ok=True)
+            key.unlink(missing_ok=True)
+            raise
+        fields["cert_file"].set(str(cert))
+        fields["key_file"].set(str(key))
+        status.set("Создан новый сертификат; настройки пока не сохранены.")
+    def export():
+        cert = _vpn_private_file(fields["cert_file"].get(), config_file)
+        # Export only a public certificate, never the private key.
+        pem = cert.read_text(encoding="ascii").strip()
+        if "PRIVATE KEY" in pem:
+            raise ValueError("Private key cannot be exported")
+        der = ssl.PEM_cert_to_DER_cert(pem)
+        dest = filedialog.asksaveasfilename(defaultextension=".pem",
+                   initialfile="manager-vpn.cert.pem", filetypes=[("PEM", "*.pem")])
+        if dest:
+            with Path(dest).open("x", encoding="ascii") as f:
+                f.write(pem + "\n")
+            status.set("Публичный сертификат экспортирован. SHA-256: " +
+                       hashlib.sha256(der).hexdigest())
+    def save():
+        nonlocal saved
+        if not enabled.get() and saved is None:
+            status.set("VPN отключён; изменений нет.")
+            return
+        new = draft()
+        if not enabled.get() and saved is not None:
+            new = {**saved, "enabled": False}
+        if not messagebox.askyesno("Сохранить",
+              "Сохранить настройки VPN? Для применения нужен явный перезапуск Manager после остановки моделей."):
+            return
+        save_vpn_settings(config_file, saved, new)
+        saved = new
+        fields["sha256"].set("")
+        status.set("Сохранено; защищённая резервная копия создана. "
+                   "Изменённый VPN-вход закрыт до явного перезапуска Manager.")
+    def inspect():
+        # Explicit one-shot native OS query, never in a polling loop.
+        if os.name != "nt":
+            status.set("Проверка слушателей доступна на Windows.")
+            return
+        command = ("$ErrorActionPreference='Stop'; "
+                   "@(Get-NetTCPConnection -State Listen -ErrorAction Stop | "
+                   "Select-Object LocalAddress,LocalPort,OwningProcess) | ConvertTo-Json -Compress")
+        result = subprocess.run([_POWERSHELL, "-NoProfile", "-NonInteractive", "-Command", command],
+                capture_output=True, text=True, timeout=12, check=True,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        rows = json.loads(result.stdout or "[]")
+        if isinstance(rows, dict):
+            rows = [rows]
+        if rows is None:
+            rows = []
+        primary = {r["OwningProcess"] for r in rows if
+                   r["LocalAddress"] == config["bind_host"] and r["LocalPort"] == config["listen_port"]}
+        vpn = {r["OwningProcess"] for r in rows if
+               r["LocalAddress"] == fields["bind_host"].get().strip() and
+               r["LocalPort"] == config["listen_port"]}
+        status.set("Основной TCP: " + ("есть" if primary else "нет") +
+                   "; VPN TCP того же процесса: " + ("есть" if primary & vpn else "нет") +
+                   ". TLS и авторизацию проверяйте с разрешённого Client.")
+    def firewall():
+        # Use the existing elevated Windows Firewall UI; no automatic broad rule.
+        ip, peer = _vpn_ip(fields["bind_host"].get().strip()), _vpn_ip(fields["source_ip"].get().strip())
+        if ip == peer:
+            raise ValueError("VPN peer equals local IP")
+        messagebox.showinfo("Брандмауэр Windows", "Создайте входящее правило TCP только для:\n"
+            + "Локальный IP: " + ip + "\nУдалённый IP: " + peer +
+            "\nЛокальный порт: " + str(config["listen_port"]) +
+            "\nПрограмма: python.exe, запускающий Manager.\nНе открывайте порт на роутере. "
+            "Проверьте, что нет более широкого разрешающего правила.")
+        if os.name == "nt":
+            subprocess.Popen(["mmc.exe", "wf.msc"], creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    buttons = ttk.Frame(frame)
+    buttons.grid(row=12, column=0, columnspan=3, sticky="w", pady=8)
+    for label, action in (("Создать TLS", generate), ("Экспорт публичного TLS", export),
+                          ("Сохранить", save), ("Проверить TCP", inspect),
+                          ("Брандмауэр", firewall)):
+        ttk.Button(buttons, text=label, command=lambda a=action: guarded(a)).pack(side="left", padx=3)
+    ttk.Label(frame, text="Не меняет WireGuard, основной адрес, историю или модели. "
+              "Не запускайте второй Manager.").grid(row=13, column=0, columnspan=3, sticky="w")
+    root.mainloop()
+
+
 def load_config(file: Path):
     raw = _read_json(file)
     if not isinstance(raw, dict):
         raise ValueError("Invalid config")
+    from windows_process import DEFAULT_PROCESS_INVENTORY_TIMEOUT_SECONDS, validate_process_inventory_timeout
+    validate_process_inventory_timeout(raw.get("process_inventory_timeout_seconds",
+                                               DEFAULT_PROCESS_INVENTORY_TIMEOUT_SECONDS))
     _text_id(raw.get("manager_id"), "manager_id")
     name = raw.get("display_name")
     if not isinstance(name, str) or not 1 <= len(name.strip()) <= 80:
@@ -226,6 +609,7 @@ def load_config(file: Path):
         allowed = client.get("allowed_slots")
         if not isinstance(allowed, list) or any(x not in known_ids for x in allowed):
             raise ValueError("Invalid client access list")
+    validate_vpn(raw, known_ids, clients)
     control = raw.get("control", {})
     if type(control) is not dict or type(control.get("owner_go", False)) is not bool:
         raise ValueError("Invalid control configuration")
@@ -516,7 +900,16 @@ def make_handler(config_file, config, inbox, *, controller=None):
             except (OSError, ValueError, TypeError):
                 self._reply(503, {"error": "configuration_unavailable"})
                 return None
-            if self.client_address[0] not in current["allowed_client_ips"]:
+            vpn = getattr(self.server, "vpn_listener", None)
+            if vpn is not None:
+                current = vpn_request_config(current, vpn, self.client_address[0])
+                if current is None:
+                    self._reply(403, {"error": "vpn_source_or_config_not_permitted"})
+                    return None
+                if self.path.startswith("/v1/pairing/"):
+                    self._reply(403, {"error": "vpn_local_registration_required"})
+                    return None
+            elif self.client_address[0] not in current["allowed_client_ips"]:
                 self._reply(403, {"error": "source_not_permitted"})
                 return None
             return controller.runtime_config(current)
@@ -911,6 +1304,68 @@ class ShortTimeoutManagerHTTPServer(ThreadingHTTPServer):
         return connection, address
 
 
+
+class VPNManagerHTTPServer(ShortTimeoutManagerHTTPServer):
+    """Separate socket, shared handler/controller, exact source before TLS."""
+    allow_reuse_address = False
+
+    def server_bind(self):
+        if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+    def __init__(self, address, handler, vpn, context):
+        self.vpn_listener = vpn
+        self.tls_context = context
+        super().__init__(address, handler)
+        self.daemon_threads = True
+        self.timeout = 0.5
+
+    def get_request(self):
+        connection, address = super().get_request()
+        try:
+            if address[0] != self.vpn_listener["source_ip"]:
+                raise PermissionError("VPN peer not permitted")
+            # Avoid blocking the listener on a slow TLS handshake.
+            return self.tls_context.wrap_socket(connection, server_side=True,
+                                do_handshake_on_connect=False), address
+        except BaseException:
+            connection.close()
+            raise
+
+
+def vpn_listener_loop(config_file, config, handler, stopped):
+    vpn = config.get("vpn_listener")
+    if not vpn or not vpn["enabled"]:
+        return
+    try:
+        context = vpn_tls_context(vpn, config_file)
+    except (OSError, ValueError, ssl.SSLError, subprocess.SubprocessError):
+        _LOG.warning("VPN TLS configuration unavailable; primary listener retained")
+        return
+    warned = False
+    while not stopped.is_set():
+        try:
+            server = VPNManagerHTTPServer((vpn["bind_host"], config["listen_port"]),
+                                          handler, vpn, context)
+        except OSError:
+            if not warned:
+                _LOG.warning("VPN listener unavailable; primary retained; retrying")
+                warned = True
+            stopped.wait(5)
+            continue
+        try:
+            _LOG.info("VPN listener active at %s:%d", vpn["bind_host"], config["listen_port"])
+            while not stopped.is_set():
+                server.handle_request()
+        except OSError:
+            _LOG.warning("VPN socket unavailable; primary retained")
+        finally:
+            server.server_close()
+        if stopped.wait(5):
+            return
+
+
 def run(config_file):
     config = load_config(config_file)
     inbox = PairingInbox()
@@ -931,10 +1386,17 @@ def run(config_file):
         watchdog = threading.Thread(target=controller.watchdog_loop, args=(stop_watchdog,),
                                     name="manager-watchdog", daemon=True)
         watchdog.start()
+    vpn_worker = None
+    if (config.get("vpn_listener") or {}).get("enabled"):
+        vpn_worker = threading.Thread(target=vpn_listener_loop,
+            args=(config_file, config, handler, stop_watchdog), name="manager-vpn", daemon=True)
+        vpn_worker.start()
     try:
         server.serve_forever(poll_interval=0.5)
     finally:
         stop_watchdog.set()
+        if vpn_worker is not None:
+            vpn_worker.join(timeout=8)
         if watchdog is not None:
             watchdog.join(timeout=8)
         server.server_close()
@@ -945,8 +1407,11 @@ if __name__ == "__main__":
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--log-dir", type=Path,
                         help="Existing ACL-protected directory outside Git")
-    parser.add_argument("--check-config", action="store_true",
-                        help="Validate the configuration without binding a port")
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument("--check-config", action="store_true",
+                       help="Validate the configuration without binding a port")
+    modes.add_argument("--network-settings", action="store_true",
+                       help="Open local owner-only network settings; no server start")
     args = parser.parse_args()
     log_handlers = []
     if args.log_dir:
@@ -966,6 +1431,10 @@ if __name__ == "__main__":
         config = load_config(args.config)
         if not Path(config["cert_file"]).is_file() or not Path(config["key_file"]).is_file():
             parser.error("Missing TLS certificate or key")
+        if (config.get("vpn_listener") or {}).get("enabled"):
+            vpn_tls_context(config["vpn_listener"], args.config)
         print("MANAGER_CONFIGURATION_OK")
+    elif args.network_settings:
+        open_network_settings(args.config)
     else:
         run(args.config)
