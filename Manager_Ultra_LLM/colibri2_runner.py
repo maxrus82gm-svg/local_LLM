@@ -37,7 +37,7 @@ import time
 import uuid
 
 from launch_contract import initial_instances, InstanceDefinition
-from cuda_profile import launch_values, placement_launch, eligible_devices, validate_gpu_ids
+from cuda_profile import launch_values, placement_launch, eligible_devices, validate_gpu_ids, reserve_plan
 from manager_core import SERVER, planned_paths, Slot
 from resource_catalog import initial_catalogue
 from server_preflight import (INSTALLATION_QUERY, PROJECT, probe_api, read_profiles,
@@ -180,6 +180,12 @@ def verify_review(plan):
                 ids=validate_gpu_ids(spec.resources["gpu_placement"])
                 eligible=eligible_devices(vram.get("devices"))
                 if any(i not in eligible for i in ids):raise ValueError("gpu_selection_unavailable")
+                profile = spec.review.get("launch", {}).get("cuda_profile") or {}
+                if "gpu_reserves_gib" in profile:
+                    cap = spec.resources.get("gpu_weight_cap_gib")
+                    current = reserve_plan(profile, eligible, ids)["gpu_weight_cap_gib"]
+                    if type(cap) not in (int, float) or not 0 < cap <= current:
+                        raise ValueError("gpu_reserve_insufficient")
             except ValueError as error:raise StartDenied(str(error)) from None
         # Do not deny based on the forecast; retain GPU presence and verified runtime.
 
@@ -526,6 +532,11 @@ def command_and_environment(plan):
             if setting("backend")!="cuda":raise StartDenied("invalid_cuda_profile")
             try:cuda_args,cuda_env=launch_values(launch["cuda_profile"])
             except ValueError:raise StartDenied("invalid_cuda_profile") from None
+            if "gpu_reserves_gib" in launch["cuda_profile"]:
+                cap = _SPEC.get().resources.get("gpu_weight_cap_gib")
+                if type(cap) not in (int, float) or not 0 < cap <= 1024:
+                    raise StartDenied("gpu_reserve_insufficient")
+                cuda_args = ["--vram", str(cap)]
             command.extend(cuda_args)
             env.update(cuda_env)
         placement=_SPEC.get().resources.get("gpu_placement")

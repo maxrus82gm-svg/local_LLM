@@ -70,6 +70,29 @@ class AdmissionTests(unittest.TestCase):
         self.operation("stop",instance_id=started["instance_id"]);self.settle()
         self.assertEqual(next(i for i in self.core.catalog(self.alice)["instances"] if i["instance_id"]==other["instance_id"])["state"],"READY")
 
+    def test_per_device_reserve_cap_is_bound_to_start_and_cli(self):
+        from test_multi_gpu import A,B,inventory,profile
+        self.config["control"]["resources"]={"allow_risk_ack":True}
+        original=self.backend.telemetry
+        self.backend.telemetry=lambda:{**original(),"gpu_devices":inventory()}
+        selection=self.operation("select",slot_id="slot2",model_key="kat",mode="cuda")
+        self.operation("cuda_settings",slot_id="slot2",model_key="kat",
+            expected_revision=selection["revision"],
+            cuda_profile={**profile("full",[A,B],20),"gpu_reserves_gib":{A:3,B:1}})
+        checked=self.operation("check",slot_id="slot2",model_key="kat",mode="cuda")
+        self.assertTrue(checked["requires_ack"])
+        self.assertIn("gpu_reserve_estimate_only",checked["warnings"])
+        self.assertEqual(checked["forecast"]["gpu_placement"]["gpu_weight_cap_gib"],4)
+        started=self.start(mode="cuda",slot_id="slot2",risk_ack=True,risk_token=checked["risk_token"])
+        self.assertEqual(started["gpu_placement"],[A,B])
+        with self.core.db() as db:
+            spec=RunnerSpec(**json.loads(self.core._rows(db)[0]["spec"]))
+        with configured(spec):
+            cmd,env=command_and_environment({"paths":paths(),"launcher":"launcher","model":"model"})
+        self.assertEqual(cmd[cmd.index("--vram")+1],"4.0")
+        self.assertEqual(env["CUDA_VISIBLE_DEVICES"],A+","+B)
+        self.assertEqual(spec.review["launch"]["cuda_profile"]["budget_gib"],20)
+
     def test_full_gpu_group_does_not_admit_overlapping_managed_launch(self):
         from test_multi_gpu import A,B,inventory,profile
         self.config["control"]["resources"]={"allow_risk_ack":True}
