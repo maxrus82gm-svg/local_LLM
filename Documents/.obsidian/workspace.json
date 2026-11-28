@@ -11,14 +11,17 @@
             "id": "b830a0ae8b2d0ac5",
             "type": "leaf",
             "state": {
-              "type": "markdown",
+              "type": "canvas",
               "state": {
-                "file": "00_Старт.md",
-                "mode": "source",
-                "source": false
+                "file": "Без названия 1.canvas",
+                "viewState": {
+                  "x": -12506.809068186898,
+                  "y": 1782.9189947969066,
+                  "zoom": -0.6666666666666665
+                }
               },
-              "icon": "lucide-file",
-              "title": "00_Старт"
+              "icon": "lucide-layout-dashboard",
+              "title": "Без названия 1"
             }
           }
         ]
@@ -187,6 +190,11 @@
   },
   "active": "b830a0ae8b2d0ac5",
   "lastOpenFiles": [
+    "Pasted image 20261127222749.png",
+    "Pasted image 20261127222729.png",
+    "2026-11-27.md",
+    "Без названия 1.canvas",
+    "00_Старт.md",
     "2026-11-25.md",
     "Без названия.canvas",
     "07_Задачи Codex.md",
@@ -223,8 +231,6 @@
     "19_Qwen3.6-35B-A3B.md",
     "Reports/QWEN38_COLIBRI_MENU_INTEGRATION_20261102.md",
     "Инструкция_GGUF_Ollama_Colibri_Qwen38_2026-11-01.md",
-    "Reports/KAT-Coder_MAYAK-47_R3_Старт.md",
-    "17.1_KAT-Coder-V2.5_кратко.md",
-    "Шаблон_карточки_теста.md"
+    "Reports/KAT-Coder_MAYAK-47_R3_Старт.md"
   ]
 }
